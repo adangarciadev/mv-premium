@@ -1,0 +1,140 @@
+/**
+ * Settings Schema - Zod validation for extension settings
+ *
+ * This schema provides:
+ * - Type-safe validation for all settings
+ * - Runtime validation for API keys, colors, etc.
+ * - Inferred TypeScript types from schema
+ */
+import { z } from 'zod'
+
+// =============================================================================
+// CUSTOM VALIDATORS
+// =============================================================================
+
+/** Validates a hex color string (e.g., #c9a227 or #fff) */
+const hexColorSchema = z
+	.string()
+	.regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Color hexadecimal inválido')
+	.or(z.literal('')) // Allow empty string
+
+/** Validates an API key (non-empty alphanumeric string or empty) */
+const apiKeySchema = z.string().max(100)
+
+/** Validates a positive integer for delays/intervals */
+const positiveIntSchema = z.number().int().min(0)
+
+// =============================================================================
+// AI MODEL SCHEMA
+// =============================================================================
+
+export const aiModelSchema = z.enum([
+	'gemini-2.5-flash',
+	'gemini-2.0-flash',
+	'gemini-1.5-flash',
+	'gemini-1.5-pro',
+])
+
+// =============================================================================
+// ULTRAWIDE MODE SCHEMA
+// =============================================================================
+
+/** Ultrawide mode levels for page width control */
+export const ultrawideSchema = z.enum(['off', 'wide', 'extra-wide', 'full'])
+export type UltrawideMode = z.infer<typeof ultrawideSchema>
+
+// =============================================================================
+// SETTINGS SCHEMA
+// =============================================================================
+
+export const settingsSchema = z.object({
+	// Theme & Appearance
+	theme: z.enum(['light', 'dark', 'system']).default('dark'),
+	boldColor: hexColorSchema.default('#c9a227'),
+	codeTheme: z.string().default('github-dark'),
+
+	// API Keys
+	imgbbApiKey: apiKeySchema.default(''),
+	tmdbApiKey: apiKeySchema.default(''),
+	giphyApiKey: apiKeySchema.default(''),
+
+	// AI Settings
+	geminiApiKey: apiKeySchema.default(''),
+	aiModel: aiModelSchema.default('gemini-2.5-flash'),
+
+	// Sync
+	syncEnabled: z.boolean().default(false),
+
+	// Feature Toggles - Navigation
+	infiniteScrollEnabled: z.boolean().default(false),
+	liveThreadEnabled: z.boolean().default(false),
+
+	// Feature Toggles - Users
+	mutedWordsEnabled: z.boolean().default(false),
+	mutedWords: z.array(z.string()).default([]),
+
+	// Privacy & Storage
+	enableActivityTracking: z.boolean().default(true),
+
+	// UI State
+	settingsActiveTab: z.string().default('integrations'),
+
+	// Layout
+	ultrawideMode: ultrawideSchema.default('off'),
+
+	// Advanced
+	debugMode: z.boolean().default(false),
+})
+
+// =============================================================================
+// INFERRED TYPES
+// =============================================================================
+
+/** Full settings object type (inferred from schema) */
+export type Settings = z.infer<typeof settingsSchema>
+
+/** Partial settings for updates */
+export type SettingsUpdate = Partial<Settings>
+
+/** Keys of settings (for selectors) */
+export type SettingsKey = keyof Settings
+
+// =============================================================================
+// VALIDATION HELPERS
+// =============================================================================
+
+/**
+ * Validates a partial settings object.
+ * Returns the validated data or throws on error.
+ */
+export function validateSettings(data: unknown): Settings {
+	return settingsSchema.parse(data)
+}
+
+/**
+ * Safely validates settings, returning null on error.
+ */
+export function safeValidateSettings(data: unknown): Settings | null {
+	const result = settingsSchema.safeParse(data)
+	return result.success ? result.data : null
+}
+
+/**
+ * Validates a single setting value.
+ */
+export function validateSettingValue<K extends SettingsKey>(
+	key: K,
+	value: unknown
+): Settings[K] | null {
+	const shape = settingsSchema.shape[key]
+	const result = shape.safeParse(value)
+	return result.success ? (result.data as Settings[K]) : null
+}
+
+/**
+ * Get default value for a specific setting
+ */
+export function getDefaultValue<K extends SettingsKey>(key: K): Settings[K] {
+	const defaults = settingsSchema.parse({})
+	return defaults[key]
+}

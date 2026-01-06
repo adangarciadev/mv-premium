@@ -1,0 +1,124 @@
+/**
+ * Messaging Protocol - Type-safe RPC between contexts
+ *
+ * Uses @webext-core/messaging for fully typed message passing
+ * between background, content scripts, popup, and options page.
+ *
+ * ARCHITECTURE: All network requests go through background script
+ * to avoid CORS issues and keep API keys secure.
+ *
+ * USAGE:
+ * - Background: Import `onMessage` and register handlers
+ * - Frontend: Import `sendMessage` to call background functions
+ */
+import { defineExtensionMessaging } from '@webext-core/messaging'
+import type { SteamGameDetails } from '@/services/api/steam'
+import type { ChatMessage, GeminiFunctionCall } from '@/types/ai'
+
+// =============================================================================
+// Response Types
+// =============================================================================
+
+export interface UploadResult {
+	success: boolean
+	url?: string
+	deleteUrl?: string
+	error?: string
+	/** Size in bytes (for stats tracking) */
+	size?: number
+}
+
+export interface GeminiResult {
+	success: boolean
+	text?: string
+	functionCalls?: GeminiFunctionCall[]
+	error?: string
+}
+
+// =============================================================================
+// Protocol Map - Define all RPC messages here
+// =============================================================================
+
+export interface AgentPageContext {
+	url: string
+	title: string
+	selection?: string
+	username?: string
+	threadId?: string
+}
+
+interface ProtocolMap {
+	/**
+	 * Get context from the active content script/tab
+	 */
+	getPageContext: () => AgentPageContext
+
+	/**
+	 * Open the options/dashboard page
+	 * @param view - Optional view path (e.g., 'drafts', 'settings')
+	 */
+	openOptionsPage: (view?: string) => void
+
+	/**
+	 * Fetch Steam game details (CORS proxy)
+	 * @param appId - Steam App ID
+	 * @returns Game details or null if not found
+	 */
+	fetchSteamGame: (appId: number) => SteamGameDetails | null
+
+	/**
+	 * Upload image to ImgBB via background script
+	 * Background reads API key and makes the POST request
+	 * @param data - Base64 image data and optional filename
+	 * @returns Upload result with URL or error
+	 */
+	uploadImageToImgbb: (data: { base64: string; fileName?: string }) => UploadResult
+
+	/**
+	 * Upload image to Catbox.moe via background script
+	 * No API key required - completely anonymous uploads
+	 * @param data - File blob and optional filename
+	 * @returns Upload result with URL or error
+	 */
+	uploadImageToCatbox: (data: { base64: string; fileName?: string }) => UploadResult
+
+	/**
+	 * Check if TMDB API key is configured in the background script
+	 * @returns true if API key is available (from .env or user config)
+	 */
+	hasTmdbApiKey: () => boolean
+
+	/**
+	 * Generic TMDB API request via background script
+	 * Background reads API key and proxies the request
+	 * @param data - Endpoint and query params
+	 * @returns JSON response from TMDB
+	 */
+	tmdbRequest: (data: { endpoint: string; params?: Record<string, string> }) => unknown
+
+	/**
+	 * Generate text or Function Calls with Gemini API via background script
+	 * Supports full chat history and tool definitions
+	 */
+	generateGemini: (data: {
+		apiKey: string
+		model: string
+		history?: ChatMessage[]
+		prompt?: string
+		tools?: unknown // Kept for API compatibility but not used
+	}) => GeminiResult
+
+	/**
+	 * Syntax highlight code using PrismJS in background script
+	 * Keeps the heavy Prism library out of the content script bundle
+	 * @param data - Code string and language identifier
+	 * @returns Highlighted HTML string
+	 */
+	highlightCode: (data: { code: string; language: string }) => string
+}
+
+// =============================================================================
+// Export typed messaging functions
+// =============================================================================
+
+export const { sendMessage, onMessage } = defineExtensionMessaging<ProtocolMap>()

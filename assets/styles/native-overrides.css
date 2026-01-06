@@ -1,0 +1,32 @@
+/**
+ * Native Overrides
+ * 
+ * Reverts Tailwind Preflight resets for native Mediavida elements that were negatively affected.
+ * Scoped specifically to avoid breaking the extension's own Shadcn components.
+ */
+
+/* 
+ * FIX: Native Selects
+ * Tailwind resets select appearance to 'none', creating invisible dropdowns on MV.
+ * We restore native behavior for any select that NOT part of our UI system.
+ */
+select:not([data-slot="native-select"]):not([class*="mvp-"]) {
+  appearance: auto !important;
+  background-color: canvas !important;
+  background-image: none !important;
+  color: canvastext !important;
+  border: 1px solid rgba(128, 128, 128, 0.4) !important;
+  border-radius: var(--radius, 4px) !important;
+  padding: 2px 4px !important;
+  margin: 0 !important;
+  font: inherit !important;
+}
+
+/* 
+ * FIX: Native Select Options
+ * Ensure options have readable text/background colors
+ */
+select:not([data-slot="native-select"]):not([class*="mvp-"]) option {
+  background-color: canvas !important;
+  color: canvastext !important;
+}

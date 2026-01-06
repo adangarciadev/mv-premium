@@ -1,0 +1,157 @@
+/**
+ * Editor Toolbar CSS
+ * 
+ * IMPORTANT: These styles use !important to override native Mediavida editor styles.
+ * This file is kept separate because the editor toolbar injects buttons into the native
+ * Mediavida DOM, requiring high specificity overrides that cannot be achieved with inline styles.
+ * 
+ * Selectors target all toolbar contexts:
+ * - .editor-controls: New thread/post creation
+ * - .editor-toolbar: Alternative toolbar class
+ * - .toolbar: Quick reply and other contexts
+ */
+
+/* Spacers - visible vertical line, manual centering for floated layout */
+.editor-controls .spacer,
+.editor-toolbar .spacer,
+.toolbar .spacer {
+	float: left !important;
+	display: block !important;
+	width: 1px !important;
+	height: 14px !important;
+	margin: 9px 6px 0 6px !important; /* (32px - 14px)/2 = 9px to center */
+	background-color: #71717a !important; /* zinc-500 */
+}
+
+/* Container for our injected button groups - align with floats */
+.editor-controls .mvp-toolbar-group,
+.editor-toolbar .mvp-toolbar-group,
+.toolbar .mvp-toolbar-group {
+	float: left !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	height: 32px !important; /* Explicit height to match buttons */
+}
+
+/* Our toolbar buttons - match native MV .btn styling exactly */
+.editor-controls .mvp-toolbar-btn,
+.editor-toolbar .mvp-toolbar-btn,
+.toolbar .mvp-toolbar-btn {
+	float: left !important; /* Ensure they behave like native buttons if floated */
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	width: auto !important;
+	min-width: 28px !important;
+	height: 100% !important; /* Full height to match native MV buttons */
+	margin: 0 !important;
+	padding: 0 6px !important;
+	background: transparent !important;
+	border: none !important;
+	border-radius: var(--radius, 3px) !important;
+	/* Near black color to match native MV icons */
+	color: #27272a !important; /* zinc-800 */
+	font-size: 14px !important;
+	line-height: 1 !important;
+	cursor: pointer !important;
+	transition: all 0.1s ease !important;
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+/* Hover - dark background, light icon ("se aclaren") */
+.editor-controls .mvp-toolbar-btn:hover,
+.editor-toolbar .mvp-toolbar-btn:hover,
+.toolbar .mvp-toolbar-btn:hover {
+	background-color: #3f3f46 !important; /* zinc-700 - dark background */
+	color: #ffffff !important; /* white icon - "se aclaren" */
+}
+
+.editor-controls .mvp-toolbar-btn:disabled,
+.editor-toolbar .mvp-toolbar-btn:disabled,
+.toolbar .mvp-toolbar-btn:disabled {
+	opacity: 0.4 !important;
+	cursor: not-allowed !important;
+}
+
+.editor-controls .mvp-toolbar-btn.active,
+.editor-toolbar .mvp-toolbar-btn.active,
+.toolbar .mvp-toolbar-btn.active {
+	background-color: rgba(99, 102, 241, 0.25) !important; /* indigo-500/25 - more visible */
+	color: #27272a !important; /* zinc-800 - dark color for visibility */
+}
+
+.editor-controls .mvp-toolbar-btn.active:hover,
+.editor-toolbar .mvp-toolbar-btn.active:hover,
+.toolbar .mvp-toolbar-btn.active:hover {
+	background-color: rgba(99, 102, 241, 0.35) !important; /* indigo-500/35 - more visible on hover */
+	color: #18181b !important; /* zinc-900 - even darker on hover */
+}
+
+/* FontAwesome icons - ensure vertical centering */
+.editor-controls .mvp-toolbar-btn i.fa,
+.editor-toolbar .mvp-toolbar-btn i.fa,
+.toolbar .mvp-toolbar-btn i.fa {
+	display: inline-block !important;
+	font-size: 14px !important;
+	line-height: 1 !important;
+	vertical-align: middle !important;
+}
+
+/* ============================================================
+   Native Mediavida toolbar buttons - apply consistent styling
+   ============================================================ */
+
+/* Base styles - match height and layout with our buttons */
+.editor-controls button:not(.mvp-toolbar-btn),
+.editor-toolbar button:not(.mvp-toolbar-btn),
+.toolbar button:not(.mvp-toolbar-btn) {
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	height: 100% !important; /* Full height to match our buttons */
+	min-width: 28px !important;
+	padding: 0 6px !important;
+	margin: 0 !important;
+	border: none !important;
+	background: transparent !important;
+	border-radius: var(--radius, 3px) !important;
+	transition: all 0.1s ease !important;
+	box-sizing: border-box !important;
+}
+
+/* Hover - dark background, light icon */
+.editor-controls button:not(.mvp-toolbar-btn):hover,
+.editor-toolbar button:not(.mvp-toolbar-btn):hover,
+.toolbar button:not(.mvp-toolbar-btn):hover {
+	background-color: #3f3f46 !important; /* zinc-700 - dark background */
+	color: #ffffff !important; /* white icon */
+}
+
+/* Force all child elements (icons, spans, etc.) to be white on hover */
+.editor-controls button:not(.mvp-toolbar-btn):hover *,
+.editor-toolbar button:not(.mvp-toolbar-btn):hover *,
+.toolbar button:not(.mvp-toolbar-btn):hover * {
+	color: #ffffff !important;
+	fill: #ffffff !important;
+	filter: brightness(0) invert(1) !important;
+}
+
+/* FontAwesome icons specifically */
+.editor-controls button:not(.mvp-toolbar-btn):hover i,
+.editor-controls button:not(.mvp-toolbar-btn):hover .fa,
+.editor-toolbar button:not(.mvp-toolbar-btn):hover i,
+.editor-toolbar button:not(.mvp-toolbar-btn):hover .fa,
+.toolbar button:not(.mvp-toolbar-btn):hover i,
+.toolbar button:not(.mvp-toolbar-btn):hover .fa {
+	color: #ffffff !important;
+}
+
+/* SVG icons */
+.editor-controls button:not(.mvp-toolbar-btn):hover svg,
+.editor-toolbar button:not(.mvp-toolbar-btn):hover svg,
+.toolbar button:not(.mvp-toolbar-btn):hover svg {
+	fill: #ffffff !important;
+	color: #ffffff !important;
+}
+

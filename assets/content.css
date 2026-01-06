@@ -1,0 +1,268 @@
+/**
+ * content.css - Punto de Entrada CSS para Content Scripts
+ * 
+ * ALCANCE: Estilos que se inyectan GLOBALMENTE en la página de Mediavida.
+ *          Estos estilos afectan directamente al DOM de la página host.
+ * 
+ * IMPORTADO POR: WXT automáticamente lo inyecta como cssInjectionMode en content scripts.
+ * 
+ * ARQUITECTURA DE IMPORTS:
+ * - app.css: Tailwind SIN preflight + animaciones + overrides globales
+ * - styles/editor-toolbar.css: Integración con toolbar nativo de MV
+ * - styles/native-overrides.css: Ajustes visuales específicos de MV
+ * - live-preview.css: Estilos del panel BBCode Live Preview
+ */
+
+@import './live-preview.css';
+@import './app.css';
+@import './styles/editor-toolbar.css';
+@import './styles/native-overrides.css';
+
+/* Muted Posts Feature */
+.mvp-muted-container {
+	color: transparent !important;
+	text-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+	user-select: none;
+	position: relative; /* Ensure overlay positioning context */
+	display: flow-root; /* Create BFC to respect avatar floats */
+	min-height: 100px; /* Ensure space for the button */
+	border-radius: var(--radius);
+	overflow: hidden;
+}
+
+/* Hide all direct children except the overlay completely */
+.mvp-muted-container > *:not(.mvp-muted-overlay) {
+	opacity: 0 !important;
+	visibility: hidden !important;
+	pointer-events: none !important;
+}
+
+/* Ensure the overlay is visible and functional */
+.mvp-muted-container > .mvp-muted-overlay {
+	opacity: 1 !important;
+	filter: none !important;
+	pointer-events: auto !important;
+	text-shadow: none !important;
+
+	/* Fill the entire container and center content */
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	z-index: 10;
+}
+
+@media (max-width: 768px) {
+	.mvp-muted-container > .mvp-muted-overlay {
+		padding-left: 0; /* Avatars usually move to top on mobile */
+	}
+}
+
+/* Muted Blockquotes (quoted content containing muted words) */
+.mvp-muted-quote {
+	position: relative !important;
+	min-height: 40px;
+}
+
+.mvp-muted-quote > *:not(.mvp-muted-overlay) {
+	opacity: 0.1 !important;
+	filter: blur(3px) !important;
+	pointer-events: none !important;
+}
+
+.mvp-muted-quote > .mvp-muted-overlay {
+	opacity: 1 !important;
+	filter: none !important;
+	pointer-events: auto !important;
+}
+
+/* =============================================================================
+ * Code Highlighting Theme Override (GitHub Dark)
+ * Forces our theme on native Mediavida previews to ensure consistency
+ * ============================================================================= */
+
+/* Base code block styling - matches GitHub Dark */
+#preview-contents pre.code,
+#preview-contents code[class*='language-'],
+#preview-contents pre > code,
+.post-contents pre.code,
+.post-contents code[class*='language-'],
+.post-contents pre > code,
+pre.code code,
+code[data-mvp-highlighted='true'] {
+	background: #0d1117 !important;
+	color: #c9d1d9 !important;
+	border-radius: var(--radius, 6px) !important;
+	font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace !important;
+	white-space: pre-wrap !important;
+	word-wrap: break-word !important;
+	display: block !important;
+	padding: 1rem !important;
+	margin: 0 !important;
+	font-size: 0.875rem !important;
+	line-height: 1.5 !important;
+}
+
+/* Pre wrapper - remove extra padding/margin */
+.post-contents pre.code,
+#preview-contents pre.code {
+	padding: 0 !important;
+	margin: 0.5rem 0 !important;
+	background: #0d1117 !important;
+	border-radius: var(--radius, 6px) !important;
+	overflow: hidden !important;
+}
+
+/* Syntax colors - GitHub Dark palette */
+#preview-contents .hljs-keyword,
+#preview-contents .hljs-selector-tag,
+#preview-contents .hljs-built_in,
+.post-contents .hljs-keyword,
+.post-contents .hljs-selector-tag,
+.post-contents .hljs-built_in {
+	color: #ff7b72 !important;
+}
+
+#preview-contents .hljs-string,
+#preview-contents .hljs-attr,
+.post-contents .hljs-string,
+.post-contents .hljs-attr {
+	color: #a5d6ff !important;
+}
+
+#preview-contents .hljs-function,
+#preview-contents .hljs-title,
+.post-contents .hljs-function,
+.post-contents .hljs-title {
+	color: #d2a8ff !important;
+}
+
+#preview-contents .hljs-comment,
+.post-contents .hljs-comment {
+	color: #8b949e !important;
+}
+
+#preview-contents .hljs-number,
+#preview-contents .hljs-literal,
+.post-contents .hljs-number,
+.post-contents .hljs-literal {
+	color: #79c0ff !important;
+}
+
+#preview-contents .hljs-variable,
+#preview-contents .hljs-params,
+.post-contents .hljs-variable,
+.post-contents .hljs-params {
+	color: #ffa657 !important;
+}
+
+/* =============================================================================
+ * Prism.js Token Styles (GitHub Dark theme)
+ * Used by our code highlighter in content scripts and live preview
+ * Applies globally to any .token elements on the page
+ * ============================================================================= */
+
+/* Comments */
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+	color: #8b949e !important;
+}
+
+/* Punctuation */
+.token.punctuation {
+	color: #c9d1d9 !important;
+}
+
+/* Namespace */
+.token.namespace {
+	opacity: 0.7;
+}
+
+/* Tags, properties, constants, symbols */
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted {
+	color: #ff7b72 !important;
+}
+
+/* Booleans and numbers */
+.token.boolean,
+.token.number {
+	color: #79c0ff !important;
+}
+
+/* Strings, selectors, attributes */
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+	color: #a5d6ff !important;
+}
+
+/* Operators, URLs, variables */
+.token.operator,
+.token.entity,
+.token.url,
+.token.variable {
+	color: #ffa657 !important;
+}
+
+/* Functions and class names */
+.token.atrule,
+.token.attr-value,
+.token.function,
+.token.class-name {
+	color: #d2a8ff !important;
+}
+
+/* Keywords */
+.token.keyword {
+	color: #ff7b72 !important;
+}
+
+/* Regex and important */
+.token.regex,
+.token.important {
+	color: #ffa657 !important;
+}
+
+/* Bold and italic */
+.token.important,
+.token.bold {
+	font-weight: bold;
+}
+
+.token.italic {
+	font-style: italic;
+}
+
+/* 
+ * Sonner Toast Global Fixes 
+ * Fixes the persistent line/border issue on the container (section/ol)
+ */
+section[aria-label^='Notifications'],
+[data-sonner-toaster],
+[data-sonner-toaster] ol {
+	border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+}
+
+/* Ensure no pseudo-elements are creating lines */
+section[aria-label^='Notifications']::before,
+section[aria-label^='Notifications']::after,
+[data-sonner-toaster]::before,
+[data-sonner-toaster]::after {
+	display: none !important;
+	content: none !important;
+	border: none !important;
+}

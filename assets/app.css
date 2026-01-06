@@ -1,0 +1,202 @@
+/**
+ * app.css - Global CSS Entry Point (NO PREFLIGHT)
+ *
+ * This file is injected GLOBALLY into the host page via content.css.
+ * It does NOT include Tailwind Preflight (base/reset) to avoid breaking native site styles.
+ *
+ * TAILWIND v3: Only components + utilities (no base/preflight)
+ * For Shadow DOM components (dialogs, panels), use shadow.css instead.
+ *
+ * IMPORTANT: CSS variables use hex colors to support the theme preset system.
+ */
+
+@import './theme.css';
+
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Variables for global scope - utilities can use these
+ * Using @layer components to ensure they are included in output
+ */
+@layer components {
+	:root {
+		--background: #ffffff;
+		--foreground: #0a0a0b;
+		--primary: #18181b;
+		--primary-foreground: #fafafa;
+		--muted: #f4f4f5;
+		--muted-foreground: #71717a;
+		--border: #e4e4e7;
+		--radius: 0.625rem;
+
+		/* Mediavida tokens */
+		--mv-bg-primary: #101213;
+		--mv-bg-secondary: #1c1f22;
+		--mv-bg-tertiary: #252c31;
+		--mv-bg-hover: #2f383e;
+		--mv-text-primary: #e7e9ea;
+		--mv-border: #30353a;
+		--mv-accent: #11a222;
+		--mv-blue: #5ca5ee;
+		--mv-orange: #fc8f22;
+		--mv-danger: #e02f2f;
+
+		--mvp-bold-color: #c9a227;
+	}
+
+	.dark {
+		--background: #09090b;
+		--foreground: #fafafa;
+		--primary: #fafafa;
+		--primary-foreground: #18181b;
+		--muted: #27272a;
+		--muted-foreground: #a1a1aa;
+		--border: #27272a;
+	}
+}
+
+/* ============================================================================
+   BOOKMARKS TABLE - Full Width Override
+   ============================================================================ */
+
+#mvp-bookmarks-manager {
+	width: 100% !important;
+	display: block !important;
+}
+
+#mvp-bookmarks-manager table {
+	width: 100% !important;
+	table-layout: fixed !important;
+}
+
+#mvp-bookmarks-manager td,
+#mvp-bookmarks-manager th {
+	overflow: hidden !important;
+	text-overflow: ellipsis !important;
+}
+
+/* ============================================================================
+   FEATURE ANIMATIONS
+   ============================================================================ */
+
+@keyframes mv-search-flash {
+	0% {
+		background-color: rgba(24, 24, 27, 0.3);
+		box-shadow: 0 0 0 4px var(--primary);
+	}
+	100% {
+		background-color: transparent;
+		box-shadow: none;
+	}
+}
+
+.mv-search-highlight {
+	animation: mv-search-flash 3s ease-out;
+}
+
+.mv-highlight-post {
+	animation: mv-pinned-glow 1s ease-out;
+}
+
+.mv-search-mark {
+	background-color: rgba(245, 158, 11, 0.3);
+	color: inherit;
+	padding-left: 0.125rem;
+	padding-right: 0.125rem;
+	border-radius: 0.125rem;
+}
+
+@keyframes badgePulse {
+	0%,
+	100% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.1);
+	}
+}
+
+/* ============================================================================
+   MEDIAVIDA GLOBAL OVERRIDES
+   ============================================================================ */
+
+.post-contents strong,
+.post-contents b,
+#cuerpo-mensaje strong,
+#cuerpo-mensaje b,
+.mensaje strong,
+.mensaje b {
+	color: var(--mvp-bold-color);
+}
+
+/* ============================================================================
+   TABLE STYLING (THEME SUPPORT)
+   Overrides Mediavida specific table classes (.agrup, .mv-table)
+   ============================================================================ */
+
+.agrup th,
+table.mv-table th {
+	background-color: var(--table-header) !important;
+	color: var(--table-header-foreground) !important;
+	border-color: var(--table-border) !important;
+}
+
+.agrup td,
+table.mv-table td {
+	background-color: var(--table-row) !important;
+	color: var(--table-row-foreground) !important;
+	border-color: var(--table-border) !important;
+}
+
+/* Filas alternas ("cebra") */
+.agrup tr:nth-child(even) td,
+table.mv-table tr:nth-child(even) td {
+	background-color: var(--table-row-alt) !important;
+}
+
+/* Links dentro de las tablas heredan el color de row foreground para legibilidad */
+.agrup td a,
+table.mv-table td a {
+	color: inherit;
+}
+
+/* ============================================================================
+   CODE BLOCK FLASH PREVENTION
+   Hide code until it's highlighted (by hljs OR our Prism highlighter)
+   ============================================================================ */
+
+/* Hide unhighlighted code blocks */
+pre.code code:not(.hljs):not([data-mvp-highlighted="true"]) {
+	visibility: hidden !important;
+}
+
+code[class*='language-']:not(.hljs):not([data-mvp-highlighted="true"]) {
+	visibility: hidden !important;
+}
+
+/* Show highlighted code (hljs or our Prism) */
+code.hljs,
+code[data-mvp-highlighted="true"] {
+	visibility: visible !important;
+}
+
+pre.code:has(code.hljs),
+pre.code:has(code[data-mvp-highlighted="true"]) {
+	position: relative;
+}
+@keyframes gradient-x {
+	0%, 100% {
+		background-size: 200% 200%;
+		background-position: left center;
+	}
+	50% {
+		background-size: 200% 200%;
+		background-position: right center;
+	}
+}
+
+.animate-gradient-x {
+	background-size: 200% 200%;
+	animation: gradient-x 3s ease infinite;
+}

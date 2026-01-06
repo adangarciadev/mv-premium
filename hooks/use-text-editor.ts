@@ -1,0 +1,244 @@
+/**
+ * useTextEditor - Core Text Editor Hook
+ *
+ * The "brain" of the editor system. Provides text manipulation,
+ * undo/redo history, and keyboard shortcuts.
+ *
+ * Supports two modes:
+ * - Controlled: Works with React state (value + onChange)
+ * - Ref: Works with HTMLTextAreaElement ref (for content scripts)
+ */
+import { useRef, useCallback, useEffect } from 'react'
+import type { ToolbarButtonConfig, KeyboardShortcut } from '@/types/editor'
+
+import { useEditorHistory } from './editor/use-editor-history'
+import { useEditorSelection } from './editor/use-editor-selection'
+import { useEditorShortcuts } from './editor/use-editor-shortcuts'
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface Selection {
+	text: string
+	start: number
+	end: number
+}
+
+interface UseTextEditorOptions {
+	/** Controlled mode: current value */
+	value?: string
+	/** Controlled mode: change handler */
+	onChange?: (value: string) => void
+	/** Ref mode: direct textarea reference */
+	textareaRef?: React.RefObject<HTMLTextAreaElement | null>
+	/** Enable keyboard shortcuts */
+	shortcuts?: boolean | KeyboardShortcut[]
+	/** Toolbar buttons for shortcut mapping */
+	buttons?: ToolbarButtonConfig[]
+	/** Maximum history entries */
+	maxHistory?: number
+	/** Callback when action is triggered (for dialog handling) */
+	onAction?: (actionId: string) => void
+}
+
+interface UseTextEditorReturn {
+	/** Insert text at cursor, processes {{cursor}} token */
+	insertAtCursor: (text: string) => void
+	/** Wrap selected text with prefix/suffix */
+	wrapSelection: (prefix: string, suffix: string) => void
+	/** Get current selection */
+	getSelection: () => Selection
+	/** Replace current selection with text */
+	replaceSelection: (text: string) => void
+	/** Undo last change */
+	undo: () => void
+	/** Redo last undone change */
+	redo: () => void
+	/** Check if undo is available */
+	canUndo: boolean
+	/** Check if redo is available */
+	canRedo: boolean
+	/** Execute a toolbar button action by ID */
+	executeAction: (buttonId: string) => void
+	/** Register the textarea (for controlled mode) */
+	registerTextarea: (el: HTMLTextAreaElement | null) => void
+	/** History stack for debugging */
+	historyLength: number
+}
+
+// ============================================================================
+// Hook Implementation
+// ============================================================================
+
+export function useTextEditor(options: UseTextEditorOptions = {}): UseTextEditorReturn {
+	const { value, onChange, textareaRef: externalRef, shortcuts = true, buttons = [], maxHistory, onAction } = options
+
+	// Internal ref for controlled mode
+	const internalRef = useRef<HTMLTextAreaElement | null>(null)
+
+	// Track if we're in a programmatic update (to avoid double history push)
+	const isProgrammaticRef = useRef(false)
+
+	// Get the active textarea
+	const getTextarea = useCallback((): HTMLTextAreaElement | null => {
+		return externalRef?.current ?? internalRef.current
+	}, [externalRef])
+
+	// Helper to get current value reliably
+	const getValue = useCallback((): string => {
+		const textarea = getTextarea()
+		if (value !== undefined) return value
+		return textarea ? textarea.value : ''
+	}, [getTextarea, value])
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Core Update Logic
+	// ──────────────────────────────────────────────────────────────────────────
+
+	const updateValue = useCallback(
+		(newValue: string, cursorPos?: number) => {
+			const textarea = getTextarea()
+			if (!textarea) return
+
+			isProgrammaticRef.current = true
+
+			if (onChange) {
+				// Controlled mode
+				onChange(newValue)
+				// Schedule cursor positioning after React update
+				requestAnimationFrame(() => {
+					if (cursorPos !== undefined && textarea) {
+						textarea.selectionStart = cursorPos
+						textarea.selectionEnd = cursorPos
+					}
+					textarea?.focus()
+					isProgrammaticRef.current = false
+				})
+			} else {
+				// Ref mode - direct DOM manipulation
+				textarea.value = newValue
+				if (cursorPos !== undefined) {
+					textarea.selectionStart = cursorPos
+					textarea.selectionEnd = cursorPos
+				}
+				textarea.dispatchEvent(new Event('input', { bubbles: true }))
+				textarea.dispatchEvent(new Event('change', { bubbles: true }))
+				textarea.focus()
+				isProgrammaticRef.current = false
+			}
+		},
+		[getTextarea, onChange]
+	)
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Sub-Hooks Composition
+	// ──────────────────────────────────────────────────────────────────────────
+
+	// 1. History Management
+	const { pushHistory, saveCurrentState, undo, redo, canUndo, canRedo, historyLength } = useEditorHistory({
+		maxHistory,
+		getTextarea,
+		getValue,
+		updateValue,
+	})
+
+	// 2. Selection & Text Manipulation
+	const { insertAtCursor, wrapSelection, replaceSelection, getSelection } = useEditorSelection({
+		getTextarea,
+		getValue,
+		updateValue,
+		saveCurrentState,
+	})
+
+	// 3. Action Execution
+	const executeAction = useCallback(
+		(buttonId: string) => {
+			const button = buttons.find(b => b.id === buttonId)
+			if (!button) {
+				// Handle built-in actions
+				if (buttonId === 'undo') {
+					undo()
+					return
+				}
+				if (buttonId === 'redo') {
+					redo()
+					return
+				}
+				return
+			}
+
+			const { action } = button
+
+			switch (action.type) {
+				case 'wrap':
+					wrapSelection(action.prefix, action.suffix)
+					break
+				case 'insert':
+					insertAtCursor(action.template)
+					break
+				case 'dialog':
+					// Delegate to parent via callback
+					onAction?.(action.dialogId)
+					break
+				case 'custom':
+					action.handler()
+					break
+			}
+		},
+		[buttons, wrapSelection, insertAtCursor, undo, redo, onAction]
+	)
+
+	// 4. Keyboard Shortcuts & Smart Lists
+	useEditorShortcuts({
+		shortcuts,
+		getTextarea,
+		getValue,
+		updateValue,
+		saveCurrentState,
+		executeAction,
+	})
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Track external changes for history
+	// ──────────────────────────────────────────────────────────────────────────
+
+	useEffect(() => {
+		const textarea = getTextarea()
+		if (!textarea) return
+
+		const handleInput = () => {
+			// Don't push history for programmatic changes (already handled)
+			if (isProgrammaticRef.current) return
+
+			// Push history for user typing
+			const content = textarea.value
+			pushHistory(content, textarea.selectionStart, textarea.selectionEnd)
+		}
+
+		textarea.addEventListener('input', handleInput)
+		return () => textarea.removeEventListener('input', handleInput)
+	}, [getTextarea, pushHistory])
+
+	// ──────────────────────────────────────────────────────────────────────────
+	// Register textarea callback (for controlled mode)
+	// ──────────────────────────────────────────────────────────────────────────
+
+	const registerTextarea = useCallback((el: HTMLTextAreaElement | null) => {
+		internalRef.current = el
+	}, [])
+
+	return {
+		insertAtCursor,
+		wrapSelection,
+		getSelection,
+		replaceSelection,
+		undo,
+		redo,
+		canUndo,
+		canRedo,
+		executeAction,
+		registerTextarea,
+		historyLength,
+	}
+}

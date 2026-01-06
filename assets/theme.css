@@ -1,0 +1,229 @@
+/**
+ * theme.css - Design Tokens (CSS Variables)
+ *
+ * SCOPE: Imported by app.css (global) for native Mediavida themes.
+ *        Shadow DOM uses shadow.css which has its own variables.
+ *
+ * NOTE: Tailwind v3 uses `var(--color)` directly in config, so all values
+ *       must be complete CSS colors (HEX format) - NOT bare HSL numbers.
+ */
+
+:root,
+:host {
+	/* --- Shadcn Core (Light Mode - Zinc Crisp) --- */
+	--background: #ffffff;
+	--foreground: #18181b;
+	--card: #ffffff;
+	--card-foreground: #18181b;
+	--popover: #ffffff;
+	--popover-foreground: #18181b;
+	--primary: #18181b;
+	--primary-foreground: #fafafa;
+	--secondary: #f4f4f5;
+	--secondary-foreground: #18181b;
+	--muted: #f4f4f5;
+	--muted-foreground: #71717a;
+	--accent: #f4f4f5;
+	--accent-foreground: #18181b;
+	--destructive: #dc2626;
+	--destructive-foreground: #ffffff;
+	--border: #e4e4e7;
+	--input: #e4e4e7;
+	--ring: #18181b;
+
+	/* --- Sidebar (Light) --- */
+	--sidebar: #fafafa;
+	--sidebar-foreground: #18181b;
+	--sidebar-primary: #18181b;
+	--sidebar-primary-foreground: #fafafa;
+	--sidebar-accent: #f4f4f5;
+	--sidebar-accent-foreground: #18181b;
+	--sidebar-border: #e4e4e7;
+	--sidebar-ring: #18181b;
+
+	/* --- Charts --- */
+	--chart-1: #c4b5fd;
+	--chart-2: #818cf8;
+	--chart-3: #7c3aed;
+	--chart-4: #6d28d9;
+	--chart-5: #5b21b6;
+
+	/* --- Config --- */
+	--radius: 0.625rem;
+
+	/* --- Font --- */
+	--font-sans: 'proxima-nova', 'Helvetica Neue', Arial, sans-serif;
+
+	/* --- Mediavida Base Tokens (fallback) --- */
+	--mv-bg-primary: #101213;
+	--mv-bg-secondary: #1c1f22;
+	--mv-bg-tertiary: #252c31;
+	--mv-bg-hover: #2f383e;
+	--mv-text-primary: #e7e9ea;
+	--mv-border: #30353a;
+	--mv-accent: #11a222;
+	--mv-blue: #5ca5ee;
+	--mv-orange: #fc8f22;
+	--mv-danger: #e02f2f;
+	
+	/* --- Extension-specific tokens --- */
+	--mvp-bold-color: #c9a227;
+
+	/* --- Table tokens (defaults, overridden by theme system) --- */
+	--table-header: #f4f4f5;
+	--table-header-foreground: #18181b;
+	--table-row: #ffffff;
+	--table-row-alt: #fafafa;
+	--table-row-foreground: #0a0a0b;
+	--table-border: #e4e4e7;
+}
+
+.dark,
+:host(.dark) {
+	/* --- Shadcn Core (Dark Mode - Modern Slate) --- */
+	--background: #0f172a;
+	--foreground: #f8fafc;
+	--card: #1e293b;
+	--card-foreground: #f8fafc;
+	--popover: #1e293b;
+	--popover-foreground: #f8fafc;
+	--primary: #f8fafc;
+	--primary-foreground: #0f172a;
+	--secondary: #334155;
+	--secondary-foreground: #f8fafc;
+	--muted: #2d3a4f;
+	--muted-foreground: #94a3b8;
+	--accent: #334155;
+	--accent-foreground: #f8fafc;
+	--destructive: #b91c1c;
+	--destructive-foreground: #fafafa;
+	--border: #3b4a5f;
+	--input: #3b4a5f;
+	--ring: #64748b;
+
+	/* --- Sidebar (Dark) --- */
+	--sidebar: #172033;
+	--sidebar-foreground: #f8fafc;
+	--sidebar-primary: #f8fafc;
+	--sidebar-primary-foreground: #0f172a;
+	--sidebar-accent: #334155;
+	--sidebar-accent-foreground: #f8fafc;
+	--sidebar-border: #3b4a5f;
+	--sidebar-ring: #64748b;
+
+	/* --- Table tokens (dark defaults, overridden by theme system) --- */
+	--table-header: #334155;
+	--table-header-foreground: #f8fafc;
+	--table-row: #0f172a;
+	--table-row-alt: #1e293b;
+	--table-row-foreground: #f8fafc;
+	--table-border: #3b4a5f;
+}
+
+/* --- Mediavida Native Theme (Opt-in) --- */
+:root.theme-mv,
+:host(.theme-mv) {
+	--background: #f0f9ff;
+	--foreground: #1c1f22;
+	--card: #ffffff;
+	--card-foreground: #1c1f22;
+	--popover: #ffffff;
+	--popover-foreground: #1c1f22;
+	--primary: #1c1f22; /* Reverted to Dark for maximum contrast in Light Mode */
+	--primary-foreground: #ffffff;
+	--secondary: #ecedef;
+	--secondary-foreground: #1c1f22;
+	--muted: #ecedef;
+	--muted-foreground: #787d82;
+	--accent: #ecedef;
+	--accent-foreground: #1c1f22;
+	--destructive: #f44336;
+	--destructive-foreground: #ffffff;
+	--border: #c8d5e0;
+	--input: #c8d5e0;
+	--ring: #1c1f22; /* Matches primary */
+
+	--sidebar: #ffffff;
+	--sidebar-foreground: #1c1f22;
+	--sidebar-primary: #1c1f22; /* Dark active state for light mode */
+	--sidebar-primary-foreground: #ffffff;
+	--sidebar-accent: #ecedef;
+	--sidebar-accent-foreground: #1c1f22;
+	--sidebar-border: #c8d5e0;
+	--sidebar-ring: #fc8f22;
+
+	--mv-bg-primary: #f9fcff;
+	--mv-bg-secondary: #ffffff;
+	--mv-bg-tertiary: #ecedef;
+	--mv-bg-hover: #f2f5f7;
+	--mv-text-primary: #1c1f22;
+	--mv-border: #d3dce4;
+	--mv-accent: #11a222;
+	--mv-blue: #5ca5ee;
+	--mv-orange: #fc8f22;
+	--mv-danger: #e02f2f;
+}
+
+:root.theme-mv.dark,
+:host(.theme-mv.dark) {
+	--background: #101213;
+	--foreground: #e2e5e7;
+	--card: #1c1f22;
+	--card-foreground: #e2e5e7;
+	--popover: #1c1f22;
+	--popover-foreground: #e2e5e7;
+	--primary: #fc8f22;
+	--primary-foreground: #0d0e0f;
+	--secondary: #252a2f;
+	--secondary-foreground: #e2e5e7;
+	--muted: #2e3438;
+	--muted-foreground: #8b9196;
+	--accent: #252a2f;
+	--accent-foreground: #fc8f22;
+	--destructive: #d43d2f;
+	--destructive-foreground: #0d0e0f;
+	--border: #30353a;
+	--input: #30353a;
+	--ring: #fc8f22;
+
+	--sidebar: #1c1f22;
+	--sidebar-foreground: #e2e5e7;
+	--sidebar-primary: #fc8f22;
+	--sidebar-primary-foreground: #0d0e0f;
+	--sidebar-accent: #252a2f;
+	--sidebar-accent-foreground: #e2e5e7;
+	--sidebar-border: #30353a;
+	--sidebar-ring: #fc8f22;
+
+	--mv-bg-primary: #101213;
+	--mv-bg-secondary: #1c1f22;
+	--mv-bg-tertiary: #252c31;
+	--mv-bg-hover: #2f383e;
+	--mv-text-primary: #e7e9ea;
+	--mv-border: #30353a;
+	--mv-accent: #11a222;
+	--mv-blue: #5ca5ee;
+	--mv-orange: #fc8f22;
+	--mv-danger: #e02f2f;
+}
+
+/* --- Custom Scrollbar Styles --- */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+::-webkit-scrollbar-thumb {
+	background-color: var(--muted-foreground);
+	border-radius: var(--radius, 4px);
+}
+::-webkit-scrollbar-thumb:hover {
+	background-color: var(--foreground);
+}
+
+.custom-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: var(--muted-foreground) transparent;
+}

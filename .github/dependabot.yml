@@ -1,0 +1,49 @@
+version: 2
+updates:
+  # NPM dependencies
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'saturday'
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: 'chore(deps)'
+    labels:
+      - 'dependencies'
+      - 'automated'
+    groups:
+      # Group all React-related updates together
+      react:
+        patterns:
+          - 'react*'
+          - '@types/react*'
+      # Group all Radix UI components
+      radix:
+        patterns:
+          - '@radix-ui/*'
+      # Group all testing tools
+      testing:
+        patterns:
+          - 'vitest*'
+          - '@vitest/*'
+          - '@testing-library/*'
+      # Group all build tools
+      build-tools:
+        patterns:
+          - 'wxt'
+          - 'vite*'
+          - 'typescript'
+          - 'tailwindcss'
+          - 'postcss*'
+
+  # GitHub Actions
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'monthly'
+    commit-message:
+      prefix: 'ci(deps)'
+    labels:
+      - 'ci'
+      - 'automated'

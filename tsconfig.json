@@ -1,0 +1,47 @@
+{
+	"include": [
+		"./entrypoints/**/*",
+		"./.wxt/**/*",
+		"./types/**/*",
+		"./services/**/*",
+		"./features/**/*",
+		"./store/**/*",
+		"./hooks/**/*",
+		"./providers/**/*",
+		"./components/**/*",
+		"./lib/**/*",
+		"./assets/**/*",
+		"./constants/**/*",
+		"./tests/**/*"
+	],
+	"extends": "./.wxt/tsconfig.json",
+	"compilerOptions": {
+		"allowImportingTsExtensions": true,
+		"noEmit": true,
+		"jsx": "react-jsx",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"target": "ES2020",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"resolveJsonModule": true,
+		"baseUrl": ".",
+		"paths": {
+			"@/*": ["./*"],
+			"@/components/*": ["./components/*"],
+			"@/lib/*": ["./lib/*"],
+			"@/hooks/*": ["./hooks/*"],
+			"@/types": ["./types/index.ts"],
+			"@/types/*": ["./types/*"],
+			"@/services": ["./services/index.ts"],
+			"@/services/*": ["./services/*"],
+			"@/features/*": ["./features/*"],
+			"@/store": ["./store/index.ts"],
+			"@/store/*": ["./store/*"],
+			"@/providers/*": ["./providers/*"],
+			"@/constants": ["./constants/index.ts"],
+			"@/constants/*": ["./constants/*"]
+		}
+	}
+}

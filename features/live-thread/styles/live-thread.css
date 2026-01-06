@@ -1,0 +1,534 @@
+/**
+ * Live Thread Styles
+ * Styles for the live thread mode feature
+ * These styles modify the native Mediavida editor when in live mode
+ */
+
+/* ============================================================================
+ * TRANSITION ANIMATIONS
+ * ============================================================================ */
+
+/* Fade out animation for transitioning to Live mode */
+@keyframes mvp-live-fade-out {
+	from {
+		opacity: 1;
+	}
+	to {
+		opacity: 0;
+	}
+}
+
+/* Fade in animation for Live mode content */
+@keyframes mvp-live-fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* Slide in animation for new posts */
+@keyframes mvp-live-slide-in {
+	from {
+		opacity: 0;
+		transform: translateY(-20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+/* Pulse animation for status indicator */
+@keyframes mvp-live-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+/* Posts container transitioning to Live mode */
+#posts-wrap.mvp-live-transitioning {
+	animation: mvp-live-fade-out 0.25s ease-out forwards;
+	pointer-events: none;
+}
+
+/* Posts container in Live mode ready state */
+#posts-wrap.mvp-live-ready {
+	animation: mvp-live-fade-in 0.35s ease-out forwards;
+}
+
+/* New post animation */
+.mvp-live-new-post {
+	animation: mvp-live-slide-in 0.6s ease-out;
+}
+
+/* Header slide-in animation */
+#mvp-live-main-container {
+	animation: mvp-live-fade-in 0.3s ease-out;
+}
+
+/* Hide pagination and bottom panel when Live mode is active */
+#mvp-live-main-container ~ #posts-wrap ~ #bottompanel,
+#mvp-live-main-container ~ #bottompanel,
+body:has(#mvp-live-main-container) #bottompanel,
+body:has(#mvp-live-main-container) .pg,
+body:has(#mvp-live-main-container) #bottompanel .pg,
+body:has(#mvp-live-main-container) #bottompanel a[href*='/responder'],
+body:has(#mvp-live-main-container) #bottompanel a.btn-primary {
+	display: none !important;
+}
+
+/* Hide native top border and headers that might look like a line */
+body:has(#mvp-live-main-container) #topic,
+body:has(#mvp-live-main-container) .block {
+	border-top: none !important;
+}
+
+/* Hide any HR or thin dividers that Mediavida uses above the posts wrap */
+body:has(#mvp-live-main-container) #posts-wrap > hr,
+body:has(#mvp-live-main-container) #posts-wrap > .hr,
+body:has(#mvp-live-main-container) #posts-wrap > .divider {
+	display: none !important;
+}
+
+#mvp-live-button-header {
+	display: inline-block;
+	margin-left: 15px;
+	vertical-align: middle;
+}
+
+/* Main container - holds header + editor */
+#mvp-live-main-container {
+	display: flex !important;
+	flex-direction: column !important;
+	position: relative !important;
+	z-index: var(--z-base, 1) !important;
+	width: 100% !important;
+	margin-bottom: 8px !important; /* Minimal gap from posts */
+	background: transparent !important;
+	min-height: auto !important;
+}
+
+/* Header UI container */
+#mvp-live-header-ui {
+	display: block !important;
+	flex-shrink: 0 !important;
+}
+
+/* Live header styling */
+.mvp-live-header {
+	border-radius: var(--radius, 8px) !important;
+	background: var(--card, #1a1a1b) !important;
+	border: 1px solid var(--border, rgba(255, 255, 255, 0.1)) !important;
+	transition: border-radius 0.2s ease;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: space-between !important;
+	padding: 10px 16px !important;
+}
+
+/* Status Section */
+.mvp-live-status {
+	display: flex !important;
+	align-items: center !important;
+	gap: 8px !important;
+}
+
+.mvp-live-dot {
+	width: 8px !important;
+	height: 8px !important;
+	border-radius: 50% !important;
+	background-color: #6b7280 !important; /* Default: Disconnected/Neutral */
+	transition: all 0.3s ease !important;
+}
+
+.mvp-live-dot.connected {
+	background-color: #22c55e !important;
+	box-shadow: 0 0 8px #22c55e !important;
+	animation: mvp-live-pulse 1.5s ease-in-out infinite !important;
+}
+
+.mvp-live-dot.error {
+	background-color: #ef4444 !important;
+	box-shadow: 0 0 8px #ef4444 !important;
+}
+
+.mvp-live-label {
+	color: #22c55e !important;
+	font-weight: bold !important;
+	font-size: 12px !important;
+	text-transform: uppercase !important;
+	letter-spacing: 0.05em !important;
+}
+
+/* Actions Section */
+.mvp-live-actions {
+	display: flex !important;
+	align-items: center !important;
+	gap: 8px !important;
+}
+
+.mvp-live-btn {
+	display: inline-flex !important;
+	align-items: center !important;
+	gap: 6px !important;
+	padding: 6px 12px !important;
+	border: none !important;
+	border-radius: calc(var(--radius, 6px) - 2px) !important;
+	cursor: pointer !important;
+	font-size: 13px !important;
+	font-weight: 500 !important;
+	transition: all 0.2s ease !important;
+}
+
+.mvp-live-btn.btn-active {
+	background: var(--secondary, #374151) !important;
+	color: var(--foreground, #fff) !important;
+}
+
+.mvp-live-btn.btn-primary {
+	background: var(--primary, #fc8f22) !important;
+	color: var(--primary-foreground, #fff) !important;
+}
+
+.mvp-live-btn.btn-primary:hover {
+	filter: brightness(1.1);
+}
+
+.mvp-live-btn.btn-ghost {
+	background: transparent !important;
+	border: 1px solid var(--border, rgba(255, 255, 255, 0.2)) !important;
+	color: var(--foreground, #e5e7eb) !important;
+}
+
+.mvp-live-btn.btn-ghost:hover {
+	background: var(--accent, rgba(255, 255, 255, 0.05)) !important;
+}
+
+/* Toggle Button (Injected in toolbar) */
+.mvp-live-toggle-btn {
+	background: var(--card, #1a1a1b) !important;
+	border: 1px solid var(--border, rgba(255, 255, 255, 0.15)) !important;
+	border-radius: var(--radius, 4px) !important;
+}
+
+.mvp-live-toggle-btn:hover {
+	background: var(--secondary, #242526) !important;
+}
+
+/* When editor is open, remove bottom border radius from header */
+.mvp-live-header.rounded-b-none {
+	border-bottom-left-radius: 0 !important;
+	border-bottom-right-radius: 0 !important;
+	border-bottom: none !important;
+}
+
+/* Editor wrapper with smooth height transition */
+#mvp-live-editor-wrapper {
+	display: grid !important;
+	grid-template-rows: 0fr;
+	width: 100% !important;
+	transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease;
+	opacity: 0;
+	pointer-events: none;
+	overflow: hidden;
+}
+
+#mvp-live-editor-wrapper.visible {
+	grid-template-rows: 1fr;
+	margin-bottom: 12px !important; /* Gap after open editor */
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/* Container inside the grid needs to be present */
+#mvp-live-editor-wrapper > div {
+	min-height: 0;
+}
+
+/* Editor container styling */
+#mvp-live-editor-wrapper #post-editor {
+	display: block !important;
+	position: relative !important;
+	float: none !important;
+	border-radius: 0 0 var(--radius, 8px) var(--radius, 8px) !important;
+	background: var(--card, #242526) !important;
+	border: 1px solid var(--border, rgba(255, 255, 255, 0.15)) !important;
+	border-top: none !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	overflow: visible !important;
+	clear: both !important;
+	height: auto !important;
+}
+
+/* Hide the placeholder text that overlays */
+#mvp-live-editor-wrapper #post-editor .placeholder,
+#mvp-live-editor-wrapper #post-editor .editor-placeholder,
+#mvp-live-editor-wrapper #post-editor .text-wrap > span,
+#mvp-live-editor-wrapper #post-editor .text-wrap > div:not(:first-child) {
+	display: none !important;
+}
+
+/* text-wrap container needs solid background */
+#mvp-live-editor-wrapper #post-editor .text-wrap {
+	display: block !important;
+	visibility: visible !important;
+	opacity: 1 !important;
+	height: auto !important;
+	background: var(--card, #1a1a1b) !important;
+	position: static !important;
+}
+
+/* Hide unwanted separators/spacers, titles, and native minimize toggle */
+#mvp-live-editor-wrapper #post-editor .spacer,
+#mvp-live-editor-wrapper #post-editor h2,
+#mvp-live-editor-wrapper #post-editor h1,
+#mvp-live-editor-wrapper #post-editor .control > *:not(.editor-body),
+#mvp-live-editor-wrapper #post-editor .control .close,
+#mvp-live-editor-wrapper #post-editor .control .minimize {
+	display: none !important;
+}
+
+/* Ensure the control container itself doesn't add any space */
+#mvp-live-editor-wrapper #post-editor .control {
+	padding: 0 !important;
+	margin: 0 !important;
+	height: auto !important;
+	min-height: 0 !important;
+}
+
+/* Make sure editor internals have no extra spacing */
+#mvp-live-editor-wrapper #post-editor .editor-body,
+#mvp-live-editor-wrapper #post-editor #postform {
+	display: block !important;
+	visibility: visible !important;
+	opacity: 1 !important;
+	height: auto !important;
+	background: var(--card, #242526) !important;
+	position: relative !important;
+	padding: 0 !important;
+	margin: 0 !important;
+}
+
+/* Toolbar styling */
+#mvp-live-editor-wrapper #post-editor .editor-controls {
+	display: flex !important;
+	flex-wrap: nowrap !important; /* Single line */
+	padding: 0 10px !important; /* No vertical padding, height 30px will center it */
+	background: var(--secondary, #2d2d2d) !important;
+	border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.1)) !important;
+	gap: 2px !important;
+	margin-top: 0 !important;
+	height: 30px !important; /* Strict height */
+	min-height: 30px !important;
+	align-items: center !important;
+	overflow-x: auto !important;
+	overflow-y: hidden !important;
+}
+
+/* Toolbar buttons - smaller in Live mode to fit in single line */
+#mvp-live-editor-wrapper #post-editor .editor-controls button,
+#mvp-live-editor-wrapper #post-editor .editor-controls .ddi {
+	color: var(--foreground, #e4e6eb) !important;
+	border-radius: var(--radius, 3px) !important;
+	width: 24px !important;
+	height: 24px !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	transition: background 0.15s ease !important;
+	flex-shrink: 0 !important;
+	background: transparent !important;
+}
+
+#mvp-live-editor-wrapper #post-editor .editor-controls button:hover,
+#mvp-live-editor-wrapper #post-editor .editor-controls .ddi:hover {
+	background: rgba(128, 128, 128, 0.25) !important;
+	color: var(--primary, #fc8f22) !important;
+}
+
+/* Force all children to take the theme color and REMOVE any native filters */
+#mvp-live-editor-wrapper #post-editor .editor-controls button:hover *,
+#mvp-live-editor-wrapper #post-editor .editor-controls .ddi:hover * {
+	color: var(--primary, #fc8f22) !important;
+	fill: var(--primary, #fc8f22) !important;
+	filter: none !important;
+	background: transparent !important;
+}
+
+/* Light mode overrides for contrast: use black/foreground instead of orange */
+.light #mvp-live-editor-wrapper #post-editor .editor-controls button,
+html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls button {
+	color: var(--foreground, #000000) !important;
+}
+
+.light #mvp-live-editor-wrapper #post-editor .editor-controls button:hover,
+html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls button:hover {
+	background: rgba(0, 0, 0, 0.1) !important;
+}
+
+.light #mvp-live-editor-wrapper #post-editor .editor-controls button:hover *,
+html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls button:hover * {
+	color: var(--foreground, #000000) !important;
+	fill: var(--foreground, #000000) !important;
+	filter: none !important;
+}
+
+/* Hide undo/redo buttons in Live mode - they appear incorrectly */
+#mvp-live-editor-wrapper #post-editor .editor-controls button[data-cmd='undo'],
+#mvp-live-editor-wrapper #post-editor .editor-controls button[data-cmd='redo'],
+#mvp-live-editor-wrapper #post-editor .editor-controls button[title*='Deshacer'],
+#mvp-live-editor-wrapper #post-editor .editor-controls button[title*='Rehacer'],
+#mvp-live-editor-wrapper #post-editor .editor-controls .fa-undo,
+#mvp-live-editor-wrapper #post-editor .editor-controls .fa-redo,
+#mvp-live-editor-wrapper #post-editor .editor-controls button:has(.fa-undo),
+#mvp-live-editor-wrapper #post-editor .editor-controls button:has(.fa-redo) {
+	display: none !important;
+}
+
+/* Icon sizing */
+#mvp-live-editor-wrapper #post-editor .editor-controls i,
+#mvp-live-editor-wrapper #post-editor .editor-controls svg {
+	color: inherit !important;
+	font-size: 12px !important;
+}
+
+/* Textarea */
+#mvp-live-editor-wrapper #post-editor #cuerpo {
+	display: block !important;
+	width: 100% !important;
+	min-height: 120px !important;
+	height: 120px !important;
+	padding: 12px !important;
+	background: var(--card, #1a1a1b) !important;
+	border: none !important;
+	resize: vertical !important;
+	color: var(--foreground, #e4e6eb) !important;
+	font-size: 14px !important;
+	outline: none !important;
+}
+
+#mvp-live-editor-wrapper #post-editor #cuerpo::placeholder {
+	color: var(--muted-foreground, #8a8d91) !important;
+}
+
+/* Custom Footer Styles */
+.mvp-live-footer {
+	display: flex !important;
+	align-items: center !important;
+	gap: 12px !important;
+	padding: 12px 16px !important;
+	background: var(--secondary, #2d2d2d) !important;
+	border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1)) !important;
+	border-radius: 0 0 var(--radius, 8px) var(--radius, 8px) !important;
+	width: 100% !important;
+	box-sizing: border-box !important;
+	margin-top: 0 !important;
+	flex-wrap: wrap !important;
+}
+
+/* Default Order: Push everything (Checkboxes, Labels) to LEFT */
+.mvp-live-footer > * {
+	order: 1 !important;
+	margin-right: 8px !important;
+}
+
+/* Hide native footer */
+#mvp-live-editor-wrapper #post-editor .editor-meta {
+	display: none !important;
+}
+
+/* HIDE DUPLICATES: Any native link that isn't ours */
+.mvp-live-footer a:not(.mvp-live-link-extended) {
+	display: none !important;
+	visibility: hidden !important;
+	width: 0 !important;
+	height: 0 !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	pointer-events: none !important;
+}
+
+/* Moved Native Submit Button (Enviar) */
+/* Custom Submit Button */
+.mvp-live-footer .mvp-live-btn-submit {
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	background: var(--primary, #fc8f22) !important;
+	color: var(--primary-foreground, #fff) !important;
+	border: none !important;
+	padding: 6px 16px !important;
+	border-radius: calc(var(--radius, 6px) - 2px) !important;
+	font-weight: 500 !important; /* Removed bold */
+	cursor: pointer !important;
+	transition: all 0.2s !important;
+	font-size: 13px !important;
+	margin: 0 !important;
+	line-height: normal !important;
+	height: 32px !important; /* Smaller height */
+	order: 100 !important; /* Always last */
+}
+
+.mvp-live-footer .mvp-live-btn-submit:hover {
+	filter: brightness(1.1);
+}
+
+/* Ensure native submit is hidden if we missed it in JS */
+.mvp-live-footer input[type='submit'][value='Enviar'] {
+	display: none !important;
+}
+
+/* Moved Checkboxes & Labels (Guardar borrador, Favoritos) */
+.mvp-live-footer label {
+	display: inline-flex !important;
+	align-items: center !important;
+	gap: 6px !important;
+	color: var(--muted-foreground, #9ca3af) !important;
+	cursor: pointer !important;
+	font-size: 13px !important;
+}
+
+.mvp-live-footer label:hover {
+	color: var(--foreground, #e5e7eb) !important;
+}
+
+.mvp-live-footer input[type='checkbox'] {
+	margin: 0 !important;
+	cursor: pointer !important;
+	accent-color: var(--primary, #fc8f22) !important;
+}
+
+/* Custom Extended Editor Link */
+.mvp-live-footer .mvp-live-link-extended {
+	color: var(--muted-foreground, #9ca3af) !important;
+	font-size: 13px !important;
+	text-decoration: none !important;
+	margin-left: auto !important;
+	display: flex !important;
+	align-items: center !important;
+	gap: 4px !important;
+	order: 50 !important;
+	padding: 6px 12px !important;
+	border-radius: var(--radius, 4px) !important;
+}
+
+.mvp-live-footer .mvp-live-link-extended:hover {
+	color: var(--foreground, #fff) !important;
+	background: var(--accent, rgba(255, 255, 255, 0.05)) !important;
+}
+
+/* Hide emoji picker unless explicitly shown */
+#mvp-live-editor-wrapper #post-editor .emoji-wrap.hidden {
+	display: none !important;
+}

@@ -1,0 +1,275 @@
+/**
+ * shadow.css - Styles for Shadow DOM components
+ *
+ * SCOPE: Only applies within <ShadowWrapper> components
+ * TAILWIND v3: Full base + components + utilities with Shadcn variables
+ *
+ * IMPORTANT: CSS variables are defined AFTER Tailwind directives and OUTSIDE
+ * @layer to ensure they have higher specificity and override any defaults.
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+ * CSS Variables - Defined OUTSIDE @layer for highest specificity.
+ * These must come AFTER @tailwind directives to override any defaults.
+ */
+
+/* Light Mode (Default) */
+:root,
+:host {
+	/* --- Shadcn Core (Light Mode - Zinc Crisp) --- */
+	--background: #ffffff;
+	--foreground: #0a0a0b;
+	--card: #ffffff;
+	--card-foreground: #0a0a0b;
+	--popover: #ffffff;
+	--popover-foreground: #0a0a0b;
+	--primary: #18181b;
+	--primary-foreground: #fafafa;
+	--secondary: #f4f4f5;
+	--secondary-foreground: #18181b;
+	--muted: #f4f4f5;
+	--muted-foreground: #71717a;
+	--accent: #f4f4f5;
+	--accent-foreground: #18181b;
+	--destructive: #dc2626;
+	--destructive-foreground: #ffffff;
+	--border: #e4e4e7;
+	--input: #e4e4e7;
+	--ring: #18181b;
+
+	/* --- Sidebar (Light) --- */
+	--sidebar: #fafafa;
+	--sidebar-foreground: #18181b;
+	--sidebar-primary: #18181b;
+	--sidebar-primary-foreground: #fafafa;
+	--sidebar-accent: #f4f4f5;
+	--sidebar-accent-foreground: #18181b;
+	--sidebar-border: #e4e4e7;
+	--sidebar-ring: #18181b;
+
+	/* --- Charts --- */
+	--chart-1: #8b5cf6;
+	--chart-2: #3b82f6;
+	--chart-3: #06b6d4;
+	--chart-4: #10b981;
+	--chart-5: #f59e0b;
+
+	/* --- Config --- */
+	--radius: 0.625rem;
+
+	/* --- Font --- */
+	--font-sans: 'proxima-nova', 'Helvetica Neue', Arial, sans-serif;
+
+	/* --- Mediavida Base Tokens --- */
+	--mv-bg-primary: #101213;
+	--mv-bg-secondary: #1c1f22;
+	--mv-bg-tertiary: #252c31;
+	--mv-bg-hover: #2f383e;
+	--mv-text-primary: #e7e9ea;
+	--mv-border: #30353a;
+	--mv-accent: #11a222;
+	--mv-blue: #5ca5ee;
+	--mv-orange: #fc8f22;
+	--mv-danger: #e02f2f;
+
+	/* --- Extension-specific --- */
+	--mvp-bold-color: #c9a227;
+
+	/* --- Table tokens (defaults, overridden by theme system) --- */
+	--table-header: #f4f4f5;
+	--table-header-foreground: #18181b;
+	--table-row: #ffffff;
+	--table-row-alt: #fafafa;
+	--table-row-foreground: #0a0a0b;
+	--table-border: #e4e4e7;
+}
+
+/* 
+ * Dark Mode variables are NOT defined here.
+ * They are injected dynamically by the theme system (lib/theme/injector.ts)
+ * This eliminates specificity conflicts between base and dynamic CSS.
+ */
+
+/* Shadow DOM host defaults */
+:host {
+	display: block;
+	font-family: var(--font-sans);
+	color: var(--foreground);
+}
+
+/* Dark/Light mode color schemes */
+:host(.dark),
+.dark {
+	color-scheme: dark;
+}
+
+:host(.light),
+.light {
+	color-scheme: light;
+}
+
+/* 
+ * Light Mode variables for .light class
+ * These ensure light mode colors cascade to all children in Shadow DOM
+ * Using !important to override any dynamic injections
+ */
+.light {
+	--background: #ffffff !important;
+	--foreground: #0a0a0b !important;
+	--card: #ffffff !important;
+	--card-foreground: #0a0a0b !important;
+	--popover: #ffffff !important;
+	--popover-foreground: #0a0a0b !important;
+	--primary: #18181b !important;
+	--primary-foreground: #fafafa !important;
+	--secondary: #f4f4f5 !important;
+	--secondary-foreground: #18181b !important;
+	--muted: #f4f4f5 !important;
+	--muted-foreground: #71717a !important;
+	--accent: #f4f4f5 !important;
+	--accent-foreground: #18181b !important;
+	--destructive: #dc2626 !important;
+	--destructive-foreground: #ffffff !important;
+	--border: #e4e4e7 !important;
+	--input: #e4e4e7 !important;
+	--ring: #18181b !important;
+	--sidebar: #fafafa !important;
+	--sidebar-foreground: #18181b !important;
+	--sidebar-primary: #18181b !important;
+	--sidebar-primary-foreground: #fafafa !important;
+	--sidebar-accent: #f4f4f5 !important;
+	--sidebar-accent-foreground: #18181b !important;
+	--sidebar-border: #e4e4e7 !important;
+	--sidebar-ring: #18181b !important;
+}
+
+/*
+ * Border Color Fix for Tailwind v3
+ * Tailwind's preflight sets a default border-color that may override our variables.
+ * These aggressive overrides ensure our theme colors apply.
+ */
+.border-border {
+	border-color: var(--border) !important;
+}
+
+/* Override Tailwind's default border color in dark mode */
+.dark *,
+:host(.dark) *,
+:host .dark * {
+	border-color: var(--border);
+}
+
+/* Explicit border utility overrides */
+.dark .border,
+.dark [class*='border-'] {
+	border-color: var(--border);
+}
+
+/* Reset any inherited border colors */
+.dark .border-border,
+:host(.dark) .border-border {
+	border-color: var(--border) !important;
+}
+
+/* Cursor reset for interactive elements */
+:host button,
+:host [role='button'],
+:host input:where([type='button'], [type='submit'], [type='reset'], [type='checkbox'], [type='radio']),
+:host select,
+:host [data-slot='checkbox'],
+:host label:has(input:where([type='checkbox'], [type='radio'])) {
+	cursor: pointer;
+}
+
+/* Table layout fixes */
+table[data-slot='table'] {
+	width: 100% !important;
+	table-layout: fixed !important;
+}
+
+td[data-slot='table-cell'],
+th[data-slot='table-head'] {
+	overflow: hidden !important;
+	text-overflow: ellipsis !important;
+}
+
+/* Antialiased text */
+.antialiased {
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+/* Custom scrollbar */
+*::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+	background-color: var(--mv-border);
+	border-radius: var(--radius, 3px);
+}
+*::-webkit-scrollbar-thumb:hover {
+	background-color: var(--muted-foreground);
+}
+
+/*
+ * Table Class Utilities
+ * Use CSS variables from the dynamic theme system (injected by lib/theme/injector.ts)
+ */
+.bg-table {
+	background-color: var(--table-row) !important;
+}
+.bg-table-header {
+	background-color: var(--table-header) !important;
+}
+.bg-table-row {
+	background-color: var(--table-row) !important;
+}
+.hover\:bg-table-row-hover:hover,
+.hover\:bg-table-row-hover\!:hover {
+	background-color: var(--table-row-alt) !important;
+}
+.data-\[state\=selected\]\:bg-table-row-selected\![data-state='selected'] {
+	background-color: var(--table-row-alt) !important;
+}
+.border-table-border {
+	border-color: var(--table-border) !important;
+}
+
+/* 
+ * Sonner Toast Fixes
+ * Prevents ghost borders and ensures smooth exit animations
+ */
+[data-sonner-toaster],
+[data-sonner-toaster] ol {
+	border: none !important;
+	outline: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+}
+
+[data-sonner-toast] {
+	--normal-border: var(--border) !important;
+	border: 1px solid var(--border) !important;
+	background: var(--popover) !important;
+	color: var(--popover-foreground) !important;
+	border-radius: var(--radius) !important;
+	outline: none !important;
+}
+
+[data-sonner-toast][data-mounted='false'] {
+	border: none !important;
+	box-shadow: none !important;
+	background: transparent !important;
+	opacity: 0 !important;
+	transition: opacity 0.15s ease, transform 0.15s ease !important;
+	pointer-events: none !important;
+}

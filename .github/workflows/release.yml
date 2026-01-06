@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test -- --run
+
+      - name: Build for Chrome
+        run: npm run build:chrome
+
+      - name: Build for Firefox
+        run: npm run build:firefox
+
+      - name: Zip Chrome extension
+        run: |
+          cd .output/chrome-mv3
+          zip -r ../../mv-premium-chrome-${{ github.ref_name }}.zip .
+
+      - name: Zip Firefox extension
+        run: |
+          cd .output/firefox-mv3
+          zip -r ../../mv-premium-firefox-${{ github.ref_name }}.zip .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            mv-premium-chrome-${{ github.ref_name }}.zip
+            mv-premium-firefox-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Optional: Auto-publish to Chrome Web Store
+  # Requires: CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN secrets
+  publish-chrome:
+    name: Publish to Chrome Web Store
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    if: ${{ !contains(github.ref, 'beta') && !contains(github.ref, 'alpha') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for Chrome
+        run: npm run build:chrome
+
+      - name: Zip Chrome extension
+        run: |
+          cd .output/chrome-mv3
+          zip -r ../../extension.zip .
+
+      - name: Upload to Chrome Web Store
+        uses: mnao305/chrome-extension-upload@v5.0.0
+        with:
+          file-path: extension.zip
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CWS_CLIENT_ID }}
+          client-secret: ${{ secrets.CWS_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CWS_REFRESH_TOKEN }}
+          # publish: true  # Uncomment to auto-publish after upload
+
+  # Optional: Auto-publish to Firefox Add-ons
+  # Requires: FIREFOX_API_KEY, FIREFOX_API_SECRET secrets
+  publish-firefox:
+    name: Publish to Firefox Add-ons
+    runs-on: ubuntu-latest
+    needs: build-and-release
+    if: ${{ !contains(github.ref, 'beta') && !contains(github.ref, 'alpha') }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for Firefox
+        run: npm run build:firefox
+
+      - name: Zip Firefox extension
+        run: |
+          cd .output/firefox-mv3
+          zip -r ../../extension.zip .
+
+      - name: Upload to Firefox Add-ons
+        uses: yayuyokitano/firefox-addon@v0.0.6-alpha
+        with:
+          api_key: ${{ secrets.FIREFOX_API_KEY }}
+          api_secret: ${{ secrets.FIREFOX_API_SECRET }}
+          guid: ${{ secrets.FIREFOX_ADDON_GUID }}
+          xpi_path: extension.zip
+          # src_path: .  # Uncomment to include source code for review

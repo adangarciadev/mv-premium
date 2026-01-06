@@ -1,0 +1,255 @@
+/**
+ * live-preview.css - Estilos del Panel de Vista Previa BBCode
+ * 
+ * ALCANCE: Ventana flotante (.mv-live-preview) inyectada en la página global.
+ *          No usa Shadow DOM, se aplica directamente al elemento del preview.
+ * 
+ * IMPORTADO POR: content.css (cargado en content scripts)
+ * 
+ * NOTA: Estos estilos NO usan Tailwind. Son CSS vanilla para evitar conflictos
+ *       con los estilos nativos de Mediavida y mantener el preview ligero.
+ */
+
+/* =========================================
+   RESET DEL MODELO DE CAJA (CRUCIAL)
+   Esto evita que el padding deforme la ventana
+   ========================================= */
+.mv-live-preview,
+.mv-live-preview * {
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
+}
+
+/* =========================================
+   CONTENEDOR PRINCIPAL
+   ========================================= */
+.mv-live-preview {
+	position: fixed;
+
+	/* POSICIÓN: Controlada por JS usando left/top */
+	top: 100px;
+	left: 20px;
+	right: auto;
+	bottom: auto;
+	margin: 0;
+	transform: none;
+
+	/* TAMAÑO: 720px = ancho exacto de div.popup.post en MV */
+	width: 720px;
+	max-width: calc(100vw - 20px); /* Margen de seguridad en pantallas peques */
+	max-height: 85vh; /* Altura máxima dinámica */
+	display: flex;
+	flex-direction: column;
+	background: #1a1a1b;
+	border: 1px solid #343536;
+	border-radius: var(--radius, 8px);
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+	z-index: 999999; /* Z-index muy alto para estar encima de todo */
+
+	/* Imprescindible para que el arrastre sea cómodo */
+	user-select: none;
+}
+
+/* Estado mientras arrastras */
+.mv-live-preview--dragging {
+	cursor: grabbing;
+	opacity: 0.95;
+	/* Aseguramos que nada interfiera durante el arrastre */
+	transition: none !important;
+}
+
+/* Botón de cerrar */
+.mv-live-preview__close {
+	position: absolute;
+	top: 6px;
+	right: 6px;
+	width: 24px;
+	height: 24px;
+	border-radius: var(--radius, 4px);
+	border: none;
+	background: transparent;
+	color: #888;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 20;
+}
+
+.mv-live-preview__close:hover {
+	background: rgba(255, 255, 255, 0.1);
+	color: #fff;
+}
+
+/* =========================================
+   CONTENIDO INTERNO
+   ========================================= */
+.mv-live-preview__content {
+	/* Flex: 1 hace que ocupe todo el espacio disponible menos el borde */
+	flex: 1;
+	padding: 16px;
+	overflow-y: auto; /* Scroll aquí dentro */
+
+	color: #e8e8e8; /* Color base de texto más claro */
+	font-size: 14px;
+	line-height: 1.5;
+
+	/* Habilita seleccionar texto dentro del preview */
+	cursor: text;
+	user-select: text;
+
+	/* Evita desbordamiento horizontal */
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+}
+
+.mv-live-preview__content p {
+	margin: 0 0 0.8em 0;
+}
+
+/* LISTAS:
+   NOTA: Si tu JS no convierte los guiones "-" en etiquetas <ul><li>,
+   esto no mostrará puntitos. Pero si el HTML es correcto, esto lo estiliza. */
+.mv-live-preview__content ul,
+.mv-live-preview__content ol {
+	margin: 10px 0 10px 24px;
+	padding: 0;
+}
+.mv-live-preview__content ul {
+	list-style-type: disc;
+}
+.mv-live-preview__content ol {
+	list-style-type: decimal;
+}
+.mv-live-preview__content li {
+	margin-bottom: 4px;
+}
+
+/* ENLACES (Solo Naranja) */
+.mv-live-preview__content a {
+	color: #fc8f22;
+	text-decoration: none;
+	cursor: pointer;
+}
+.mv-live-preview__content a:hover {
+	text-decoration: underline;
+}
+
+/* TÍTULOS */
+.mv-live-preview__content h2 {
+	font-size: 1.4em;
+	font-weight: 600;
+	color: #fff;
+	margin: 0.8em 0 0.4em;
+	border-bottom: 1px solid #343536;
+	padding-bottom: 4px;
+}
+.mv-live-preview__content h3 {
+	font-size: 1.2em;
+	font-weight: 600;
+	color: #eee;
+	margin: 0.6em 0 0.3em;
+}
+
+/* BARRAS DE TÍTULO (Estilo MV) */
+.mv-live-preview__content h3.bar {
+	background: none;
+	color: #e8e8e8;
+	padding: 4px 0;
+	font-weight: 600;
+	text-transform: uppercase;
+	font-size: 13px;
+	border-bottom: 2px solid #c63;
+	border-radius: 0;
+}
+
+/* TABLAS */
+.mv-live-preview__content .table-wrap {
+	overflow-x: auto;
+	margin: 10px 0;
+	border: 1px solid #343536;
+	border-radius: var(--radius, 4px);
+}
+.mv-live-preview__content table {
+	width: 100%;
+	border-collapse: collapse;
+	background: #1e1e1e;
+}
+.mv-live-preview__content th {
+	background: #252526;
+	font-weight: 700;
+	color: #fff;
+	border: 1px solid #404040;
+	padding: 8px;
+	text-align: left;
+}
+.mv-live-preview__content td {
+	border: 1px solid #404040;
+	padding: 8px;
+	color: #ddd;
+}
+
+/* CITAS */
+.mv-live-preview__content .quote {
+	border-left: 3px solid #6d28d9;
+	background: #252526;
+	padding: 8px 12px;
+	margin: 10px 0;
+	font-style: italic;
+	color: #ccc;
+}
+
+/* CÓDIGO */
+.mv-live-preview__content pre,
+.mv-live-preview__content code {
+	font-family: Consolas, monospace;
+	background: #111;
+	color: #ddd;
+}
+.mv-live-preview__content pre {
+	padding: 10px;
+	border: 1px solid #333;
+	overflow-x: auto;
+}
+.mv-live-preview__content code {
+	padding: 2px 4px;
+	border-radius: var(--radius, 3px);
+}
+
+/* SCROLLBAR */
+.mv-live-preview__scroll::-webkit-scrollbar {
+	width: 8px;
+}
+.mv-live-preview__scroll::-webkit-scrollbar-track {
+	background: transparent;
+}
+.mv-live-preview__scroll::-webkit-scrollbar-thumb {
+	background: #444;
+	border-radius: var(--radius, 4px);
+}
+.mv-live-preview__scroll::-webkit-scrollbar-thumb:hover {
+	background: #555;
+}
+
+.mv-live-preview__content::-webkit-scrollbar {
+	width: 8px;
+}
+.mv-live-preview__content::-webkit-scrollbar-track {
+	background: transparent;
+}
+.mv-live-preview__content::-webkit-scrollbar-thumb {
+	background: #444;
+	border-radius: var(--radius, 4px);
+}
+
+/* =========================================
+   RESPONSIVE (Sin romper el Drag)
+   ========================================= */
+@media (max-width: 768px) {
+	.mv-live-preview {
+		/* Solo limitamos el ancho, NO tocamos top/left */
+		width: 95%;
+		max-width: 100vw;
+	}
+}
