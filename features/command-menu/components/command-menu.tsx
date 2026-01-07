@@ -116,7 +116,7 @@ export function CommandMenu({ open: controlledOpen, onOpenChange: setControlledO
 			label: 'Abrir borradores',
 			action: () => openDashboard('drafts'),
 			icon: <FileText className="h-4 w-4 text-muted-foreground" />,
-			shortcut: undefined,
+			shortcut: getShortcut('drafts'),
 		},
 		{
 			key: 'theme-toggle',
@@ -303,33 +303,37 @@ export function CommandMenu({ open: controlledOpen, onOpenChange: setControlledO
 								<div className="flex shrink-0 items-center justify-center">
 									<Home className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 								</div>
-								<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+								<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 									Portada
 								</span>
+								<ShortcutKeys shortcut={getShortcut('home')} />
 							</CommandItem>
 							<CommandItem onSelect={() => runCommand(() => goTo('/foro/spy'))}>
 								<div className="flex shrink-0 items-center justify-center">
 									<Eye className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 								</div>
-								<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+								<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 									Spy (Lo último)
 								</span>
+								<ShortcutKeys shortcut={getShortcut('spy')} />
 							</CommandItem>
 							<CommandItem onSelect={() => runCommand(() => goTo('/mensajes'))}>
 								<div className="flex shrink-0 items-center justify-center">
 									<MessageSquare className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 								</div>
-								<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+								<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 									Mensajes Privados
 								</span>
+								<ShortcutKeys shortcut={getShortcut('messages')} />
 							</CommandItem>
 							<CommandItem onSelect={() => runCommand(() => goTo('/foro'))}>
 								<div className="flex shrink-0 items-center justify-center">
 									<BookOpen className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 								</div>
-								<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+								<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 									Subforos
 								</span>
+								<ShortcutKeys shortcut={getShortcut('subforums')} />
 							</CommandItem>
 							{username && (
 								<>
@@ -337,25 +341,28 @@ export function CommandMenu({ open: controlledOpen, onOpenChange: setControlledO
 										<div className="flex shrink-0 items-center justify-center">
 											<Bookmark className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 										</div>
-										<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+										<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 											Threads Guardados
 										</span>
+										<ShortcutKeys shortcut={getShortcut('saved')} />
 									</CommandItem>
 									<CommandItem onSelect={() => runCommand(() => goTo(`/id/${username}/temas#anclados`))}>
 										<div className="flex shrink-0 items-center justify-center">
 											<Pin className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 										</div>
-										<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+										<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 											Posts Anclados
 										</span>
+										<ShortcutKeys shortcut={getShortcut('pinned')} />
 									</CommandItem>
 									<CommandItem onSelect={() => runCommand(() => goTo(`/id/${username}`))}>
 										<div className="flex shrink-0 items-center justify-center">
 											<User className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 										</div>
-										<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+										<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 											Mi Perfil
 										</span>
+										<ShortcutKeys shortcut={getShortcut('profile')} />
 									</CommandItem>
 								</>
 							)}
@@ -366,41 +373,46 @@ export function CommandMenu({ open: controlledOpen, onOpenChange: setControlledO
 								<div className="flex shrink-0 items-center justify-center">
 									<SettingsIcon className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 								</div>
-								<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+								<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 									Panel de Control
 								</span>
+								<ShortcutKeys shortcut={getShortcut('panel')} />
 							</CommandItem>
 							<CommandItem onSelect={() => runCommand(() => openDashboard('drafts/new'))}>
 								<div className="flex shrink-0 items-center justify-center">
 									<Plus className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 								</div>
-								<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+								<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 									Crear Nuevo Borrador
 								</span>
+								<ShortcutKeys shortcut={getShortcut('new-draft')} />
 							</CommandItem>
 							<CommandItem onSelect={() => runCommand(() => openDashboard('templates/new'))}>
 								<div className="flex shrink-0 items-center justify-center">
 									<Layout className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 								</div>
-								<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+								<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 									Crear Nueva Plantilla
 								</span>
+								<ShortcutKeys shortcut={getShortcut('new-template')} />
 							</CommandItem>
 							<CommandItem onSelect={() => runCommand(() => openDashboard('drafts'))}>
 								<div className="flex shrink-0 items-center justify-center">
 									<FileText className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 								</div>
-								<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+								<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 									Mis Borradores
 								</span>
+								<ShortcutKeys shortcut={getShortcut('drafts')} />
 							</CommandItem>
 							<CommandItem onSelect={() => runCommand(() => openDashboard('templates'))}>
 								<div className="flex shrink-0 items-center justify-center">
 									<Layout className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 								</div>
-								<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+								<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
 									Mis Plantillas
 								</span>
+								<ShortcutKeys shortcut={getShortcut('templates')} />
 							</CommandItem>
 						</CommandGroup>
 
@@ -420,11 +432,12 @@ export function CommandMenu({ open: controlledOpen, onOpenChange: setControlledO
 									}
 								>
 									<div className="flex shrink-0 items-center justify-center">
-										<SettingsIcon className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
+										<SunMoon className="h-4 w-4 text-muted-foreground/60 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary" />
 									</div>
-									<span className="font-medium text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
-										Alternar Modo Oscuro/Claro
+									<span className="font-medium flex-1 text-foreground/90 transition-colors group-hover:text-primary group-data-[selected=true]:text-primary">
+										Alternar Tema
 									</span>
+									<ShortcutKeys shortcut={getShortcut('theme-toggle')} />
 								</CommandItem>
 							</CommandGroup>
 						)}
