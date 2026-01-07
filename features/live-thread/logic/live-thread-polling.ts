@@ -217,9 +217,21 @@ export function getTotalPages(): number {
  */
 export async function fetchPage(pageNum: number): Promise<Document | null> {
 	const baseUrl = getBaseUrl()
-	const url = pageNum > 1 ? `${baseUrl}/${pageNum}` : baseUrl
+	const relativePath = pageNum > 1 ? `${baseUrl}/${pageNum}` : baseUrl
+	// Firefox requires absolute URLs for fetch() in extensions
+	const absoluteUrl = relativePath.startsWith('http') ? relativePath : `${window.location.origin}${relativePath}`
+	const urlAntiCache = `${absoluteUrl}${absoluteUrl.includes('?') ? '&' : '?'}t=${Date.now()}`
+
 	try {
-		const response = await fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+		const response = await fetch(urlAntiCache, {
+			credentials: 'include',
+			cache: 'no-store',
+			headers: {
+				'Pragma': 'no-cache',
+				'Cache-Control': 'no-cache, no-store, must-revalidate',
+			},
+		})
+
 		if (!response.ok) return null
 		const html = await response.text()
 		return new DOMParser().parseFromString(html, 'text/html')

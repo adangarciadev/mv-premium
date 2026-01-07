@@ -38,6 +38,12 @@ export function hideNativeElements(): void {
 	document.querySelectorAll(MV_SELECTORS.THREAD.QUICK_REPLY_ALL).forEach(el => {
 		;(el as HTMLElement).style.display = 'none'
 	})
+
+	// Hide news hero section (for "noticia" threads)
+	const newsHero = document.getElementById('news-hero')
+	if (newsHero) {
+		newsHero.style.display = 'none'
+	}
 }
 
 export function showNativeElements(): void {
@@ -47,6 +53,12 @@ export function showNativeElements(): void {
 	document.querySelectorAll(MV_SELECTORS.THREAD.QUICK_REPLY_ALL).forEach(el => {
 		;(el as HTMLElement).style.display = ''
 	})
+
+	// Restore news hero section
+	const newsHero = document.getElementById('news-hero')
+	if (newsHero) {
+		newsHero.style.display = ''
+	}
 }
 
 // =============================================================================
