@@ -79,6 +79,24 @@ const VALID_SUBFORUM_SLUGS = new Set([
 ])
 
 /**
+ * Verifies that an element is inside the sidebar and NOT in the main content area.
+ * This prevents injecting into wrong locations due to timing or DOM issues.
+ * 
+ * CRITICAL: #side-nav can exist either inside or outside .c-side depending on page layout.
+ * We ONLY consider it valid when it's inside .c-side to prevent injection into wrong places.
+ */
+function isInsideSidebar(element: Element): boolean {
+	// Must NOT be inside .c-main (main content column) - this is always wrong
+	if (element.closest('.c-main') !== null) {
+		return false
+	}
+	
+	// Must be inside .c-side (the actual sidebar column)
+	// Note: #side-nav outside .c-side is NOT valid for our purposes
+	return element.closest('.c-side') !== null
+}
+
+/**
  * Checks if the current page is a specific subforum view
  * Uses a whitelist to precisely match canonical subforums.
  */
@@ -254,16 +272,29 @@ export function injectFavoriteSubforumsSidebar(): void {
 			return // Can't inject on thread page without companion
 		}
 
+		// Safety check: verify threadCompanion is inside sidebar not main content
+		if (!isInsideSidebar(threadCompanion)) {
+			return // Wrong location, abort
+		}
+
 		container.style.cssText =
 			'margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(128,128,128,0.2);'
-		threadCompanion.insertBefore(container, threadCompanion.firstChild)
+
+		// TRY to inject before #topic-reply (inside thread-companion) for better positioning
+		const topicReply = threadCompanion.querySelector(MV_SELECTORS.THREAD.QUICK_REPLY_ALL)
+		if (topicReply) {
+			threadCompanion.insertBefore(container, topicReply)
+		} else {
+			// Fallback: prepend to thread-companion
+			threadCompanion.insertBefore(container, threadCompanion.firstChild)
+		}
 	} else {
 		// On subforum/forum list pages
 		// Try #side-nav first (forum list), then .c-side (subforum pages)
 		const sideNav = document.querySelector(MV_SELECTORS.GLOBAL.SIDE_NAV)
 		const cSide = document.querySelector(MV_SELECTORS.GLOBAL.C_SIDE)
 
-		if (sideNav) {
+		if (sideNav && isInsideSidebar(sideNav)) {
 			// Forum list page uses #side-nav
 			container.className = 'b-side'
 			const searchBox = sideNav.querySelector('.b-search')
@@ -272,7 +303,7 @@ export function injectFavoriteSubforumsSidebar(): void {
 			} else {
 				sideNav.insertBefore(container, sideNav.firstChild)
 			}
-		} else if (cSide) {
+		} else if (cSide && isInsideSidebar(cSide)) {
 			// Subforum pages use .c-side > .b-side structure
 			container.className = 'b-side'
 			const searchBox = cSide.querySelector('.b-side.b-search')
