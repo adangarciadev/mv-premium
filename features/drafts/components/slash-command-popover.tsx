@@ -138,11 +138,6 @@ export function SlashCommandPopover({
 		}
 	}
 
-	// Don't render if no matches
-	if (!state.isActive || state.matches.length === 0) {
-		return null
-	}
-
 	// Global escape listener (works even when textarea is not focused)
 	useEffect(() => {
 		const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -156,6 +151,11 @@ export function SlashCommandPopover({
 		document.addEventListener('keydown', handleGlobalKeyDown, { capture: true })
 		return () => document.removeEventListener('keydown', handleGlobalKeyDown, { capture: true })
 	}, [])
+
+	// Don't render if no matches
+	if (!state.isActive || state.matches.length === 0) {
+		return null
+	}
 
 	return (
 		<>

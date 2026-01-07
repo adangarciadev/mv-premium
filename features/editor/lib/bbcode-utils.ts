@@ -74,13 +74,13 @@ function isInsideTag(text: string, cursorPos: number, format: FormatTag): boolea
 	let searchPos = 0
 
 	while (searchPos < cursorPos) {
-		const openIndex = textLower.indexOf(openTagLower, searchPos)
-		const closeIndex = textLower.indexOf(closeTagLower, searchPos)
+		let openIndex = textLower.indexOf(openTagLower, searchPos)
+		let closeIndex = textLower.indexOf(closeTagLower, searchPos)
 
 		// No more tags before cursor
 		if (openIndex === -1 && closeIndex === -1) break
-		if (openIndex === -1) openIndex === Infinity
-		if (closeIndex === -1) closeIndex === Infinity
+		if (openIndex === -1) openIndex = Infinity
+		if (closeIndex === -1) closeIndex = Infinity
 
 		// Find the nearest tag
 		if (openIndex !== -1 && (closeIndex === -1 || openIndex < closeIndex) && openIndex < cursorPos) {

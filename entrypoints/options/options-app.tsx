@@ -63,7 +63,7 @@ function DynamicBreadcrumb() {
 	const pathSegments = location.pathname.split('/').filter(Boolean)
 
 	// Build breadcrumb items from path segments
-	const breadcrumbItems = pathSegments.map((segment, index) => {
+	const breadcrumbItems = pathSegments.map((segment: string, index: number) => {
 		const path = '/' + pathSegments.slice(0, index + 1).join('/')
 		const isLast = index === pathSegments.length - 1
 		// Handle dynamic segments like :id
@@ -86,7 +86,7 @@ function DynamicBreadcrumb() {
 					)}
 				</BreadcrumbItem>
 
-				{breadcrumbItems.map((item, index) => (
+				{breadcrumbItems.map((item: { path: string; label: string; isLast: boolean }, index: number) => (
 					<React.Fragment key={item.path}>
 						<BreadcrumbSeparator className="hidden md:block" />
 						<BreadcrumbItem>

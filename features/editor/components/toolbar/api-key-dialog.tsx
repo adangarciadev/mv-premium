@@ -91,7 +91,7 @@ export function ApiKeyDialog({ open, onOpenChange, apiKey, onApiKeyChange, onSav
 					<a
 						href="https://api.imgbb.com/"
 						target="_blank"
-						rel="noopener"
+						rel="noreferrer noopener"
 						style={{
 							display: 'inline-flex',
 							alignItems: 'center',

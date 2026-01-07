@@ -150,18 +150,19 @@ export function isFeatureEnabled(flag: FeatureFlagKey): boolean {
  */
 export function useFeatureFlag(flag: FeatureFlagKey): boolean {
 	const config = FEATURE_CONFIG[flag]
-	if (!config) return false
+	
+	// Ensure we always call the hook to satisfy Rules of Hooks.
+	// Even if config is missing or feature is always enabled, we subscribe mostly to nothing relevant,
+	// or we just return true.
+	
+	const requiresDebug = config?.requiresDebug
+	const requiresApiKey = config?.requiresApiKey
+	const settingsKey = config?.settingsKey
 
-	// Always enabled features don't need store subscription
-	if (config.alwaysEnabled) return true
-
-	// Subscribe to relevant settings
-	const settingsKey = config.settingsKey
-	const requiresApiKey = config.requiresApiKey
-	const requiresDebug = config.requiresDebug
-
-	// Use Zustand selector to only re-render on relevant changes
 	const enabled = useSettingsStore(state => {
+		if (!config) return false
+		if (config.alwaysEnabled) return true
+
 		if (requiresDebug && !state.debugMode) return false
 
 		if (requiresApiKey) {
