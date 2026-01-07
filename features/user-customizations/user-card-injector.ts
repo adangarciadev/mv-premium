@@ -136,10 +136,10 @@ function injectButtonStyles(isDark: boolean): void {
 	const style = document.createElement('style')
 	style.id = styleId
 	style.textContent = isDark
-		? `.mvp-btn-active { background: rgba(76,175,80,0.25) !important; border-color: #4CAF50 !important; color: #81C784 !important; }
-		   .mvp-btn-active:hover { background: rgba(76,175,80,0.35) !important; border-color: #43A047 !important; color: #A5D6A7 !important; box-shadow: 0 0 8px rgba(76,175,80,0.4) !important; text-decoration: none !important; }`
-		: `.mvp-btn-active { background: rgba(46,125,50,0.12) !important; border-color: #2E7D32 !important; color: #1B5E20 !important; }
-		   .mvp-btn-active:hover { background: rgba(46,125,50,0.2) !important; border-color: #1B5E20 !important; color: #1B5E20 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important; text-decoration: none !important; }`
+		? `.btn.mvp-btn-active { background: rgba(76,175,80,0.25) !important; border-color: #4CAF50 !important; color: #81C784 !important; }
+		   .btn.mvp-btn-active:hover { background: rgba(76,175,80,0.35) !important; border-color: #43A047 !important; color: #A5D6A7 !important; box-shadow: 0 0 8px rgba(76,175,80,0.4) !important; text-decoration: none !important; }`
+		: `.btn.mvp-btn-active { background: rgba(46,125,50,0.12) !important; border-color: #2E7D32 !important; color: #1B5E20 !important; }
+		   .btn.mvp-btn-active:hover { background: rgba(46,125,50,0.2) !important; border-color: #1B5E20 !important; color: #1B5E20 !important; box-shadow: 0 1px 3px rgba(0,0,0,0.12) !important; text-decoration: none !important; }`
 	document.head.appendChild(style)
 }
 
