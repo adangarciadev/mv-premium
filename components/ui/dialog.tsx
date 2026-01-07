@@ -147,7 +147,10 @@ function DialogOverlay({ className, ...props }: React.ComponentProps<'div'>) {
 				// 3. Behavior - CRITICAL for blocking clicks
 				'pointer-events-auto',
 
-				// 4. Animations
+				// 4. GPU layer promotion for Firefox
+				'will-change-[opacity,backdrop-filter]',
+
+				// 5. Animations
 				'animate-in fade-in-0 duration-200',
 				className
 			)}
@@ -175,6 +178,8 @@ function DialogContent({
 				className={cn(
 					// Positioning
 					'fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2',
+					// GPU layer promotion for smooth Firefox animations
+					'will-change-transform',
 					// Sizing
 					'grid w-full max-w-lg max-h-[85vh] gap-4 overflow-y-auto',
 					// Appearance

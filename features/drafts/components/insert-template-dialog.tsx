@@ -115,7 +115,8 @@ function groupTemplates(templates: Draft[], folders: DraftFolder[]): TemplateGro
 export function InsertTemplateDialog({ open, onOpenChange, onInsert }: InsertTemplateDialogProps) {
 	const [templates, setTemplates] = useState<Draft[]>([])
 	const [folders, setFolders] = useState<DraftFolder[]>([])
-	const [isLoading, setIsLoading] = useState(true)
+	// Start with false to prevent layout shift during open animation
+	const [isLoading, setIsLoading] = useState(false)
 	const [selectedIndex, setSelectedIndex] = useState(0)
 	const [searchQuery, setSearchQuery] = useState('')
 	const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
@@ -136,7 +137,10 @@ export function InsertTemplateDialog({ open, onOpenChange, onInsert }: InsertTem
 	// Load templates and folders when dialog opens
 	useEffect(() => {
 		if (open) {
-			setIsLoading(true)
+			// Only show loading if we don't have data yet
+			if (templates.length === 0) {
+				setIsLoading(true)
+			}
 			Promise.all([getTemplates(), getFolders()])
 				.then(([templatesData, foldersData]) => {
 					setTemplates(templatesData)
