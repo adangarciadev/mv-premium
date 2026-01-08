@@ -30,6 +30,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	// Feature Toggles - Navigation
 	infiniteScrollEnabled: false,
 	liveThreadEnabled: false,
+	nativeLiveDelayEnabled: true,
 	galleryButtonEnabled: true,
 
 	// Feature Toggles - Editor

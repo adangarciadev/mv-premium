@@ -43,6 +43,7 @@ export interface Settings {
 	infiniteScrollEnabled: boolean
 	liveThreadEnabled: boolean
 	galleryButtonEnabled: boolean
+	nativeLiveDelayEnabled: boolean
 
 	// Feature Toggles - Editor
 	cinemaButtonEnabled: boolean

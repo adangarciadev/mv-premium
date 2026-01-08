@@ -5,6 +5,7 @@ import HelpCircle from 'lucide-react/dist/esm/icons/help-circle'
 import InfinityIcon from 'lucide-react/dist/esm/icons/infinity'
 import Radio from 'lucide-react/dist/esm/icons/radio'
 import Images from 'lucide-react/dist/esm/icons/images'
+import Clock from 'lucide-react/dist/esm/icons/clock'
 import { useSettingsStore } from '@/store/settings-store'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -21,6 +22,7 @@ export function SettingsNavigation() {
 		liveThreadEnabled,
 		setLiveThreadEnabled,
 		galleryButtonEnabled,
+		nativeLiveDelayEnabled,
 		setSetting,
 	} = useSettingsStore()
 
@@ -107,6 +109,25 @@ export function SettingsNavigation() {
 						reloadMediavidaTabs()
 						toast.success(
 							checked ? 'Botón de galería activado' : 'Configuración guardada'
+						)
+					}}
+				/>
+			</SettingRow>
+
+			<Separator />
+
+			<SettingRow
+				icon={<Clock className="h-4 w-4" />}
+				label="Delay en LIVE nativos"
+				description="Añade un control de delay en los hilos LIVE nativos de Mediavida para evitar spoilers."
+			>
+				<Switch
+					checked={nativeLiveDelayEnabled}
+					onCheckedChange={(checked) => {
+						setSetting('nativeLiveDelayEnabled', checked)
+						reloadMediavidaTabs()
+						toast.success(
+							checked ? 'Delay en LIVE activado' : 'Configuración guardada'
 						)
 					}}
 				/>

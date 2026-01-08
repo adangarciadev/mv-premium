@@ -35,6 +35,7 @@ export const STORAGE_KEYS = {
 	DRAFTS: 'mvp-drafts',
 	EDITOR_PRESERVE: 'mvp-editor-preserve',
 	BOOKMARKS_VIEW_MODE: 'mvp-bookmarks-view-mode',
+	NATIVE_LIVE_DELAY: 'mvp-native-live-delay',
 
 	// UI State
 	LIVE_PREVIEW_ENABLED: 'mvp-live-preview-enabled',

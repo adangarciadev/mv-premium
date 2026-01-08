@@ -35,6 +35,7 @@ export const FeatureFlag = {
 	InfiniteScroll: 'infinite-scroll',
 	LiveThread: 'live-thread',
 	MutedWords: 'muted-words',
+	NativeLiveDelay: 'native-live-delay',
 
 	// Premium/Advanced Features (enabled by default)
 	Gallery: 'gallery',
@@ -81,6 +82,7 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 	[FeatureFlag.InfiniteScroll]: { settingsKey: 'infiniteScrollEnabled' },
 	[FeatureFlag.LiveThread]: { settingsKey: 'liveThreadEnabled' },
 	[FeatureFlag.MutedWords]: { settingsKey: 'mutedWordsEnabled' },
+	[FeatureFlag.NativeLiveDelay]: { settingsKey: 'nativeLiveDelayEnabled' },
 
 	// Premium Features (always enabled by default, some need API keys)
 	[FeatureFlag.Gallery]: { alwaysEnabled: true },

@@ -55,6 +55,7 @@ interface SettingsActions {
 	// Navigation
 	setInfiniteScrollEnabled: (enabled: boolean) => void
 	setLiveThreadEnabled: (enabled: boolean) => void
+	setNativeLiveDelayEnabled: (enabled: boolean) => void
 
 	// Users
 	setMutedWordsEnabled: (enabled: boolean) => void
@@ -170,6 +171,7 @@ export const useSettingsStore = create<SettingsState>()(
 			// Both can be enabled in settings - mutual exclusion happens at button level in threads
 			setInfiniteScrollEnabled: enabled => set({ infiniteScrollEnabled: enabled }),
 			setLiveThreadEnabled: enabled => set({ liveThreadEnabled: enabled }),
+			setNativeLiveDelayEnabled: enabled => set({ nativeLiveDelayEnabled: enabled }),
 
 			// Users
 			setMutedWordsEnabled: enabled => set({ mutedWordsEnabled: enabled }),

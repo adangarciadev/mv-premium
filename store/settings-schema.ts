@@ -68,6 +68,7 @@ export const settingsSchema = z.object({
 	// Feature Toggles - Navigation
 	infiniteScrollEnabled: z.boolean().default(false),
 	liveThreadEnabled: z.boolean().default(false),
+	nativeLiveDelayEnabled: z.boolean().default(true),
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: z.boolean().default(false),

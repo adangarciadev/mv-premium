@@ -137,6 +137,11 @@ export const CHANGELOG: ChangelogEntry[] = [
 				description: 'Command Menu (Cmd+K): Navegación rápida global por teclado.',
 				category: 'Navegación',
 			},
+			{
+				type: 'feature',
+				description: 'Delay en LIVE nativos: Control de retraso configurable para evitar spoilers en hilos LIVE de Mediavida.',
+				category: 'Navegación',
+			},
 
 			// MEDIA & ENRICHMENT
 			{

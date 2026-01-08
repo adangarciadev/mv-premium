@@ -31,6 +31,7 @@ export interface PageContext {
 // Heavy features are loaded dynamically below
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled, FeatureFlag } from '@/lib/feature-flags'
+import { useSettingsStore } from '@/store/settings-store'
 
 // Track initialization state
 let globalFeaturesInitialized = false
@@ -249,5 +250,15 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	if (pageContext?.isProfileSubpage) {
 		const { initProfileSavedThreadsTab } = await import('@/features/saved-threads')
 		initProfileSavedThreadsTab()
+	}
+
+	// =========================================================================
+	// NATIVE LIVE THREAD PAGES (e.g., /foro/feda/thread-123/live)
+	// =========================================================================
+	const { isNativeLiveThreadPage } = await import('@/lib/content-modules/utils/page-detection')
+	if (isNativeLiveThreadPage()) {
+		import('@/features/native-live-delay').then(({ injectNativeLiveDelayControl }) => {
+			injectNativeLiveDelayControl()
+		})
 	}
 }

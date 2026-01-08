@@ -187,3 +187,16 @@ export function isMediaForum(): boolean {
 	const path = window.location.pathname
 	return path.startsWith('/foro/cine') || path.startsWith('/foro/tv')
 }
+
+/**
+ * Check if we're on a native Mediavida LIVE thread page
+ * These are special thread views with real-time updates managed by MV itself.
+ * Detection is based on DOM elements:
+ * - #live header element (shows LIVE indicator and controls)
+ * - #posts-wrap.live container (has .live class when in live mode)
+ */
+export function isNativeLiveThreadPage(): boolean {
+	const hasLiveHeader = !!document.querySelector('#live.lv2-t')
+	const hasLivePostsWrap = !!document.querySelector('#posts-wrap.live')
+	return hasLiveHeader && hasLivePostsWrap
+}
