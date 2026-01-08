@@ -589,12 +589,22 @@ function hideSidePages(): void {
 	if (sidePages) {
 		sidePages.style.display = 'none'
 	}
+	// Hide the bottom pagination panel
+	const bottomPanel = document.getElementById('bottompanel')
+	if (bottomPanel) {
+		bottomPanel.style.display = 'none'
+	}
 }
 
 function showSidePages(): void {
 	const sidePages = document.querySelector(`ul${MV_SELECTORS.THREAD.PAGINATION_SIDE}`) as HTMLElement | null
 	if (sidePages) {
 		sidePages.style.display = ''
+	}
+	// Restore the bottom pagination panel
+	const bottomPanel = document.getElementById('bottompanel')
+	if (bottomPanel) {
+		bottomPanel.style.display = ''
 	}
 }
 
