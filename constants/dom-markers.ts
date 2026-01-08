@@ -111,6 +111,9 @@ export const DOM_MARKERS = {
 		GOOGLE_FONT: 'mvp-google-font',
 		// Features
 		EXTRA_ACTIONS: 'mvp-extra-actions',
+		MAIN_ACTIONS: 'mvp-main-actions',
+		STATUS_ACTIONS: 'mvp-status-actions',
+		EXTRA_ACTIONS_SEPARATOR: 'mvp-extra-actions-separator',
 		ULTRAWIDE_STYLES: 'mvp-ultrawide-styles',
 		USER_CUSTOMIZATIONS_STYLES: 'mvp-user-customizations-styles',
 		SUMMARIZER_BTN: 'mvp-summarizer-btn',

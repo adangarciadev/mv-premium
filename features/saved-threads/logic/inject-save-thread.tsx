@@ -1,5 +1,5 @@
 import { mountFeature, unmountFeature, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
-import { getExtraActionsRow } from '@/lib/content-modules/utils/extra-actions-row'
+import { getMainActionsRow } from '@/lib/content-modules/utils/extra-actions-row'
 import { isThreadPage } from '@/features/gallery/lib/thread-scraper'
 import { SaveThreadButton } from '../components/save-thread-button'
 import { FEATURE_IDS } from '@/constants'
@@ -27,9 +27,9 @@ export function injectSaveThreadButton(): void {
 	// Check if already mounted
 	if (isFeatureMounted(FEATURE_ID)) return
 
-	// Get or create the extra actions row
-	const extraActions = getExtraActionsRow()
-	if (!extraActions) return
+	// Get or create the main actions row
+	const mainActions = getMainActionsRow()
+	if (!mainActions) return
 
 	// Create container for React component
 	const container = document.createElement('span')
@@ -37,7 +37,7 @@ export function injectSaveThreadButton(): void {
 	container.style.display = 'inline-flex'
 
 	// Insert as first button in the row
-	extraActions.insertAdjacentElement('afterbegin', container)
+	mainActions.insertAdjacentElement('afterbegin', container)
 
 	// Mount React component (Directly in Light DOM for native styling)
 	mountFeature(FEATURE_ID, container, <SaveThreadButton />)

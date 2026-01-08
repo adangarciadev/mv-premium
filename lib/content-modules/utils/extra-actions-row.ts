@@ -24,24 +24,77 @@ export function getExtraActionsRow(): HTMLDivElement | null {
 	const moreActions = document.getElementById(MV_SELECTORS.GLOBAL.MORE_ACTIONS_ID)
 	if (!moreActions) return null
 
-	// Create the extra actions row
+	// Create the main extra actions container
 	extraActions = document.createElement('div')
 	extraActions.id = EXTRA_ACTIONS_ID
 	extraActions.style.cssText = `
 		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: 4px;
+		flex-direction: column;
+		gap: 8px;
 		margin-top: 12px;
 		padding-top: 12px;
 		border-top: 1px solid rgba(128, 128, 128, 0.2);
 		width: 100%;
 	`
 
+	// 1. Create Main Actions container (Gallery, Save, Summarize)
+	const mainActions = document.createElement('div')
+	mainActions.id = DOM_MARKERS.IDS.MAIN_ACTIONS
+	mainActions.style.cssText = `
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 4px;
+	`
+	extraActions.appendChild(mainActions)
+
+	// 2. Create Separator (hidden by default if no status actions)
+	const separator = document.createElement('div')
+	separator.id = DOM_MARKERS.IDS.EXTRA_ACTIONS_SEPARATOR
+	separator.style.cssText = `
+		border-top: 1px solid rgba(128, 128, 128, 0.1);
+		width: 100%;
+		display: none;
+	`
+	extraActions.appendChild(separator)
+
+	// 3. Create Status Actions container (Live, Infinite Scroll)
+	const statusActions = document.createElement('div')
+	statusActions.id = DOM_MARKERS.IDS.STATUS_ACTIONS
+	statusActions.style.cssText = `
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 6px;
+	`
+	extraActions.appendChild(statusActions)
+
 	// Append inside #more-actions (at the end) to maintain DOM hierarchy
 	moreActions.appendChild(extraActions)
 
 	return extraActions
+}
+
+/**
+ * Get the main actions row (the top one)
+ */
+export function getMainActionsRow(): HTMLDivElement | null {
+	getExtraActionsRow()
+	return document.getElementById(DOM_MARKERS.IDS.MAIN_ACTIONS) as HTMLDivElement | null
+}
+
+/**
+ * Get the status actions row (the bottom one)
+ */
+export function getStatusActionsRow(): HTMLDivElement | null {
+	getExtraActionsRow()
+	const statusRow = document.getElementById(DOM_MARKERS.IDS.STATUS_ACTIONS) as HTMLDivElement | null
+	if (statusRow) {
+		// Show separator if we access the status row
+		const separator = document.getElementById(DOM_MARKERS.IDS.EXTRA_ACTIONS_SEPARATOR)
+		if (separator) separator.style.display = 'block'
+	}
+	return statusRow
 }
 
 /**

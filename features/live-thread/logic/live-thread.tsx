@@ -11,8 +11,10 @@
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { mountFeature, unmountFeature, isFeatureMounted, updateFeature } from '@/lib/content-modules/utils/react-helpers'
+import { getStatusActionsRow } from '@/lib/content-modules/utils/extra-actions-row'
 import { isThreadPage, getThreadIdFromUrl } from '@/lib/content-modules/utils/page-detection'
 import { applyStoredTheme } from '@/lib/theme-sync'
+import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { MV_SELECTORS, FEATURE_IDS } from '@/constants'
 import { DOM_MARKERS } from '@/constants/dom-markers'
 
@@ -279,37 +281,24 @@ export async function injectLiveThreadButton(): Promise<void> {
 	if (!threadId) return
 	setCurrentThreadId(threadId)
 
-	// Use shared extra actions row
-	const threadCompanion = document.getElementById(MV_SELECTORS.GLOBAL.THREAD_COMPANION_ID)
-	if (threadCompanion) {
-		const moreActions = threadCompanion.querySelector(MV_SELECTORS.GLOBAL.MORE_ACTIONS)
-		if (moreActions) {
-			const EXTRA_ROW_ID = DOM_MARKERS.IDS.EXTRA_ACTIONS
-			let extraActions = threadCompanion.querySelector(`#${EXTRA_ROW_ID}`)
-			if (!extraActions) {
-				extraActions = document.createElement('div')
-				extraActions.id = EXTRA_ROW_ID
-				;(extraActions as HTMLElement).style.cssText =
-					'margin-top: 10px; display: inline-flex; gap: 6px; clear: both; align-items: center;'
-				moreActions.insertAdjacentElement('afterend', extraActions)
-			}
+	// Use unified extra actions row (status section)
+	const statusRow = getStatusActionsRow()
+	if (!statusRow) return
 
-			const CONTAINER_ID = DOM_MARKERS.IDS.LIVE_BUTTON_CONTAINER
-			let container = document.getElementById(CONTAINER_ID)
-			if (!container) {
-				container = document.createElement('div')
-				container.id = CONTAINER_ID
-				container.style.display = 'inline-flex'
-				extraActions.insertAdjacentElement('afterbegin', container)
-			}
-
-			// Setup mutual exclusion listeners
-			setupModeExclusionListeners()
-
-			// Mount button
-			mountFeature(BUTTON_FEATURE_ID, container, getButtonElement())
-		}
+	const CONTAINER_ID = DOM_MARKERS.IDS.LIVE_BUTTON_CONTAINER
+	let container = document.getElementById(CONTAINER_ID)
+	if (!container) {
+		container = document.createElement('div')
+		container.id = CONTAINER_ID
+		container.style.display = 'inline-flex'
+		statusRow.appendChild(container)
 	}
+
+	// Setup mutual exclusion listeners
+	setupModeExclusionListeners()
+
+	// Mount button
+	mountFeature(BUTTON_FEATURE_ID, container, getButtonElement())
 }
 
 export function cleanupLiveThreadButton(): void {

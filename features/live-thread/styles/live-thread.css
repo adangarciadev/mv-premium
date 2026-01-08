@@ -47,10 +47,23 @@
 	0%,
 	100% {
 		opacity: 1;
+		transform: scale(1);
 	}
 	50% {
-		opacity: 0.5;
+		opacity: 0.6;
+		transform: scale(0.9);
 	}
+}
+
+.mvp-live-dot.connected {
+	background-color: #22c55e !important;
+	box-shadow: 0 0 8px rgba(34, 197, 94, 0.4) !important;
+	animation: mvp-live-pulse 2s ease-in-out infinite !important;
+}
+
+/* Light mode dot: less glow */
+:root:not(.dark) .mvp-live-dot.connected {
+	box-shadow: 0 0 4px rgba(34, 197, 94, 0.3) !important;
 }
 
 /* Posts container transitioning to Live mode */
@@ -212,15 +225,50 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 	background: var(--accent, rgba(255, 255, 255, 0.05)) !important;
 }
 
-/* Toggle Button (Injected in toolbar) */
+/* Toggle Button (Injected in toolbar) - ADAPTIVE DESIGN */
 .mvp-live-toggle-btn {
-	background: var(--card, #1a1a1b) !important;
-	border: 1px solid var(--border, rgba(255, 255, 255, 0.15)) !important;
-	border-radius: var(--radius, 4px) !important;
+	background: color-mix(in srgb, var(--card) 95%, transparent) !important;
+	border: 1px solid color-mix(in srgb, var(--border) 60%, transparent) !important;
+	border-radius: var(--radius, 4px) !important; /* Adaptive radius */
+	transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Light mode specific polish - avoid "flat/stark" white on white */
+:root:not(.dark) .mvp-live-toggle-btn {
+	background: color-mix(in srgb, var(--secondary) 50%, #ffffff) !important;
+	border-color: color-mix(in srgb, var(--border) 80%, transparent) !important;
 }
 
 .mvp-live-toggle-btn:hover {
-	background: var(--secondary, #242526) !important;
+	background: color-mix(in srgb, var(--secondary) 80%, transparent) !important;
+	border-color: color-mix(in srgb, var(--primary) 30%, transparent) !important;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Active/Active state classes */
+.mvp-live-toggle-btn.active {
+	background: color-mix(in srgb, var(--primary) 12%, var(--card)) !important;
+	border-color: color-mix(in srgb, var(--primary) 45%, transparent) !important;
+}
+
+/* Light mode active state polish: more vibrant/recessed look */
+:root:not(.dark) .mvp-live-toggle-btn.active {
+	background: color-mix(in srgb, var(--primary) 8%, #ffffff) !important;
+	border-color: color-mix(in srgb, var(--primary) 60%, transparent) !important;
+	box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+
+.mvp-live-toggle-btn .mvp-live-dot {
+	width: 6px !important;
+	height: 6px !important;
+}
+
+.mvp-live-toggle-btn .mvp-live-label {
+	font-size: 11px !important;
+	font-weight: 600 !important;
+	letter-spacing: 0.05em !important;
+	opacity: 0.9 !important;
 }
 
 /* When editor is open, remove bottom border radius from header */

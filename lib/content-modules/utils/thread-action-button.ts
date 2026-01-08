@@ -7,7 +7,7 @@
  * Used by: Gallery button, Save Thread button, Summarizer button, Live Thread button
  */
 
-import { getExtraActionsRow } from './extra-actions-row'
+import { getMainActionsRow } from './extra-actions-row'
 
 // =============================================================================
 // TYPES
@@ -79,8 +79,8 @@ export function createThreadActionButton(config: ThreadActionButtonConfig): Thre
 	// Check if already exists
 	if (document.getElementById(id)) return null
 
-	// Get the extra actions row
-	const extraActions = getExtraActionsRow()
+	// Get the main actions row
+	const extraActions = getMainActionsRow()
 	if (!extraActions) return null
 
 	// Create button

@@ -25,6 +25,7 @@ import {
 import { isThreadPage } from '@/lib/content-modules/utils/page-detection'
 import { MV_SELECTORS, FEATURE_IDS, DEBOUNCE, INTERSECTION } from '@/constants'
 import { DOM_MARKERS } from '@/constants/dom-markers'
+import { getStatusActionsRow } from '@/lib/content-modules/utils/extra-actions-row'
 import { logger } from '@/lib/logger'
 
 // Extracted modules
@@ -768,39 +769,16 @@ export async function injectInfiniteScroll(_ctx?: unknown): Promise<void> {
 	if (totalPages <= 1) return
 	if (startPage >= totalPages) return
 
-	const threadCompanion = document.getElementById(MV_SELECTORS.GLOBAL.THREAD_COMPANION_ID)
-	if (!threadCompanion) {
-		logger.warn('thread-companion not found')
-		return
-	}
-
-	const moreActions = threadCompanion.querySelector(MV_SELECTORS.GLOBAL.MORE_ACTIONS)
-	if (!moreActions) {
-		logger.warn('more-actions not found in thread-companion')
-		return
-	}
-
-	const EXTRA_ROW_ID = DOM_MARKERS.IDS.EXTRA_ACTIONS
-	let extraActions = threadCompanion.querySelector(`#${EXTRA_ROW_ID}`)
-	if (!extraActions) {
-		extraActions = document.createElement('div')
-		extraActions.id = EXTRA_ROW_ID
-		;(extraActions as HTMLElement).style.cssText =
-			'margin-top: 10px; display: inline-flex; gap: 6px; clear: both; align-items: center;'
-		moreActions.insertAdjacentElement('afterend', extraActions)
-	}
+	// Use unified extra actions row (status section)
+	const statusRow = getStatusActionsRow()
+	if (!statusRow) return
 
 	let container = document.getElementById(BUTTON_CONTAINER_ID)
 	if (!container) {
 		container = document.createElement('div')
 		container.id = BUTTON_CONTAINER_ID
 		container.style.display = 'inline-flex'
-		const liveButtonContainer = document.getElementById(DOM_MARKERS.IDS.LIVE_BUTTON_CONTAINER)
-		if (liveButtonContainer) {
-			liveButtonContainer.insertAdjacentElement('afterend', container)
-		} else {
-			extraActions.insertAdjacentElement('afterbegin', container)
-		}
+		statusRow.appendChild(container)
 	}
 
 	setupModeExclusionListeners()
