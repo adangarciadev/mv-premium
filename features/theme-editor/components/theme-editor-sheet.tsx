@@ -77,7 +77,6 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 	const setIsOpen = onOpenChange || setInternalOpen
 	const [editMode, setEditMode] = useState<'light' | 'dark'>(resolvedTheme)
 	const [savePopoverOpen, setSavePopoverOpen] = useState(false)
-	const [exportPopoverOpen, setExportPopoverOpen] = useState(false)
 	const [themeName, setThemeName] = useState('')
 	const [harmony, setHarmony] = useState<ColorHarmony>('complementary')
 	const [customFontInput, setCustomFontInput] = useState('')
@@ -102,8 +101,8 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 	const saveCurrentAsPreset = useThemeStore(state => state.saveCurrentAsPreset)
 	const updatePreset = useThemeStore(state => state.updatePreset)
 	const deletePreset = useThemeStore(state => state.deletePreset)
-	const importPreset = useThemeStore(state => state.importPreset)
-	const exportCurrentTheme = useThemeStore(state => state.exportCurrentTheme)
+	const importPresets = useThemeStore(state => state.importPresets)
+	const exportAllSavedPresets = useThemeStore(state => state.exportAllSavedPresets)
 
 	// Compute activePreset locally to ensure reactivity
 	const activePreset = useMemo(() => {
@@ -212,26 +211,24 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 	}
 
 	const handleExport = () => {
-		if (!themeName.trim()) {
-			toast.error('Error', {
-				description: 'Ingresa un nombre para el tema.',
+		const exported = exportAllSavedPresets()
+		if (!exported) {
+			toast.error('No hay temas', {
+				description: 'No tienes temas personalizados para exportar.',
 			})
 			return
 		}
 
-		const exported = exportCurrentTheme(themeName)
 		const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' })
 		const url = URL.createObjectURL(blob)
 		const a = document.createElement('a')
 		a.href = url
-		a.download = `theme-${themeName.toLowerCase().replace(/\s+/g, '-')}.json`
+		a.download = `mv-premium-themes-${new Date().toISOString().split('T')[0]}.json`
 		a.click()
 		URL.revokeObjectURL(url)
 
-		setExportPopoverOpen(false)
-		setThemeName('')
-		toast.success('📦 Tema exportado', {
-			description: 'El archivo JSON se ha descargado.',
+		toast.success('📦 Temas exportados', {
+			description: `Se han exportado ${exported.presets.length} tema(s).`,
 		})
 	}
 
@@ -242,16 +239,27 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 		const reader = new FileReader()
 		reader.onload = e => {
 			try {
-				const imported = JSON.parse(e.target?.result as string) as ThemeExport
+				const imported = JSON.parse(e.target?.result as string)
 
-				if (!imported.preset || !imported.preset.colors) {
-					throw new Error('Formato de tema inválido')
+				// Handle new format (multiple presets)
+				if (imported.presets && Array.isArray(imported.presets)) {
+					importPresets(imported.presets)
+					toast.success('✅ Temas importados', {
+						description: `Se han importado ${imported.presets.length} tema(s).`,
+					})
+					return
 				}
 
-				importPreset(imported.preset)
-				toast.success('✅ Tema importado', {
-					description: `"${imported.preset.name}" se ha añadido a tus temas.`,
-				})
+				// Handle old format (single preset)
+				if (imported.preset && imported.preset.colors) {
+					importPresets([imported.preset])
+					toast.success('✅ Tema importado', {
+						description: `"${imported.preset.name}" se ha añadido a tus temas.`,
+					})
+					return
+				}
+
+				throw new Error('Formato de tema inválido')
 			} catch (error) {
 				toast.error('Error al importar', {
 					description: 'El archivo no es un tema válido.',
@@ -382,13 +390,15 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 											</p>
 										</div>
 										<div className="space-y-2">
-											<Label htmlFor="save-name" className="text-xs">
+											<Label htmlFor="save-name" className="text-xs flex justify-between">
 												Nombre del tema
+												<span className="text-muted-foreground font-normal font-mono text-[10px] pt-0.5">{themeName.length}/20</span>
 											</Label>
 											<Input
 												id="save-name"
 												value={themeName}
 												onChange={e => setThemeName(e.target.value)}
+												maxLength={20}
 												placeholder="Mi tema personalizado"
 												className="h-8"
 												onKeyDown={e => {
@@ -404,7 +414,7 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 											{activePresetId.startsWith('custom-') || activePresetId.startsWith('imported-') ? (
 												<>
 													<Button size="sm" className="w-full" onClick={() => handleSavePreset(true)}>
-														Guardar cambios
+														Actualizar tema
 													</Button>
 													<Button
 														variant="outline"
@@ -452,7 +462,7 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end">
-									<DropdownMenuItem onClick={() => setExportPopoverOpen(true)}>
+								<DropdownMenuItem onClick={handleExport}>
 										<Download className="h-4 w-4 mr-2" />
 										Exportar tema
 									</DropdownMenuItem>
@@ -470,56 +480,6 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 
 							<input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
 						</div>
-
-						{/* Popover de exportar (separado para evitar conflictos) */}
-						<Popover open={exportPopoverOpen} onOpenChange={setExportPopoverOpen}>
-							<PopoverTrigger asChild>
-								<span className="hidden" />
-							</PopoverTrigger>
-							<PopoverContent className="w-72" align="start" side="bottom">
-								<div className="space-y-3">
-									<div className="space-y-1">
-										<h4 className="font-medium text-sm">Exportar tema</h4>
-										<p className="text-xs text-muted-foreground">Descarga tu tema como JSON para compartirlo.</p>
-									</div>
-									<div className="space-y-2">
-										<Label htmlFor="export-name" className="text-xs">
-											Nombre del archivo
-										</Label>
-										<Input
-											id="export-name"
-											value={themeName}
-											onChange={e => setThemeName(e.target.value)}
-											placeholder="mi-tema"
-											className="h-8"
-											onKeyDown={e => {
-												if (e.key === 'Enter') {
-													e.preventDefault()
-													handleExport()
-												}
-											}}
-										/>
-									</div>
-									<div className="flex gap-2 pt-1">
-										<Button
-											variant="outline"
-											size="sm"
-											className="flex-1"
-											onClick={() => {
-												setExportPopoverOpen(false)
-												setThemeName('')
-											}}
-										>
-											Cancelar
-										</Button>
-										<Button size="sm" className="flex-1 gap-1.5" onClick={handleExport}>
-											<FileJson className="h-3.5 w-3.5" />
-											Descargar
-										</Button>
-									</div>
-								</div>
-							</PopoverContent>
-						</Popover>
 
 						{/* Tabs principales - Mejorados */}
 						<Tabs defaultValue="presets" className="w-full">

@@ -87,13 +87,21 @@ interface ThemeStore {
 	 */
 	deletePreset: (id: string) => void
 	/**
-	 * Imports a theme preset from an external source.
+	 * Imports theme preset(s) from an external source.
 	 */
 	importPreset: (preset: ThemePreset) => void
+	/**
+	 * Imports multiple presets from an exported JSON file.
+	 */
+	importPresets: (presets: ThemePreset[]) => void
 	/**
 	 * Exports the current theme as a shareable JSON structure.
 	 */
 	exportCurrentTheme: (name: string) => ThemeExport
+	/**
+	 * Exports all saved (custom) presets as a JSON file for backup/sharing.
+	 */
+	exportAllSavedPresets: () => { version: number; exportedAt: string; presets: ThemePreset[] } | null
 }
 
 // ============================================================================
@@ -452,6 +460,46 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
 				id: 'exported',
 				name,
 			},
+		}
+	},
+
+	// Import multiple presets from exported JSON
+	importPresets: (presets: ThemePreset[]) => {
+		const state = get()
+
+		// Assign new IDs to avoid collisions
+		const importedPresets: ThemePreset[] = presets.map((preset, index) => ({
+			...preset,
+			id: `imported-${Date.now()}-${index}`,
+		}))
+
+		const newSaved = [...state.savedPresets, ...importedPresets]
+		set({
+			savedPresets: newSaved,
+			// Activate the first imported preset
+			activePresetId: importedPresets[0]?.id ?? state.activePresetId,
+			customColorsLight: {},
+			customColorsDark: {},
+		})
+
+		savedPresetsStorage.setValue(newSaved)
+		themeStateStorage.setValue({
+			activePresetId: importedPresets[0]?.id ?? state.activePresetId,
+			customColorsLight: {},
+			customColorsDark: {},
+			customRadius: undefined,
+		})
+	},
+
+	// Export all saved (custom) presets
+	exportAllSavedPresets: () => {
+		const state = get()
+		if (state.savedPresets.length === 0) return null
+
+		return {
+			version: 1,
+			exportedAt: new Date().toISOString(),
+			presets: state.savedPresets,
 		}
 	},
 }))

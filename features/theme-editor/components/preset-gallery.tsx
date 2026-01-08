@@ -4,6 +4,7 @@
 import Check from 'lucide-react/dist/esm/icons/check'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import Copy from 'lucide-react/dist/esm/icons/copy'
+import Download from 'lucide-react/dist/esm/icons/download'
 import MoreHorizontal from 'lucide-react/dist/esm/icons/more-horizontal'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -34,10 +35,11 @@ interface PresetCardProps {
 	onSelect: () => void
 	onDelete?: () => void
 	onDuplicate: () => void
+	onExport?: () => void
 	mode: 'light' | 'dark'
 }
 
-function PresetCard({ preset, isActive, isCustom, onSelect, onDelete, onDuplicate, mode }: PresetCardProps) {
+function PresetCard({ preset, isActive, isCustom, onSelect, onDelete, onDuplicate, onExport, mode }: PresetCardProps) {
 	const colors = mode === 'light' ? preset.colors.light : preset.colors.dark
 
 	return (
@@ -125,6 +127,18 @@ function PresetCard({ preset, isActive, isCustom, onSelect, onDelete, onDuplicat
 							Duplicar
 						</DropdownMenuItem>
 
+						{isCustom && onExport && (
+							<DropdownMenuItem
+								onClick={e => {
+									e.stopPropagation()
+									onExport()
+								}}
+							>
+								<Download className="h-3.5 w-3.5 mr-2" />
+								Exportar
+							</DropdownMenuItem>
+						)}
+
 						{isCustom && onDelete && (
 							<>
 								<DropdownMenuSeparator />
@@ -155,6 +169,25 @@ export function PresetGallery({ activePresetId, savedPresets, onSelect, onDelete
 		duplicatePreset(id)
 		toast.success('Tema duplicado', {
 			description: `Se ha creado una copia de "${name}"`,
+		})
+	}
+
+	const handleExport = (preset: ThemePreset) => {
+		const exported = {
+			version: 1,
+			exportedAt: new Date().toISOString(),
+			presets: [preset],
+		}
+		const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' })
+		const url = URL.createObjectURL(blob)
+		const a = document.createElement('a')
+		a.href = url
+		a.download = `theme-${preset.name.toLowerCase().replace(/\s+/g, '-')}.json`
+		a.click()
+		URL.revokeObjectURL(url)
+
+		toast.success('📦 Tema exportado', {
+			description: `"${preset.name}" se ha descargado.`,
 		})
 	}
 
@@ -192,6 +225,7 @@ export function PresetGallery({ activePresetId, savedPresets, onSelect, onDelete
 								onSelect={() => onSelect(preset.id)}
 								onDelete={onDelete ? () => onDelete(preset.id) : undefined}
 								onDuplicate={() => handleDuplicate(preset.id, preset.name)}
+								onExport={() => handleExport(preset)}
 								mode={mode}
 							/>
 						))}
