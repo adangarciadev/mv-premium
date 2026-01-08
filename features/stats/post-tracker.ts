@@ -135,22 +135,11 @@ async function fetchRealThreadTitle(threadUrl: string): Promise<string> {
 		const parser = new DOMParser()
 		const doc = parser.parseFromString(html, 'text/html')
 
-		// Get title from headlink (most accurate)
-		const headlink = doc.querySelector('a.headlink')
-		if (headlink?.textContent) {
-			const title = decodeHtmlEntities(headlink.textContent.trim())
+		// Get title from h1 inside .brand - this is the canonical location on Mediavida
+		const titleH1 = doc.querySelector('#title .brand h1')
+		if (titleH1?.textContent) {
+			const title = decodeHtmlEntities(titleH1.textContent.trim())
 			return cleanThreadTitle(title)
-		}
-
-		// Fallback: get from <title> tag, extract first part before " - "
-		const titleEl = doc.querySelector('title')
-		if (titleEl?.textContent) {
-			// Format: "Thread Title - Subforum - Mediavida"
-			const parts = titleEl.textContent.split(' - ')
-			if (parts.length >= 1) {
-				const title = decodeHtmlEntities(parts[0].trim())
-				return cleanThreadTitle(title)
-			}
 		}
 
 		return ''
@@ -168,7 +157,7 @@ function getEditPageInfo(): { title: string; subforum: string; url: string; need
 	const subforumEl = document.querySelector<HTMLAnchorElement>('#title .brand .section a')
 	const subforum = subforumEl?.textContent?.trim() || ''
 
-	// Get thread URL from headlink
+	// Get thread URL from headlink in page header
 	const headlinkEl = document.querySelector<HTMLAnchorElement>('#title .brand h1 a.headlink')
 	const threadUrl = headlinkEl?.href || ''
 

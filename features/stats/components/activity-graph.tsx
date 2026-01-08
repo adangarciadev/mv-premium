@@ -13,8 +13,20 @@ import TrendingUp from 'lucide-react/dist/esm/icons/trending-up'
 import Pencil from 'lucide-react/dist/esm/icons/pencil'
 import Send from 'lucide-react/dist/esm/icons/send'
 import X from 'lucide-react/dist/esm/icons/x'
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 // =============================================================================
 // Constants
@@ -329,10 +341,12 @@ export const ActivityGraph = memo(function ActivityGraph({
 	className,
 	activityData,
 	username,
+	onClearData,
 }: {
 	className?: string
 	activityData: ActivityData
 	username: string
+	onClearData?: () => void
 }) {
 	const [selectedDay, setSelectedDay] = useState<DayData | null>(null)
 
@@ -359,13 +373,45 @@ export const ActivityGraph = memo(function ActivityGraph({
 							<Calendar className="h-5 w-5 text-primary" />
 							<CardTitle className="text-lg font-semibold text-foreground">Actividad del año {currentYear}</CardTitle>
 						</div>
-						<div className="flex items-center gap-2 text-sm tracking-tight">
-							<TrendingUp className="h-4 w-4 text-primary" />
-							<span className="font-black text-primary text-base">{totalActivity}</span>
-							<span className="text-muted-foreground font-medium">
-								{totalActivity === 1 ? 'contribución total' : 'contribuciones totales'}
-							</span>
-						</div>
+					<div className="flex items-center gap-2 text-sm tracking-tight">
+						<TrendingUp className="h-4 w-4 text-primary" />
+						<span className="font-black text-primary text-base">{totalActivity}</span>
+						<span className="text-muted-foreground font-medium">
+							{totalActivity === 1 ? 'contribución total' : 'contribuciones totales'}
+						</span>
+												{/* Clear button */}
+								{onClearData && (
+									<AlertDialog>
+										<AlertDialogTrigger asChild>
+											<button 
+												className="ml-2 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+												aria-label="Borrar historial"
+												title="Borrar historial de actividad"
+											>
+												<Trash2 className="h-4 w-4" />
+											</button>
+										</AlertDialogTrigger>
+										<AlertDialogContent>
+											<AlertDialogHeader>
+												<AlertDialogTitle>¿Borrar historial de actividad?</AlertDialogTitle>
+												<AlertDialogDescription>
+													Esta acción eliminará permanentemente todo tu historial de actividad.
+													Los datos del gráfico de contribuciones se perderán y no se pueden recuperar.
+												</AlertDialogDescription>
+											</AlertDialogHeader>
+											<AlertDialogFooter>
+												<AlertDialogCancel>Cancelar</AlertDialogCancel>
+												<AlertDialogAction
+													onClick={() => onClearData?.()}
+													className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+												>
+													Borrar todo
+												</AlertDialogAction>
+											</AlertDialogFooter>
+										</AlertDialogContent>
+									</AlertDialog>
+								)}
+					</div>
 					</div>
 				</CardHeader>
 				<CardContent>

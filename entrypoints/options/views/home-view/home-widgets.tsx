@@ -13,7 +13,7 @@ import { useSuspenseQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { browser } from 'wxt/browser'
 import { ActivityGraph } from '@/features/stats'
 import { getCurrentUser } from '../../lib/current-user'
-import { getActivityData } from '@/features/stats/storage'
+import { getActivityData, clearActivityData } from '@/features/stats/storage'
 import { getTimeStats } from '@/features/stats/logic/time-tracker'
 import { getSubforumName } from '@/lib/subforums'
 import { formatPreciseTime, formatBytes } from '@/lib/format-utils'
@@ -161,7 +161,14 @@ export function HomeWidgets() {
 
 			{/* Full Width Heatmap */}
 			<div className="w-full">
-				<ActivityGraph activityData={activityData} username={username} />
+				<ActivityGraph 
+					activityData={activityData} 
+					username={username}
+					onClearData={async () => {
+						await clearActivityData()
+						queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'] })
+					}}
+				/>
 			</div>
 
 			{/* Secondary Grid: Top Subforums + Storage */}
