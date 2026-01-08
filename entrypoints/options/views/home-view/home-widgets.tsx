@@ -89,7 +89,8 @@ export function HomeWidgets() {
 		.flat()
 		.filter(entry => entry.type === 'post' && new Date(entry.timestamp).getFullYear() === currentYear)
 
-	const totalPosts = allPostEntries.length
+	// POSTS: only count new posts (create = new thread, publish = reply), NOT edits
+	const totalPosts = allPostEntries.filter(entry => entry.action !== 'update').length
 	const threadsCreated = allPostEntries.filter(entry => entry.action === 'create').length
 
 	// Process Time Stats
