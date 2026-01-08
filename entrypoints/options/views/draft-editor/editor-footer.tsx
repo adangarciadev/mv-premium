@@ -43,18 +43,9 @@ export function EditorFooter({ content, lastSavedAt, isDirty, onClear }: EditorF
 							Atajos de Teclado
 						</h4>
 						<div className="space-y-2">
-							<ShortcutRow label="Negrita" shortcut="Ctrl+B" />
-							<ShortcutRow label="Cursiva" shortcut="Ctrl+I" />
-							<ShortcutRow label="Subrayado" shortcut="Ctrl+U" />
-							<ShortcutRow label="Enlace" shortcut="Ctrl+K" />
 							<ShortcutRow label="Deshacer" shortcut="Ctrl+Z" />
 							<ShortcutRow label="Rehacer" shortcut="Ctrl+Y" />
-						</div>
-						<DropdownMenuSeparator className="my-3" />
-						<div className="px-1">
-							<p className="text-[10px] text-muted-foreground leading-relaxed italic">
-								Tip: En modo previsualización verás los cambios en tiempo real con el estilo oficial de Mediavida.
-							</p>
+							<ShortcutRow label="Guardar" shortcut="Ctrl+S" />
 						</div>
 					</DropdownMenuContent>
 				</DropdownMenu>

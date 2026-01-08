@@ -36,7 +36,7 @@ export function EditorHeader({ docType, isEditing, form, folders, onOpenFolderDi
 						form.setValue('title', e.target.value.slice(0, 72), { shouldDirty: true })
 					}}
 					maxLength={72}
-					placeholder="Escribe un título..."
+					placeholder="Título..."
 					className="w-full text-3xl font-bold border-none shadow-none focus-visible:ring-0 pl-0 pr-16 bg-transparent placeholder:text-muted-foreground/40 h-auto py-1 focus:outline-none"
 				/>
 				{title.length > 0 && (

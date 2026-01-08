@@ -42,7 +42,6 @@ export function ToolbarButton({
 			</TooltipTrigger>
 			<TooltipContent side="bottom" className="text-xs">
 				{highlighted && highlightTooltip ? highlightTooltip : button.tooltip}
-				{button.shortcut && <span className="ml-2 text-muted-foreground">{button.shortcut}</span>}
 			</TooltipContent>
 		</Tooltip>
 	)

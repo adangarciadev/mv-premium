@@ -449,15 +449,7 @@ export function DraftEditorView({ docType = 'draft' }: DraftEditorViewProps) {
 							onPaste={handlers.handlePaste}
 							onClick={updateCursorState}
 							onKeyUp={updateCursorState}
-							placeholder="Escribe tu borrador aquí...
-
-              Usa la barra de herramientas o atajos de teclado:
-              • Ctrl+B = Negrita     • Ctrl+I = Cursiva
-              • Ctrl+U = Subrayado   • Ctrl+K = Enlace
-              • Ctrl+Z = Deshacer    • Ctrl+Y = Rehacer
-
-              📝 Escribe /atajo + Tab para insertar plantillas
-              ⬆️ Arrastra imágenes aquí para subirlas"
+							placeholder={docType === 'template' ? 'Escribe tu plantilla aquí...' : 'Escribe tu borrador aquí...'}
 							className="absolute inset-0 w-full h-full resize-none p-4 bg-transparent border-none focus:ring-0 focus:outline-none text-sm font-sans leading-relaxed overflow-y-auto custom-scroll"
 							spellCheck={false}
 						/>
