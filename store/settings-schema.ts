@@ -82,9 +82,6 @@ export const settingsSchema = z.object({
 
 	// Layout
 	ultrawideMode: ultrawideSchema.default('off'),
-
-	// Advanced
-	debugMode: z.boolean().default(false),
 })
 
 // =============================================================================

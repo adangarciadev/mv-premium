@@ -73,9 +73,6 @@ export interface Settings {
 
 	// Keyboard Shortcuts
 	shortcuts: Record<string, string | null>
-
-	// Advanced
-	debugMode: boolean
 }
 
 /** Partial settings for updates */

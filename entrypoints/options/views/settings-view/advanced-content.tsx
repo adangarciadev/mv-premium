@@ -3,7 +3,6 @@
  */
 import { useState } from 'react'
 import { logger } from '@/lib/logger'
-import Code from 'lucide-react/dist/esm/icons/code'
 import Activity from 'lucide-react/dist/esm/icons/activity'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import Download from 'lucide-react/dist/esm/icons/download'
@@ -20,7 +19,7 @@ import { useSettingsStore } from '@/store/settings-store'
 import { exportAllData, importAllData, resetAllData, downloadJSON } from '../../lib/export-import'
 
 export function AdvancedContent() {
-	const { debugMode, setDebugMode, enableActivityTracking, updateSettings } = useSettingsStore()
+	const { enableActivityTracking, updateSettings } = useSettingsStore()
 	const [showResetDialog, setShowResetDialog] = useState(false)
 	const [showClearActivityDialog, setShowClearActivityDialog] = useState(false)
 	const [showImportReport, setShowImportReport] = useState(false)
@@ -99,16 +98,6 @@ export function AdvancedContent() {
 	return (
 		<>
 			<SettingsSection title="Avanzado" description="Opciones para usuarios avanzados, depuración y gestión de datos.">
-				<SettingRow
-					icon={<Code className="h-4 w-4" />}
-					label="Modo depuración"
-					description="Muestra mensajes detallados en la consola del navegador."
-				>
-					<Switch checked={debugMode} onCheckedChange={setDebugMode} />
-				</SettingRow>
-
-				<Separator />
-
 				{/* Activity Tracking */}
 				<SettingRow
 					icon={<Activity className="h-4 w-4" />}

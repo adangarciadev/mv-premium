@@ -60,9 +60,6 @@ export const DEFAULT_SETTINGS: Settings = {
 
 	// Keyboard Shortcuts
 	shortcuts: {},
-
-	// Advanced
-	debugMode: false,
 }
 
 /**

@@ -63,8 +63,6 @@ interface FeatureConfig {
 	alwaysEnabled?: boolean
 	/** Settings key that controls this feature */
 	settingsKey?: string
-	/** Requires debug mode to be enabled */
-	requiresDebug?: boolean
 	/** Requires specific API key to be set */
 	requiresApiKey?: string
 	/** Custom check function */
@@ -119,9 +117,6 @@ export function isFeatureEnabled(flag: FeatureFlagKey): boolean {
 
 	const state = useSettingsStore.getState()
 
-	// Check debug mode requirement
-	if (config.requiresDebug && !state.debugMode) return false
-
 	// Check API key requirement
 	if (config.requiresApiKey) {
 		const apiKey = state[config.requiresApiKey as keyof typeof state]
@@ -157,15 +152,12 @@ export function useFeatureFlag(flag: FeatureFlagKey): boolean {
 	// Even if config is missing or feature is always enabled, we subscribe mostly to nothing relevant,
 	// or we just return true.
 	
-	const requiresDebug = config?.requiresDebug
 	const requiresApiKey = config?.requiresApiKey
 	const settingsKey = config?.settingsKey
 
 	const enabled = useSettingsStore(state => {
 		if (!config) return false
 		if (config.alwaysEnabled) return true
-
-		if (requiresDebug && !state.debugMode) return false
 
 		if (requiresApiKey) {
 			const apiKey = state[requiresApiKey as keyof typeof state]
@@ -211,8 +203,6 @@ export function getDisabledFeatures(): Array<{ flag: FeatureFlagKey; reason: str
 			reason = `Setting '${config.settingsKey}' is disabled`
 		} else if (config.requiresApiKey) {
 			reason = `Missing API key: ${config.requiresApiKey}`
-		} else if (config.requiresDebug) {
-			reason = 'Debug mode required'
 		}
 
 		disabled.push({ flag, reason })

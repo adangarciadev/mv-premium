@@ -73,16 +73,11 @@ export const selectSettingsActiveTab = (state: SettingsStoreState) => state.sett
 // ADVANCED SELECTORS
 // =============================================================================
 
-export const selectDebugMode = (state: SettingsStoreState) => state.debugMode
 export const selectSyncEnabled = (state: SettingsStoreState) => state.syncEnabled
 
 // =============================================================================
 // COMPOSITE SELECTORS (for components that need multiple related values)
 // =============================================================================
-
-
-
-
 
 /** Selector for all API keys */
 export const selectApiKeys = (state: SettingsStoreState) => ({
@@ -104,11 +99,6 @@ export function useTheme() {
 	return useSettingsStore(selectTheme)
 }
 
-/**
- * Hook that returns debug mode status.
- */
-export function useDebugMode() {
-	return useSettingsStore(selectDebugMode)
-}
+
 
 
