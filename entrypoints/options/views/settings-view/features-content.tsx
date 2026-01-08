@@ -143,7 +143,14 @@ export function FeaturesContent() {
 			<SettingRow
 				icon={<Bot className="h-4 w-4" />}
 				label="Resumidor de Hilos (IA)"
-				description="Añade un botón para generar resúmenes del hilo completo usando inteligencia artificial."
+				description={
+					<span>
+						Añade un botón para generar resúmenes de cada página del hilo usando inteligencia artificial.{' '}
+						<span className="text-destructive font-bold block mt-1">
+							⚠️ Requiere configurar una Gemini API Key
+						</span>
+					</span>
+				}
 			>
 				<Switch
 					checked={threadSummarizerEnabled}

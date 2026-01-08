@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 export interface SettingRowProps {
 	icon?: ReactNode
 	label: string
-	description: string
+	description: ReactNode
 	children: ReactNode
 }
 
@@ -18,7 +18,7 @@ export function SettingRow({ icon, label, description, children }: SettingRowPro
 				{icon && <div className="mt-0.5 text-muted-foreground">{icon}</div>}
 				<div className="space-y-0.5">
 					<Label className="text-sm font-medium">{label}</Label>
-					<p className="text-xs text-muted-foreground max-w-md">{description}</p>
+					<div className="text-xs text-muted-foreground max-w-md">{description}</div>
 				</div>
 			</div>
 			<div className="shrink-0">{children}</div>
