@@ -12,7 +12,6 @@ import Sun from 'lucide-react/dist/esm/icons/sun'
 import Moon from 'lucide-react/dist/esm/icons/moon'
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import Settings2 from 'lucide-react/dist/esm/icons/settings-2'
-import FileJson from 'lucide-react/dist/esm/icons/file-json'
 import Type from 'lucide-react/dist/esm/icons/type'
 import MoreHorizontal from 'lucide-react/dist/esm/icons/more-horizontal'
 import Info from 'lucide-react/dist/esm/icons/info'
@@ -42,7 +41,6 @@ import { ContrastChecker } from './contrast-checker'
 import { useThemeStore } from '../theme-store'
 import { getPresetById, defaultPreset } from '@/features/theme-editor/presets'
 import { DOM_MARKERS } from '@/constants/dom-markers'
-import type { ThemeExport } from '@/types/theme'
 import type { ColorHarmony } from '../lib/color-generator'
 
 // Descriptions for color harmony types (standard Color Theory)
@@ -81,7 +79,7 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 	const [harmony, setHarmony] = useState<ColorHarmony>('complementary')
 	const [customFontInput, setCustomFontInput] = useState('')
 
-	// Usar selectores individuales para garantizar reactividad
+	// Use individual selectors to ensure reactivity
 	const isLoaded = useThemeStore(state => state.isLoaded)
 	const activePresetId = useThemeStore(state => state.activePresetId)
 	const customColorsLight = useThemeStore(state => state.customColorsLight)
@@ -165,7 +163,7 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 	}
 
 	const handleFontChange = (font: string) => {
-		// "default" significa restaurar la fuente por defecto
+		// "default" means restore default font
 		const actualFont = font === 'default' ? '' : font
 		setCustomFont(actualFont)
 		applyGoogleFont(actualFont)
@@ -364,7 +362,7 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 								</PopoverContent>
 							</Popover>
 
-							{/* Acciones secundarias */}
+							{/* Secondary actions */}
 							<Popover open={savePopoverOpen} onOpenChange={setSavePopoverOpen}>
 								<PopoverTrigger asChild>
 									<Button variant="outline" size="sm" className="gap-2">
@@ -481,7 +479,7 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 							<input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
 						</div>
 
-						{/* Tabs principales - Mejorados */}
+						{/* Tabs - Improved */}
 						<Tabs defaultValue="presets" className="w-full">
 							<TabsList className="grid w-full grid-cols-2">
 								<TabsTrigger value="presets" className="gap-2">

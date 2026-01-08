@@ -319,7 +319,7 @@ function parseMediaTag(url: string): string {
 		// Capitalize (amazon.es -> Amazon.es)
 		domain = domain.charAt(0).toUpperCase() + domain.slice(1)
 	} catch {
-		// URL malformada - usar dominio por defecto 'Enlace externo'
+		// Malformed URL - use default domain 'External Link'
 	}
 
 	return `
@@ -736,7 +736,7 @@ export async function parseBBCode(input: string): Promise<string> {
 		})
 		.join('\n') // Join the blocks with a break so the HTML is readable
 
-	// 12. Restaurar bloques protegidos (resolve all promises)
+	// 12. Restore protected blocks (resolve all promises)
 	const resolvedBlocks = await Promise.all(
 		codeBlocks.map(async block => ({
 			placeholder: block.placeholder,

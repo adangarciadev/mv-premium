@@ -1,10 +1,10 @@
 /**
- * Theme Presets - Colección de temas predefinidos
+ * Theme Presets - Collection of predefined themes
  */
 import type { ThemePreset } from '@/types/theme'
 
-/** * Tema por defecto - Zinc Crisp / Modern Slate 
- * Optimizado para alto contraste y limpieza visual.
+/** * Default Theme - Zinc Crisp / Modern Slate 
+ * Optimized for high contrast and visual cleanliness.
  */
 export const defaultPreset: ThemePreset = {
   id: 'default',
@@ -95,7 +95,7 @@ export const defaultPreset: ThemePreset = {
   radius: '0.625rem',
 }
 
-/** * Tema Mediavida - Colores nativos del foro 
+/** * Mediavida Theme - Native forum colors 
  * (INTACTO)
  */
 export const mediaviaPreset: ThemePreset = {
@@ -187,8 +187,8 @@ export const mediaviaPreset: ThemePreset = {
   radius: '0.5rem',
 }
 
-/** * Tema Ocean - Azules profundos
- * WCAG Fix: Primary Light oscurecido para contraste con texto blanco.
+/** * Ocean Theme - Deep blues
+ * WCAG Fix: Primary Light darkened for contrast with white text.
  */
 export const oceanPreset: ThemePreset = {
   id: 'ocean',
@@ -202,7 +202,7 @@ export const oceanPreset: ThemePreset = {
       cardForeground: '#0c4a6e',
       popover: '#ffffff',
       popoverForeground: '#0c4a6e',
-      primary: '#0284c7', // Sky 600 - Buen contraste
+      primary: '#0284c7', // Sky 600 - Good contrast
       primaryForeground: '#ffffff',
       secondary: '#e0f2fe',
       secondaryForeground: '#0c4a6e',
@@ -236,9 +236,9 @@ export const oceanPreset: ThemePreset = {
       tableBorder: '#bae6fd',
     },
     dark: {
-      background: '#0b1120', // Azul muy oscuro (casi negro)
+      background: '#0b1120', // Very dark blue (almost black)
       foreground: '#e0f2fe',
-      card: '#111a2c', // Ligeramente más claro para cards
+      card: '#111a2c', // Slightly lighter for cards
       cardForeground: '#e0f2fe',
       popover: '#111a2c',
       popoverForeground: '#e0f2fe',
@@ -279,8 +279,8 @@ export const oceanPreset: ThemePreset = {
   radius: '0.75rem',
 }
 
-/** * Tema Forest - Verdes naturales
- * WCAG Fix: Primary Light cambiado a Green 700 para pasar ratio contraste.
+/** * Forest Theme - Natural greens
+ * WCAG Fix: Primary Light changed to Green 700 to pass contrast ratio.
  */
 export const forestPreset: ThemePreset = {
   id: 'forest',
@@ -288,13 +288,13 @@ export const forestPreset: ThemePreset = {
   description: 'Verdes naturales y terrosos',
   colors: {
     light: {
-      background: '#f8fafc', // Blanco roto frío
+      background: '#f8fafc', // Cold off-white
       foreground: '#14532d', // Green 950
       card: '#ffffff',
       cardForeground: '#14532d',
       popover: '#ffffff',
       popoverForeground: '#14532d',
-      primary: '#15803d', // Green 700 (Más oscuro para permitir texto blanco)
+      primary: '#15803d', // Green 700 (Darker to allow white text)
       primaryForeground: '#ffffff',
       secondary: '#dcfce7',
       secondaryForeground: '#14532d',
@@ -304,7 +304,7 @@ export const forestPreset: ThemePreset = {
       accentForeground: '#14532d',
       destructive: '#dc2626',
       destructiveForeground: '#ffffff',
-      border: '#cbd5e1', // Slate suave para estructura
+      border: '#cbd5e1', // Soft slate for structure
       input: '#cbd5e1',
       ring: '#15803d',
       sidebar: '#f0fdf4',
@@ -328,7 +328,7 @@ export const forestPreset: ThemePreset = {
       tableBorder: '#bbf7d0',
     },
     dark: {
-      background: '#022c22', // Green 950 profundo
+      background: '#022c22', // Deep Green 950
       foreground: '#ecfccb', // Lime 100
       card: '#064e3b', // Green 900
       cardForeground: '#ecfccb',
@@ -371,8 +371,8 @@ export const forestPreset: ThemePreset = {
   radius: '0.5rem',
 }
 
-/** * Tema Sunset - Naranjas y rojos cálidos
- * WCAG Fix: Primary Light crítico. Naranja sobre blanco necesita ser oscuro (#c2410c)
+/** * Sunset Theme - Warm oranges and reds
+ * WCAG Fix: Critical Primary Light. Orange on white needs to be dark (#c2410c)
  */
 export const sunsetPreset: ThemePreset = {
   id: 'sunset',
@@ -386,7 +386,7 @@ export const sunsetPreset: ThemePreset = {
       cardForeground: '#431407',
       popover: '#ffffff',
       popoverForeground: '#431407',
-      primary: '#c2410c', // Orange 700 (Crucial para WCAG sobre blanco)
+      primary: '#c2410c', // Orange 700 (Crucial for WCAG on white)
       primaryForeground: '#ffffff',
       secondary: '#ffedd5',
       secondaryForeground: '#431407',
@@ -463,8 +463,8 @@ export const sunsetPreset: ThemePreset = {
   radius: '0.75rem',
 }
 
-/** * Tema Rose Pine
- * Fidelidad al tema original pero pulido de bordes.
+/** * Rose Pine Theme
+ * Faithful to the original theme but with polished borders.
  */
 export const rosePinePreset: ThemePreset = {
   id: 'rose-pine',
@@ -555,8 +555,8 @@ export const rosePinePreset: ThemePreset = {
   radius: '0.5rem',
 }
 
-/** * Tema Nord
- * Ajustado para mantener la frialdad sin perder contraste.
+/** * Nord Theme
+ * Adjusted to maintain coolness without losing contrast.
  */
 export const nordPreset: ThemePreset = {
   id: 'nord',
@@ -647,8 +647,8 @@ export const nordPreset: ThemePreset = {
   radius: '0.375rem',
 }
 
-/** * Tema Catppuccin Mocha
- * Colores oficiales fieles y alto contraste.
+/** * Catppuccin Mocha Theme
+ * Faithful official colors and high contrast.
  */
 export const catppuccinPreset: ThemePreset = {
   id: 'catppuccin',
@@ -739,7 +739,7 @@ export const catppuccinPreset: ThemePreset = {
   radius: '0.625rem',
 }
 
-/** Todos los presets disponibles */
+/** All available presets */
 export const ALL_PRESETS: ThemePreset[] = [
   defaultPreset,
   mediaviaPreset,
@@ -751,7 +751,7 @@ export const ALL_PRESETS: ThemePreset[] = [
   catppuccinPreset,
 ]
 
-/** Obtener preset por ID */
+/** Get preset by ID */
 export function getPresetById(id: string): ThemePreset | undefined {
   return ALL_PRESETS.find(p => p.id === id)
 }

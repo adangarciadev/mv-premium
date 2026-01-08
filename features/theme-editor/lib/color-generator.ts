@@ -183,11 +183,11 @@ type TableStyle = 'standard' | 'strong' | 'vibrant' | 'subtle'
 function generateLightColors(hues: number[], saturation: number, tableStyle: TableStyle = 'standard'): ThemeColors {
 	const [primaryHue, accentHue = primaryHue + 180] = hues
 
-	// Colores base
+	// Base colors
 	const background = oklchToHex(createOklch(0.995, 0.002, primaryHue))
 	const foreground = oklchToHex(createOklch(0.15, 0.01, primaryHue))
 
-	// Colores principales
+	// Main colors
 	const primary = oklchToHex(createOklch(0.45, saturation, primaryHue))
 	const primaryForeground = ensureContrast('#ffffff', primary)
 
@@ -307,15 +307,15 @@ function generateLightColors(hues: number[], saturation: number, tableStyle: Tab
 function generateDarkColors(hues: number[], saturation: number, tableStyle: TableStyle = 'standard'): ThemeColors {
 	const [primaryHue, accentHue = primaryHue + 180] = hues
 
-	// Colores base
+	// Base colors
 	const background = oklchToHex(createOklch(0.13, 0.015, primaryHue))
 	const foreground = oklchToHex(createOklch(0.95, 0.01, primaryHue))
 
-	// Colores principales
+	// Main colors
 	const primary = oklchToHex(createOklch(0.75, saturation * 0.8, primaryHue))
 	const primaryForeground = ensureContrast(oklchToHex(createOklch(0.15, 0.02, primaryHue)), primary)
 
-	// Secundario
+	// Secondary
 	const secondary = oklchToHex(createOklch(0.22, 0.025, primaryHue))
 	const secondaryForeground = ensureContrast(foreground, secondary)
 

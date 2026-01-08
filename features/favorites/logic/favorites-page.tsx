@@ -1,7 +1,7 @@
 /**
  * Favorites Page
  *
- * Inyecta checks en la tabla nativa + barra de acciones React en Shadow DOM
+ * Injects checks into the native table + React action bar in Shadow DOM
  */
 
 import { useState, useCallback, useSyncExternalStore, useRef, useEffect } from 'react'
@@ -36,7 +36,7 @@ const CB_CLASS = DOM_MARKERS.CLASSES.FAV_CHECKBOX
 const FEATURE_ID = FEATURE_IDS.FAVORITES_ACTION_BAR
 
 // ─────────────────────────────────────────────────────────────
-// DOM Helpers (tabla nativa)
+// DOM Helpers (native table)
 // ─────────────────────────────────────────────────────────────
 
 const table = () => document.getElementById(MV_SELECTORS.FORUM.THREAD_TABLE.replace('#', '')) as HTMLTableElement | null
@@ -54,7 +54,7 @@ function getCheckedIds(): string[] {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Store para sincronizar estado entre DOM y React
+// Store to synchronize state between DOM and React
 // ─────────────────────────────────────────────────────────────
 
 let listeners: Array<() => void> = []
@@ -116,7 +116,7 @@ function FavoritesActionBar() {
 		if (!ids.length) return
 
 		setIsDeleting(true)
-		// Mostrar toast de carga
+		// Show loading toast
 		const toastId = toast.loading('Eliminando favoritos...')
 
 		try {
@@ -225,7 +225,7 @@ function injectCheckboxes(): void {
 	}
 
 	// Hover styles (Updated to 0.15 opacity and transition)
-	// favorites-page.tsx -> dentro de injectCheckboxes()
+	// favorites-page.tsx -> inside injectCheckboxes()
 
 	// Styles injection
 	// 1. Cleanup
@@ -259,7 +259,7 @@ function injectCheckboxes(): void {
         background-image: linear-gradient(rgba(var(--mvp-fav-overlay-rgb), 0.08), rgba(var(--mvp-fav-overlay-rgb), 0.08)) !important;
     }
 
-    /* Limpieza del TR nativo para evitar conflictos */
+    /* Cleanup of native TR to avoid conflicts */
     html body table#tablatemas tbody tr:hover,
     html body table#tablatemas tbody tr.selected {
         background-image: none !important;
@@ -350,11 +350,11 @@ export function injectFavoritesPageButtons(): void {
 	logger.debug('Favorites inject')
 	t.setAttribute(MARKER, 'true')
 
-	// 1. Inyectar checkboxes en tabla nativa
+	// 1. Inject checkboxes into native table
 	injectCheckboxes()
 	setupEventListeners()
 
-	// 2. Montar barra de acciones React en Shadow DOM
+	// 2. Mount React action bar in Shadow DOM
 	const container = document.createElement('div')
 	container.id = DOM_MARKERS.IDS.FAV_BAR_CONTAINER
 	// Apply sticky styles to the host container so it sticks to the viewport
@@ -365,7 +365,7 @@ export function injectFavoritesPageButtons(): void {
 
 	mountFeature(FEATURE_ID, container, <FavoritesActionBar />)
 
-	// Inicializar snapshot
+	// Initialize snapshot
 	emitChange()
 }
 

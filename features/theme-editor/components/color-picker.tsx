@@ -22,7 +22,7 @@ interface ColorPickerProps {
 	value: string
 	onChange: (value: string) => void
 	label?: string
-	contrastAgainst?: string // Color para mostrar contraste
+	contrastAgainst?: string // Color to show contrast
 }
 
 export function ColorPicker({ value, onChange, label, contrastAgainst }: ColorPickerProps) {

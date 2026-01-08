@@ -1,8 +1,8 @@
 /**
- * Theme Types - Definiciones de tipos para el sistema de personalización de temas
+ * Theme Types - Type definitions for the theme customization system
  */
 
-/** Colores base de Shadcn UI */
+/** Shadcn UI base colors */
 export interface ThemeColors {
 	// Core
 	background: string
@@ -51,7 +51,7 @@ export interface ThemeColors {
 	tableBorder: string
 }
 
-/** Preset de tema completo con variantes light/dark */
+/** Complete theme preset with light/dark variants */
 export interface ThemePreset {
 	id: string
 	name: string
@@ -64,15 +64,15 @@ export interface ThemePreset {
 	radius?: string
 }
 
-/** Estado del tema personalizado */
+/** Custom theme state */
 export interface CustomThemeState {
-	/** ID del preset activo o 'custom' si hay modificaciones */
+	/** Active preset ID or 'custom' if there are modifications */
 	activePresetId: string
-	/** Colores personalizados que sobrescriben el preset (light mode) */
+	/** Custom colors overriding the preset (light mode) */
 	customColorsLight: Partial<ThemeColors>
-	/** Colores personalizados que sobrescriben el preset (dark mode) */
+	/** Custom colors overriding the preset (dark mode) */
 	customColorsDark: Partial<ThemeColors>
-	/** Radio de bordes personalizado */
+	/** Custom border radius */
 	customRadius?: string
 }
 
@@ -84,7 +84,7 @@ export interface ThemeExport {
 	preset: ThemePreset
 }
 
-/** Mapa de nombres de variables CSS a propiedades de ThemeColors */
+/** Map of CSS variable names to ThemeColors properties */
 export const CSS_VAR_MAP: Record<keyof ThemeColors, string> = {
 	background: '--background',
 	foreground: '--foreground',
@@ -126,7 +126,7 @@ export const CSS_VAR_MAP: Record<keyof ThemeColors, string> = {
 	tableBorder: '--table-border',
 }
 
-/** Grupos de colores para el editor */
+/** Color groups for the editor */
 export const COLOR_GROUPS = {
 	core: {
 		label: 'Colores Base',
@@ -188,7 +188,7 @@ export const COLOR_GROUPS = {
 	},
 } as const
 
-/** Labels legibles para cada variable de color */
+/** Human-readable labels for each color variable */
 export const COLOR_LABELS: Record<keyof ThemeColors, string> = {
 	background: 'Fondo',
 	foreground: 'Texto principal',

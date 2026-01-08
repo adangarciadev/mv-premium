@@ -24,9 +24,9 @@ const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Se
 
 const ACTIVITY_LEVELS = [
 	'bg-secondary', // Level 0 (Empty)
-	'bg-primary opacity-30', // Nivel 1 - Sutil
-	'bg-primary opacity-50', // Nivel 2 - Medio
-	'bg-primary opacity-75', // Nivel 3 - Alto
+	'bg-primary opacity-30', // Level 1 - Subtle
+	'bg-primary opacity-50', // Level 2 - Medium
+	'bg-primary opacity-75', // Level 3 - High
 	'bg-primary', // Level 4 - Maximum
 ]
 
@@ -274,9 +274,6 @@ function formatTooltipContent(day: DayData): React.ReactNode {
 		</span>
 	)
 }
-// =============================================================================
-// Helper Component: Skeleton
-// =============================================================================
 
 // =============================================================================
 // Helper Component: Skeleton
@@ -393,19 +390,19 @@ export const ActivityGraph = memo(function ActivityGraph({
 							<div className="flex gap-2">
 								{/* Day labels column - Aligned with grid rows */}
 								<div className="flex w-6 flex-col gap-0.5 pr-1 text-[10px] text-muted-foreground">
-									{/* Row 0 (Dom) */}
+									{/* Row 0 (Sun) */}
 									<div className="h-5" />
-									{/* Row 1 (Lun) */}
+									{/* Row 1 (Mon) */}
 									<div className="h-5 flex items-center leading-none">Lun</div>
-									{/* Row 2 (Mar) */}
+									{/* Row 2 (Tue) */}
 									<div className="h-5" />
-									{/* Row 3 (Mie) */}
+									{/* Row 3 (Wed) */}
 									<div className="h-5 flex items-center leading-none">Mié</div>
-									{/* Row 4 (Jue) */}
+									{/* Row 4 (Thu) */}
 									<div className="h-5" />
-									{/* Row 5 (Vie) */}
+									{/* Row 5 (Fri) */}
 									<div className="h-5 flex items-center leading-none">Vie</div>
-									{/* Row 6 (Sab) */}
+									{/* Row 6 (Sat) */}
 									<div className="h-5" />
 								</div>
 

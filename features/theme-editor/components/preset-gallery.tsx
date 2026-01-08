@@ -1,5 +1,5 @@
 /**
- * Preset Gallery - Grid de presets disponibles con preview
+ * Preset Gallery - Grid of available presets with preview
  */
 import Check from 'lucide-react/dist/esm/icons/check'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
@@ -51,17 +51,17 @@ function PresetCard({ preset, isActive, isCustom, onSelect, onDelete, onDuplicat
 			)}
 			onClick={onSelect}
 		>
-			{/* Preview de colores */}
+			{/* Colors Preview */}
 			<div className="aspect-video rounded-md overflow-hidden mb-3 border relative">
 				<div className="h-full w-full flex flex-col" style={{ backgroundColor: colors.background }}>
-					{/* Header simulado */}
+					{/* Simulated Header */}
 					<div className="h-4 flex items-center gap-1 px-1.5" style={{ backgroundColor: colors.sidebar }}>
 						<div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.destructive }} />
 						<div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.chart5 }} />
 						<div className="w-2 h-2 rounded-full" style={{ backgroundColor: colors.chart4 }} />
 					</div>
 
-					{/* Content simulado */}
+					{/* Simulated Content */}
 					<div className="flex-1 flex p-1.5 gap-1.5">
 						{/* Sidebar */}
 						<div className="w-1/4 rounded-sm" style={{ backgroundColor: colors.sidebar }}>
@@ -193,7 +193,7 @@ export function PresetGallery({ activePresetId, savedPresets, onSelect, onDelete
 
 	return (
 		<div className="space-y-6">
-			{/* Presets integrados */}
+			{/* Built-in Presets */}
 			<div>
 				<h4 className="text-sm font-medium mb-3">Temas integrados</h4>
 				<div className="grid grid-cols-2 gap-4">
@@ -211,7 +211,7 @@ export function PresetGallery({ activePresetId, savedPresets, onSelect, onDelete
 				</div>
 			</div>
 
-			{/* Presets guardados */}
+			{/* Saved Presets */}
 			{savedPresets.length > 0 && (
 				<div>
 					<h4 className="text-sm font-medium mb-3">Mis temas</h4>

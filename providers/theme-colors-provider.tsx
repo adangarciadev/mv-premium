@@ -31,7 +31,7 @@ export function ThemeColorsProvider({ children }: ThemeColorsProviderProps) {
 		}
 	}, [isLoaded, loadFromStorage])
 
-	// Computar activePreset localmente para garantizar reactividad
+	// Compute activePreset locally to ensure reactivity
 	const activePreset = useMemo(() => {
 		const basePreset = getPresetById(activePresetId) || savedPresets.find(p => p.id === activePresetId) || defaultPreset
 
