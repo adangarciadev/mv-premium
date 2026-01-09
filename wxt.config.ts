@@ -18,6 +18,15 @@ export default defineConfig({
 		],
 		name: 'MV Premium',
 		description: 'La experiencia definitiva para Mediavida. Potencia el foro con herramientas modernas, navegación fluida y personalización total.',
+    "browser_specific_settings": {
+    "gecko": {
+      "id": "mv-premium@adan-dev",
+      // @ts-ignore: Esta propiedad es nueva en Firefox y WXT aún no la tiene tipada
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+   },
 		web_accessible_resources: [
 			{
 				resources: ['icon/*.png', 'assets/*.css'],
