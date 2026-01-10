@@ -72,6 +72,17 @@ export function DraftEditorView({ docType = 'draft' }: DraftEditorViewProps) {
 	const textareaRef = useRef<HTMLTextAreaElement>(null)
 	const previewRef = useRef<HTMLDivElement>(null)
 	const editorContainerRef = useRef<HTMLDivElement>(null)
+	// Track the last value typed by user to detect external changes
+	const lastTypedValueRef = useRef<string>(content)
+
+	// Sync textarea when content changes externally (toolbar, templates, etc.)
+	useEffect(() => {
+		if (textareaRef.current && content !== lastTypedValueRef.current) {
+			// Content changed externally - update textarea
+			textareaRef.current.value = content
+			lastTypedValueRef.current = content
+		}
+	}, [content])
 
 	// Local state
 	const [showPreview, setShowPreview] = useState(true)
@@ -105,7 +116,7 @@ export function DraftEditorView({ docType = 'draft' }: DraftEditorViewProps) {
 			form.setValue('content', newContent, { shouldDirty: true })
 		},
 		textareaRef,
-		shortcuts: true,
+		shortcuts: false, // Disabled to avoid cursor jumping issues
 		buttons: DEFAULT_TOOLBAR_BUTTONS,
 		onAction: dialogId => {
 			const tableData = handlers.handleDialog(dialogId)
@@ -433,26 +444,33 @@ export function DraftEditorView({ docType = 'draft' }: DraftEditorViewProps) {
 							</Button>
 						</div>
 
-						{/* Textarea */}
-						<textarea
-							ref={el => {
-								// @ts-ignore
-								textareaRef.current = el
-								editor.registerTextarea(el)
-							}}
-							value={content}
-							onChange={e => {
-								form.setValue('content', e.target.value, { shouldDirty: true })
-								slashCommand.checkForCommand()
-							}}
-							onScroll={handlers.handleSyncScroll}
-							onPaste={handlers.handlePaste}
-							onClick={updateCursorState}
-							onKeyUp={updateCursorState}
-							placeholder={docType === 'template' ? 'Escribe tu plantilla aquí...' : 'Escribe tu borrador aquí...'}
-							className="absolute inset-0 w-full h-full resize-none p-4 bg-transparent border-none focus:ring-0 focus:outline-none text-sm font-sans leading-relaxed overflow-y-auto custom-scroll"
-							spellCheck={false}
-						/>
+							{/* Textarea - Uncontrolled to preserve cursor position */}
+							<textarea
+								ref={el => {
+									// @ts-ignore
+									textareaRef.current = el
+									editor.registerTextarea(el)
+								}}
+								defaultValue={content}
+								onInput={e => {
+									const target = e.target as HTMLTextAreaElement
+									lastTypedValueRef.current = target.value
+									form.setValue('content', target.value, { shouldDirty: true })
+								}}
+								onPaste={handlers.handlePaste}
+								onClick={() => {
+									checkActiveFormats()
+									setIsTableAtCursor(handlers.checkTableAtCursor())
+								}}
+								onKeyUp={() => {
+									slashCommand.checkForCommand()
+									checkActiveFormats()
+									setIsTableAtCursor(handlers.checkTableAtCursor())
+								}}
+								placeholder={docType === 'template' ? 'Escribe tu plantilla aquí...' : 'Escribe tu borrador aquí...'}
+								className="absolute inset-0 w-full h-full resize-none p-4 bg-transparent border-none focus:ring-0 focus:outline-none text-sm font-sans leading-relaxed overflow-y-auto custom-scroll"
+								spellCheck={false}
+							/>
 
 						{/* Dropzone Overlay */}
 						{dialogs.isOpen('dropzone') && (
