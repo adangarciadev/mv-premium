@@ -573,7 +573,8 @@ export async function parseBBCode(input: string): Promise<string> {
 	// Clean empty lines around <hr> to avoid extra spacing
 	// This allows BBCode to have empty lines (necessary for native MV)
 	// but our preview doesn't show extra space
-	html = html.replace(/\n+<hr>\n+/g, '\n<hr>\n')
+	// CHANGED: Force double \n to ensure HR is treated as a separate block
+	html = html.replace(/\n*<hr>\n*/g, '\n\n<hr>\n\n')
 
 	// ========================================================================
 	// 4. LISTS (BBCode and Markdown) - MOVED HERE!
@@ -630,7 +631,7 @@ export async function parseBBCode(input: string): Promise<string> {
 	// 7.1a. Anchor Links: [ancla=id]text[/ancla] -> <a href="#id">text</a>
 	html = html.replace(/\[ancla=([^\]]+)\]([\s\S]*?)\[\/ancla\]/gi, '<a href="#$1" class="ancla-link">$2</a>')
 
-	// 7.1b. Anchor Targets: [ancla]id[/ancla] -> <a class="bar-offset" name="id"></a>
+	// 7.1b. Anchor Targets: [ancla]id[/ancla] -> <a class="bar-offset" name="$1"></a>
 	html = html.replace(/\[ancla\]([^\[]+)\[\/ancla\]/gi, '<a class="bar-offset" name="$1"></a>')
 
 	// 7.1. Markdown Images: ![alt](url)

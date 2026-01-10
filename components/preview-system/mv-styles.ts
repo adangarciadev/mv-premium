@@ -138,6 +138,14 @@ h4 + h5 { margin-top: -3px !important; }
 h1 + h2, h1 + h3, h1 + h4, h1 + h5, h2 + h4, h2 + h5, h3 + h5 { margin-top: 7px !important; }
 h1 + h5, h2 + h5, h3 + h5, h4 + h5 { margin-top: -3px !important; }
 
+/* Native-like fix: Hide paragraph if it only contains an anchor */
+p:has(> .bar-offset:only-child),
+p:has(> .ancla-link:only-child) {
+    margin: 0 !important;
+    height: 0 !important;
+    padding: 0 !important;
+}
+
 p { margin-top: 0; margin-bottom: 10px; }
 
 blockquote, .quote {
