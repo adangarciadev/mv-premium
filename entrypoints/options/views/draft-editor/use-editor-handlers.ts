@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { findTableAtCursor } from '@/features/editor/lib/table-utils'
 import { unwrapBBCode, getFormatById } from '@/features/editor/lib/bbcode-utils'
 import { isImageUrl } from '@/features/editor/logic/image-detector'
+import { isMediaUrl, getMediaType } from '@/features/editor/logic/media-detector'
 import type { UseEditorHandlersOptions } from './types'
 import type { MvEmoji } from '@/constants/mv-emojis'
 import type { TableInitialData } from '@/features/table-editor/components/table-editor-dialog'
@@ -294,7 +295,7 @@ export function useEditorHandlers({
 		[editor, dialogs]
 	)
 
-	// Paste handler for auto image tagging
+	// Paste handler for auto image/media tagging
 	const handlePaste = useCallback(
 		(e: React.ClipboardEvent<HTMLTextAreaElement>) => {
 			const pastedText = e.clipboardData.getData('text/plain').trim()
@@ -303,12 +304,25 @@ export function useEditorHandlers({
 				return
 			}
 
+			// Check for image URLs first
 			if (isImageUrl(pastedText)) {
 				e.preventDefault()
 				editor.insertAtCursor(`[img]${pastedText}[/img]`)
 				toast.success('Imagen detectada', {
 					description: 'URL envuelta automáticamente con [img]',
 				})
+				return
+			}
+
+			// Check for media URLs (YouTube, Steam, Twitter, etc.)
+			if (isMediaUrl(pastedText)) {
+				e.preventDefault()
+				editor.insertAtCursor(`[media]${pastedText}[/media]`)
+				const mediaType = getMediaType(pastedText)
+				toast.success('Media detectado', {
+					description: `URL de ${mediaType || 'media'} envuelta automáticamente con [media]`,
+				})
+				return
 			}
 		},
 		[editor]
