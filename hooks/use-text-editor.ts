@@ -105,6 +105,9 @@ export function useTextEditor(options: UseTextEditorOptions = {}): UseTextEditor
 
 			isProgrammaticRef.current = true
 
+			// Preserve scroll position before any DOM changes
+			const scrollTop = textarea.scrollTop
+
 			// ALWAYS sync textarea DOM immediately (regardless of mode)
 			// This prevents race conditions when multiple insertions happen in rapid succession
 			textarea.value = newValue
@@ -112,12 +115,20 @@ export function useTextEditor(options: UseTextEditorOptions = {}): UseTextEditor
 				textarea.selectionStart = cursorPos
 				textarea.selectionEnd = cursorPos
 			}
+			// Restore scroll position immediately
+			textarea.scrollTop = scrollTop
 
 			if (onChange) {
 				// Controlled mode: also notify React state
 				onChange(newValue)
-				// Schedule focus after React update
+				// Schedule focus and restore position after React update
+				// React may override our changes when it re-renders the textarea
 				requestAnimationFrame(() => {
+					if (textarea && cursorPos !== undefined) {
+						textarea.selectionStart = cursorPos
+						textarea.selectionEnd = cursorPos
+						textarea.scrollTop = scrollTop
+					}
 					textarea?.focus()
 					isProgrammaticRef.current = false
 				})
