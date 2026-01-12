@@ -11,9 +11,9 @@
  *
  * API Documentation: https://api.imgbb.com/
  */
-import { storage } from '#imports'
 import { logger } from '@/lib/logger'
 import { sendMessage, type UploadResult } from '@/lib/messaging'
+import { getSettings } from '@/store/settings-store'
 
 // Re-export types for external use
 export type { UploadResult } from '@/lib/messaging'
@@ -27,30 +27,12 @@ const MAX_FILE_SIZE_CATBOX = 200 * 1024 * 1024 // 200MB (Catbox limit)
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif']
 
 // =============================================================================
-// Storage Definitions
-// =============================================================================
-
-import { STORAGE_KEYS } from '@/constants'
-
-const imgbbApiKeyStorage = storage.defineItem<string | null>(`local:${STORAGE_KEYS.IMGBB_KEY}`, {
-	defaultValue: null,
-})
-
-// =============================================================================
-// API Key Management (for UI only - background reads its own copy)
+// API Key Management (reads from Settings store)
 // =============================================================================
 
 export async function getApiKey(): Promise<string> {
-	const key = await imgbbApiKeyStorage.getValue()
-	return key || ''
-}
-
-export async function setApiKey(key: string): Promise<void> {
-	await imgbbApiKeyStorage.setValue(key)
-}
-
-export async function clearApiKey(): Promise<void> {
-	await imgbbApiKeyStorage.removeValue()
+	const settings = await getSettings()
+	return settings.imgbbApiKey || ''
 }
 
 // =============================================================================
@@ -125,8 +107,8 @@ export async function uploadImage(file: File | Blob): Promise<UploadResult> {
 		const base64 = await fileToBase64(file)
 		const fileName = file instanceof File ? file.name : `image_${Date.now()}.jpg`
 
-		// Check if user has ImgBB API key configured
-		const imgbbKey = await imgbbApiKeyStorage.getValue()
+		// Check if user has ImgBB API key configured (from Settings store)
+		const imgbbKey = await getApiKey()
 		const useImgBB = imgbbKey && file.size <= MAX_FILE_SIZE_IMGBB
 
 		let result: UploadResult

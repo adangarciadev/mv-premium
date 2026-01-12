@@ -10,7 +10,8 @@
 import { useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
 import { logger } from '@/lib/logger'
-import { uploadImage, getApiKey, setApiKey, validateImageFile } from '@/services/api/imgbb'
+import { uploadImage, getApiKey, validateImageFile } from '@/services/api/imgbb'
+import { useSettingsStore } from '@/store/settings-store'
 import type { UseDialogManagerReturn } from './use-dialog-manager'
 
 export interface UseUploadStateOptions {
@@ -95,13 +96,15 @@ export function useUploadState({ dialogs, onInsertImage }: UseUploadStateOptions
 		}
 	}, [dialogs, ensureApiKeyLoaded])
 
+	const setImgbbApiKey = useSettingsStore(state => state.setImgbbApiKey)
+
 	const saveApiKey = useCallback(async () => {
-		await setApiKey(apiKeyValue)
+		setImgbbApiKey(apiKeyValue)
 		toast.success('API key guardada', {
 			description: 'Ya puedes subir imágenes',
 		})
 		dialogs.open('dropzone')
-	}, [apiKeyValue, dialogs])
+	}, [apiKeyValue, dialogs, setImgbbApiKey])
 
 	const handleFilesSelect = useCallback(
 		async (files: File[]) => {

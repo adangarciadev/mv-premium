@@ -34,7 +34,21 @@ const CATBOX_API_URL = 'https://catbox.moe/user/api.php'
 export function setupImgbbHandler(): void {
 	onMessage('uploadImageToImgbb', async ({ data }): Promise<UploadResult> => {
 		try {
-			const apiKey = await imgbbApiKeyStorage.getValue()
+			// Read API key from Settings Store (Zustand persisted state)
+			const settingsStorage = storage.defineItem<string | null>(`local:${STORAGE_KEYS.SETTINGS}`, {
+				defaultValue: null,
+			})
+			const rawSettings = await settingsStorage.getValue()
+			let apiKey = ''
+
+			if (rawSettings) {
+				try {
+					const parsed = JSON.parse(rawSettings)
+					apiKey = parsed.state?.imgbbApiKey || ''
+				} catch (e) {
+					logger.error('Failed to parse settings in background', e)
+				}
+			}
 
 			if (!apiKey) {
 				return {

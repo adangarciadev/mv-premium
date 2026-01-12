@@ -4,8 +4,9 @@
  * OPTIMIZATION: Uses native async functions instead of useMutation
  * to eliminate TanStack Query from the content script bundle.
  */
-import { useState, useCallback, useEffect, useRef } from 'react'
-import { uploadImage, setApiKey, clearApiKey } from '@/services/api/imgbb'
+import { useState, useCallback } from 'react'
+import { uploadImage } from '@/services/api/imgbb'
+import { useSettingsStore } from '@/store/settings-store'
 
 // =============================================================================
 // Upload Hook
@@ -54,15 +55,16 @@ export function useUploadImage() {
  */
 export function useSetImgbbApiKey() {
 	const [isPending, setIsPending] = useState(false)
+	const setImgbbApiKey = useSettingsStore(state => state.setImgbbApiKey)
 
 	const mutateAsync = useCallback(async (key: string) => {
 		setIsPending(true)
 		try {
-			await setApiKey(key)
+			setImgbbApiKey(key)
 		} finally {
 			setIsPending(false)
 		}
-	}, [])
+	}, [setImgbbApiKey])
 
 	const mutate = useCallback(
 		(key: string, options?: { onSuccess?: () => void }) => {
@@ -79,15 +81,16 @@ export function useSetImgbbApiKey() {
  */
 export function useClearImgbbApiKey() {
 	const [isPending, setIsPending] = useState(false)
+	const setImgbbApiKey = useSettingsStore(state => state.setImgbbApiKey)
 
 	const mutateAsync = useCallback(async () => {
 		setIsPending(true)
 		try {
-			await clearApiKey()
+			setImgbbApiKey('')
 		} finally {
 			setIsPending(false)
 		}
-	}, [])
+	}, [setImgbbApiKey])
 
 	const mutate = useCallback(
 		(options?: { onSuccess?: () => void }) => {

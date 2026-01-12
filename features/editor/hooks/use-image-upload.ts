@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { logger } from '@/lib/logger'
 import { toast } from '@/lib/lazy-toast'
-import { uploadImage, validateImageFile, getApiKey, setApiKey } from '@/services/api/imgbb'
+import { uploadImage, validateImageFile, getApiKey } from '@/services/api/imgbb'
+import { useSettingsStore } from '@/store/settings-store'
 
 interface UseImageUploadOptions {
 	onSuccess?: (url: string) => void
@@ -22,6 +23,8 @@ export function useImageUpload(textarea: HTMLTextAreaElement, options: UseImageU
 	const [showApiKeyDialog, setShowApiKeyDialog] = useState(false)
 	const [apiKeyValue, setApiKeyValue] = useState<string>('')
 	const fileInputRef = useRef<HTMLInputElement>(null)
+	
+	const setImgbbApiKey = useSettingsStore(state => state.setImgbbApiKey)
 
 	// Hydrate API key on mount
 	useEffect(() => {
@@ -130,7 +133,7 @@ export function useImageUpload(textarea: HTMLTextAreaElement, options: UseImageU
 	}
 
 	const handleSaveApiKey = async () => {
-		await setApiKey(apiKeyValue)
+		setImgbbApiKey(apiKeyValue)
 		setShowApiKeyDialog(false)
 		toast.success('API key guardada', {
 			description: 'Ya puedes subir imágenes',
