@@ -7,6 +7,7 @@ import {
 	DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import { CODE_LANGUAGES } from '@/components/editor/toolbar'
+import FileCode from 'lucide-react/dist/esm/icons/file-code'
 
 interface CodeToolbarButtonProps {
 	onInsertCode: (lang: string) => void
@@ -21,7 +22,7 @@ export function CodeToolbarButton({ onInsertCode }: CodeToolbarButtonProps) {
 		<DropdownMenu modal={false}>
 			<DropdownMenuTrigger asChild>
 				<button type="button" className="mvp-toolbar-btn" title="Insertar código">
-					<i className="fa fa-terminal"></i>
+					<FileCode className="h-4 w-4" />
 				</button>
 			</DropdownMenuTrigger>
 			<DropdownMenuContent align="start" className="w-48">

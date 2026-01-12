@@ -68,12 +68,34 @@ export function injectSaveDraftButton(): void {
 			}
 		}
 
-		// Create status container next to the save button
+		// Create copy button
+		const copyBtn = document.createElement('button')
+		copyBtn.type = 'button'
+		copyBtn.className = 'btn btn-large'
+		copyBtn.innerHTML = '<i class="fa fa-copy"></i> Copiar'
+		copyBtn.title = 'Copiar contenido al portapapeles'
+		copyBtn.style.cssText = 'margin-left: 5px;'
+
+		// Handle click - copy textarea content to clipboard
+		copyBtn.addEventListener('click', e => {
+			e.preventDefault()
+			e.stopPropagation()
+			navigator.clipboard.writeText(textarea.value).then(() => {
+				import('@/lib/lazy-toast').then(({ toast }) => {
+					toast.success('Contenido copiado al portapapeles')
+				})
+			})
+		})
+
+		// Insert copy button right after save draft button
+		saveDraftBtn.insertAdjacentElement('afterend', copyBtn)
+
+		// Create status container after copy button
 		const statusContainer = document.createElement('span')
 		statusContainer.id = STATUS_CONTAINER_ID
 		statusContainer.style.cssText =
 			'margin-left: 10px; display: inline-flex; align-items: center; vertical-align: middle;'
-		saveDraftBtn.insertAdjacentElement('afterend', statusContainer)
+		copyBtn.insertAdjacentElement('afterend', statusContainer)
 	})
 
 	// Also setup Ctrl+S keyboard shortcut

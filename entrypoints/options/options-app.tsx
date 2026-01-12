@@ -152,23 +152,6 @@ function QuickNavButtons() {
 					<TooltipContent>Spy</TooltipContent>
 				</Tooltip>
 
-				{currentUser && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-9 w-9 text-muted-foreground hover:text-foreground"
-								onClick={() => window.open(getUserProfileUrl(currentUser.username), '_blank')}
-							>
-								<User className="h-4 w-4" />
-								<span className="sr-only">Perfil</span>
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>Perfil</TooltipContent>
-					</Tooltip>
-				)}
-
 				<Separator orientation="vertical" className="mx-1 h-4" />
 
 				<div className="flex items-center gap-2 pl-1">

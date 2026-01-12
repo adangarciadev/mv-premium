@@ -9,7 +9,7 @@ import AlignCenter from 'lucide-react/dist/esm/icons/align-center'
 import Heading from 'lucide-react/dist/esm/icons/heading'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import Ban from 'lucide-react/dist/esm/icons/ban'
-import Image from 'lucide-react/dist/esm/icons/image'
+import ImagePlus from 'lucide-react/dist/esm/icons/image-plus'
 import Table from 'lucide-react/dist/esm/icons/table'
 import Undo from 'lucide-react/dist/esm/icons/undo'
 import Redo from 'lucide-react/dist/esm/icons/redo'
@@ -30,7 +30,7 @@ export const ICON_MAP: Record<string, React.ComponentType<{ className?: string }
   'fa-heading': Heading,
   'fa-eye-slash': EyeOff,
   'fa-ban': Ban,
-  'fa-image': Image,
+  'fa-image': ImagePlus,
   'fa-table': Table,
   'fa-undo': Undo,
   'fa-repeat': Redo,

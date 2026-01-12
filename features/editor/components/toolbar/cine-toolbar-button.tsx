@@ -4,6 +4,8 @@
  * Opens the movie and TV series template dialog to search and insert movie and TV series BBCode.
  */
 
+import Clapperboard from 'lucide-react/dist/esm/icons/clapperboard'
+
 interface CineToolbarButtonProps {
 	onFullSheet: () => void
 }
@@ -20,7 +22,7 @@ export function CineToolbarButton({ onFullSheet }: CineToolbarButtonProps) {
 				onFullSheet()
 			}}
 		>
-			<i className="fa fa-film" />
+			<Clapperboard className="h-4 w-4" />
 		</button>
 	)
 }
