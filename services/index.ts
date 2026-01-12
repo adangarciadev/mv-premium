@@ -36,8 +36,7 @@ export type {
 export {
   // API Key (for UI management)
   getApiKey as getImgbbApiKey,
-  setApiKey as setImgbbApiKey,
-  clearApiKey as clearImgbbApiKey,
+  // setApiKey and clearApiKey deprecated - useSettingsStore directly
   // Upload (via background)
   uploadImage,
   // Validation
