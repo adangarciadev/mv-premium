@@ -607,9 +607,11 @@ export async function parseBBCode(input: string): Promise<string> {
 
 	// 5. Formatting
 	html = html.replace(/\[b\]([\s\S]*?)\[\/b\]/gi, '<strong>$1</strong>')
-	html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+	// Strict Markdown Bold: **text** (no inner spaces)
+	html = html.replace(/(?<!\[)\*\*(?!\s)([^*]+?)(?<!\s)\*\*/g, '<strong>$1</strong>')
 	html = html.replace(/\[i\]([\s\S]*?)\[\/i\]/gi, '<em>$1</em>')
-	html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>')
+	// Strict Markdown Italic: *text* (no inner spaces). Prevents matching [*] or "* Note" or "user*name"
+	html = html.replace(/(?<!\[)\*(?!\s)([^*]+?)(?<!\s)\*/g, '<em>$1</em>')
 	html = html.replace(/\[u\]([\s\S]*?)\[\/u\]/gi, '<u>$1</u>')
 	html = html.replace(/\[s\]([\s\S]*?)\[\/s\]/gi, '<s>$1</s>')
 	html = html.replace(/~~([^~]+)~~/g, '<s>$1</s>')
