@@ -116,6 +116,11 @@ export function useUploadState({ dialogs, onInsertImage }: UseUploadStateOptions
 
 			for (let i = 0; i < total; i++) {
 				const file = files[i]
+
+				// Show incremental progress before starting each file upload
+				// This prevents the UI from showing 0% while waiting for the first upload
+				setUploadProgress(Math.round(((i + 0.1) / total) * 100))
+
 				logger.debug(`Processing file ${i + 1}/${total}: ${file.name}`)
 				const validation = validateImageFile(file)
 

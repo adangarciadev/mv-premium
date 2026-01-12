@@ -86,10 +86,12 @@ export function useTextEditor(options: UseTextEditorOptions = {}): UseTextEditor
 	}, [externalRef])
 
 	// Helper to get current value reliably
+	// ALWAYS read from DOM to avoid race conditions during rapid sequential insertions
+	// React state may be stale when multiple async operations update content quickly
 	const getValue = useCallback((): string => {
 		const textarea = getTextarea()
-		if (value !== undefined) return value
-		return textarea ? textarea.value : ''
+		// Prefer textarea DOM value over React state for accurate real-time value
+		return textarea ? textarea.value : (value ?? '')
 	}, [getTextarea, value])
 
 	// ──────────────────────────────────────────────────────────────────────────
@@ -103,25 +105,24 @@ export function useTextEditor(options: UseTextEditorOptions = {}): UseTextEditor
 
 			isProgrammaticRef.current = true
 
+			// ALWAYS sync textarea DOM immediately (regardless of mode)
+			// This prevents race conditions when multiple insertions happen in rapid succession
+			textarea.value = newValue
+			if (cursorPos !== undefined) {
+				textarea.selectionStart = cursorPos
+				textarea.selectionEnd = cursorPos
+			}
+
 			if (onChange) {
-				// Controlled mode
+				// Controlled mode: also notify React state
 				onChange(newValue)
-				// Schedule cursor positioning after React update
+				// Schedule focus after React update
 				requestAnimationFrame(() => {
-					if (cursorPos !== undefined && textarea) {
-						textarea.selectionStart = cursorPos
-						textarea.selectionEnd = cursorPos
-					}
 					textarea?.focus()
 					isProgrammaticRef.current = false
 				})
 			} else {
-				// Ref mode - direct DOM manipulation
-				textarea.value = newValue
-				if (cursorPos !== undefined) {
-					textarea.selectionStart = cursorPos
-					textarea.selectionEnd = cursorPos
-				}
+				// Ref mode - dispatch events for any listeners
 				textarea.dispatchEvent(new Event('input', { bubbles: true }))
 				textarea.dispatchEvent(new Event('change', { bubbles: true }))
 				textarea.focus()
