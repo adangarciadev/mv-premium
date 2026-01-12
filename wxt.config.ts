@@ -73,8 +73,13 @@ export default defineConfig({
 			minify: process.env.NODE_ENV === 'production' ? 'terser' : 'esbuild',
 			terserOptions: {
 				compress: {
-					// Remove console.* calls in production
-					drop_console: process.env.NODE_ENV === 'production',
+					// Remove console.* calls in production?
+					// NO: We use pure_funcs to only remove specific ones, keeping console.table/group for mvpDebug
+					drop_console: false,
+					pure_funcs:
+						process.env.NODE_ENV === 'production'
+							? ['console.log', 'console.debug']
+							: [],
 					// Remove debugger statements
 					drop_debugger: true,
 					// Multiple compression passes

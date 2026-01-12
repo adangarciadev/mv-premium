@@ -42,21 +42,51 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// Usage: mvpDebug() in browser console
 	// Note: Kept in production for user support/debugging
 	// =====================================================================
-	window.mvpDebug = async () => {
+	const runDebug = async () => {
 		const allData = await browser.storage.local.get(null)
 		const mvpKeys = Object.keys(allData).filter(k => k.startsWith('mvp-'))
-		console.group('🔍 MVP Storage Debug')
-		console.table(
-			Object.fromEntries(
-				mvpKeys.map(k => [
-					k,
-					typeof allData[k] === 'object' ? JSON.stringify(allData[k]).slice(0, 100) + '...' : allData[k],
-				])
-			)
+
+		// List of sensitive keys to hide
+		const SENSITIVE_KEYS = ['mvp-gemini-key', 'mvp-imgbb-key', 'mvp-openai-key']
+
+		const debugData = Object.fromEntries(
+			mvpKeys.map(k => {
+				let value = allData[k]
+
+				// 1. If object, stringify (as before)
+				if (typeof value === 'object') {
+					value = JSON.stringify(value).slice(0, 100) + '...'
+				}
+
+				// 2. PROTECTION: If sensitive key, censor it
+				// check if current key contains any sensitive word
+				if (SENSITIVE_KEYS.some(s => k.includes(s) || k.includes('api-key'))) {
+					// Show only first 4 and last 3 chars
+					value =
+						typeof value === 'string' && value.length > 10
+							? `${value.slice(0, 4)}...${value.slice(-3)}`
+							: '********'
+				}
+
+				return [k, value]
+			})
 		)
+
+		console.group('🔍 MVP Storage Debug')
+		console.table(debugData)
 		console.groupEnd()
 		return { keys: mvpKeys, data: Object.fromEntries(mvpKeys.map(k => [k, allData[k]])) }
 	}
+
+	// 1. Expose in Isolated World (for internal use)
+	window.mvpDebug = runDebug
+
+	// 2. Expose in Main World
+	// Handled by entrypoints/debug.content.ts via CustomEvents
+	document.addEventListener('MVP_DEBUG_REQ', () => {
+		console.log('MVP: Debug request received from Main World')
+		void runDebug()
+	})
 
 	// =====================================================================
 	// 1. HYDRATE SETTINGS
