@@ -12,6 +12,14 @@ const mockState = {
 	mutedWordsEnabled: false,
 	geminiApiKey: '',
 	tmdbApiKey: 'test-api-key',
+	// Premium features default to true to match test expectations
+	mediaHoverCardsEnabled: true,
+	pinnedPostsEnabled: true,
+	saveThreadEnabled: true,
+	galleryButtonEnabled: true,
+	postSummaryEnabled: true,
+	threadSummarizerEnabled: true,
+	cinemaButtonEnabled: true,
 }
 
 vi.mock('@/store/settings-store', () => ({
@@ -36,6 +44,14 @@ describe('feature-flags', () => {
 		mockState.mutedWordsEnabled = false
 		mockState.geminiApiKey = ''
 		mockState.tmdbApiKey = 'test-api-key'
+		// Reset premium defaults
+		mockState.mediaHoverCardsEnabled = true
+		mockState.pinnedPostsEnabled = true
+		mockState.saveThreadEnabled = true
+		mockState.galleryButtonEnabled = true
+		mockState.postSummaryEnabled = true
+		mockState.threadSummarizerEnabled = true
+		mockState.cinemaButtonEnabled = true
 	})
 
 	describe('isFeatureEnabled()', () => {
@@ -51,16 +67,23 @@ describe('feature-flags', () => {
 			it('returns true for Bookmarks feature', () => {
 				expect(isFeatureEnabled(FeatureFlag.Bookmarks)).toBe(true)
 			})
+		})
 
-			it('returns true for PinnedPosts feature', () => {
+		describe('premium features (settings controlled)', () => {
+			it('returns true for PinnedPosts feature when enabled', () => {
 				expect(isFeatureEnabled(FeatureFlag.PinnedPosts)).toBe(true)
 			})
 
-			it('returns true for SavedThreads feature', () => {
+			it('returns false for PinnedPosts feature when disabled', () => {
+				mockState.pinnedPostsEnabled = false
+				expect(isFeatureEnabled(FeatureFlag.PinnedPosts)).toBe(false)
+			})
+
+			it('returns true for SavedThreads feature when enabled', () => {
 				expect(isFeatureEnabled(FeatureFlag.SavedThreads)).toBe(true)
 			})
 
-			it('returns true for Gallery feature', () => {
+			it('returns true for Gallery feature when enabled', () => {
 				expect(isFeatureEnabled(FeatureFlag.Gallery)).toBe(true)
 			})
 		})
@@ -82,15 +105,24 @@ describe('feature-flags', () => {
 
 		describe('API key requirements', () => {
 			it('returns false for ThreadSummarizer without geminiApiKey', () => {
+				mockState.geminiApiKey = ''
 				expect(isFeatureEnabled(FeatureFlag.ThreadSummarizer)).toBe(false)
 			})
 
-			it('returns true for ThreadSummarizer with geminiApiKey', () => {
+			it('returns true for ThreadSummarizer with geminiApiKey and enabled setting', () => {
 				mockState.geminiApiKey = 'test-key'
+				mockState.threadSummarizerEnabled = true
 				expect(isFeatureEnabled(FeatureFlag.ThreadSummarizer)).toBe(true)
 			})
 
-			it('returns true for CinemaCards with tmdbApiKey', () => {
+			it('returns false for ThreadSummarizer with geminiApiKey but disabled setting', () => {
+				mockState.geminiApiKey = 'test-key'
+				mockState.threadSummarizerEnabled = false
+				expect(isFeatureEnabled(FeatureFlag.ThreadSummarizer)).toBe(false)
+			})
+
+			it('returns true for CinemaCards with tmdbApiKey and enabled setting', () => {
+				mockState.cinemaButtonEnabled = true
 				expect(isFeatureEnabled(FeatureFlag.CinemaCards)).toBe(true)
 			})
 
@@ -132,6 +164,8 @@ describe('feature-flags', () => {
 		})
 
 		it('indicates missing API key as reason', () => {
+			mockState.geminiApiKey = ''
+			mockState.threadSummarizerEnabled = true
 			const disabled = getDisabledFeatures()
 
 			const summarizer = disabled.find(d => d.flag === FeatureFlag.ThreadSummarizer)

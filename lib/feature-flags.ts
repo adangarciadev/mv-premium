@@ -199,10 +199,16 @@ export function getDisabledFeatures(): Array<{ flag: FeatureFlagKey; reason: str
 		const config = FEATURE_CONFIG[flag]
 		let reason = 'Unknown'
 
-		if (config.settingsKey) {
+		if (config.requiresApiKey) {
+			const state = useSettingsStore.getState()
+			const apiKey = state[config.requiresApiKey as keyof typeof state]
+			if (!apiKey || (typeof apiKey === 'string' && apiKey.trim() === '')) {
+				reason = `Missing API key: ${config.requiresApiKey}`
+			} else if (config.settingsKey) {
+				reason = `Setting '${config.settingsKey}' is disabled`
+			}
+		} else if (config.settingsKey) {
 			reason = `Setting '${config.settingsKey}' is disabled`
-		} else if (config.requiresApiKey) {
-			reason = `Missing API key: ${config.requiresApiKey}`
 		}
 
 		disabled.push({ flag, reason })
