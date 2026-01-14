@@ -83,13 +83,13 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 	[FeatureFlag.NativeLiveDelay]: { settingsKey: 'nativeLiveDelayEnabled' },
 
 	// Premium Features (always enabled by default, some need API keys)
-	[FeatureFlag.Gallery]: { alwaysEnabled: true },
-	[FeatureFlag.PostSummary]: { alwaysEnabled: true },
-	[FeatureFlag.ThreadSummarizer]: { requiresApiKey: 'geminiApiKey' },
-	[FeatureFlag.CinemaCards]: { requiresApiKey: 'tmdbApiKey' },
-	[FeatureFlag.MediaHoverCards]: { alwaysEnabled: true },
-	[FeatureFlag.PinnedPosts]: { alwaysEnabled: true },
-	[FeatureFlag.SavedThreads]: { alwaysEnabled: true },
+	[FeatureFlag.Gallery]: { settingsKey: 'galleryButtonEnabled' },
+	[FeatureFlag.PostSummary]: { settingsKey: 'postSummaryEnabled' },
+	[FeatureFlag.ThreadSummarizer]: { settingsKey: 'threadSummarizerEnabled', requiresApiKey: 'geminiApiKey' },
+	[FeatureFlag.CinemaCards]: { settingsKey: 'cinemaButtonEnabled', requiresApiKey: 'tmdbApiKey' },
+	[FeatureFlag.MediaHoverCards]: { settingsKey: 'mediaHoverCardsEnabled' },
+	[FeatureFlag.PinnedPosts]: { settingsKey: 'pinnedPostsEnabled' },
+	[FeatureFlag.SavedThreads]: { settingsKey: 'saveThreadEnabled' },
 
 	// Experimental Features
 	[FeatureFlag.ThemeEditor]: { alwaysEnabled: true },

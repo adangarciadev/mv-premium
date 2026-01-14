@@ -83,9 +83,24 @@ async function fetchTMDBViaBackground<T>(endpoint: string, params: Record<string
 /**
  * Cached fetch wrapper
  */
-async function fetchTMDB<T>(endpoint: string, params: Record<string, string> = {}, ttl = CACHE_TTL.MEDIUM): Promise<T> {
+/**
+ * Cached fetch wrapper
+ */
+interface TMDBFetchOptions {
+	ttl?: number
+	persist?: boolean
+}
+
+async function fetchTMDB<T>(
+	endpoint: string,
+	params: Record<string, string> = {},
+	options: number | TMDBFetchOptions = CACHE_TTL.MEDIUM
+): Promise<T> {
+	const ttl = typeof options === 'number' ? options : options.ttl ?? CACHE_TTL.MEDIUM
+	const persist = typeof options === 'number' ? true : options.persist ?? true
+
 	const cacheKey = createCacheKey(endpoint, JSON.stringify(params))
-	return cachedFetch(cacheKey, () => fetchTMDBViaBackground<T>(endpoint, params), { prefix: CACHE_PREFIX, ttl })
+	return cachedFetch(cacheKey, () => fetchTMDBViaBackground<T>(endpoint, params), { prefix: CACHE_PREFIX, ttl, persist })
 }
 
 // =============================================================================
@@ -140,23 +155,25 @@ export async function getGenres(): Promise<TMDBGenre[]> {
 }
 
 export async function getMovieDetails(movieId: number): Promise<TMDBMovieDetails> {
-	return fetchTMDB<TMDBMovieDetails>(`/movie/${movieId}`)
+	// Hover data should be ephemeral (memory only) to avoid storage bloat
+	return fetchTMDB<TMDBMovieDetails>(`/movie/${movieId}`, {}, { persist: false })
 }
 
 export async function getPersonDetails(personId: number): Promise<TMDBPersonDetails> {
-	return fetchTMDB<TMDBPersonDetails>(`/person/${personId}`)
+	// Hover data should be ephemeral (memory only)
+	return fetchTMDB<TMDBPersonDetails>(`/person/${personId}`, {}, { persist: false })
 }
 
 export async function getMovieCredits(movieId: number): Promise<TMDBCredits> {
-	return fetchTMDB<TMDBCredits>(`/movie/${movieId}/credits`)
+	return fetchTMDB<TMDBCredits>(`/movie/${movieId}/credits`, {}, { persist: false })
 }
 
 export async function getMovieVideos(movieId: number): Promise<TMDBVideos> {
-	return fetchTMDB<TMDBVideos>(`/movie/${movieId}/videos`)
+	return fetchTMDB<TMDBVideos>(`/movie/${movieId}/videos`, {}, { persist: false })
 }
 
 export async function getMovieReleaseDates(movieId: number): Promise<TMDBReleaseDates> {
-	return fetchTMDB<TMDBReleaseDates>(`/movie/${movieId}/release_dates`)
+	return fetchTMDB<TMDBReleaseDates>(`/movie/${movieId}/release_dates`, {}, { persist: false })
 }
 
 // External IDs response type
@@ -170,11 +187,11 @@ export interface TMDBExternalIds {
 }
 
 export async function getMovieExternalIds(movieId: number): Promise<TMDBExternalIds> {
-	return fetchTMDB<TMDBExternalIds>(`/movie/${movieId}/external_ids`)
+	return fetchTMDB<TMDBExternalIds>(`/movie/${movieId}/external_ids`, {}, { persist: false })
 }
 
 export async function getPersonExternalIds(personId: number): Promise<TMDBExternalIds> {
-	return fetchTMDB<TMDBExternalIds>(`/person/${personId}/external_ids`)
+	return fetchTMDB<TMDBExternalIds>(`/person/${personId}/external_ids`, {}, { persist: false })
 }
 
 // =============================================================================
@@ -287,23 +304,23 @@ export async function searchTVShows(query: string, page = 1): Promise<TMDBSearch
 }
 
 export async function getTVShowDetails(tvId: number): Promise<TMDBTVShowDetails> {
-	return fetchTMDB<TMDBTVShowDetails>(`/tv/${tvId}`)
+	return fetchTMDB<TMDBTVShowDetails>(`/tv/${tvId}`, {}, { persist: false })
 }
 
 export async function getTVShowCredits(tvId: number): Promise<TMDBCredits> {
-	return fetchTMDB<TMDBCredits>(`/tv/${tvId}/credits`)
+	return fetchTMDB<TMDBCredits>(`/tv/${tvId}/credits`, {}, { persist: false })
 }
 
 export async function getTVShowVideos(tvId: number): Promise<TMDBVideos> {
-	return fetchTMDB<TMDBVideos>(`/tv/${tvId}/videos`)
+	return fetchTMDB<TMDBVideos>(`/tv/${tvId}/videos`, {}, { persist: false })
 }
 
 export async function getTVShowExternalIds(tvId: number): Promise<TMDBExternalIds> {
-	return fetchTMDB<TMDBExternalIds>(`/tv/${tvId}/external_ids`)
+	return fetchTMDB<TMDBExternalIds>(`/tv/${tvId}/external_ids`, {}, { persist: false })
 }
 
 export async function getSeasonDetails(tvId: number, seasonNumber: number): Promise<TMDBSeasonDetails> {
-	return fetchTMDB<TMDBSeasonDetails>(`/tv/${tvId}/season/${seasonNumber}`)
+	return fetchTMDB<TMDBSeasonDetails>(`/tv/${tvId}/season/${seasonNumber}`, {}, { persist: false })
 }
 
 export async function getSeasonVideos(tvId: number, seasonNumber: number): Promise<TMDBVideos> {

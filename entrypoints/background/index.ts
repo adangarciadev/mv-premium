@@ -18,7 +18,7 @@
 import { defineBackground } from '#imports'
 import { browser } from 'wxt/browser'
 import { onMessage } from '@/lib/messaging'
-import { createContextMenus, setupContextMenuListener } from './context-menus'
+import { createContextMenus, setupContextMenuListener, initContextMenuWatcher } from './context-menus'
 import { setupUploadHandlers } from './upload-handlers'
 import { setupApiHandlers } from './api-handlers'
 import { setupAiHandlers } from './ai-handlers'
@@ -44,6 +44,7 @@ export default defineBackground(() => {
 
 	// Context menus (save thread, ignore user, mute word)
 	setupContextMenuListener()
+	initContextMenuWatcher()
 
 	// Upload handlers (ImgBB, Catbox)
 	setupUploadHandlers()

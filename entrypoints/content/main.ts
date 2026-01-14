@@ -7,7 +7,7 @@
 
 import { browser } from 'wxt/browser'
 
-import { useSettingsStore } from '@/store/settings-store'
+import { useSettingsStore, waitForHydration } from '@/store/settings-store'
 import { detectAndSaveCurrentUser } from '@/entrypoints/options/lib/current-user'
 import { initGlobalFontListener, initGlobalThemeListener } from '@/lib/theme-sync'
 import { initThemes } from '@/features/editor/lib/themes'
@@ -62,6 +62,7 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// 1. HYDRATE SETTINGS
 	// =====================================================================
 	useSettingsStore.persist.rehydrate()
+	await waitForHydration()
 
 	// =====================================================================
 	// 2. DETECT AND SAVE CURRENT USER
