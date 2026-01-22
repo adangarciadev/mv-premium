@@ -149,7 +149,11 @@ export const useSettingsStore = create<SettingsState>()(
 
 			// Theme & Appearance
 			setTheme: theme => set({ theme }),
-			setBoldColor: color => set({ boldColor: color }),
+			setBoldColor: color => {
+			set({ boldColor: color })
+			// Also write to the separate key that content script watches
+			storage.setItem(`local:${STORAGE_KEYS.BOLD_COLOR}`, color)
+		},
 			setCodeTheme: theme => set({ codeTheme: theme }),
 
 			// API Keys (all persisted via Zustand persist middleware)
