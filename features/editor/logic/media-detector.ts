@@ -120,3 +120,29 @@ export function getMediaType(url: string): string | null {
 
 	return null
 }
+
+// ============================================================================
+// URL Normalization
+// ============================================================================
+
+/**
+ * Normalize media URLs to formats that Mediavida's [media] tag can properly embed.
+ * 
+ * Currently handles:
+ * - YouTube Shorts: Converts `/shorts/` to `/v/`
+ * 
+ * @param url - The URL to normalize
+ * @returns The normalized URL (or original if no normalization needed)
+ */
+export function normalizeMediaUrl(url: string): string {
+	if (!isValidUrl(url)) return url
+
+	const trimmedUrl = url.trim()
+
+	// Convert YouTube Shorts: replace /shorts/ with /v/
+	if (/youtube\.com\/shorts\//i.test(trimmedUrl)) {
+		return trimmedUrl.replace(/\/shorts\//i, '/v/')
+	}
+
+	return trimmedUrl
+}

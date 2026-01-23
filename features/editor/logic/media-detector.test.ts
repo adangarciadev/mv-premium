@@ -4,7 +4,7 @@
  * Tests media URL detection for YouTube, Twitter, Steam, etc.
  */
 import { describe, it, expect } from 'vitest'
-import { isMediaUrl, getMediaType } from './media-detector'
+import { isMediaUrl, getMediaType, normalizeMediaUrl } from './media-detector'
 
 describe('media-detector', () => {
 	describe('isMediaUrl', () => {
@@ -154,4 +154,61 @@ describe('media-detector', () => {
 			expect(getMediaType('not-a-url')).toBe(null)
 		})
 	})
+
+	describe('normalizeMediaUrl', () => {
+		describe('YouTube Shorts', () => {
+			it('should convert YouTube Shorts URL to /v/ format', () => {
+				expect(normalizeMediaUrl('https://www.youtube.com/shorts/yfxNZSRj3E8'))
+					.toBe('https://www.youtube.com/v/yfxNZSRj3E8')
+			})
+
+			it('should handle YouTube Shorts without www', () => {
+				expect(normalizeMediaUrl('https://youtube.com/shorts/abc123'))
+					.toBe('https://youtube.com/v/abc123')
+			})
+
+			it('should handle http protocol', () => {
+				expect(normalizeMediaUrl('http://youtube.com/shorts/xyz789'))
+					.toBe('http://youtube.com/v/xyz789')
+			})
+
+			it('should handle video IDs with hyphens and underscores', () => {
+				expect(normalizeMediaUrl('https://youtube.com/shorts/ab-cd_ef'))
+					.toBe('https://youtube.com/v/ab-cd_ef')
+			})
+		})
+
+		describe('non-Shorts URLs', () => {
+			it('should not modify regular YouTube watch URLs', () => {
+				const url = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+				expect(normalizeMediaUrl(url)).toBe(url)
+			})
+
+			it('should not modify youtu.be URLs', () => {
+				const url = 'https://youtu.be/dQw4w9WgXcQ'
+				expect(normalizeMediaUrl(url)).toBe(url)
+			})
+
+			it('should not modify non-YouTube URLs', () => {
+				const url = 'https://twitter.com/user/status/123'
+				expect(normalizeMediaUrl(url)).toBe(url)
+			})
+		})
+
+		describe('edge cases', () => {
+			it('should trim whitespace', () => {
+				expect(normalizeMediaUrl('  https://youtube.com/shorts/abc123  '))
+					.toBe('https://youtube.com/v/abc123')
+			})
+
+			it('should return original URL if invalid', () => {
+				expect(normalizeMediaUrl('not-a-url')).toBe('not-a-url')
+			})
+
+			it('should return empty string if empty', () => {
+				expect(normalizeMediaUrl('')).toBe('')
+			})
+		})
+	})
 })
+

@@ -21,7 +21,7 @@ import {
 } from '@/lib/content-modules/utils/react-helpers'
 import { DistributedEditorToolbar } from '../components/distributed-editor-toolbar'
 import { isImageUrl } from './image-detector'
-import { isMediaUrl } from './media-detector'
+import { isMediaUrl, normalizeMediaUrl } from './media-detector'
 import { Z_INDEXES, FEATURE_IDS, DOM_MARKERS, MV_SELECTORS } from '@/constants'
 
 const TOOLBAR_MARKER = DOM_MARKERS.EDITOR.TOOLBAR
@@ -135,10 +135,12 @@ export function injectPasteHandler(): void {
 				return
 			}
 
-			// Check if it's a media URL (YouTube, Instagram, Twitter, Amazon, Steam, etc.)
+		// Check if it's a media URL (YouTube, Instagram, Twitter, Amazon, Steam, etc.)
 			if (isMediaUrl(pastedText)) {
 				e.preventDefault()
-				insertTagAtCursor(textarea, 'media', pastedText)
+				// Normalize URLs (e.g., convert YouTube Shorts to standard format)
+				const normalizedUrl = normalizeMediaUrl(pastedText)
+				insertTagAtCursor(textarea, 'media', normalizedUrl)
 				return
 			}
 
