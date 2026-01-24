@@ -5,9 +5,6 @@
  * image uploading, code highlighting, and drafts.
  */
 
-// Components
-export { CodeEditorToolbar } from './components/code-editor-toolbar'
-
 // Toolbar components
 export {
 	ApiKeyDialog,
