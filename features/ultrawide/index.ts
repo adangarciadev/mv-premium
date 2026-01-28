@@ -15,6 +15,8 @@ import { DOM_MARKERS } from '@/constants/dom-markers'
 import type { UltrawideMode } from '@/store/settings-types'
 
 const STYLE_ID = DOM_MARKERS.IDS.ULTRAWIDE_STYLES
+const EARLY_STYLE_ID = 'mvp-ultrawide-early'
+const CACHE_KEY = 'mvp-ultrawide-mode-cache'
 const SETTINGS_KEY = `local:${STORAGE_KEYS.SETTINGS}` as `local:${string}`
 
 interface SettingsState {
@@ -88,14 +90,37 @@ function generateStyles(mode: UltrawideMode): string | null {
 }
 
 /**
+ * Updates the localStorage cache for early injection on next page load.
+ * This keeps the sync cache updated so the early-inject script can read it instantly.
+ */
+function updateCache(mode: UltrawideMode): void {
+	try {
+		if (mode === 'off') {
+			localStorage.removeItem(CACHE_KEY)
+		} else {
+			localStorage.setItem(CACHE_KEY, mode)
+		}
+	} catch {
+		// localStorage might be disabled in some contexts
+	}
+}
+
+/**
  * Injects or removes the ultrawide CSS styles from the document head.
  * @param mode - The desired width mode
  */
 function applyUltrawide(mode: UltrawideMode): void {
-	// Remove existing styles
+	// Update localStorage cache for instant access on next page load
+	updateCache(mode)
+	// Remove existing styles (both main and early-inject to avoid duplication)
 	const existingStyle = document.getElementById(STYLE_ID)
 	if (existingStyle) {
 		existingStyle.remove()
+	}
+
+	const earlyStyle = document.getElementById(EARLY_STYLE_ID)
+	if (earlyStyle) {
+		earlyStyle.remove()
 	}
 
 	const css = generateStyles(mode)
