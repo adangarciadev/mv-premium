@@ -7,6 +7,7 @@
 import { sanitizeHTML } from '@/lib/sanitize'
 import { MV_SELECTORS, DOM_MARKERS } from '@/constants'
 import { logger } from '@/lib/logger'
+import { reinitializeEmbeds, setupGlobalEmbedListener } from '@/lib/content-modules/utils/reinitialize-embeds'
 import { type PostInfo, type LiveStatus, POLL_INTERVALS, MAX_VISIBLE_POSTS, saveLiveState } from './live-thread-state'
 
 // =============================================================================
@@ -274,50 +275,13 @@ function reinitializeMvScripts(): void {
 	}
 
 	// Reinitialize embed iframes (Twitter, Instagram, etc.)
-	// DOMPurify strips the onload handler, so we need to manually set up the MessageChannel
-	reinitializeEmbedIframes()
+	const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID)
+	if (postsWrap) {
+		reinitializeEmbeds(postsWrap)
+	}
 
 	// Update relative timestamps
 	updateRelativeTimestamps()
-}
-
-/**
- * Reinitializes embed iframes that lost their onload handler due to DOMPurify sanitization.
- * Since MessageChannel communication doesn't work with fetched iframes, we use fixed heights.
- */
-function reinitializeEmbedIframes(): void {
-	const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID)
-	if (!postsWrap) return
-
-	// Find all embed iframes that haven't been initialized yet
-	const embedContainers = postsWrap.querySelectorAll('[data-s9e-mediaembed]')
-
-	embedContainers.forEach(container => {
-		const iframe = container.querySelector('iframe') as HTMLIFrameElement
-		if (!iframe) return
-
-		// Skip if already has a proper height set (already initialized)
-		const currentHeight = parseInt(iframe.style.height || '0', 10)
-		if (currentHeight > 100) return
-
-		// Skip if already processed
-		if (iframe.dataset.mvpEmbedInit === 'true') return
-		iframe.dataset.mvpEmbedInit = 'true'
-
-		// Set fixed heights based on embed type
-		const embedType = container.getAttribute('data-s9e-mediaembed')
-		if (embedType === 'twitter') {
-			iframe.style.height = '700px'
-		} else if (embedType === 'instagram') {
-			iframe.style.height = '1000px'
-		} else {
-			iframe.style.height = '600px'
-		}
-
-		// Ensure no scrolling
-		iframe.setAttribute('scrolling', 'no')
-		iframe.style.overflow = 'hidden'
-	})
 }
 
 /**
@@ -540,6 +504,9 @@ function handleVisibilityChange(): void {
 }
 
 export function startPolling(): void {
+	// Set up global listener for embed resize messages (Twitter, etc.)
+	setupGlobalEmbedListener()
+
 	document.addEventListener('visibilitychange', handleVisibilityChange)
 	currentPollInterval = POLL_INTERVALS.NORMAL
 	scheduleNextPoll()

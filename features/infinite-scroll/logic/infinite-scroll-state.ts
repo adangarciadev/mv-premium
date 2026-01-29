@@ -51,6 +51,8 @@ export interface PageBlock {
 	dividerContainer: HTMLElement | null
 	/** Feature ID for the divider component */
 	dividerFeatureId: string | null
+	/** If true, this page should never be unloaded (e.g., initial page with iframes) */
+	neverUnload?: boolean
 }
 
 /**

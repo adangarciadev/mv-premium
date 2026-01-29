@@ -23,6 +23,7 @@ import {
 	updateFeature,
 } from '@/lib/content-modules/utils/react-helpers'
 import { isThreadPage, isNativeLiveThreadPage } from '@/lib/content-modules/utils/page-detection'
+import { reinitializeEmbeds, setupGlobalEmbedListener } from '@/lib/content-modules/utils/reinitialize-embeds'
 import { MV_SELECTORS, FEATURE_IDS, DEBOUNCE, INTERSECTION } from '@/constants'
 import { DOM_MARKERS } from '@/constants/dom-markers'
 import { getStatusActionsRow } from '@/lib/content-modules/utils/extra-actions-row'
@@ -237,6 +238,9 @@ async function injectPosts(posts: Element[], pageNum: number): Promise<void> {
 		})
 	)
 
+	// Reinitialize embeds (Twitter, Instagram, etc.) in the newly loaded content
+	reinitializeEmbeds(pageBlockContainer)
+
 	scheduleWindowManagement()
 }
 
@@ -278,6 +282,7 @@ function managePageWindow(): void {
 
 function unloadPage(block: PageBlock): void {
 	if (!block.isLoaded) return
+	if (block.neverUnload) return // Never unload initial page (would break iframes)
 
 	const container = block.container
 	const rect = container.getBoundingClientRect()
@@ -339,6 +344,9 @@ function reloadPage(block: PageBlock): void {
 
 	block.isLoaded = true
 	logger.debug(`Reloaded page ${block.page}`)
+
+	// Reinitialize embeds in the reloaded content
+	reinitializeEmbeds(container)
 
 	window.dispatchEvent(
 		new CustomEvent(DOM_MARKERS.EVENTS.CONTENT_INJECTED, {
@@ -623,6 +631,9 @@ function startInfiniteScroll(): void {
 	logger.debug('InfiniteScroll: starting from page', startPage)
 	isScrollActive = true
 
+	// Set up global listener for embed resize messages (Twitter, etc.)
+	setupGlobalEmbedListener()
+
 	window.dispatchEvent(
 		new CustomEvent(DOM_MARKERS.EVENTS.INFINITE_SCROLL_MODE_CHANGED, {
 			detail: { active: true },
@@ -635,28 +646,41 @@ function startInfiniteScroll(): void {
 	const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID)
 
 	if (postsWrap && initialPosts.length > 0) {
-		const initialPageBlock = document.createElement('div')
-		initialPageBlock.className = PAGE_BLOCK_CLASS
-		initialPageBlock.setAttribute('data-page', String(startPage))
-		applyContentVisibilityOptimization(initialPageBlock)
+		// IMPORTANT: Do NOT move the initial posts to a new container!
+		// Moving iframes in the DOM causes them to reload, which breaks Twitter embeds.
+		// Instead, we just mark them with attributes and insert a small marker.
 
-		postsWrap.insertBefore(initialPageBlock, postsWrap.firstChild)
+		// Create a small invisible marker at the start of the posts (doesn't move anything)
+		const initialPageMarker = document.createElement('div')
+		initialPageMarker.className = DIVIDER_CLASS
+		initialPageMarker.setAttribute('data-page', String(startPage))
+		initialPageMarker.setAttribute('data-mv-initial-marker', 'true')
+		initialPageMarker.style.height = '0'
+		initialPageMarker.style.overflow = 'hidden'
+
+		// Insert marker before first post (doesn't move any posts)
+		const firstPost = initialPosts[0]
+		if (firstPost) {
+			postsWrap.insertBefore(initialPageMarker, firstPost)
+		}
 
 		initialPosts.forEach(post => {
 			post.setAttribute('data-mv-page', String(startPage))
-			initialPageBlock.appendChild(post)
+			post.setAttribute('data-mv-infinite-initial', 'true')
 		})
 
-		pageMarkers.push({ page: startPage, el: initialPageBlock })
+		// Use the marker for scroll tracking
+		pageMarkers.push({ page: startPage, el: initialPageMarker })
 
 		const block: PageBlock = {
 			page: startPage,
 			isLoaded: true,
-			container: initialPageBlock,
+			container: postsWrap, // Use postsWrap directly, not a wrapper
 			cachedHeight: 0,
 			cachedHTML: null,
-			dividerContainer: null,
+			dividerContainer: initialPageMarker,
 			dividerFeatureId: null,
+			neverUnload: true, // Initial page must never be unloaded (iframes would break)
 		}
 		pageBlocks.set(startPage, block)
 	}
