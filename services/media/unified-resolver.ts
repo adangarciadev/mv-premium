@@ -319,7 +319,7 @@ export async function resolveUrl(url: string): Promise<MediaData | null> {
 
 			return null
 		},
-		{ prefix: CACHE_PREFIX, ttl: CACHE_TTL.MEDIUM }
+		{ prefix: CACHE_PREFIX, ttl: CACHE_TTL.MEDIUM, persist: false }
 	)
 }
 

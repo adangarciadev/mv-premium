@@ -97,7 +97,8 @@ async function fetchTMDB<T>(
 	options: number | TMDBFetchOptions = CACHE_TTL.MEDIUM
 ): Promise<T> {
 	const ttl = typeof options === 'number' ? options : options.ttl ?? CACHE_TTL.MEDIUM
-	const persist = typeof options === 'number' ? true : options.persist ?? true
+	// Never persist TMDB data to storage - use memory-only cache
+	const persist = typeof options === 'number' ? false : options.persist ?? false
 
 	const cacheKey = createCacheKey(endpoint, JSON.stringify(params))
 	return cachedFetch(cacheKey, () => fetchTMDBViaBackground<T>(endpoint, params), { prefix: CACHE_PREFIX, ttl, persist })

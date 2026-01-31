@@ -2,9 +2,8 @@
  * Steam API Service
  * Fetches game details from Steam Store API
  *
- * Uses WXT unified storage API for caching
+ * Uses in-memory cache only (no persistent storage)
  */
-import { storage } from '#imports'
 import { logger } from '@/lib/logger'
 import { API_URLS } from '@/constants'
 
@@ -66,9 +65,11 @@ interface SteamApiResponse {
 	}
 }
 
-// Cache key prefix
-const CACHE_PREFIX = 'steam-game-'
-const CACHE_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
+// Cache TTL (session only - no persistent storage)
+const CACHE_TTL = 30 * 60 * 1000 // 30 minutes (session cache)
+
+// In-memory cache for session
+const memoryCache = new Map<number, { data: SteamGameDetails; timestamp: number }>()
 
 // =============================================================================
 // Helpers
@@ -94,38 +95,26 @@ export function isSteamUrl(url: string): boolean {
 }
 
 // =============================================================================
-// Cache
+// Cache (memory-only, no persistent storage)
 // =============================================================================
 
-interface CachedGame {
-	data: SteamGameDetails
-	timestamp: number
+function getCachedGame(appId: number): SteamGameDetails | null {
+	const cached = memoryCache.get(appId)
+	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+		return cached.data
+	}
+	// Clean up expired entry
+	if (cached) {
+		memoryCache.delete(appId)
+	}
+	return null
 }
 
-async function getCachedGame(appId: number): Promise<SteamGameDetails | null> {
-	try {
-		const key = `local:${CACHE_PREFIX}${appId}` as const
-		const cached = await storage.getItem<CachedGame>(key)
-
-		if (cached && cached.timestamp && Date.now() - cached.timestamp < CACHE_TTL) {
-			return cached.data
-		}
-		return null
-	} catch {
-		return null
-	}
-}
-
-async function setCachedGame(appId: number, data: SteamGameDetails): Promise<void> {
-	try {
-		const key = `local:${CACHE_PREFIX}${appId}` as const
-		await storage.setItem(key, {
-			data,
-			timestamp: Date.now(),
-		})
-	} catch (e) {
-		logger.warn('[Steam] Failed to cache game:', e)
-	}
+function setCachedGame(appId: number, data: SteamGameDetails): void {
+	memoryCache.set(appId, {
+		data,
+		timestamp: Date.now(),
+	})
 }
 
 // =============================================================================
@@ -140,8 +129,8 @@ async function setCachedGame(appId: number, data: SteamGameDetails): Promise<voi
  * No importar directamente en componentes UI. Usar fetchSteamGameDetailsViaBackground.
  */
 export async function fetchSteamGameDetails(appId: number): Promise<SteamGameDetails | null> {
-	// Check cache first
-	const cached = await getCachedGame(appId)
+	// Check memory cache first
+	const cached = getCachedGame(appId)
 	if (cached) {
 		logger.debug('[Steam] Using cached data for app:', appId)
 		return cached
@@ -182,8 +171,8 @@ export async function fetchSteamGameDetails(appId: number): Promise<SteamGameDet
 			metacriticUrl: data.metacritic?.url || null,
 		}
 
-		// Cache the result
-		await setCachedGame(appId, gameDetails)
+		// Cache the result in memory
+		setCachedGame(appId, gameDetails)
 
 		return gameDetails
 	} catch (error) {
