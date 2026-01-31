@@ -172,25 +172,42 @@ export function injectPinButtons(): void {
 	posts.forEach(post => {
 		const postEl = post as HTMLElement
 
-		// Prevent double injection
-		if (isAlreadyInjected(postEl, PIN_BUTTON_MARKER)) return
-		markAsInjected(postEl, PIN_BUTTON_MARKER)
-
 		const controls = postEl.querySelector('.post-controls .buttons')
 		if (!controls) return
 
 		const postNum = parseInt(postEl.dataset.num || '0', 10)
 		if (!postNum) return
 
+		// Check if button actually exists in DOM (not just marker)
+		// This handles the case where Mediavida rebuilds .buttons for moderators
+		const existingButton = controls.querySelector('.pin-post')
+		if (existingButton) return
+
+		// Mark post as processed (for callback registration tracking)
+		if (!isAlreadyInjected(postEl, PIN_BUTTON_MARKER)) {
+			markAsInjected(postEl, PIN_BUTTON_MARKER)
+		}
+
 		// Delegate button creation and logic to helper function
 		const pinLi = createPinButton(postEl, postNum)
 
-		// Insert into DOM (before reply button or at the end)
-		const replyBtn = controls.querySelector('li:last-child')
-		if (replyBtn) {
-			controls.insertBefore(pinLi, replyBtn)
-		} else {
-			controls.appendChild(pinLi)
+		// Insert before reply button (.btn-reply) for consistent positioning
+		// This ensures buttons appear in the same position regardless of mod status
+		try {
+			const replyBtnLi = controls.querySelector('.btn-reply')?.parentElement
+			if (replyBtnLi && replyBtnLi.parentElement === controls) {
+				controls.insertBefore(pinLi, replyBtnLi)
+			} else {
+				// Fallback: append to end if reply button not found
+				controls.appendChild(pinLi)
+			}
+		} catch {
+			// Fallback: append to end if insertBefore fails due to DOM race condition
+			try {
+				controls.appendChild(pinLi)
+			} catch {
+				// DOM was modified, skip this post
+			}
 		}
 	})
 }

@@ -88,32 +88,48 @@ export function injectSummaryButtons(): void {
 	posts.forEach(post => {
 		const postEl = post as HTMLElement
 
-		// Avoid double injection
-		if (isAlreadyInjected(postEl, SUMMARY_BUTTON_MARKER)) return
-		markAsInjected(postEl, SUMMARY_BUTTON_MARKER)
-
 		const controls = postEl.querySelector('.post-controls .buttons')
 		if (!controls) return
 
 		const postNum = parseInt(postEl.dataset.num || '0', 10)
 		if (!postNum) return
 
+		// Check if button actually exists in DOM (not just marker)
+		// This handles the case where Mediavida rebuilds .buttons for moderators
+		const existingButton = controls.querySelector('.summary-post')
+		if (existingButton) return // Already has button, skip
+
+		// Mark post as processed (for tracking)
+		if (!isAlreadyInjected(postEl, SUMMARY_BUTTON_MARKER)) {
+			markAsInjected(postEl, SUMMARY_BUTTON_MARKER)
+		}
+
 		// Create the summary button
 		const summaryLi = createSummaryButton(postEl, postNum)
 
 		// Find the pin button to insert before it (pin has class .pin-post)
-		const pinButton = controls.querySelector('.pin-post')?.parentElement
+		// Use try-catch to handle race condition where Mediavida modifies DOM simultaneously
+		try {
+			const pinButton = controls.querySelector('.pin-post')?.parentElement
 
-		if (pinButton) {
-			// Insert before pin button
-			controls.insertBefore(summaryLi, pinButton)
-		} else {
-			// Fallback: insert before reply button (last item)
-			const replyBtn = controls.querySelector('li:last-child')
-			if (replyBtn) {
-				controls.insertBefore(summaryLi, replyBtn)
+			if (pinButton && pinButton.parentElement === controls) {
+				// Insert before pin button
+				controls.insertBefore(summaryLi, pinButton)
 			} else {
+				// Fallback: insert before reply button (.btn-reply) for consistent positioning
+				const replyBtnLi = controls.querySelector('.btn-reply')?.parentElement
+				if (replyBtnLi && replyBtnLi.parentElement === controls) {
+					controls.insertBefore(summaryLi, replyBtnLi)
+				} else {
+					controls.appendChild(summaryLi)
+				}
+			}
+		} catch {
+			// Fallback: append to end if insertBefore fails
+			try {
 				controls.appendChild(summaryLi)
+			} catch {
+				// DOM was modified, skip this post
 			}
 		}
 	})
