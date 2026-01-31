@@ -139,9 +139,37 @@ function detectTotalPages(): number {
 // PAGE LOADING
 // =============================================================================
 
+/**
+ * Gets current URL query parameters, filtering out pagination-related ones.
+ * Preserves user filter (?u=username) and other relevant params.
+ */
+function getQueryParams(): URLSearchParams {
+	const params = new URLSearchParams(window.location.search)
+	// Remove pagination param as we'll set it explicitly
+	params.delete('pagina')
+	return params
+}
+
 async function fetchPage(pageNum: number): Promise<Document | null> {
 	const baseUrl = getBaseUrl()
-	const relativePath = pageNum === 1 ? baseUrl : `${baseUrl}/${pageNum}`
+	const params = getQueryParams()
+	
+	let relativePath: string
+	
+	// Check if we have query params (like user filter ?u=username)
+	// In this case, pagination uses ?pagina=N instead of /N path
+	if (params.has('u')) {
+		// User filter is active - use query param pagination
+		if (pageNum > 1) {
+			params.set('pagina', String(pageNum))
+		}
+		const queryString = params.toString()
+		relativePath = queryString ? `${baseUrl}?${queryString}` : baseUrl
+	} else {
+		// Standard path-based pagination
+		relativePath = pageNum === 1 ? baseUrl : `${baseUrl}/${pageNum}`
+	}
+	
 	// Firefox extensions require absolute URLs for fetch
 	const url = relativePath.startsWith('/') ? `${window.location.origin}${relativePath}` : relativePath
 
