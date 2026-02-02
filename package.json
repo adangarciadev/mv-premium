@@ -2,7 +2,7 @@
 	"name": "mediavida-premium-extension",
 	"description": "Premium features for Mediavida.com forum - Browser Extension",
 	"private": true,
-	"version": "1.2.0",
+	"version": "1.2.1",
 	"author": "Adán García",
 	"keywords": [
 		"mediavida",

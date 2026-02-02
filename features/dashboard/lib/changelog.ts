@@ -21,6 +21,61 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.2.1',
+		date: '2026-02-02',
+		title: 'Mejoras de Estabilidad',
+		summary:
+			'Correcciones importantes para postits con video, scroll infinito y gestión de imágenes, además de mejoras en el dashboard.',
+		changes: [
+			{
+				type: 'fix',
+				description:
+					'El botón de ocultar/mostrar del Post-it ahora es accesible aunque haya videos de YouTube/Twitch incrustados.',
+				category: 'Navegación',
+			},
+			{
+				type: 'feature',
+				description: 'Nueva tarjeta de "Tiempo Total" en el Dashboard y mejoras en la rejilla.',
+				category: 'Dashboard',
+			},
+			{
+				type: 'feature',
+				description: 'Cambiado servidor de imágenes por defecto a freeimage.host para mayor fiabilidad y velocidad.',
+				category: 'Multimedia',
+			},
+			{
+				type: 'fix',
+				description: 'El filtro de usuario (?u=...) y el botón de "Manita" ahora funcionan correctamente con el Scroll Infinito.',
+				category: 'Navegación',
+			},
+			{
+				type: 'feature',
+				description: 'Pegado inteligente: Las URLs de Reddit ahora se etiquetan automáticamente en el editor.',
+				category: 'Editor',
+			},
+			{
+				type: 'fix',
+				description: 'Los botones de la extensión (Resumir, Guardar hilo) ahora aparecen correctamente para moderadores.',
+				category: 'Comunidad',
+			},
+			{
+				type: 'fix',
+				description: 'Solucionado el parpadeo visual (flash) al cargar páginas con el modo Ultrawide activado.',
+				category: 'Diseño',
+			},
+			{
+				type: 'feature',
+				description: 'Opción para mantener la búsqueda nativa en lugar de reemplazarla por el Menú de Comandos (Ctrl+K).',
+				category: 'Accesibilidad',
+			},
+			{
+				type: 'improvement',
+				description: 'Optimización de caché interna para evitar límites de almacenamiento en el navegador.',
+				category: 'Rendimiento',
+			},
+		],
+	},
+	{
 		version: '1.2.0',
 		date: '2025-01-26',
 		title: 'Mejoras en el Editor',
