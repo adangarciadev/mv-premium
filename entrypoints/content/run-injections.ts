@@ -151,6 +151,11 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 			injectScrollToBottomButton()
 		})
 
+		// Postit toggle - Adds accessible toggle for postits with embedded videos
+		import('@/features/postit-toggle').then(({ initPostitToggle }) => {
+			initPostitToggle()
+		})
+
 		// Check for pending thread creation (captures URL after redirect from new thread page)
 		import('@/features/stats').then(({ completePendingThreadCreation }) => {
 			completePendingThreadCreation()
