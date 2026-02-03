@@ -77,6 +77,8 @@ export interface Settings {
 
 	// Layout
 	ultrawideMode: UltrawideMode
+	centeredPostsEnabled: boolean
+	centeredControlsSticky: boolean
 
 	// Keyboard Shortcuts
 	shortcuts: Record<string, string | null>

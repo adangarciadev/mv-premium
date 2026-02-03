@@ -27,6 +27,7 @@ import { runInjections, type PageContext } from './run-injections'
 import { applyBoldColor, watchBoldColor } from './init-bold-color'
 import { syncFidIcons } from '@/features/icons/icon-syncer'
 import { initUltrawide } from '@/features/ultrawide'
+import { initCenteredPosts } from '@/features/centered-posts'
 import { setupPostTracker } from '@/features/stats/post-tracker'
 import { initTimeTracker } from '@/features/stats/logic/time-tracker'
 import { initNativePreviewInterceptor } from '@/features/editor/logic/code-highlighter'
@@ -191,6 +192,9 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 
 		// Initialize user card button injection
 		initUserCardInjector()
+
+		// Initialize centered posts mode (hides sidebar, expands posts)
+		await initCenteredPosts()
 	}
 
 	// =====================================================================

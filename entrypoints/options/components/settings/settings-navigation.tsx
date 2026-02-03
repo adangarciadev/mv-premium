@@ -7,6 +7,8 @@ import Zap from 'lucide-react/dist/esm/icons/zap'
 import Radio from 'lucide-react/dist/esm/icons/radio'
 import Images from 'lucide-react/dist/esm/icons/images'
 import Clock from 'lucide-react/dist/esm/icons/clock'
+import Maximize from 'lucide-react/dist/esm/icons/maximize'
+import Pin from 'lucide-react/dist/esm/icons/pin'
 import { useSettingsStore } from '@/store/settings-store'
 import { Card } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
@@ -25,7 +27,10 @@ export function SettingsNavigation() {
 		setLiveThreadEnabled,
 		galleryButtonEnabled,
 		nativeLiveDelayEnabled,
+		centeredPostsEnabled,
+		centeredControlsSticky,
 		setSetting,
+		updateSettings,
 	} = useSettingsStore()
 
 	const reloadMediavidaTabs = () => {
@@ -160,6 +165,65 @@ export function SettingsNavigation() {
 					}}
 				/>
 			</SettingRow>
+
+			<Separator />
+
+			<SettingRow
+				icon={<Maximize className="h-4 w-4" />}
+				label="Posts centrados"
+				description="Oculta el sidebar y expande los posts al ancho completo en hilos."
+			>
+				<Switch
+					checked={centeredPostsEnabled}
+					onCheckedChange={(checked) => {
+						if (!checked) {
+							// Reset sticky controls if main feature is disabled (Atomic update)
+							updateSettings({
+								centeredPostsEnabled: false,
+								centeredControlsSticky: false,
+							})
+						} else {
+							setSetting('centeredPostsEnabled', true)
+						}
+						
+						// Reload with slight delay to ensure storage is updated
+						setTimeout(() => {
+							reloadMediavidaTabs()
+						}, 100)
+
+						toast.success(
+							checked ? 'Posts centrados activados' : 'Configuración guardada'
+						)
+					}}
+				/>
+			</SettingRow>
+
+			{centeredPostsEnabled && (
+				<SettingRow
+					icon={<Pin className="h-4 w-4" />}
+					label="Barra de controles fija"
+					description="La barra de controles permanece visible al hacer scroll."
+					className="ml-6 border-l-2 border-primary/30 pl-4"
+				>
+					<Switch
+						checked={centeredControlsSticky}
+						onCheckedChange={(checked) => {
+							setSetting('centeredControlsSticky', checked)
+							
+							// Reload with slight delay
+							setTimeout(() => {
+								reloadMediavidaTabs()
+							}, 100)
+
+							toast.success(
+								checked
+									? 'Barra de controles fija activada'
+									: 'Configuración guardada'
+							)
+						}}
+					/>
+				</SettingRow>
+			)}
 		</SettingsSection>
 	)
 }

@@ -67,6 +67,7 @@ interface SettingsActions {
 
 	// Layout
 	setUltrawideMode: (mode: Settings['ultrawideMode']) => void
+	setCenteredPostsEnabled: (enabled: boolean) => void
 
 	// Keyboard Shortcuts
 	setShortcut: (actionId: string, keyCombo: string | null) => void
@@ -189,6 +190,7 @@ export const useSettingsStore = create<SettingsState>()(
 
 			// Layout
 			setUltrawideMode: mode => set({ ultrawideMode: mode }),
+			setCenteredPostsEnabled: enabled => set({ centeredPostsEnabled: enabled }),
 
 			// Keyboard Shortcuts
 			setShortcut: (actionId, keyCombo) =>

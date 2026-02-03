@@ -115,6 +115,8 @@ export const DOM_MARKERS = {
 		STATUS_ACTIONS: 'mvp-status-actions',
 		EXTRA_ACTIONS_SEPARATOR: 'mvp-extra-actions-separator',
 		ULTRAWIDE_STYLES: 'mvp-ultrawide-styles',
+		CENTERED_POSTS_STYLES: 'mvp-centered-posts-styles',
+		CENTERED_CONTROL_BAR: 'mvp-centered-control-bar',
 		USER_CUSTOMIZATIONS_STYLES: 'mvp-user-customizations-styles',
 		SUMMARIZER_BTN: 'mvp-summarizer-btn',
 		SUMMARIZER_MODAL: 'mvp-summarizer-modal-container',
