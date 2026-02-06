@@ -3,6 +3,7 @@
  */
 export { ApiKeyDialog } from './api-key-dialog'
 export { CineToolbarButton } from './cine-toolbar-button'
+export { GameToolbarButton } from './game-toolbar-button'
 export { CodeToolbarButton } from './code-toolbar-button'
 export { FeatureToolbarButtons } from './feature-toolbar-buttons'
 export { FormattingToolbarButtons } from './formatting-toolbar-buttons'

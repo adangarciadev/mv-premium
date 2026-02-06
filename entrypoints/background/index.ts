@@ -22,6 +22,7 @@ import { createContextMenus, setupContextMenuListener, initContextMenuWatcher } 
 import { setupUploadHandlers } from './upload-handlers'
 import { setupApiHandlers } from './api-handlers'
 import { setupAiHandlers } from './ai-handlers'
+import { setupIgdbHandlers } from './igdb-handlers'
 import { highlightCode } from './prism-highlighter'
 import { clearCache } from '@/services/media/cache'
 
@@ -78,6 +79,9 @@ export default defineBackground(() => {
 
 	// AI handlers (Gemini)
 	setupAiHandlers()
+
+	// IGDB handlers (game database)
+	setupIgdbHandlers()
 
 	// ==========================================================================
 	// Code Highlighting Handler

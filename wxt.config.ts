@@ -14,7 +14,10 @@ export default defineConfig({
 			'https://api.giphy.com/*',
 			'https://generativelanguage.googleapis.com/*',
 			'https://api.imgbb.com/*',
+			'https://api.imgbb.com/*',
 			'https://freeimage.host/*',
+			'*://api.igdb.com/*',
+			'*://id.twitch.tv/*',
 		],
 		name: 'MV Premium',
 		description:
@@ -36,11 +39,11 @@ export default defineConfig({
 		],
 		// --- CSP (hardened) ---
 		content_security_policy: {
-			extension_pages: `script-src 'self'; object-src 'self'; connect-src 'self' https://*.mediavida.com https://api.giphy.com https://generativelanguage.googleapis.com https://store.steampowered.com https://api.imgbb.com https://freeimage.host https://api.themoviedb.org https://image.tmdb.org ${
+			extension_pages: `script-src 'self'; object-src 'self'; connect-src 'self' https://*.mediavida.com https://api.giphy.com https://generativelanguage.googleapis.com https://store.steampowered.com https://api.imgbb.com https://freeimage.host https://api.themoviedb.org https://image.tmdb.org https://id.twitch.tv https://api.igdb.com ${
 				process.env.NODE_ENV === 'development'
 					? 'ws://localhost:3000 http://localhost:3000 ws://localhost:3001 http://localhost:3001'
 					: ''
-			}; img-src 'self' data: blob: https://*.mediavida.com https://giphy.com https://*.giphy.com https://image.tmdb.org https://www.themoviedb.org https://i.ytimg.com https://store.steampowered.com https://freeimage.host https://*.freeimage.host https://api.imgbb.com https://i.ibb.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;`,
+			}; img-src 'self' data: blob: https: http:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;`,
 		},
 	},
 	webExt: {

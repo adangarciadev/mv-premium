@@ -72,5 +72,18 @@ export {
   type MediaData,
 } from './media'
 
+// IGDB
+export {
+  hasIgdbCredentials,
+  searchGames,
+  getGameDetails,
+  getGameTemplateData,
+  generateGameTemplate,
+  getGameTemplateString,
+  getIGDBImageUrl,
+} from './api/igdb'
+
+export type { IGDBGame, IGDBCover, IGDBSearchResult, IGDBImageSize } from './api/igdb'
+
 // NOTE: Mediavida DOM Scraper & API functions are in @/lib/mv-api
 // Import directly from there instead of re-exporting here to avoid redundancy

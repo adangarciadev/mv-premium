@@ -115,6 +115,20 @@ interface ProtocolMap {
 	 * @returns Highlighted HTML string
 	 */
 	highlightCode: (data: { code: string; language: string }) => string
+
+	/**
+	 * Check if IGDB credentials are configured in environment
+	 * @returns true if Client ID and Secret are set in .env
+	 */
+	hasIgdbCredentials: () => boolean
+
+	/**
+	 * Generic IGDB API request via background script
+	 * Background handles Twitch OAuth and proxies the request
+	 * @param data - API endpoint and query body
+	 * @returns JSON response from IGDB
+	 */
+	igdbRequest: (data: { endpoint: string; body: string }) => unknown
 }
 
 // =============================================================================
