@@ -124,6 +124,7 @@ export const SAMPLE_SEASON_DATA: SeasonTemplateDataInput = {
 
 export const SAMPLE_GAME_DATA: GameTemplateDataInput = {
 	name: 'The Witcher 3: Wild Hunt',
+	originalName: 'The Witcher 3: Wild Hunt',
 	releaseDate: '19 de mayo de 2015',
 	releaseYear: '2015',
 	releaseDates: [

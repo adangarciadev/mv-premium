@@ -42,6 +42,8 @@ export interface IGDBGame {
 	release_dates?: IGDBReleaseDate[]
 	external_games?: IGDBExternalGame[]
 	language_supports?: IGDBLanguageSupport[]
+	alternative_names?: IGDBAlternativeName[]
+	game_localizations?: IGDBGameLocalization[]
 }
 
 export interface IGDBCover {
@@ -250,6 +252,28 @@ export interface IGDBLanguage {
 export interface IGDBLanguageSupportType {
 	id: number
 	name: string
+}
+
+export interface IGDBAlternativeName {
+	id: number
+	name: string
+	comment?: string
+	game?: number
+}
+
+export interface IGDBGameLocalization {
+	id: number
+	name?: string
+	region?: number
+	cover?: IGDBCover
+	game?: number
+}
+
+export interface IGDBRegion {
+	id: number
+	identifier?: string
+	name?: string
+	category?: string
 }
 
 // =============================================================================

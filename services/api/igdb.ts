@@ -19,7 +19,7 @@ import { getDefaultTemplate } from '@/features/templates'
 import { useSettingsStore } from '@/store'
 import { fetchSteamGameDetailsViaBackground, extractSteamAppId } from '@/services/api/steam'
 import type { MediaTemplate, GameTemplateDataInput } from '@/types/templates'
-import type { IGDBGame } from './igdb-types'
+import type { IGDBGame, IGDBAlternativeName, IGDBGameLocalization, IGDBRegion } from './igdb-types'
 import {
 	getIGDBImageUrl,
 	PEGI_RATING_LABELS,
@@ -58,6 +58,16 @@ const SPANISH_MONTHS = [
 	'diciembre',
 ] as const
 
+const SPANISH_LANGUAGE_TOKENS = ['espanol', 'spanish', 'espa']
+const SUPPORT_TYPE_RANKS: { token: string; rank: number }[] = [
+	{ token: 'voces', rank: 0 },
+	{ token: 'voice', rank: 0 },
+	{ token: 'subtit', rank: 1 },
+	{ token: 'subtitle', rank: 1 },
+	{ token: 'interfaz', rank: 2 },
+	{ token: 'interface', rank: 2 },
+]
+
 // =============================================================================
 // API Availability Check
 // =============================================================================
@@ -92,6 +102,124 @@ async function fetchIGDB<T>(endpoint: string, body: string, ttl: number = CACHE_
 		ttl,
 		persist: false, // Keep IGDB data in memory only
 	})
+}
+
+function sortLanguageSupports(a: string, b: string) {
+	const aLower = a.toLowerCase()
+	const bLower = b.toLowerCase()
+	const aIsSpanish = SPANISH_LANGUAGE_TOKENS.some(token => aLower.includes(token))
+	const bIsSpanish = SPANISH_LANGUAGE_TOKENS.some(token => bLower.includes(token))
+	if (aIsSpanish !== bIsSpanish) return aIsSpanish ? -1 : 1
+
+	const aTypeRank = SUPPORT_TYPE_RANKS.find(rank => aLower.includes(rank.token))?.rank ?? 3
+	const bTypeRank = SUPPORT_TYPE_RANKS.find(rank => bLower.includes(rank.token))?.rank ?? 3
+	if (aTypeRank !== bTypeRank) return aTypeRank - bTypeRank
+
+	return a.localeCompare(b, 'es')
+}
+
+async function fetchGameLocalizations(gameId: number): Promise<IGDBGameLocalization[]> {
+	const body = `
+		fields name, region, cover.image_id;
+		where game = ${gameId};
+		limit 50;
+	`
+	return fetchIGDB<IGDBGameLocalization[]>('/game_localizations', body, CACHE_TTL.LONG)
+}
+
+async function fetchAlternativeNames(gameId: number): Promise<IGDBAlternativeName[]> {
+	const body = `
+		fields name, comment, game;
+		where game = ${gameId};
+		limit 50;
+	`
+	return fetchIGDB<IGDBAlternativeName[]>('/alternative_names', body, CACHE_TTL.LONG)
+}
+
+async function fetchRegions(): Promise<IGDBRegion[]> {
+	const body = `
+		fields id, identifier, name, category;
+		limit 500;
+	`
+	return fetchIGDB<IGDBRegion[]>('/regions', body, CACHE_TTL.LONG)
+}
+
+function normalizeRegionIdentifier(identifier?: string) {
+	return identifier?.trim().toLowerCase() || ''
+}
+
+function getPreferredRegionIds(regions: IGDBRegion[]): number[] {
+	const ordered: number[] = []
+	const seen = new Set<number>()
+	const add = (region?: IGDBRegion) => {
+		if (region && !seen.has(region.id)) {
+			ordered.push(region.id)
+			seen.add(region.id)
+		}
+	}
+
+	const findByIdentifier = (identifier: string) =>
+		regions.find(region => normalizeRegionIdentifier(region.identifier) === identifier)
+	const findByName = (needle: string) => regions.find(region => (region.name || '').toLowerCase().includes(needle))
+
+	add(findByIdentifier('es'))
+	add(findByName('spain'))
+	add(findByName('espana'))
+	add(findByIdentifier('eu'))
+	add(findByName('europe'))
+	add(findByIdentifier('ww'))
+	add(findByName('worldwide'))
+
+	return ordered
+}
+
+function findLocalizationByRegion(
+	localizations: IGDBGameLocalization[],
+	regionIds: number[]
+): IGDBGameLocalization | null {
+	for (const regionId of regionIds) {
+		const match = localizations.find(loc => loc.region === regionId && (loc.name || loc.cover?.image_id))
+		if (match) return match
+	}
+	return null
+}
+
+function pickAlternativeName(alternativeNames: IGDBAlternativeName[]): string | null {
+	for (const alt of alternativeNames) {
+		const comment = alt.comment?.toLowerCase() || ''
+		if (
+			comment.includes('spanish') ||
+			comment.includes('espanol') ||
+			comment.includes('espana') ||
+			comment.includes('spain') ||
+			comment.includes('latam') ||
+			comment.includes('latin america')
+		) {
+			return alt.name
+		}
+	}
+	return null
+}
+
+function resolveSpanishLocalization(
+	localizations: IGDBGameLocalization[],
+	alternativeNames: IGDBAlternativeName[],
+	regions: IGDBRegion[]
+): { localizedName: string | null; localizedCoverUrl: string | null } {
+	if (localizations.length === 0 && alternativeNames.length === 0) {
+		return { localizedName: null, localizedCoverUrl: null }
+	}
+
+	const preferredRegionIds = getPreferredRegionIds(regions)
+	const preferredLocalization = findLocalizationByRegion(localizations, preferredRegionIds)
+	const fallbackLocalization = localizations.find(loc => loc.name || loc.cover?.image_id) || null
+
+	const localizedName =
+		preferredLocalization?.name || fallbackLocalization?.name || pickAlternativeName(alternativeNames)
+	const coverId = preferredLocalization?.cover?.image_id || fallbackLocalization?.cover?.image_id || null
+	const localizedCoverUrl = coverId ? getIGDBImageUrl(coverId, 'cover_big') : null
+
+	return { localizedName: localizedName || null, localizedCoverUrl }
 }
 
 // =============================================================================
@@ -262,8 +390,16 @@ export async function getGameTemplateData(
 ): Promise<GameTemplateDataInput | null> {
 	// Fetch game details and time-to-beat in parallel
 	onProgress?.('igdb')
-	const [game, timeToBeat] = await Promise.all([getGameDetails(gameId), getTimeToBeat(gameId)])
+	const [game, timeToBeat, localizations, alternativeNames] = await Promise.all([
+		getGameDetails(gameId),
+		getTimeToBeat(gameId),
+		fetchGameLocalizations(gameId),
+		fetchAlternativeNames(gameId),
+	])
 	if (!game) return null
+
+	const regions = localizations.length > 0 ? await fetchRegions() : []
+	const { localizedName, localizedCoverUrl } = resolveSpanishLocalization(localizations, alternativeNames, regions)
 
 	// Extract developers and publishers
 	const developers: string[] = []
@@ -291,7 +427,7 @@ export async function getGameTemplateData(
 		game.player_perspectives?.map(pp => PLAYER_PERSPECTIVE_TRANSLATIONS[pp.name] || pp.name) || []
 
 	// Get cover URL (HD)
-	const coverUrl = game.cover ? getIGDBImageUrl(game.cover.image_id, 'cover_big') : null
+	const coverUrl = localizedCoverUrl || (game.cover ? getIGDBImageUrl(game.cover.image_id, 'cover_big') : null)
 
 	// Get screenshots in 1080p
 	const screenshots = game.screenshots?.slice(0, 6).map(s => getIGDBImageUrl(s.image_id, '1080p')) || []
@@ -415,12 +551,13 @@ export async function getGameTemplateData(
 	}
 
 	// Language supports
-	const languageSupports =
+	const languageSupportsRaw =
 		game.language_supports?.map(ls => {
 			const language = ls.language?.native_name || ls.language?.name || 'Idioma'
 			const supportType = ls.language_support_type?.name || 'Soporte'
 			return `${language} (${supportType})`
 		}) || []
+	const languageSupports = [...languageSupportsRaw].sort(sortLanguageSupports)
 
 	// Get age rating (prefer PEGI)
 	let ageRating: string | null = null
@@ -455,7 +592,8 @@ export async function getGameTemplateData(
 
 	onProgress?.('done')
 	return {
-		name: game.name,
+		name: localizedName || game.name,
+		originalName: game.name,
 		releaseDate,
 		releaseYear,
 		releaseDates,

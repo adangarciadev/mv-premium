@@ -398,7 +398,16 @@ export const GAME_FIELDS: FieldDefinition[] = [
 	{
 		key: 'name',
 		label: 'Nombre',
-		description: 'Nombre del juego (en inglés)',
+		description: 'Nombre del juego (localizado si existe)',
+		isArray: false,
+		example: 'The Witcher 3: Wild Hunt',
+		source: 'igdb',
+		category: 'Información',
+	},
+	{
+		key: 'originalName',
+		label: 'Nombre original',
+		description: 'Nombre original del juego en IGDB (sin localizar)',
 		isArray: false,
 		example: 'The Witcher 3: Wild Hunt',
 		source: 'igdb',
@@ -863,6 +872,7 @@ export interface SeasonTemplateDataInput {
  */
 export interface GameTemplateDataInput {
 	name: string
+	originalName: string
 	releaseDate: string | null
 	releaseYear: string | null
 	releaseDates: string[]

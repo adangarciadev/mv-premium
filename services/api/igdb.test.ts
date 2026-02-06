@@ -47,9 +47,15 @@ import {
 
 const mockSendMessage = sendMessage as ReturnType<typeof vi.fn>
 
+const mockLocalizationData = () => {
+	mockSendMessage.mockResolvedValueOnce([]) // game_localizations
+	mockSendMessage.mockResolvedValueOnce([]) // alternative_names
+}
+
 describe('IGDB API Service', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
+		mockSendMessage.mockReset()
 	})
 
 	describe('hasIgdbCredentials', () => {
@@ -228,6 +234,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat (no data)
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -253,6 +260,7 @@ describe('IGDB API Service', () => {
 		it('should return null when game not found', async () => {
 			mockSendMessage.mockResolvedValueOnce([]) // getGameDetails returns empty
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(999999)
 
@@ -266,6 +274,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -302,6 +311,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -323,6 +333,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -337,6 +348,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -358,6 +370,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([mockTimeToBeat]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -373,6 +386,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockRejectedValueOnce(new Error('API error')) // getTimeToBeat fails
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -399,6 +413,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 			mockSendMessage.mockResolvedValueOnce({
 				appId: 1091500,
 				description: 'Cyberpunk 2077 es un RPG de mundo abierto...',
@@ -433,6 +448,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 			mockSendMessage.mockResolvedValueOnce({
 				appId: 1091500,
 				description: 'Descripción detallada en español',
@@ -462,6 +478,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 			mockSendMessage.mockRejectedValueOnce(new Error('Steam API down')) // fetchSteamGame fails
 
 			const result = await getGameTemplateData(123)
@@ -484,6 +501,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 			mockSendMessage.mockResolvedValueOnce(null) // fetchSteamGame returns null
 
 			const result = await getGameTemplateData(123)
@@ -507,6 +525,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 			mockSendMessage.mockResolvedValueOnce({
 				appId: 292030,
 				// Steam resolved description to short_description because about_the_game was image-only
@@ -537,13 +556,14 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
 			expect(result?.summary).toBe('A console only game')
 			expect(result?.steamStoreUrl).toBeNull()
 			// Should NOT have called fetchSteamGame
-			expect(mockSendMessage).toHaveBeenCalledTimes(2) // Only igdbRequest x2
+			expect(mockSendMessage).toHaveBeenCalledTimes(4) // igdbRequest x4 (details, timeToBeat, localizations, alt names)
 		})
 
 		it('should fall back to websites for Steam App ID when external_games has no Steam', async () => {
@@ -562,6 +582,7 @@ describe('IGDB API Service', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 			mockSendMessage.mockResolvedValueOnce({
 				appId: 292030,
 				description: 'Descripción detallada desde websites',
@@ -581,6 +602,7 @@ describe('IGDB API Service', () => {
 		it('should generate BBCode template from game data', () => {
 			const gameData = {
 				name: 'Test Game',
+				originalName: 'Test Game',
 				releaseDate: '2024-01-15',
 				developers: ['Studio A'],
 				publishers: ['Publisher B'],
@@ -640,6 +662,7 @@ describe('IGDB API Service', () => {
 		it('should handle game data without optional fields', () => {
 			const gameData = {
 				name: 'Minimal Game',
+				originalName: 'Minimal Game',
 				releaseDate: null,
 				releaseYear: null,
 				releaseDates: [],
@@ -712,6 +735,7 @@ describe('IGDB Data Transformations', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -735,6 +759,7 @@ describe('IGDB Data Transformations', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -754,6 +779,7 @@ describe('IGDB Data Transformations', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -768,6 +794,7 @@ describe('IGDB Data Transformations', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -785,6 +812,7 @@ describe('IGDB Data Transformations', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
@@ -806,6 +834,7 @@ describe('IGDB Data Transformations', () => {
 			}
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
 
 			const result = await getGameTemplateData(123)
 
