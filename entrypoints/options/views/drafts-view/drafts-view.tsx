@@ -282,10 +282,14 @@ export function DraftsView({ filterType }: DraftsViewProps) {
 					})
 				}}
 			>
-				<div className="flex items-center justify-between mb-6 shrink-0">
-					<TabsList>
-						<TabsTrigger value="text">Plantillas de Texto</TabsTrigger>
-						<TabsTrigger value="media">Creación de Contenido</TabsTrigger>
+				<div className="flex items-center justify-between mb-8 shrink-0">
+					<TabsList className="grid w-full grid-cols-2 sm:w-auto h-auto p-1 bg-muted rounded-lg">
+						<TabsTrigger value="text" className="px-6 py-2 text-sm font-medium transition-all">
+							Plantillas de Texto
+						</TabsTrigger>
+						<TabsTrigger value="media" className="px-6 py-2 text-sm font-medium transition-all">
+							Creación de Contenido
+						</TabsTrigger>
 					</TabsList>
 				</div>
 

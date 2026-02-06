@@ -19,11 +19,11 @@ export function PreviewPanel({ content, boldColor, theme, showPreview, previewRe
 			{/* Header */}
 			<div
 				className={cn(
-					'h-10 shrink-0 border-b flex items-center justify-between bg-border px-4 dark:bg-background transition-opacity duration-300',
+					'h-9 shrink-0 border-b flex items-center justify-between bg-muted/60 px-4 dark:bg-muted/30 transition-opacity duration-300',
 					showPreview ? 'opacity-100' : 'opacity-0'
 				)}
 			>
-				<span className="text-xs font-bold text-muted-foreground tracking-widest uppercase font-mediavida">
+				<span className="text-xs font-bold text-foreground/80 tracking-widest uppercase font-mediavida">
 					Vista Previa
 				</span>
 				{badgeText ? (

@@ -93,10 +93,12 @@ function DynamicBreadcrumb() {
 						<BreadcrumbSeparator className="hidden md:block" />
 						<BreadcrumbItem>
 							{item.isLast ? (
-								<BreadcrumbPage>{item.label}</BreadcrumbPage>
+								<BreadcrumbPage className="font-medium text-primary">{item.label}</BreadcrumbPage>
 							) : (
 								<BreadcrumbLink asChild>
-									<Link to={item.path}>{item.label}</Link>
+									<Link to={item.path} className="hover:text-primary transition-colors">
+										{item.label}
+									</Link>
 								</BreadcrumbLink>
 							)}
 						</BreadcrumbItem>

@@ -41,12 +41,7 @@ import { getIGDBImageUrl } from '@/services/api/igdb'
 import type { TMDBMovie, TMDBTVShow } from '@/services/api/tmdb'
 import { getPosterUrl } from '@/services/api/tmdb'
 
-import {
-	getFieldsForType,
-	type TemplateType,
-	type MediaTemplate,
-	type TemplateDataInput,
-} from '@/types/templates'
+import { getFieldsForType, type TemplateType, type MediaTemplate, type TemplateDataInput } from '@/types/templates'
 import { createEmptyTemplate, createRawBlock, renderTemplate, defaultTemplateToRawBBCode } from '@/lib/template-engine'
 import { getDefaultTemplate } from '@/features/templates'
 
@@ -115,21 +110,21 @@ export function MediaTemplateEditor() {
 	// Refactored Hooks
 	const gameSelection = useGameSelection({
 		mediaType,
-		onPreviewDataChange: setPreviewData
+		onPreviewDataChange: setPreviewData,
 	})
 
 	const tmdbSelection = useTmdbSelection({
 		mediaType,
-		onPreviewDataChange: setPreviewData
+		onPreviewDataChange: setPreviewData,
 	})
 
 	// Refactored Editor Hook
 	const { editor, handlers, upload, dialogs, refs, state, actions } = useFullPageEditor({
 		value: content,
-		onChange: (newContent) => {
+		onChange: newContent => {
 			setContent(newContent)
 			setIsDirty(true)
-		}
+		},
 	})
 
 	// UI state
@@ -194,7 +189,7 @@ export function MediaTemplateEditor() {
 
 		setContent(newContent)
 		// No need to sync refs manually anymore, hook handles it via value prop
-		
+
 		// Set placeholder preview data on first load (no real media selected yet)
 		setPreviewData(generatePlaceholderData(mediaType))
 
@@ -255,7 +250,7 @@ export function MediaTemplateEditor() {
 		// Load the default template as raw BBCode
 		const defaultTemplate = getDefaultTemplate(mediaType)
 		const rawBBCode = defaultTemplateToRawBBCode(defaultTemplate)
-		setContent(rawBBCode) 
+		setContent(rawBBCode)
 		// Hook handles ref syncing via useEffect on value change
 
 		setIsDirty(false)
@@ -334,29 +329,38 @@ export function MediaTemplateEditor() {
 
 						{/* Media type tabs */}
 						<Tabs value={mediaType} onValueChange={handleTabChange}>
-							<TabsList>
+							<TabsList className="bg-transparent h-9 p-0 gap-1.5">
 								{MEDIA_TYPES.map(type => {
 									const isCustom = !!(mediaTemplates && mediaTemplates[type.value])
 									return (
 										<Tooltip key={type.value}>
 											<TooltipTrigger asChild>
-												<span className="relative">
-													<TabsTrigger value={type.value} className="relative">
+												<div className="relative">
+													<TabsTrigger
+														value={type.value}
+														className="relative px-3.5 py-1.5 text-xs font-medium rounded-lg border border-border/50 bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-all data-[state=active]:bg-primary/15 data-[state=active]:text-primary data-[state=active]:border-primary/20"
+													>
 														{type.label}
+														{isCustom && (
+															<span className="absolute -top-0.5 -right-0.5 flex h-2 w-2 z-10">
+																<span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+															</span>
+														)}
 													</TabsTrigger>
-													{isCustom && (
-														<span className="absolute -top-1.5 -right-1 flex h-2 w-2">
-															<span className="animate-none absolute inline-flex h-full w-full rounded-full bg-purple-500 opacity-75" />
-															<span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500" />
-														</span>
-													)}
-												</span>
+												</div>
 											</TooltipTrigger>
-											<TooltipContent side="bottom" sideOffset={6}>
-												<p className="max-w-[220px]">
-													{type.tooltip}
-													{isCustom ? ' · Plantilla personalizada guardada' : ''}
-												</p>
+											<TooltipContent side="bottom" sideOffset={10}>
+												<div className="flex flex-col gap-1">
+													<p className="font-medium text-xs">{type.label}</p>
+													<p className="text-[10px] text-muted-foreground leading-tight max-w-[180px]">
+														{type.tooltip}
+														{isCustom && (
+															<span className="block mt-1 text-primary font-medium">
+																· Plantilla personalizada guardada
+															</span>
+														)}
+													</p>
+												</div>
 											</TooltipContent>
 										</Tooltip>
 									)
@@ -368,19 +372,17 @@ export function MediaTemplateEditor() {
 
 						{/* Search Bar */}
 						{mediaType !== 'game' ? (
-							<div ref={searchContainerRef} className="relative flex-1 min-w-[240px] max-w-sm">
-								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+							<div ref={searchContainerRef} className="relative flex-1 min-w-[240px] max-w-sm group">
+								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
 								<Input
-									placeholder={
-										mediaType === 'movie' ? 'Buscar película para previsualizar...' : 'Buscar serie para previsualizar...'
-									}
+									placeholder={mediaType === 'movie' ? 'Buscar película...' : 'Buscar serie...'}
 									value={tmdbSelection.tmdbSearchQuery}
 									onChange={e => {
 										tmdbSelection.setTmdbSearchQuery(e.target.value)
 										tmdbSelection.setShowSearchResults(true)
 									}}
 									onFocus={() => tmdbSelection.setShowSearchResults(true)}
-									className="pl-9 pr-9 h-8 text-sm"
+									className="pl-9 pr-9 h-8 text-sm focus-visible:ring-1 focus-visible:ring-primary/40"
 								/>
 								{tmdbSelection.tmdbSearchQuery && (
 									<button
@@ -394,91 +396,136 @@ export function MediaTemplateEditor() {
 										<X className="h-3 w-3" />
 									</button>
 								)}
-								{(tmdbSelection.isSearchingMovies || tmdbSelection.isSearchingTV) && tmdbSelection.debouncedTmdbQuery.trim().length >= 2 && (
-									<div className="absolute right-9 top-1/2 -translate-y-1/2">
-										<div className="h-3 w-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-									</div>
-								)}
+								{(tmdbSelection.isSearchingMovies || tmdbSelection.isSearchingTV) &&
+									tmdbSelection.debouncedTmdbQuery.trim().length >= 2 && (
+										<div className="absolute right-9 top-1/2 -translate-y-1/2">
+											<div className="h-3 w-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+										</div>
+									)}
 
 								{/* Movie search results */}
-								{tmdbSelection.showSearchResults && mediaType === 'movie' && tmdbSelection.debouncedTmdbQuery.trim().length >= 2 && (
-									<div className="absolute left-0 right-0 top-full mt-1 border border-border rounded-md bg-popover shadow-lg z-50">
-										{tmdbSelection.isSearchingMovies ? (
-											<div className="px-3 py-2 text-xs text-muted-foreground">Buscando...</div>
-										) : tmdbSelection.movieResults.length === 0 ? (
-											<div className="px-3 py-2 text-xs text-muted-foreground">Sin resultados</div>
-										) : (
-											<div className="max-h-64 overflow-y-auto py-1">
-												{tmdbSelection.movieResults.map((movie: TMDBMovie) => (
-													<button
-														key={movie.id}
-														type="button"
-														onClick={() => tmdbSelection.handleSelectMovie(movie.id, movie.title)}
-														className="w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors"
-													>
-														<div className="flex items-center gap-3">
-															{movie.poster_path ? (
-																<img
-																	src={getPosterUrl(movie.poster_path, 'w92') ?? ''}
-																	alt={movie.title}
-																	className="w-8 h-12 rounded object-cover shrink-0"
-																/>
-															) : (
-																<div className="w-8 h-12 rounded bg-muted flex items-center justify-center shrink-0">
-																	<Search className="h-3 w-3 text-muted-foreground" />
+								{tmdbSelection.showSearchResults &&
+									mediaType === 'movie' &&
+									tmdbSelection.debouncedTmdbQuery.trim().length >= 2 && (
+										<div className="absolute left-0 right-0 top-full mt-2 border border-border/60 rounded-lg bg-popover/95 backdrop-blur-md shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+											{tmdbSelection.isSearchingMovies ? (
+												<div className="px-3 py-4 text-xs text-muted-foreground flex items-center justify-center gap-2">
+													<Loader2 className="h-3 w-3 animate-spin" /> Buscando...
+												</div>
+											) : tmdbSelection.movieResults.length === 0 ? (
+												<div className="px-3 py-4 text-xs text-muted-foreground text-center italic">
+													Sin resultados para «{tmdbSelection.debouncedTmdbQuery}»
+												</div>
+											) : (
+												<div className="max-h-80 overflow-y-auto py-1 custom-scrollbar">
+													{tmdbSelection.movieResults.map((movie: TMDBMovie) => (
+														<button
+															key={movie.id}
+															type="button"
+															onClick={() => tmdbSelection.handleSelectMovie(movie.id, movie.title)}
+															className="w-full text-left px-3 py-2.5 hover:bg-muted/80 transition-colors border-b border-border/20 last:border-0"
+														>
+															<div className="flex items-center gap-3">
+																{movie.poster_path ? (
+																	<img
+																		src={getPosterUrl(movie.poster_path, 'w92') ?? ''}
+																		alt={movie.title}
+																		className="w-10 h-14 rounded-md object-cover shrink-0 shadow-sm border border-border/10"
+																	/>
+																) : (
+																	<div className="w-10 h-14 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border/10">
+																		<Search className="h-4 w-4 text-muted-foreground/40" />
+																	</div>
+																)}
+																<div className="min-w-0 flex-1">
+																	<span
+																		className="text-sm font-semibold text-foreground block truncate"
+																		title={movie.title}
+																	>
+																		{movie.title}
+																	</span>
+																	<div className="flex items-center gap-1.5 mt-0.5">
+																		<span className="text-[10px] font-mono px-1.5 py-0 bg-muted text-muted-foreground rounded-sm tracking-tighter">
+																			{movie.release_date?.split('-')[0] || 'TBA'}
+																		</span>
+																		{movie.vote_average > 0 && (
+																			<span className="text-[10px] text-primary font-bold flex items-center gap-0.5">
+																				<div className="w-1 h-1 rounded-full bg-primary/40" />
+																				{movie.vote_average.toFixed(1)}
+																			</span>
+																		)}
+																		{movie.original_title !== movie.title && (
+																			<span className="text-[10px] text-muted-foreground truncate opacity-70">
+																				• {movie.original_title}
+																			</span>
+																		)}
+																	</div>
 																</div>
-															)}
-															<div className="min-w-0 flex-1">
-																<span className="text-sm font-medium text-foreground block truncate">{movie.title}</span>
-																<span className="text-xs text-muted-foreground">
-																	{movie.release_date?.split('-')[0] || '—'}
-																	{movie.original_title !== movie.title && ` · ${movie.original_title}`}
-																</span>
 															</div>
-														</div>
-													</button>
-												))}
-											</div>
-										)}
-									</div>
-								)}
+														</button>
+													))}
+												</div>
+											)}
+										</div>
+									)}
 
 								{/* TV show search results */}
 								{tmdbSelection.showSearchResults &&
 									(mediaType === 'tvshow' || mediaType === 'season') &&
 									tmdbSelection.debouncedTmdbQuery.trim().length >= 2 && (
-										<div className="absolute left-0 right-0 top-full mt-1 border border-border rounded-md bg-popover shadow-lg z-50">
+										<div className="absolute left-0 right-0 top-full mt-2 border border-border/60 rounded-lg bg-popover/95 backdrop-blur-md shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
 											{tmdbSelection.isSearchingTV ? (
-												<div className="px-3 py-2 text-xs text-muted-foreground">Buscando...</div>
+												<div className="px-3 py-4 text-xs text-muted-foreground flex items-center justify-center gap-2">
+													<Loader2 className="h-3 w-3 animate-spin" /> Buscando...
+												</div>
 											) : tmdbSelection.tvResults.length === 0 ? (
-												<div className="px-3 py-2 text-xs text-muted-foreground">Sin resultados</div>
+												<div className="px-3 py-4 text-xs text-muted-foreground text-center italic">
+													Sin resultados para «{tmdbSelection.debouncedTmdbQuery}»
+												</div>
 											) : (
-												<div className="max-h-64 overflow-y-auto py-1">
+												<div className="max-h-80 overflow-y-auto py-1 custom-scrollbar">
 													{tmdbSelection.tvResults.map((show: TMDBTVShow) => (
 														<button
 															key={show.id}
 															type="button"
 															onClick={() => tmdbSelection.handleSelectTV(show.id, show.name)}
-															className="w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors"
+															className="w-full text-left px-3 py-2.5 hover:bg-muted/80 transition-colors border-b border-border/20 last:border-0"
 														>
 															<div className="flex items-center gap-3">
 																{show.poster_path ? (
 																	<img
 																		src={getPosterUrl(show.poster_path, 'w92') ?? ''}
 																		alt={show.name}
-																		className="w-8 h-12 rounded object-cover shrink-0"
+																		className="w-10 h-14 rounded-md object-cover shrink-0 shadow-sm border border-border/10"
 																	/>
 																) : (
-																	<div className="w-8 h-12 rounded bg-muted flex items-center justify-center shrink-0">
-																		<Search className="h-3 w-3 text-muted-foreground" />
+																	<div className="w-10 h-14 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border/10">
+																		<Search className="h-4 w-4 text-muted-foreground/40" />
 																	</div>
 																)}
 																<div className="min-w-0 flex-1">
-																	<span className="text-sm font-medium text-foreground block truncate">{show.name}</span>
-																	<span className="text-xs text-muted-foreground">
-																		{show.first_air_date?.split('-')[0] || '—'}
-																		{show.original_name !== show.name && ` · ${show.original_name}`}
+																	<span
+																		className="text-sm font-semibold text-foreground block truncate"
+																		title={show.name}
+																	>
+																		{show.name}
 																	</span>
+																	<div className="flex items-center gap-1.5 mt-0.5">
+																		<span className="text-[10px] font-mono px-1.5 py-0 bg-muted text-muted-foreground rounded-sm tracking-tighter">
+																			{show.first_air_date?.split('-')[0] || 'TBA'}
+																		</span>
+																		{show.vote_average > 0 && (
+																			<span className="text-[10px] text-primary font-bold flex items-center gap-0.5">
+																				<div className="w-1 h-1 rounded-full bg-primary/40" />
+																				{show.vote_average.toFixed(1)}
+																			</span>
+																		)}
+																		{show.original_name !== show.name && (
+																			<span className="text-[10px] text-muted-foreground truncate opacity-70">
+																				• {show.original_name}
+																			</span>
+																		)}
+																	</div>
 																</div>
 															</div>
 														</button>
@@ -494,27 +541,26 @@ export function MediaTemplateEditor() {
 									tmdbSelection.tvDataForSeason.seasons.length > 0 &&
 									!tmdbSelection.showSearchResults &&
 									tmdbSelection.selectedSeasonNumber === null && (
-										<div className="absolute left-0 right-0 top-full mt-1 border border-border rounded-md bg-popover shadow-lg z-50">
-											<div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b border-border">
-												Selecciona una temporada de «{tmdbSelection.tvDataForSeason.title}»
+										<div className="absolute left-0 right-0 top-full mt-2 border border-border/60 rounded-lg bg-popover/95 backdrop-blur-md shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+											<div className="px-3 py-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground border-b border-border/20 bg-muted/30">
+												Selecciona temporada de «{tmdbSelection.tvDataForSeason.title}»
 											</div>
-											<div className="max-h-48 overflow-y-auto py-1">
+											<div className="max-h-56 overflow-y-auto py-1 custom-scrollbar">
 												{tmdbSelection.tvDataForSeason.seasons.map(season => (
 													<button
 														key={season.number}
 														type="button"
 														onClick={() => tmdbSelection.setSelectedSeasonNumber(season.number)}
 														className={cn(
-															'w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors',
+															'w-full text-left px-3 py-2.5 hover:bg-muted/80 transition-colors border-b border-border/10 last:border-0 flex items-center justify-between',
 															tmdbSelection.selectedSeasonNumber === season.number && 'bg-primary/10'
 														)}
 													>
-														<div className="flex items-center justify-between gap-2">
-															<span className="text-sm font-medium text-foreground">{season.name}</span>
-															<span className="text-xs text-muted-foreground shrink-0">
-																{season.episodeCount} ep.
-																{season.airDate ? ` · ${season.airDate.split('-')[0]}` : ''}
-															</span>
+														<span className="text-sm font-medium text-foreground">{season.name}</span>
+														<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+															<span>{season.episodeCount} ep.</span>
+															{season.airDate && <span className="h-3 w-px bg-border/40" />}
+															{season.airDate && <span>{season.airDate.split('-')[0]}</span>}
 														</div>
 													</button>
 												))}
@@ -523,10 +569,10 @@ export function MediaTemplateEditor() {
 									)}
 							</div>
 						) : (
-							<div ref={searchContainerRef} className="relative flex-1 min-w-[240px]">
-								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+							<div ref={searchContainerRef} className="relative flex-1 min-w-[240px] max-w-sm group">
+								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
 								<Input
-									placeholder={gameSelection.igdbEnabled ? 'Buscar juego para previsualizar...' : 'Búsqueda de juegos no disponible'}
+									placeholder={gameSelection.igdbEnabled ? 'Buscar juego...' : 'IGDB no disponible'}
 									value={gameSelection.gameSearchQuery}
 									onChange={e => {
 										gameSelection.setGameSearchQuery(e.target.value)
@@ -534,7 +580,7 @@ export function MediaTemplateEditor() {
 									}}
 									onFocus={() => gameSelection.setShowSearchResults(true)}
 									disabled={!gameSelection.igdbEnabled}
-									className="pl-9 pr-9 h-8 text-sm"
+									className="pl-9 pr-9 h-8 text-sm focus-visible:ring-1 focus-visible:ring-primary/40"
 								/>
 								{gameSelection.gameSearchQuery && (
 									<button
@@ -549,93 +595,132 @@ export function MediaTemplateEditor() {
 									</button>
 								)}
 
-								{gameSelection.showSearchResults && gameSelection.igdbEnabled && gameSelection.debouncedGameQuery.trim().length >= 2 && (
-									<div className="absolute left-0 right-0 top-full mt-2 border border-border rounded-md bg-popover shadow-lg z-50">
-										{gameSelection.isSearchingGames ? (
-											<div className="px-3 py-2 text-xs text-muted-foreground">Buscando...</div>
-										) : gameSelection.gameResults.length === 0 ? (
-											<div className="px-3 py-2 text-xs text-muted-foreground">Sin resultados</div>
-										) : (
-											<div className="max-h-56 overflow-y-auto py-1">
-												{gameSelection.gameResults.map(game => (
-													<button
-														key={game.id}
-														type="button"
-														onClick={() => gameSelection.handleSelectGame(game.id, game.name)}
-														className="w-full text-left px-3 py-2 hover:bg-muted/60 transition-colors"
-													>
-														<div className="flex items-center gap-3">
-															{game.cover?.image_id ? (
-																<img
-																	src={getIGDBImageUrl(game.cover.image_id, 'cover_small')}
-																	alt={game.name}
-																	referrerPolicy="no-referrer"
-																	className="w-8 h-12 rounded object-cover shrink-0"
-																/>
-															) : (
-																<div className="w-8 h-12 rounded bg-muted flex items-center justify-center shrink-0">
-																	<Gamepad2 className="h-3 w-3 text-muted-foreground" />
+								{gameSelection.showSearchResults &&
+									gameSelection.igdbEnabled &&
+									gameSelection.debouncedGameQuery.trim().length >= 2 && (
+										<div className="absolute left-0 right-0 top-full mt-2 border border-border/60 rounded-lg bg-popover/95 backdrop-blur-md shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+											{gameSelection.isSearchingGames ? (
+												<div className="px-3 py-4 text-xs text-muted-foreground flex items-center justify-center gap-2">
+													<Loader2 className="h-3 w-3 animate-spin" /> Buscando...
+												</div>
+											) : gameSelection.gameResults.length === 0 ? (
+												<div className="px-3 py-4 text-xs text-muted-foreground text-center italic">
+													Sin resultados para «{gameSelection.debouncedGameQuery}»
+												</div>
+											) : (
+												<div className="max-h-80 overflow-y-auto py-1 custom-scrollbar">
+													{gameSelection.gameResults.map(game => (
+														<button
+															key={game.id}
+															type="button"
+															onClick={() => gameSelection.handleSelectGame(game.id, game.name)}
+															className="w-full text-left px-3 py-2.5 hover:bg-muted/80 transition-colors border-b border-border/20 last:border-0"
+														>
+															<div className="flex items-center gap-3">
+																{game.cover?.image_id ? (
+																	<img
+																		src={getIGDBImageUrl(game.cover.image_id, 'cover_small')}
+																		alt={game.name}
+																		referrerPolicy="no-referrer"
+																		className="w-10 h-14 rounded-md object-cover shrink-0 shadow-sm border border-border/10"
+																	/>
+																) : (
+																	<div className="w-10 h-14 rounded-md bg-muted flex items-center justify-center shrink-0 border border-border/10">
+																		<Gamepad2 className="h-4 w-4 text-muted-foreground/40" />
+																	</div>
+																)}
+																<div className="min-w-0 flex-1">
+																	<span
+																		className="text-sm font-semibold text-foreground block truncate"
+																		title={game.name}
+																	>
+																		{game.name}
+																	</span>
+																	<div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+																		<span className="text-[10px] font-mono px-1.5 py-0 bg-muted text-muted-foreground rounded-sm tracking-tighter">
+																			{game.first_release_date
+																				? new Date(game.first_release_date * 1000).getFullYear()
+																				: 'TBA'}
+																		</span>
+																		{game.platforms && game.platforms.length > 0 && (
+																			<span className="text-[10px] text-muted-foreground/60 flex flex-wrap gap-1">
+																				•{' '}
+																				{game.platforms
+																					.slice(0, 3)
+																					.map(p => p.abbreviation || p.name)
+																					.join(', ')}
+																				{game.platforms.length > 3 && ` +${game.platforms.length - 3}`}
+																			</span>
+																		)}
+																	</div>
 																</div>
-															)}
-															<div className="min-w-0 flex-1">
-																<span className="text-sm font-medium text-foreground block truncate">{game.name}</span>
-																<span className="text-xs text-muted-foreground">
-																	{
-																		// @ts-ignore
-																		game.first_release_date
-																			? new Date(game.first_release_date * 1000).getFullYear()
-																			: '—'
-																	}
-																	{game.platforms
-																		?.slice(0, 3)
-																		.map((p: { abbreviation?: string; name: string }) => ` · ${p.abbreviation || p.name}`)
-																		.join('')}
-																</span>
 															</div>
-														</div>
-													</button>
-												))}
-											</div>
-										)}
-									</div>
-								)}
+														</button>
+													))}
+												</div>
+											)}
+										</div>
+									)}
 							</div>
 						)}
 
 						{/* Selected media badge */}
 						{mediaType === 'movie' && tmdbSelection.selectedMovieTitle && (
-							<Badge variant="secondary" className="shrink-0 gap-1.5 max-w-[180px]">
-								{tmdbSelection.isLoadingMovieData && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
-								<span className="truncate">{tmdbSelection.selectedMovieTitle}</span>
+							<Badge
+								variant="secondary"
+								className="shrink-0 gap-1.5 max-w-[180px] bg-muted/40 hover:bg-muted/60 border-border/50 text-foreground transition-all animate-in fade-in slide-in-from-left-2 duration-300"
+							>
+								{tmdbSelection.isLoadingMovieData ? (
+									<Loader2 className="h-3 w-3 animate-spin shrink-0 opacity-70" />
+								) : (
+									<Search className="h-3 w-3 shrink-0 opacity-70" />
+								)}
+								<span className="truncate text-xs font-medium">{tmdbSelection.selectedMovieTitle}</span>
 								<button
 									type="button"
 									onClick={tmdbSelection.handleClearMovie}
-									className="ml-0.5 hover:text-foreground shrink-0"
+									className="ml-0.5 p-0.5 rounded-full hover:bg-foreground/10 transition-colors shrink-0"
 								>
-									<X className="h-3 w-3" />
+									<X className="h-2.5 w-2.5" />
 								</button>
 							</Badge>
 						)}
 						{(mediaType === 'tvshow' || mediaType === 'season') && tmdbSelection.selectedTVTitle && (
-							<Badge variant="secondary" className="shrink-0 gap-1.5 max-w-[180px]">
-								{(tmdbSelection.isLoadingTVData || tmdbSelection.isLoadingSeasonData) && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
-								<span className="truncate">
+							<Badge
+								variant="secondary"
+								className="shrink-0 gap-1.5 max-w-[180px] bg-muted/40 hover:bg-muted/60 border-border/50 text-foreground transition-all animate-in fade-in slide-in-from-left-2 duration-300"
+							>
+								{tmdbSelection.isLoadingTVData || tmdbSelection.isLoadingSeasonData ? (
+									<Loader2 className="h-3 w-3 animate-spin shrink-0 opacity-70" />
+								) : (
+									<Search className="h-3 w-3 shrink-0 opacity-70" />
+								)}
+								<span className="truncate text-xs font-medium">
 									{tmdbSelection.selectedTVTitle}
-									{mediaType === 'season' && tmdbSelection.selectedSeasonNumber !== null && ` — T${tmdbSelection.selectedSeasonNumber}`}
+									{mediaType === 'season' &&
+										tmdbSelection.selectedSeasonNumber !== null &&
+										` — T${tmdbSelection.selectedSeasonNumber}`}
 								</span>
 								<button
 									type="button"
 									onClick={tmdbSelection.handleClearTV}
-									className="ml-0.5 hover:text-foreground shrink-0"
+									className="ml-0.5 p-0.5 rounded-full hover:bg-foreground/10 transition-colors shrink-0"
 								>
-									<X className="h-3 w-3" />
+									<X className="h-2.5 w-2.5" />
 								</button>
 							</Badge>
 						)}
 						{mediaType === 'game' && gameSelection.selectedGameTitle && (
-							<Badge variant="secondary" className="shrink-0 gap-1.5 max-w-[220px]">
-								{gameSelection.isLoadingGameData && <Loader2 className="h-3 w-3 animate-spin shrink-0" />}
-								<span className="truncate">
+							<Badge
+								variant="secondary"
+								className="shrink-0 gap-1.5 max-w-[220px] bg-muted/40 hover:bg-muted/60 border-border/50 text-foreground transition-all animate-in fade-in slide-in-from-left-2 duration-300"
+							>
+								{gameSelection.isLoadingGameData ? (
+									<Loader2 className="h-3 w-3 animate-spin shrink-0 opacity-70" />
+								) : (
+									<Gamepad2 className="h-3 w-3 shrink-0 opacity-70" />
+								)}
+								<span className="truncate text-xs font-medium">
 									{gameSelection.isLoadingGameData && gameSelection.gameLoadingStep
 										? gameSelection.gameLoadingStep === 'igdb'
 											? 'Cargando IGDB...'
@@ -648,9 +733,9 @@ export function MediaTemplateEditor() {
 									<button
 										type="button"
 										onClick={gameSelection.handleClearSelection}
-										className="ml-0.5 hover:text-foreground shrink-0"
+										className="ml-0.5 p-0.5 rounded-full hover:bg-foreground/10 transition-colors shrink-0"
 									>
-										<X className="h-3 w-3" />
+										<X className="h-2.5 w-2.5" />
 									</button>
 								)}
 							</Badge>
@@ -659,25 +744,12 @@ export function MediaTemplateEditor() {
 						{/* Spacer */}
 						<div className="flex-1" />
 
-						{/* Template status badge */}
-						<Badge
-							variant="outline"
-							className={cn(
-								'shrink-0 text-[10px] font-medium px-2 py-0.5',
-								hasCustomTemplate
-									? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/40'
-									: 'text-muted-foreground'
-							)}
-						>
-							{hasCustomTemplate ? 'Personalizada' : 'Por defecto'}
-						</Badge>
-
 						<Button
 							variant="ghost"
 							size="icon"
 							onClick={() => setShowPreview(!showPreview)}
 							className="shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground hidden sm:flex"
-							title={showPreview ? "Ocultar vista previa (Modo Zen)" : "Mostrar vista previa"}
+							title={showPreview ? 'Ocultar vista previa (Modo Zen)' : 'Mostrar vista previa'}
 						>
 							{showPreview ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
 						</Button>
@@ -707,17 +779,8 @@ export function MediaTemplateEditor() {
 							<DropdownMenuContent align="end">
 								<DropdownMenuItem onClick={handleLoadDefault}>
 									<FileDown className="h-4 w-4 mr-2" />
-									Cargar plantilla por defecto
+									Restablecer plantilla por defecto
 								</DropdownMenuItem>
-								{hasCustomTemplate && (
-									<>
-										<DropdownMenuSeparator />
-										<DropdownMenuItem onClick={handleReset} className="text-destructive focus:text-destructive">
-											<Trash2 className="h-4 w-4 mr-2" />
-											Restablecer original
-										</DropdownMenuItem>
-									</>
-								)}
 							</DropdownMenuContent>
 						</DropdownMenu>
 
@@ -839,7 +902,8 @@ export function MediaTemplateEditor() {
 								tmdbSelection.selectedMovieTitle
 									? tmdbSelection.selectedMovieTitle
 									: tmdbSelection.selectedTVTitle
-									? tmdbSelection.selectedTVTitle + (tmdbSelection.selectedSeasonNumber !== null ? ` — T${tmdbSelection.selectedSeasonNumber}` : '')
+									? tmdbSelection.selectedTVTitle +
+									  (tmdbSelection.selectedSeasonNumber !== null ? ` — T${tmdbSelection.selectedSeasonNumber}` : '')
 									: gameSelection.selectedGameTitle
 									? gameSelection.selectedGameTitle
 									: 'Plantilla'
@@ -857,12 +921,15 @@ export function MediaTemplateEditor() {
 							</div>
 						)}
 						{/* Loading overlay — movie/TV (generic) */}
-						{mediaType !== 'game' && (tmdbSelection.isLoadingMovieData || tmdbSelection.isLoadingTVData || tmdbSelection.isLoadingSeasonData) && (
-							<div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/80 backdrop-blur-[1px] rounded-r-lg">
-								<Loader2 className="h-5 w-5 animate-spin text-primary mb-2" />
-								<span className="text-xs text-muted-foreground">Cargando datos...</span>
-							</div>
-						)}
+						{mediaType !== 'game' &&
+							(tmdbSelection.isLoadingMovieData ||
+								tmdbSelection.isLoadingTVData ||
+								tmdbSelection.isLoadingSeasonData) && (
+								<div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/80 backdrop-blur-[1px] rounded-r-lg">
+									<Loader2 className="h-5 w-5 animate-spin text-primary mb-2" />
+									<span className="text-xs text-muted-foreground">Cargando datos...</span>
+								</div>
+							)}
 					</>
 				}
 			/>
