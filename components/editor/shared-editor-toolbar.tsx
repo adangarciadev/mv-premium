@@ -197,7 +197,7 @@ export function SharedEditorToolbar({
 		<TooltipProvider delayDuration={300}>
 			<div
 				className={cn(
-					'flex items-center gap-1 px-2 py-1 bg-muted/50 border-b border-border overflow-x-auto [&::-webkit-scrollbar]:h-[2px] [&::-webkit-scrollbar-thumb]:bg-foreground/5 hover:[&::-webkit-scrollbar-thumb]:bg-foreground/20 [&::-webkit-scrollbar-track]:bg-transparent',
+					'flex items-center gap-1 h-9 px-2 bg-muted/50 border-b border-border overflow-x-auto [&::-webkit-scrollbar]:h-[2px] [&::-webkit-scrollbar-thumb]:bg-foreground/5 hover:[&::-webkit-scrollbar-thumb]:bg-foreground/20 [&::-webkit-scrollbar-track]:bg-transparent',
 					className
 				)}
 			>

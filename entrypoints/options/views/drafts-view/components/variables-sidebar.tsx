@@ -1,20 +1,10 @@
 import { useState, useMemo, useEffect } from 'react'
 import { FieldDefinition } from '@/types/templates'
 import { cn } from '@/lib/utils'
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetDescription,
-} from '@/components/ui/sheet'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipTrigger,
-} from '@/components/ui/tooltip'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import Search from 'lucide-react/dist/esm/icons/search'
 import X from 'lucide-react/dist/esm/icons/x'
 import Variable from 'lucide-react/dist/esm/icons/variable'
@@ -45,9 +35,7 @@ export function VariablesSidebar({
 	const filteredFields = useMemo(() => {
 		if (!variableFilter.trim()) return fields
 		const q = variableFilter.toLowerCase()
-		return fields.filter(
-			f => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
-		)
+		return fields.filter(f => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q))
 	}, [fields, variableFilter])
 
 	// Group fields
@@ -77,7 +65,7 @@ export function VariablesSidebar({
 		<div className={cn('flex flex-col bg-card', isSheetMode ? 'flex-1 min-h-0 overflow-hidden' : 'h-full')}>
 			{/* Header (Desktop only) */}
 			{!isSheetMode && (
-				<div className="flex items-center justify-between px-3 py-2.5 border-b border-border bg-muted/30 shrink-0">
+				<div className="flex items-center justify-between h-9 px-2 border-b border-border bg-muted/30 shrink-0">
 					<div className="flex items-center gap-2">
 						<Variable className="h-3.5 w-3.5 text-muted-foreground" />
 						<span className="text-xs font-semibold text-foreground">Variables</span>
@@ -85,10 +73,7 @@ export function VariablesSidebar({
 					<button
 						type="button"
 						onClick={() => setShowHelp(prev => !prev)}
-						className={cn(
-							'p-1.5 rounded hover:bg-accent transition-colors -mr-1',
-							showHelp && 'text-primary'
-						)}
+						className={cn('p-1.5 rounded hover:bg-accent transition-colors -mr-1', showHelp && 'text-primary')}
 						title="Ayuda sobre variables"
 					>
 						<HelpCircle className="h-3.5 w-3.5" />
@@ -102,24 +87,17 @@ export function VariablesSidebar({
 					<div>
 						<span className="font-semibold text-foreground">Sintaxis</span>
 						<p className="mt-0.5">
-							Escribe{' '}
-							<code className="font-mono text-primary bg-muted px-1 rounded text-[9px]">
-								{'{{variable}}'}
-							</code>{' '}
+							Escribe <code className="font-mono text-primary bg-muted px-1 rounded text-[9px]">{'{{variable}}'}</code>{' '}
 							para insertar un campo.
 						</p>
 					</div>
 					<div>
 						<span className="font-semibold text-foreground">Condicional</span>
-						<p className="mt-0.5">
-							Si un campo no tiene valor, toda la línea se omite.
-						</p>
+						<p className="mt-0.5">Si un campo no tiene valor, toda la línea se omite.</p>
 					</div>
 					<div>
 						<span className="font-semibold text-foreground">Arrays</span>
-						<p className="mt-0.5">
-							Las listas (ej: géneros) se unen con coma automáticamente.
-						</p>
+						<p className="mt-0.5">Las listas (ej: géneros) se unen con coma automáticamente.</p>
 					</div>
 				</div>
 			)}
@@ -163,24 +141,15 @@ export function VariablesSidebar({
 										className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
 									>
 										<ChevronDown
-											className={cn(
-												'h-3 w-3 transition-transform',
-												collapsedGroups.has(category) && '-rotate-90'
-											)}
+											className={cn('h-3 w-3 transition-transform', collapsedGroups.has(category) && '-rotate-90')}
 										/>
 										<span className="truncate">{category}</span>
-										<span className="ml-auto text-[9px] font-normal tabular-nums">
-											{categoryFields.length}
-										</span>
+										<span className="ml-auto text-[9px] font-normal tabular-nums">{categoryFields.length}</span>
 									</button>
 									{!collapsedGroups.has(category) && (
 										<div className="space-y-0.5 pl-1">
 											{categoryFields.map(field => (
-												<VariableButton
-													key={field.key}
-													field={field}
-													onInsert={() => onInsertVariable(field.key)}
-												/>
+												<VariableButton key={field.key} field={field} onInsert={() => onInsertVariable(field.key)} />
 											))}
 										</div>
 									)}
@@ -188,11 +157,7 @@ export function VariablesSidebar({
 						  ))
 						: // Flat rendering
 						  filteredFields.map(field => (
-								<VariableButton
-									key={field.key}
-									field={field}
-									onInsert={() => onInsertVariable(field.key)}
-								/>
+								<VariableButton key={field.key} field={field} onInsert={() => onInsertVariable(field.key)} />
 						  ))}
 					{filteredFields.length === 0 && variableFilter && (
 						<p className="text-[10px] text-muted-foreground text-center py-4">
@@ -223,10 +188,7 @@ export function VariablesSidebar({
 							<button
 								type="button"
 								onClick={() => setShowHelp(prev => !prev)}
-								className={cn(
-									'p-1.5 rounded hover:bg-accent transition-colors',
-									showHelp && 'text-primary'
-								)}
+								className={cn('p-1.5 rounded hover:bg-accent transition-colors', showHelp && 'text-primary')}
 								title="Ayuda sobre variables"
 							>
 								<HelpCircle className="h-4 w-4 text-muted-foreground" />
@@ -241,19 +203,13 @@ export function VariablesSidebar({
 	}
 
 	return (
-		<div className="w-52 h-full border-r border-border shrink-0 hidden 2xl:block">
+		<div className="w-52 h-full border border-border rounded-l-lg bg-card shadow-sm shrink-0 hidden 2xl:block">
 			{SidebarContent}
 		</div>
 	)
 }
 
-function VariableButton({
-	field,
-	onInsert,
-}: {
-	field: FieldDefinition
-	onInsert: () => void
-}) {
+function VariableButton({ field, onInsert }: { field: FieldDefinition; onInsert: () => void }) {
 	return (
 		<Tooltip delayDuration={300}>
 			<TooltipTrigger asChild>
@@ -266,9 +222,7 @@ function VariableButton({
 						{`{{${field.key}}}`}
 					</span>
 					<div className="flex items-center gap-1.5 min-w-0">
-						<span className="text-muted-foreground text-[10px] flex-1 min-w-0 truncate">
-							{field.label}
-						</span>
+						<span className="text-muted-foreground text-[10px] flex-1 min-w-0 truncate">{field.label}</span>
 						{field.source === 'steam' && (
 							<span className="shrink-0 text-[9px] font-semibold px-1 py-px rounded bg-[#1b2838] text-[#66c0f4] leading-none">
 								STEAM
@@ -284,18 +238,14 @@ function VariableButton({
 			</TooltipTrigger>
 			<TooltipContent side="right" className="p-0 max-w-[240px] overflow-hidden">
 				<div className="flex items-center justify-between gap-2 px-3 py-2 bg-muted/50 border-b border-border">
-					<span className="text-xs font-semibold text-foreground truncate">
-						{field.label}
-					</span>
+					<span className="text-xs font-semibold text-foreground truncate">{field.label}</span>
 					{field.source && (
 						<span
 							className={cn(
 								'shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full leading-none',
 								field.source === 'steam' && 'bg-[#1b2838] text-[#66c0f4]',
-								field.source === 'igdb' &&
-									'bg-[#9147ff]/15 text-[#9147ff] dark:text-[#bf94ff]',
-								field.source === 'igdb+steam' &&
-									'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+								field.source === 'igdb' && 'bg-[#9147ff]/15 text-[#9147ff] dark:text-[#bf94ff]',
+								field.source === 'igdb+steam' && 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
 							)}
 						>
 							{field.source === 'igdb' && 'IGDB'}
@@ -305,15 +255,12 @@ function VariableButton({
 					)}
 				</div>
 				<div className="px-3 py-2 space-y-1.5">
-					<p className="text-[11px] text-muted-foreground leading-relaxed">
-						{field.description}
-					</p>
+					<p className="text-[11px] text-muted-foreground leading-relaxed">{field.description}</p>
 					{field.source === 'igdb+steam' && (
 						<div className="flex items-start gap-1.5 pt-0.5">
 							<span className="text-[10px] text-amber-500 mt-px">*</span>
 							<p className="text-[10px] text-muted-foreground/70 leading-snug">
-								Se usa la versión en español de Steam si está disponible, si no,
-								la de IGDB (en inglés)
+								Se usa la versión en español de Steam si está disponible, si no, la de IGDB (en inglés)
 							</p>
 						</div>
 					)}
