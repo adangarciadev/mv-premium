@@ -130,6 +130,22 @@ function valueToString(value: unknown, separator = ', ', maxItems = 0): string {
 	return String(value)
 }
 
+const MULTILINE_FIELDS = new Set([
+	'episodes',
+	'seasons',
+	'networks',
+	'releaseDates',
+	'screenshots',
+	'steamScreenshots',
+	'artworks',
+	'trailers',
+	'websites',
+	'externalGames',
+	'languageSupports',
+	'similarGames',
+	'dlcs',
+])
+
 // =============================================================================
 // Block Renderers
 // =============================================================================
@@ -220,6 +236,9 @@ function interpolateString(text: string, data: Record<string, unknown>): string 
 		const value = getFieldValue(data, field)
 
 		if (!hasValue(value)) return ''
+		if (MULTILINE_FIELDS.has(field)) {
+			return valueToString(value, '\n')
+		}
 
 		return valueToString(value)
 	})
