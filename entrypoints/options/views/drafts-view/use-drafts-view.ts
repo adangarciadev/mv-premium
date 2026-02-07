@@ -11,9 +11,10 @@ import {
 	type Draft,
 	getDrafts,
 	getFoldersWithCounts,
-	deleteDraft,
+	deleteDrafts,
 	duplicateDraft,
 	moveDraftToFolder,
+	moveDraftsToFolder,
 	createFolder,
 	deleteFolder,
 	convertDraftType,
@@ -277,9 +278,12 @@ export function useDraftsView({ filterType }: UseDraftsViewOptions): UseDraftsVi
 		if (dialogs.delete.drafts.length === 0) return
 
 		try {
-			await Promise.all(dialogs.delete.drafts.map(d => deleteDraft(d.id)))
+			const idsToDelete = new Set(dialogs.delete.drafts.map(d => d.id))
+			await deleteDrafts(Array.from(idsToDelete))
 			const count = dialogs.delete.drafts.length
 			toast.success(count === 1 ? 'Borrador eliminado' : `${count} borradores eliminados`)
+			// Optimistic UI update - don't rely on storage watcher timing
+			setDrafts(prev => prev.filter(d => !idsToDelete.has(d.id)))
 			closeDeleteDialog()
 			clearSelection()
 		} catch {
@@ -299,9 +303,13 @@ export function useDraftsView({ filterType }: UseDraftsViewOptions): UseDraftsVi
 			if (selectedIds.size === 0) return
 
 			try {
-				await Promise.all(Array.from(selectedIds).map(id => moveDraftToFolder(id, folderId)))
+				const ids = Array.from(selectedIds)
+				await moveDraftsToFolder(ids, folderId)
 				const folderName = folderId ? folders.find(f => f.id === folderId)?.name || 'carpeta' : 'Sin carpeta'
 				toast.success(`${selectedIds.size} elementos movidos a ${folderName}`)
+				// Optimistic UI update
+				const idSet = new Set(ids)
+				setDrafts(prev => prev.map(d => (idSet.has(d.id) ? { ...d, folderId, updatedAt: Date.now() } : d)))
 				clearSelection()
 			} catch {
 				toast.error('Error al mover')

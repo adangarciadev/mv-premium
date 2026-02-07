@@ -153,6 +153,19 @@ export async function deleteDraft(id: string): Promise<boolean> {
 	return true
 }
 
+export async function deleteDrafts(ids: string[]): Promise<number> {
+	if (ids.length === 0) return 0
+
+	const data = await getData()
+	const idSet = new Set(ids)
+	const beforeCount = data.drafts.length
+
+	data.drafts = data.drafts.filter(draft => !idSet.has(draft.id))
+	await setData(data)
+
+	return beforeCount - data.drafts.length
+}
+
 export async function duplicateDraft(id: string): Promise<Draft | null> {
 	const data = await getData()
 
@@ -269,6 +282,29 @@ export async function moveDraftToFolder(draftId: string, folderId: string | unde
 
 	await setData(data)
 	return true
+}
+
+export async function moveDraftsToFolder(draftIds: string[], folderId: string | undefined): Promise<number> {
+	if (draftIds.length === 0) return 0
+
+	const data = await getData()
+	const idSet = new Set(draftIds)
+	const now = Date.now()
+	let moved = 0
+
+	for (const draft of data.drafts) {
+		if (idSet.has(draft.id)) {
+			draft.folderId = folderId
+			draft.updatedAt = now
+			moved++
+		}
+	}
+
+	if (moved > 0) {
+		await setData(data)
+	}
+
+	return moved
 }
 
 // ============================================================================

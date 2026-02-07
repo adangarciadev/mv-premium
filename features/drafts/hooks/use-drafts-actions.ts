@@ -5,7 +5,7 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from '@/lib/lazy-toast'
-import { type Draft, deleteDraft, duplicateDraft, moveDraftToFolder, createFolder } from '@/features/drafts/storage'
+import { type Draft, deleteDrafts, duplicateDraft, moveDraftToFolder, createFolder } from '@/features/drafts/storage'
 import type { FolderWithCount } from '@/features/drafts/components/folder-item'
 
 // ============================================================================
@@ -99,7 +99,7 @@ export function useDraftsActions({ filterType, folders }: UseDraftsActionsOption
 		if (drafts.length === 0) return
 
 		try {
-			await Promise.all(drafts.map(d => deleteDraft(d.id)))
+			await deleteDrafts(drafts.map(d => d.id))
 			const count = drafts.length
 			toast.success(count === 1 ? 'Borrador eliminado' : `${count} borradores eliminados`)
 		} catch {
