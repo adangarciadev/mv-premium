@@ -86,10 +86,20 @@ function getThreadInfo(): { title: string; subforum: string; url: string } {
 	const brandSubforumEl = document.querySelector<HTMLAnchorElement>(MV_SELECTORS.THREAD.BRAND_SUBFORUM)
 	const subforumFromBrand = brandSubforumEl?.textContent?.trim() || ''
 
-	// Fallback: get from document title
 	let title = titleFromHeader
 	let subforum = subforumFromBrand
 
+	// Fallback: try direct h1 in brand section (Mediavida structure for new threads)
+	if (!title) {
+		const h1El = document.querySelector<HTMLHeadingElement>('.brand h1, #title h1')
+		const h1Text = h1El?.textContent?.trim() || ''
+		// Avoid using "Editar mensaje" as the title
+		if (h1Text && !h1Text.toLowerCase().includes('editar')) {
+			title = h1Text
+		}
+	}
+
+	// Final fallback: get from document title
 	if (!title) {
 		const docTitle = document.title
 		const parts = docTitle.split(' - ')
@@ -188,8 +198,9 @@ function getEditPageInfo(): { title: string; subforum: string; url: string; need
  * Get subforum name from nuevo-hilo page
  */
 function getSubforumFromNewThread(): string {
-	const subforumEl = document.querySelector<HTMLElement>(MV_SELECTORS.THREAD.SUBFORUM_ALL)
-	return subforumEl?.textContent?.trim() || ''
+	// Extract from .brand .section a (matches the thread page structure)
+	const brandSectionEl = document.querySelector<HTMLAnchorElement>('.brand .section a, #title .section a')
+	return brandSectionEl?.textContent?.trim() || ''
 }
 
 /**

@@ -53,7 +53,12 @@ function buildThreadPageDOM(options: {
 /** Build a new thread page DOM with title input and subforum */
 function buildNewThreadPageDOM(options: { subforum: string }) {
 	document.body.innerHTML = `
-		<h2 class="tit">${options.subforum}</h2>
+		<header id="title">
+			<div class="brand brand-short fullw">
+				<div class="section"><a href="/foro/musica">${options.subforum}</a></div>
+				<h1>Test Thread Title</h1>
+			</div>
+		</header>
 		<form>
 			<input id="cabecera" type="text" value="" />
 			<textarea id="cuerpo" name="cuerpo"></textarea>
