@@ -15,6 +15,7 @@ import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
 
 interface VariablesSidebarProps {
 	fields: FieldDefinition[]
+	customGroups?: { id: string; label: string; fields: FieldDefinition[]; note?: string }[]
 	onInsertVariable: (key: string) => void
 	isOpen: boolean
 	onOpenChange: (open: boolean) => void
@@ -23,6 +24,7 @@ interface VariablesSidebarProps {
 
 export function VariablesSidebar({
 	fields,
+	customGroups,
 	onInsertVariable,
 	isOpen,
 	onOpenChange,
@@ -41,9 +43,19 @@ export function VariablesSidebar({
 		return fields.filter(f => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q))
 	}, [fields, variableFilter])
 
-	// Group fields
-	const groupedFields = useMemo(() => {
-		const hasCategories = filteredFields.some(f => f.category)
+	// Group fields (custom groups > category groups)
+	const groupedItems = useMemo(() => {
+		if (customGroups && customGroups.length > 0) {
+			const filteredKeys = new Set(filteredFields.map(field => field.key))
+			return customGroups
+				.map(group => ({
+					...group,
+					fields: group.fields.filter(field => filteredKeys.has(field.key)),
+				}))
+				.filter(group => group.fields.length > 0 || !variableFilter.trim())
+		}
+
+		const hasCategories = filteredFields.some(field => field.category)
 		if (!hasCategories) return null
 		const groups = new Map<string, FieldDefinition[]>()
 		for (const field of filteredFields) {
@@ -51,23 +63,28 @@ export function VariablesSidebar({
 			if (!groups.has(cat)) groups.set(cat, [])
 			groups.get(cat)!.push(field)
 		}
-		return groups
-	}, [filteredFields])
 
-	const categoryList = useMemo(() => (groupedFields ? Array.from(groupedFields.keys()) : []), [groupedFields])
+		return Array.from(groups.entries()).map(([label, groupFields]) => ({
+			id: label,
+			label,
+			fields: groupFields,
+		}))
+	}, [customGroups, filteredFields, variableFilter])
+
+	const groupIds = useMemo(() => (groupedItems ? groupedItems.map(group => group.id) : []), [groupedItems])
 	const expandedGroupSet = useMemo(() => new Set(expandedGroups), [expandedGroups])
 	const collapsedGroups = useMemo(() => {
 		const collapsed = new Set<string>()
-		for (const category of categoryList) {
-			if (!expandedGroupSet.has(category)) collapsed.add(category)
+		for (const groupId of groupIds) {
+			if (!expandedGroupSet.has(groupId)) collapsed.add(groupId)
 		}
 		return collapsed
-	}, [categoryList, expandedGroupSet])
+	}, [groupIds, expandedGroupSet])
 
-	const toggleGroup = (category: string) => {
+	const toggleGroup = (groupId: string) => {
 		const next = new Set(expandedGroups)
-		if (next.has(category)) next.delete(category)
-		else next.add(category)
+		if (next.has(groupId)) next.delete(groupId)
+		else next.add(groupId)
 		setExpandedGroups(Array.from(next))
 	}
 
@@ -108,7 +125,10 @@ export function VariablesSidebar({
 					</div>
 					<div>
 						<span className="font-semibold text-foreground">Arrays</span>
-						<p className="mt-0.5">Las listas (ej: géneros) se unen con coma automáticamente.</p>
+						<p className="mt-0.5">
+							Las listas suelen unirse con comas; algunos campos (episodios, temporadas, enlaces o capturas) se muestran
+							en líneas separadas.
+						</p>
 					</div>
 				</div>
 			)}
@@ -142,24 +162,25 @@ export function VariablesSidebar({
 			{/* Variable list */}
 			<ScrollArea className="flex-1 min-h-0">
 				<div className="p-1.5 pr-3 space-y-0.5">
-					{groupedFields
+					{groupedItems
 						? // Grouped rendering
-						  Array.from(groupedFields.entries()).map(([category, categoryFields]) => (
-								<div key={category}>
+						  groupedItems.map(group => (
+								<div key={group.id}>
 									<button
 										type="button"
-										onClick={() => toggleGroup(category)}
+										onClick={() => toggleGroup(group.id)}
 										className="w-full flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
 									>
 										<ChevronDown
-											className={cn('h-3 w-3 transition-transform', collapsedGroups.has(category) && '-rotate-90')}
+											className={cn('h-3 w-3 transition-transform', collapsedGroups.has(group.id) && '-rotate-90')}
 										/>
-										<span className="truncate">{category}</span>
-										<span className="ml-auto text-[9px] font-normal tabular-nums">{categoryFields.length}</span>
+										<span className="truncate">{group.label}</span>
+										<span className="ml-auto text-[9px] font-normal tabular-nums">{group.fields.length}</span>
 									</button>
-									{!collapsedGroups.has(category) && (
+									{!collapsedGroups.has(group.id) && (
 										<div className="space-y-0.5 pl-1">
-											{categoryFields.map(field => (
+											{group.note && <div className="px-2 pb-1 text-[10px] text-muted-foreground">{group.note}</div>}
+											{group.fields.map(field => (
 												<VariableButton key={field.key} field={field} onInsert={() => onInsertVariable(field.key)} />
 											))}
 										</div>

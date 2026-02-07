@@ -2,7 +2,7 @@
  * MediaTemplateEditor - Full Page Editor for Media Templates
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
 import Save from 'lucide-react/dist/esm/icons/save'
@@ -41,7 +41,14 @@ import { getIGDBImageUrl } from '@/services/api/igdb'
 import type { TMDBMovie, TMDBTVShow } from '@/services/api/tmdb'
 import { getPosterUrl } from '@/services/api/tmdb'
 
-import { getFieldsForType, type TemplateType, type MediaTemplate, type TemplateDataInput } from '@/types/templates'
+import {
+	getFieldsForType,
+	TVSHOW_FIELDS,
+	SEASON_FIELDS,
+	type TemplateType,
+	type MediaTemplate,
+	type TemplateDataInput,
+} from '@/types/templates'
 import { createEmptyTemplate, createRawBlock, renderTemplate, defaultTemplateToRawBBCode } from '@/lib/template-engine'
 import { getDefaultTemplate } from '@/features/templates'
 
@@ -77,7 +84,7 @@ const MEDIA_TYPES: { value: TemplateType; label: string; tooltip: string }[] = [
 	{ value: 'movie', label: 'Películas', tooltip: 'Plantilla para fichas de películas (busca en TMDB)' },
 	{
 		value: 'tvshow',
-		label: 'Series',
+		label: 'Series completas',
 		tooltip: 'Plantilla para fichas de series completas con todas sus temporadas (busca en TMDB)',
 	},
 	{
@@ -295,6 +302,26 @@ export function MediaTemplateEditor() {
 
 	// Get fields for current type
 	const fields = getFieldsForType(mediaType)
+	const variableGroups = useMemo(() => {
+		if (mediaType !== 'tvshow' && mediaType !== 'season') return null
+		const tvKeys = new Set(TVSHOW_FIELDS.map(field => field.key))
+		const seasonKeys = new Set(SEASON_FIELDS.map(field => field.key))
+		const commonKeys = new Set([...tvKeys].filter(key => seasonKeys.has(key)))
+		const commonFields = fields.filter(field => commonKeys.has(field.key))
+		const exclusiveFields = fields.filter(field => !commonKeys.has(field.key))
+
+		if (mediaType === 'tvshow') {
+			return [
+				{ id: 'tv-common', label: 'Comunes', fields: commonFields },
+				{ id: 'tv-only', label: 'Solo Series', fields: exclusiveFields },
+			]
+		}
+
+		return [
+			{ id: 'season-common', label: 'Comunes', fields: commonFields },
+			{ id: 'season-only', label: 'Solo Temporadas', fields: exclusiveFields },
+		]
+	}, [mediaType, fields])
 
 	// Render preview with current data (real media or placeholder with {{variables}})
 	const renderedPreview = previewData
@@ -351,8 +378,8 @@ export function MediaTemplateEditor() {
 											</TooltipTrigger>
 											<TooltipContent side="bottom" sideOffset={10}>
 												<div className="flex flex-col gap-1">
-													<p className="font-medium text-xs">{type.label}</p>
-													<p className="text-[10px] text-muted-foreground leading-tight max-w-[180px]">
+													<p className="font-medium text-sm">{type.label}</p>
+													<p className="text-xs text-muted-foreground leading-tight max-w-[200px]">
 														{type.tooltip}
 														{isCustom && (
 															<span className="block mt-1 text-primary font-medium">
@@ -796,6 +823,7 @@ export function MediaTemplateEditor() {
 						{/* Variables Sidebar — Desktop (Column) */}
 						<VariablesSidebar
 							fields={fields}
+							customGroups={variableGroups || undefined}
 							onInsertVariable={insertVariable}
 							isOpen={false}
 							onOpenChange={() => {}}
@@ -805,6 +833,7 @@ export function MediaTemplateEditor() {
 						{/* Variables Sidebar — Mobile/Laptop (Sheet) */}
 						<VariablesSidebar
 							fields={fields}
+							customGroups={variableGroups || undefined}
 							onInsertVariable={key => {
 								insertVariable(key)
 								// Sheet stays open on insert
