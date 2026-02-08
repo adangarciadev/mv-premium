@@ -35,7 +35,7 @@ export const DEFAULT_MOVIE_TEMPLATE: MediaTemplate = {
 			field: 'director',
 			label: '[b]Director:[/b] {{value}}',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Screenplay
 		{
@@ -45,7 +45,7 @@ export const DEFAULT_MOVIE_TEMPLATE: MediaTemplate = {
 			label: '[b]Guion:[/b] {{value}}',
 			separator: ', ',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Cast
 		{
@@ -55,7 +55,7 @@ export const DEFAULT_MOVIE_TEMPLATE: MediaTemplate = {
 			label: '[b]Reparto:[/b] {{value}}',
 			separator: ', ',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Runtime
 		{
@@ -64,7 +64,7 @@ export const DEFAULT_MOVIE_TEMPLATE: MediaTemplate = {
 			field: 'runtime',
 			label: '[b]Duración:[/b] {{value}}',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Genres - with dynamic label singular/plural
 		{
@@ -79,9 +79,10 @@ export const DEFAULT_MOVIE_TEMPLATE: MediaTemplate = {
 		// Synopsis section
 		{
 			id: 'movie-synopsis',
-			type: 'section',
-			sectionTitle: 'SINOPSIS',
-			contentField: 'overview',
+			type: 'field',
+			field: 'overview',
+			wrapper: '[bar]SINOPSIS[/bar]\n{{content}}',
+			conditional: true,
 			addLineBreak: true,
 		},
 		// Trailer section
@@ -89,7 +90,7 @@ export const DEFAULT_MOVIE_TEMPLATE: MediaTemplate = {
 			id: 'movie-trailer',
 			type: 'field',
 			field: 'trailerUrl',
-			wrapper: '[bar]TRAILER[/bar]\n\n[media]{{content}}[/media]',
+			wrapper: '[bar]TRAILER[/bar]\n[media]{{content}}[/media]',
 			conditional: true,
 			addLineBreak: true,
 		},
@@ -98,7 +99,7 @@ export const DEFAULT_MOVIE_TEMPLATE: MediaTemplate = {
 			id: 'movie-release',
 			type: 'field',
 			field: 'releaseDate',
-			wrapper: '[bar]ESTRENO[/bar]\n\n{{content}}',
+			wrapper: '[bar]ESTRENO[/bar]\n{{content}}',
 			conditional: true,
 			addLineBreak: false,
 		},
@@ -133,7 +134,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			label: '[b]Creadores:[/b] {{value}}',
 			separator: ', ',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Cast
 		{
@@ -143,7 +144,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			label: '[b]Reparto:[/b] {{value}}',
 			separator: ', ',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Genres
 		{
@@ -153,7 +154,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			label: '[b]Géneros:[/b] {{value}}',
 			separator: ', ',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Status
 		{
@@ -162,7 +163,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			field: 'status',
 			label: '[b]Estado:[/b] {{value}}',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Episode runtime
 		{
@@ -171,7 +172,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			field: 'episodeRunTime',
 			label: '[b]Duración por episodio:[/b] {{value}}',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Number of seasons
 		{
@@ -180,7 +181,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			field: 'numberOfSeasons',
 			label: '[b]Temporadas:[/b] {{value}}',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Number of episodes
 		{
@@ -194,9 +195,10 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 		// Synopsis section
 		{
 			id: 'tv-synopsis',
-			type: 'section',
-			sectionTitle: 'SINOPSIS',
-			contentField: 'overview',
+			type: 'field',
+			field: 'overview',
+			wrapper: '[bar]SINOPSIS[/bar]\n{{content}}',
+			conditional: true,
 			addLineBreak: true,
 		},
 		// Seasons breakdown
@@ -204,7 +206,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			id: 'tv-seasons-list',
 			type: 'field',
 			field: 'seasons',
-			wrapper: '[bar]TEMPORADAS[/bar]\n\n{{content}}',
+			wrapper: '[bar]TEMPORADAS[/bar]\n{{content}}',
 			separator: '\n',
 			conditional: true,
 			maxItems: 10,
@@ -215,7 +217,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			id: 'tv-trailer',
 			type: 'field',
 			field: 'trailerUrl',
-			wrapper: '[bar]TRAILER[/bar]\n\n[media]{{content}}[/media]',
+			wrapper: '[bar]TRAILER[/bar]\n[media]{{content}}[/media]',
 			conditional: true,
 			addLineBreak: true,
 		},
@@ -224,7 +226,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			id: 'tv-premiere',
 			type: 'field',
 			field: 'firstAirDate',
-			wrapper: '[bar]ESTRENO[/bar]\n\n{{content}}',
+			wrapper: '[bar]ESTRENO[/bar]\n{{content}}',
 			conditional: true,
 			addLineBreak: true,
 		},
@@ -233,7 +235,7 @@ export const DEFAULT_TVSHOW_TEMPLATE: MediaTemplate = {
 			id: 'tv-networks',
 			type: 'field',
 			field: 'networks',
-			wrapper: '[bar]CADENA[/bar]\n\n[center]\n{{content}}\n[/center]',
+			wrapper: '[bar]CADENA[/bar]\n{{content}}',
 			separator: '\n',
 			conditional: true,
 			addLineBreak: false,
@@ -269,7 +271,7 @@ export const DEFAULT_SEASON_TEMPLATE: MediaTemplate = {
 			label: '[b]Creadores:[/b] {{value}}',
 			separator: ', ',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Cast
 		{
@@ -279,7 +281,7 @@ export const DEFAULT_SEASON_TEMPLATE: MediaTemplate = {
 			label: '[b]Reparto:[/b] {{value}}',
 			separator: ', ',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Genres
 		{
@@ -289,7 +291,7 @@ export const DEFAULT_SEASON_TEMPLATE: MediaTemplate = {
 			label: '[b]Géneros:[/b] {{value}}',
 			separator: ', ',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Episode count
 		{
@@ -298,7 +300,7 @@ export const DEFAULT_SEASON_TEMPLATE: MediaTemplate = {
 			field: 'episodeCount',
 			label: '[b]Episodios:[/b] {{value}}',
 			conditional: true,
-			addLineBreak: true,
+			addLineBreak: false,
 		},
 		// Episode runtime
 		{
@@ -312,9 +314,10 @@ export const DEFAULT_SEASON_TEMPLATE: MediaTemplate = {
 		// Synopsis section
 		{
 			id: 'season-synopsis',
-			type: 'section',
-			sectionTitle: 'SINOPSIS',
-			contentField: 'overview',
+			type: 'field',
+			field: 'overview',
+			wrapper: '[bar]SINOPSIS[/bar]\n{{content}}',
+			conditional: true,
 			addLineBreak: true,
 		},
 		// Episodes list
@@ -322,7 +325,7 @@ export const DEFAULT_SEASON_TEMPLATE: MediaTemplate = {
 			id: 'season-episodes-list',
 			type: 'field',
 			field: 'episodes',
-			wrapper: '[bar]EPISODIOS[/bar]\n\n{{content}}',
+			wrapper: '[bar]EPISODIOS[/bar]\n[b]Temporada {{seasonNumber}}[/b]\n{{content}}',
 			separator: '\n',
 			conditional: true,
 			maxItems: 30,
@@ -333,7 +336,7 @@ export const DEFAULT_SEASON_TEMPLATE: MediaTemplate = {
 			id: 'season-trailer',
 			type: 'field',
 			field: 'trailerUrl',
-			wrapper: '[bar]TRAILER[/bar]\n\n[media]{{content}}[/media]',
+			wrapper: '[bar]TRAILER[/bar]\n[media]{{content}}[/media]',
 			conditional: true,
 			addLineBreak: true,
 		},
@@ -342,7 +345,7 @@ export const DEFAULT_SEASON_TEMPLATE: MediaTemplate = {
 			id: 'season-premiere',
 			type: 'field',
 			field: 'airDate',
-			wrapper: '[bar]ESTRENO[/bar]\n\n{{content}}',
+			wrapper: '[bar]ESTRENO[/bar]\n{{content}}',
 			conditional: true,
 			addLineBreak: true,
 		},
@@ -351,7 +354,7 @@ export const DEFAULT_SEASON_TEMPLATE: MediaTemplate = {
 			id: 'season-networks',
 			type: 'field',
 			field: 'networks',
-			wrapper: '[bar]CADENA[/bar]\n\n[center]\n{{content}}\n[/center]',
+			wrapper: '[bar]CADENA[/bar]\n{{content}}',
 			separator: '\n',
 			conditional: true,
 			addLineBreak: false,
@@ -461,9 +464,10 @@ export const DEFAULT_GAME_TEMPLATE: MediaTemplate = {
 		// Summary section
 		{
 			id: 'game-summary',
-			type: 'section',
-			sectionTitle: 'ACERCA DE ESTE JUEGO',
-			contentField: 'summary',
+			type: 'field',
+			field: 'summary',
+			wrapper: '[bar]ACERCA DE ESTE JUEGO[/bar]\n{{content}}',
+			conditional: true,
 			addLineBreak: true,
 		},
 		// Video/Trailer section
@@ -480,10 +484,10 @@ export const DEFAULT_GAME_TEMPLATE: MediaTemplate = {
 			id: 'game-screenshots',
 			type: 'field',
 			field: 'screenshots',
-			wrapper: '[bar]CAPTURAS[/bar]\n\n[center]\n{{content}}\n[/center]',
+			wrapper: '[bar]MEDIA[/bar]\n\n[center]\n{{content}}\n[/center]',
 			separator: '\n',
 			conditional: true,
-			maxItems: 4,
+			maxItems: 10,
 			addLineBreak: true,
 		},
 		// Time to beat (fields shown conditionally, no section bar to avoid empty sections)

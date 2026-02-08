@@ -20,7 +20,6 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
 	MediaDialogShell,
 	MediaSearchInput,
-	MediaResultItem,
 	MediaEmptyState,
 	MediaSearchError,
 	MediaPreviewStep,
@@ -208,7 +207,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 				<>
 					{/* Search Step */}
 					{step === 'search' && (
-						<>
+						<div className="flex min-h-full flex-col">
 							<MediaSearchInput
 								ref={searchInputRef}
 								value={searchQuery}
@@ -220,31 +219,72 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 							{error && <MediaSearchError error={error} />}
 
 							{searchResults.length > 0 && (
-								<ScrollArea className="max-h-[320px]">
-									<div className="flex flex-col gap-1.5">
-										{searchResults.map(game => (
-											<MediaResultItem
-												key={game.id}
-												imageUrl={game.cover?.image_id ? getIGDBImageUrl(game.cover.image_id, 'cover_small') : null}
-												fallbackIcon={<Gamepad2 className="w-4 h-4 text-muted-foreground" />}
-												title={game.name}
-												subtitle={
-													isLoadingDetails && selectedGame?.id === game.id
-														? loadingStep === 'igdb'
-															? 'Obteniendo datos de IGDB...'
-															: loadingStep === 'steam'
-																? 'Enriqueciendo con Steam...'
-																: 'Cargando...'
-														: `${game.first_release_date ? new Date(game.first_release_date * 1000).getFullYear() : '—'}${game.platforms?.slice(0, 3).map((p: { abbreviation?: string; name: string }) => ` · ${p.abbreviation || p.name}`).join('') ?? ''}`
-												}
-												onClick={() => dispatch({ type: 'SELECT_GAME', game })}
-												disabled={isLoadingDetails}
-												isLoading={isLoadingDetails && selectedGame?.id === game.id}
-												referrerPolicy="no-referrer"
-											/>
-										))}
-									</div>
-								</ScrollArea>
+								<div className="mb-4 rounded-lg bg-muted/15 p-1">
+									<ScrollArea className="h-[320px] pr-3">
+										<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
+											{searchResults.map(game => {
+												const isRowLoading = isLoadingDetails && selectedGame?.id === game.id
+												const year = game.first_release_date
+													? new Date(game.first_release_date * 1000).getFullYear().toString()
+													: 'TBA'
+												const platforms = game.platforms?.map((p: { abbreviation?: string; name: string }) => p.abbreviation || p.name) ?? []
+												const visiblePlatforms = platforms.slice(0, 3)
+												const extraPlatforms = platforms.length - visiblePlatforms.length
+
+												return (
+														<button
+															key={game.id}
+															onClick={() => dispatch({ type: 'SELECT_GAME', game })}
+															disabled={isLoadingDetails}
+																className="group w-full overflow-hidden text-left px-2 py-2.5 rounded-md hover:bg-muted focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-muted transition-colors disabled:cursor-wait disabled:opacity-70"
+															>
+															<div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
+															{game.cover?.image_id ? (
+																<img
+																	src={getIGDBImageUrl(game.cover.image_id, 'cover_small')}
+																	alt={game.name}
+																	referrerPolicy="no-referrer"
+																	className="w-10 h-14 rounded-md object-cover shrink-0 bg-muted"
+																/>
+															) : (
+																	<div className="w-10 h-14 rounded-md bg-background border border-border/50 flex items-center justify-center shrink-0">
+																		<Gamepad2 className="w-4 h-4 text-muted-foreground" />
+																	</div>
+															)}
+																<div className="min-w-0 overflow-hidden">
+																	<div className="block max-w-full text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+																		{game.name}
+																	</div>
+																{isRowLoading ? (
+																	<div className="text-xs text-muted-foreground mt-0.5 truncate">
+																		{loadingStep === 'igdb'
+																			? 'Obteniendo datos de IGDB...'
+																			: loadingStep === 'steam'
+																				? 'Enriqueciendo con Steam...'
+																				: 'Cargando...'}
+																	</div>
+																) : (
+																		<div className="mt-1 flex items-center gap-1.5 min-w-0 overflow-hidden">
+																					<span className="inline-flex items-center rounded-sm bg-popover border border-border/60 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">
+																						{year}
+																					</span>
+																					<span className="inline-flex max-w-full min-w-0 items-center rounded-sm bg-background/85 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground truncate">
+																						{visiblePlatforms.length > 0 ? visiblePlatforms.join(', ') : 'Plataforma ?'}
+																						{extraPlatforms > 0 ? ` +${extraPlatforms}` : ''}
+																					</span>
+																	</div>
+																)}
+															</div>
+															{isRowLoading && (
+																<Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+															)}
+														</div>
+													</button>
+												)
+											})}
+										</div>
+									</ScrollArea>
+								</div>
 							)}
 
 							{searchQuery && !isSearching && searchResults.length === 0 && !error && (
@@ -262,7 +302,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 							)}
 
 							{/* IGDB Attribution */}
-							<div className="mt-8 mb-4 flex flex-col items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
+							<div className="mt-auto mb-0 border-t border-border/70 pt-4 flex flex-col items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
 								<a href="https://www.igdb.com" target="_blank" rel="noopener noreferrer" className="block mb-1">
 									<span className="text-sm font-bold text-foreground">IGDB</span>
 								</a>
@@ -270,7 +310,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 									Datos proporcionados por IGDB.com
 								</p>
 							</div>
-						</>
+						</div>
 					)}
 
 					{/* Preview Step */}

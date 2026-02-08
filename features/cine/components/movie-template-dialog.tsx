@@ -35,7 +35,6 @@ import { cn } from '@/lib/utils'
 import {
 	MediaDialogShell,
 	MediaSearchInput,
-	MediaResultItem,
 	MediaEmptyState,
 	MediaSearchError,
 	MediaPreviewStep,
@@ -340,7 +339,7 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 		>
 			{/* Search Step */}
 			{step === 'search' && (
-				<>
+				<div className="flex min-h-full flex-col">
 					{/* Media Type Toggle */}
 					<div className="flex p-1 bg-muted/50 rounded-lg mb-4 gap-1 border border-border">
 						<button
@@ -381,42 +380,122 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 
 					{/* Movie Results */}
 					{mediaType === 'movie' && movieResults.length > 0 && (
-						<ScrollArea className="max-h-[320px]">
-							<div className="flex flex-col gap-1.5">
-								{movieResults.map(movie => (
-									<MediaResultItem
-										key={movie.id}
-										imageUrl={movie.poster_path ? getPosterUrl(movie.poster_path, 'w92') : null}
-										fallbackIcon={<Film className="w-4 h-4 text-muted-foreground" />}
-										title={movie.title}
-										subtitle={`${movie.release_date?.split('-')[0] || '—'}${movie.original_title !== movie.title ? ` · ${movie.original_title}` : ''}`}
-										onClick={() => dispatch({ type: 'SELECT_ITEM', item: movie, id: movie.id })}
-										disabled={isLoadingDetails}
-										isLoading={isLoadingDetails && selectedItem != null && 'title' in selectedItem && selectedItem.id === movie.id}
-									/>
-								))}
-							</div>
-						</ScrollArea>
+						<div className="mb-4 rounded-lg bg-muted/15 p-1">
+							<ScrollArea className="h-[320px] pr-3">
+								<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
+									{movieResults.map(movie => {
+										const isRowLoading = isLoadingDetails && selectedItem != null && 'title' in selectedItem && selectedItem.id === movie.id
+										const year = movie.release_date?.split('-')[0] || '—'
+										const originalTitle = movie.original_title !== movie.title ? movie.original_title : ''
+
+										return (
+											<button
+												key={movie.id}
+												onClick={() => dispatch({ type: 'SELECT_ITEM', item: movie, id: movie.id })}
+												disabled={isLoadingDetails}
+												className="group w-full overflow-hidden text-left px-2 py-2.5 rounded-md hover:bg-muted focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-muted transition-colors disabled:cursor-wait disabled:opacity-70"
+											>
+												<div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
+													{movie.poster_path ? (
+														<img
+															src={getPosterUrl(movie.poster_path, 'w92') ?? ''}
+															alt={movie.title}
+															className="w-10 h-14 rounded-md object-cover shrink-0 bg-muted"
+														/>
+													) : (
+														<div className="w-10 h-14 rounded-md bg-background border border-border/50 flex items-center justify-center shrink-0">
+															<Film className="w-4 h-4 text-muted-foreground" />
+														</div>
+													)}
+													<div className="min-w-0 overflow-hidden">
+														<div className="block max-w-full text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+															{movie.title}
+														</div>
+														{isRowLoading ? (
+															<div className="text-xs text-muted-foreground mt-0.5 truncate">Cargando...</div>
+														) : (
+															<div className="mt-1 flex items-center gap-1.5 min-w-0 overflow-hidden">
+																<span className="inline-flex items-center rounded-sm bg-popover border border-border/60 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">
+																	{year}
+																</span>
+																{originalTitle && (
+																	<span className="inline-flex max-w-full min-w-0 items-center rounded-sm bg-background/85 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground truncate">
+																		{originalTitle}
+																	</span>
+																)}
+															</div>
+														)}
+													</div>
+													{isRowLoading && (
+														<Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+													)}
+												</div>
+											</button>
+										)
+									})}
+								</div>
+							</ScrollArea>
+						</div>
 					)}
 
 					{/* TV Results */}
 					{mediaType === 'tv' && tvResults.length > 0 && (
-						<ScrollArea className="max-h-[320px]">
-							<div className="flex flex-col gap-1.5">
-								{tvResults.map(show => (
-									<MediaResultItem
-										key={show.id}
-										imageUrl={show.poster_path ? getPosterUrl(show.poster_path, 'w92') : null}
-										fallbackIcon={<Tv className="w-4 h-4 text-muted-foreground" />}
-										title={show.name}
-										subtitle={`${show.first_air_date?.split('-')[0] || '—'}${show.original_name !== show.name ? ` · ${show.original_name}` : ''}`}
-										onClick={() => dispatch({ type: 'SELECT_ITEM', item: show, id: show.id })}
-										disabled={isLoadingDetails}
-										isLoading={isLoadingDetails && selectedItem != null && 'name' in selectedItem && selectedItem.id === show.id}
-									/>
-								))}
-							</div>
-						</ScrollArea>
+						<div className="mb-4 rounded-lg bg-muted/15 p-1">
+							<ScrollArea className="h-[320px] pr-3">
+								<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
+									{tvResults.map(show => {
+										const isRowLoading = isLoadingDetails && selectedItem != null && 'name' in selectedItem && selectedItem.id === show.id
+										const year = show.first_air_date?.split('-')[0] || '—'
+										const originalName = show.original_name !== show.name ? show.original_name : ''
+
+										return (
+											<button
+												key={show.id}
+												onClick={() => dispatch({ type: 'SELECT_ITEM', item: show, id: show.id })}
+												disabled={isLoadingDetails}
+												className="group w-full overflow-hidden text-left px-2 py-2.5 rounded-md hover:bg-muted focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-muted transition-colors disabled:cursor-wait disabled:opacity-70"
+											>
+												<div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
+													{show.poster_path ? (
+														<img
+															src={getPosterUrl(show.poster_path, 'w92') ?? ''}
+															alt={show.name}
+															className="w-10 h-14 rounded-md object-cover shrink-0 bg-muted"
+														/>
+													) : (
+														<div className="w-10 h-14 rounded-md bg-background border border-border/50 flex items-center justify-center shrink-0">
+															<Tv className="w-4 h-4 text-muted-foreground" />
+														</div>
+													)}
+													<div className="min-w-0 overflow-hidden">
+														<div className="block max-w-full text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+															{show.name}
+														</div>
+														{isRowLoading ? (
+															<div className="text-xs text-muted-foreground mt-0.5 truncate">Cargando...</div>
+														) : (
+															<div className="mt-1 flex items-center gap-1.5 min-w-0 overflow-hidden">
+																<span className="inline-flex items-center rounded-sm bg-popover border border-border/60 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">
+																	{year}
+																</span>
+																{originalName && (
+																	<span className="inline-flex max-w-full min-w-0 items-center rounded-sm bg-background/85 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground truncate">
+																		{originalName}
+																	</span>
+																)}
+															</div>
+														)}
+													</div>
+													{isRowLoading && (
+														<Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+													)}
+												</div>
+											</button>
+										)
+									})}
+								</div>
+							</ScrollArea>
+						</div>
 					)}
 
 					{/* Empty state */}
@@ -439,7 +518,7 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 					)}
 
 					{/* TMDB Attribution */}
-					<div className="mt-8 mb-4 flex flex-col items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
+					<div className="mt-auto mb-0 border-t border-border/70 pt-4 flex flex-col items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
 						<a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="block mb-1">
 							<img
 								src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
@@ -451,7 +530,7 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 							Este producto utiliza la API de TMDB pero no está avalado ni certificado por TMDB.
 						</p>
 					</div>
-				</>
+				</div>
 			)}
 
 			{/* Season Selection Step */}

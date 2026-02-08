@@ -469,7 +469,7 @@ export function MediaTemplateEditor() {
 															key={movie.id}
 															type="button"
 															onClick={() => tmdbSelection.handleSelectMovie(movie.id, movie.title)}
-															className="w-full text-left px-3 py-2.5 hover:bg-muted/80 transition-colors border-b border-border/20 last:border-0"
+															className="group/item w-full text-left px-3 py-2.5 hover:bg-accent/40 transition-colors border-b border-border/20 last:border-0"
 														>
 															<div className="flex items-center gap-3">
 																{movie.poster_path ? (
@@ -485,7 +485,7 @@ export function MediaTemplateEditor() {
 																)}
 																<div className="min-w-0 flex-1">
 																	<span
-																		className="text-sm font-semibold text-foreground block truncate"
+																		className="text-sm font-semibold text-foreground block truncate group-hover/item:text-primary transition-colors"
 																		title={movie.title}
 																	>
 																		{movie.title}
@@ -535,7 +535,7 @@ export function MediaTemplateEditor() {
 															key={show.id}
 															type="button"
 															onClick={() => tmdbSelection.handleSelectTV(show.id, show.name)}
-															className="w-full text-left px-3 py-2.5 hover:bg-muted/80 transition-colors border-b border-border/20 last:border-0"
+															className="group/item w-full text-left px-3 py-2.5 hover:bg-accent/40 transition-colors border-b border-border/20 last:border-0"
 														>
 															<div className="flex items-center gap-3">
 																{show.poster_path ? (
@@ -551,7 +551,7 @@ export function MediaTemplateEditor() {
 																)}
 																<div className="min-w-0 flex-1">
 																	<span
-																		className="text-sm font-semibold text-foreground block truncate"
+																		className="text-sm font-semibold text-foreground block truncate group-hover/item:text-primary transition-colors"
 																		title={show.name}
 																	>
 																		{show.name}
@@ -593,16 +593,16 @@ export function MediaTemplateEditor() {
 											</div>
 											<div className="max-h-56 overflow-y-auto py-1 custom-scrollbar">
 												{tmdbSelection.tvDataForSeason.seasons.map(season => (
-													<button
-														key={season.number}
-														type="button"
-														onClick={() => tmdbSelection.setSelectedSeasonNumber(season.number)}
-														className={cn(
-															'w-full text-left px-3 py-2.5 hover:bg-muted/80 transition-colors border-b border-border/10 last:border-0 flex items-center justify-between',
-															tmdbSelection.selectedSeasonNumber === season.number && 'bg-primary/10'
-														)}
-													>
-														<span className="text-sm font-medium text-foreground">{season.name}</span>
+														<button
+															key={season.number}
+															type="button"
+															onClick={() => tmdbSelection.setSelectedSeasonNumber(season.number)}
+															className={cn(
+																'group/item w-full text-left px-3 py-2.5 hover:bg-accent/40 transition-colors border-b border-border/10 last:border-0 flex items-center justify-between',
+																tmdbSelection.selectedSeasonNumber === season.number && 'bg-primary/10'
+															)}
+														>
+														<span className="text-sm font-medium text-foreground group-hover/item:text-primary transition-colors">{season.name}</span>
 														<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 															<span>{season.episodeCount} ep.</span>
 															{season.airDate && <span className="h-3 w-px bg-border/40" />}
@@ -660,7 +660,7 @@ export function MediaTemplateEditor() {
 															key={game.id}
 															type="button"
 															onClick={() => gameSelection.handleSelectGame(game.id, game.name)}
-															className="w-full text-left px-3 py-2.5 hover:bg-muted/80 transition-colors border-b border-border/20 last:border-0"
+															className="group/item w-full text-left px-3 py-2.5 hover:bg-accent/40 transition-colors border-b border-border/20 last:border-0"
 														>
 															<div className="flex items-center gap-3">
 																{game.cover?.image_id ? (
@@ -677,7 +677,7 @@ export function MediaTemplateEditor() {
 																)}
 																<div className="min-w-0 flex-1">
 																	<span
-																		className="text-sm font-semibold text-foreground block truncate"
+																		className="text-sm font-semibold text-foreground block truncate group-hover/item:text-primary transition-colors"
 																		title={game.name}
 																	>
 																		{game.name}

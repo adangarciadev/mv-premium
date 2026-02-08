@@ -195,6 +195,9 @@ function renderFieldBlock(block: FieldBlock, data: Record<string, unknown>): str
 		content = block.wrapper.replace('{{content}}', content)
 	}
 
+	// Apply data interpolation to the final string (allows using other fields in label/wrapper)
+	content = interpolateString(content, data)
+
 	return content
 }
 
