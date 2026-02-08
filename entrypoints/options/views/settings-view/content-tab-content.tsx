@@ -3,6 +3,7 @@
  */
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import Settings2 from 'lucide-react/dist/esm/icons/settings-2'
+import TypeIcon from 'lucide-react/dist/esm/icons/type'
 import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard'
 import Shield from 'lucide-react/dist/esm/icons/shield'
 import Rocket from 'lucide-react/dist/esm/icons/rocket'
@@ -28,7 +29,7 @@ const DASHBOARD_ICON_OPTIONS: { value: DashboardIcon; label: string; icon: React
 ]
 
 export function ContentTabContent() {
-	const { boldColor, boldColorEnabled, setBoldColor, setBoldColorEnabled, dashboardIcon, setSetting } =
+	const { boldColor, boldColorEnabled, setBoldColor, setBoldColorEnabled, dashboardIcon, monospaceEnabled, setSetting } =
 		useSettingsStore()
 
 	return (
@@ -82,6 +83,25 @@ export function ContentTabContent() {
 						))}
 					</SelectContent>
 				</Select>
+			</SettingRow>
+
+			<Separator />
+
+			{/* Monospace Font */}
+			<SettingRow
+				icon={<TypeIcon className="h-4 w-4" />}
+				label="Fuente Monoespaciada"
+				description="Aplica una fuente monoespaciada a todo el contenido de Mediavida. Los iconos no se ven afectados."
+			>
+				<Switch
+					checked={monospaceEnabled}
+					onCheckedChange={checked => {
+						setSetting('monospaceEnabled', checked)
+						toast.success(checked ? 'Fuente mono activada' : 'Fuente mono desactivada', {
+							description: 'Recarga Mediavida para ver el cambio.',
+						})
+					}}
+				/>
 			</SettingRow>
 
 			<Separator />

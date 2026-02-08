@@ -43,6 +43,10 @@
 		--mv-danger: #e02f2f;
 
 		--mvp-bold-color: inherit;
+
+		/* Homepage surface colors */
+		--mvp-surface: #ffffff;
+		--mvp-surface-high: #ededed;
 	}
 
 	.dark {
@@ -53,6 +57,10 @@
 		--muted: #27272a;
 		--muted-foreground: #a1a1aa;
 		--border: #27272a;
+
+		/* Homepage surface colors */
+		--mvp-surface: #27272a;
+		--mvp-surface-high: #333336;
 	}
 }
 
@@ -195,4 +203,35 @@ pre.code:has(code[data-mvp-highlighted="true"]) {
 .animate-gradient-x {
 	background-size: 200% 200%;
 	animation: gradient-x 3s ease infinite;
+}
+
+/* ============================================================================
+   NEW HOMEPAGE - Scoped preflight reset
+   Since app.css does NOT include @tailwind base, elements inside the homepage
+   lack box-sizing: border-box, causing padding to overflow containers.
+   ============================================================================ */
+
+#mvp-new-homepage-root *,
+#mvp-new-homepage-root *::before,
+#mvp-new-homepage-root *::after {
+	box-sizing: border-box;
+}
+
+#mvp-new-homepage-root {
+	line-height: 1.5;
+}
+
+#mvp-new-homepage-root img,
+#mvp-new-homepage-root svg {
+	display: block;
+	max-width: 100%;
+}
+
+/* ============================================================================
+   MONOSPACE FONT TOGGLE
+   Applied via .mvp-monospace class on <html> element
+   ============================================================================ */
+
+.mvp-monospace *:not(i) {
+	font-family: monospace;
 }

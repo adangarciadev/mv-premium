@@ -64,6 +64,8 @@ export default {
 					ring: 'var(--sidebar-ring)',
 				},
 				mv: {
+					surface: 'var(--mvp-surface)',
+					'surface-high': 'var(--mvp-surface-high)',
 					'bg-primary': 'var(--mv-bg-primary)',
 					'bg-secondary': 'var(--mv-bg-secondary)',
 					'bg-tertiary': 'var(--mv-bg-tertiary)',

@@ -32,6 +32,7 @@ export const FeatureFlag = {
 	Favorites: 'favorites',
 
 	// User-controlled Features (via settings)
+	NewHomepage: 'new-homepage',
 	InfiniteScroll: 'infinite-scroll',
 	LiveThread: 'live-thread',
 	MutedWords: 'muted-words',
@@ -77,6 +78,7 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 	[FeatureFlag.Favorites]: { alwaysEnabled: true },
 
 	// User-controlled Features
+	[FeatureFlag.NewHomepage]: { settingsKey: 'newHomepageEnabled' },
 	[FeatureFlag.InfiniteScroll]: { settingsKey: 'infiniteScrollEnabled' },
 	[FeatureFlag.LiveThread]: { settingsKey: 'liveThreadEnabled' },
 	[FeatureFlag.MutedWords]: { settingsKey: 'mutedWordsEnabled' },

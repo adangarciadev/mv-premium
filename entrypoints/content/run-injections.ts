@@ -89,6 +89,15 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	}
 
 	// =========================================================================
+	// HOMEPAGE
+	// =========================================================================
+	if (pageContext?.isHomepage && isFeatureEnabled(FeatureFlag.NewHomepage)) {
+		import('@/features/new-homepage').then(({ injectHomepage }) => {
+			injectHomepage()
+		})
+	}
+
+	// =========================================================================
 	// EDITOR FEATURES - Only when editor exists on page
 	// These need to run on mutations too (for dynamically loaded editors)
 	// =========================================================================

@@ -65,6 +65,10 @@ export interface Settings {
 	postSummaryEnabled: boolean
 	saveThreadEnabled: boolean
 
+	// Feature Toggles - Appearance
+	monospaceEnabled: boolean
+	newHomepageEnabled: boolean
+
 	// Feature Toggles - Users
 	mutedWordsEnabled: boolean
 	mutedWords: string[]

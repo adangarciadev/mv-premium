@@ -71,6 +71,10 @@ export const settingsSchema = z.object({
 	liveThreadEnabled: z.boolean().default(false),
 	nativeLiveDelayEnabled: z.boolean().default(true),
 
+	// Feature Toggles - Appearance
+	monospaceEnabled: z.boolean().default(false),
+	newHomepageEnabled: z.boolean().default(false),
+
 	// Feature Toggles - Users
 	mutedWordsEnabled: z.boolean().default(false),
 	mutedWords: z.array(z.string()).default([]),

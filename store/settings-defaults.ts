@@ -49,6 +49,10 @@ export const DEFAULT_SETTINGS: Settings = {
 	threadSummarizerEnabled: true,
 	postSummaryEnabled: true,
 	saveThreadEnabled: true,
+	// Feature Toggles - Appearance
+	monospaceEnabled: false,
+	newHomepageEnabled: false,
+
 	// Feature Toggles - Users
 	mutedWordsEnabled: false,
 	mutedWords: [],

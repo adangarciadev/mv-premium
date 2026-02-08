@@ -151,6 +151,8 @@ export const DOM_MARKERS = {
 		INFINITE_SCROLL_BUTTON_CONTAINER: 'mvp-infinite-scroll-button-container',
 		// Media Hover
 		MEDIA_HOVER_CARD_CONTAINER: 'mvp-media-hover-card-container',
+		// Homepage
+		NEW_HOMEPAGE_ROOT: 'mvp-new-homepage-root',
 		// Active Button Styles
 		BTN_STYLES_DARK: 'mvp-btn-styles-dark',
 		BTN_STYLES_LIGHT: 'mvp-btn-styles-light',

@@ -115,6 +115,11 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// Initialize page width feature (applies max-width constraints if enabled)
 	await initUltrawide()
 
+	// Apply monospace font if enabled
+	if (useSettingsStore.getState().monospaceEnabled) {
+		document.documentElement.classList.add('mvp-monospace')
+	}
+
 	// =====================================================================
 	// 4. CALCULATE PAGE CONTEXT (once)
 	// Note: Mediavida is MPA, URL won't change without reload
@@ -145,6 +150,17 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 		isHomepage,
 		isForumRelated,
 		isMediaForum: isMediaForum(),
+	}
+
+	// Track forum visits for homepage "recently visited" feature
+	if (pathname.startsWith('/foro/')) {
+		const segments = pathname.split('/')
+		const forumSlug = segments[2]
+		if (forumSlug && !['spy', 'top', 'unread', 'featured', 'new', 'favoritos', 'marcadores'].includes(forumSlug)) {
+			import('@/features/new-homepage/lib/visited-forums').then(({ setLatestVisitedForum }) => {
+				setLatestVisitedForum(forumSlug)
+			})
+		}
 	}
 
 	// =====================================================================
