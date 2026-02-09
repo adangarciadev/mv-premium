@@ -21,6 +21,95 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.3.0',
+		date: '2026-02-09',
+		title: 'IA Multiprovider y Media Templates',
+		summary:
+			'Nuevo modo de Posts Centrados, integración con IGDB, sistema de Media Templates, soporte para Groq como proveedor de IA y resúmenes de hilo multi-página.',
+		changes: [
+			// NEW FEATURES
+			{
+				type: 'feature',
+				description: 'Modo Posts Centrados: Nuevo modo de visualización que centra los posts con una barra de control sticky.',
+				category: 'Diseño',
+			},
+			{
+				type: 'feature',
+				description: 'Integración con IGDB: Busca juegos y genera plantillas automáticas con toda la información (nombre, fecha, géneros, plataformas).',
+				category: 'Multimedia',
+			},
+			{
+				type: 'feature',
+				description: 'Sistema de Media Templates: Motor de plantillas completo para crear templates personalizados de medios (juegos, películas, series).',
+				category: 'Productividad',
+			},
+			{
+				type: 'feature',
+				description: 'Soporte para Groq (Kimi K2): Nuevo proveedor de IA alternativo a Gemini, totalmente gratuito.',
+				category: 'Inteligencia Artificial',
+			},
+			{
+				type: 'feature',
+				description: 'Resumen multi-página: El resumidor de hilos ahora maneja hilos largos con múltiples páginas, generando resúmenes globales coherentes.',
+				category: 'Inteligencia Artificial',
+			},
+			{
+				type: 'feature',
+				description: 'Nombres localizados en IGDB: Los juegos muestran su nombre en español cuando está disponible.',
+				category: 'Multimedia',
+			},
+
+			// IMPROVEMENTS
+			{
+				type: 'improvement',
+				description: 'Resúmenes de posts más detallados: La IA genera resúmenes proporcionales al contenido, con detección de ironía y sarcasmo.',
+				category: 'Inteligencia Artificial',
+			},
+			{
+				type: 'improvement',
+				description: 'Editor mejorado: Smart center wrapping para encabezados y mejor detección de contenido multimedia.',
+				category: 'Editor',
+			},
+			{
+				type: 'improvement',
+				description: 'Arquitectura de IA refactorizada: Mejor separación entre providers para facilitar añadir nuevos modelos.',
+				category: 'Inteligencia Artificial',
+			},
+			{
+				type: 'improvement',
+				description: 'Interfaz de gestión de Media Templates mejorada con documentación clara de variables y tipos.',
+				category: 'Productividad',
+			},
+
+			// FIXES
+			{
+				type: 'fix',
+				description: 'Tracking de edición de posts: Corregida la captura del título del hilo al editar desde post.php.',
+				category: 'Experiencia',
+			},
+			{
+				type: 'fix',
+				description: 'Tracking de creación de hilos: Mejor detección y tracking diferido para respuestas.',
+				category: 'Experiencia',
+			},
+			{
+				type: 'fix',
+				description: 'Solucionado race condition al eliminar o mover múltiples borradores a la vez.',
+				category: 'Productividad',
+			},
+			{
+				type: 'fix',
+				description: 'Los ajustes ahora se sincronizan correctamente entre pestañas abiertas.',
+				category: 'Experiencia',
+			},
+			{
+				type: 'fix',
+				description: 'Los campos de tipo lista en templates ahora se muestran correctamente en líneas separadas.',
+				category: 'Productividad',
+			},
+		],
+	},
+	{
 		version: '1.2.1',
 		date: '2026-02-02',
 		title: 'Mejoras de Estabilidad',
