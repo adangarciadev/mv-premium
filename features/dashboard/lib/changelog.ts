@@ -21,6 +21,33 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.2.2',
+		date: '2026-02-09',
+		title: 'Nueva Homepage y Fuente Monoespaciada',
+		summary:
+			'Reemplazo completo de la página de inicio con un dashboard personalizado y opción de fuente monoespaciada para todo el sitio. Portado desde mv-ignited.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Nueva Homepage: Dashboard personalizado con noticias, últimos hilos del foro, tus últimos posts y favoritos. Se actualiza automáticamente.',
+				category: 'Experiencia',
+			},
+			{
+				type: 'feature',
+				description:
+					'Foros visitados recientemente: Accesos directos a tus subforos más visitados desde la homepage.',
+				category: 'Experiencia',
+			},
+			{
+				type: 'feature',
+				description:
+					'Fuente Monoespaciada: Opción para aplicar tipografía monospace a todo el sitio desde los ajustes.',
+				category: 'Diseño',
+			},
+		],
+	},
+	{
 		version: '1.2.1',
 		date: '2026-02-02',
 		title: 'Mejoras de Estabilidad',
