@@ -72,18 +72,25 @@ export async function summarizePost(text: string): Promise<PostSummaryResult> {
 	const prompt = `Eres un asistente experto en resumir contenido de foros (Mediavida) en español.
 
 TAREA:
-Analiza el siguiente post y genera un JSON con "summary" y "tone".
-ADAPTACIÓN DE LONGITUD:
-- Si el post es CORTO (< 300 caracteres): Condénsalo en UNA sola frase directa.
-- Si el post es LARGO o COMPLEJO: Resume los puntos clave en 2-3 frases, asegurando no perder matices importantes (incluso si están en spoilers).
+Analiza el post y devuelve SOLO un JSON válido con "summary" y "tone".
 
-REGLAS:
-- INCLUYE el contenido de los SPOILERS en el resumen.
-- TU SALIDA DEBE SER UNICAMENTE UN JSON VÁLIDO.
-- NO uses markdown para el JSON.
-- NO uses BBCode.
-- Mantén el idioma Español.
-- Tu respuesta debe empezar con { y terminar con }. Sin texto antes ni despues.
+EJEMPLO DE SALIDA:
+{"summary": "El usuario explica cómo configurar Docker en Windows, incluyendo los pasos para WSL2 y las opciones de virtualización recomendadas.", "tone": "Didáctico y detallado"}
+
+ADAPTACIÓN DE LONGITUD (proporcional al post original):
+- Post CORTO (<300 caracteres): 1 frase directa.
+- Post MEDIO (300-800 caracteres): 2-3 frases capturando los puntos principales.
+- Post LARGO (>800 caracteres): 4-6 frases que capturen TODOS los puntos clave, matices y argumentos importantes. No sacrifiques detalle por brevedad.
+
+REGLAS CRÍTICAS:
+- SOLO JSON válido. Empieza con "{" y termina con "}". Sin markdown ni texto extra.
+- Idioma: Español.
+- El "tone" DEBE empezar con mayúscula y ser conciso (ej: "Informativo", "Crítico y frustrado", "Irónico pero constructivo").
+- Detecta ironía/sarcasmo y refléjalo en el tono si aplica. No interpretes sarcasmo como apoyo literal.
+- Si el post solo tiene media/embed/enlace sin comentario propio, indica "Comparte contenido sin comentario" en el summary.
+- Evita frases genéricas. Sé específico sobre el contenido real del post.
+- Incluye el contenido de SPOILERS si aporta contexto.
+- NO uses BBCode en tu respuesta.
 
 POST A RESUMIR:
 "${text}"`
