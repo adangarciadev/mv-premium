@@ -97,9 +97,18 @@ jobs:
       - name: Build for ${{ matrix.target }}
         run: npm run build:${{ matrix.target }}
 
-      - name: Upload build artifacts
+      - name: Upload Chrome build artifacts
+        if: matrix.target == 'chrome'
         uses: actions/upload-artifact@v4
         with:
-          name: extension-${{ matrix.target }}
-          path: .output/${{ matrix.target }}-mv3
+          name: extension-chrome
+          path: .output/chrome-mv3
+          retention-days: 7
+
+      - name: Upload Firefox build artifacts
+        if: matrix.target == 'firefox'
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-firefox
+          path: .output/firefox-mv2
           retention-days: 7
