@@ -1,6 +1,6 @@
 /**
  * API Handlers Module
- * Handles external API requests (Steam, TMDB)
+ * Handles external API requests (Steam, TMDB, GIPHY)
  */
 
 import { browser } from 'wxt/browser'
@@ -8,6 +8,7 @@ import { logger } from '@/lib/logger'
 import { fetchSteamGameDetails } from '@/services/api/steam'
 import { onMessage } from '@/lib/messaging'
 import { API_URLS } from '@/constants'
+import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 
 // =============================================================================
 // Constants
@@ -15,6 +16,63 @@ import { API_URLS } from '@/constants'
 
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || ''
 const TMDB_BASE_URL = API_URLS.TMDB_BASE
+const GIPHY_API_KEY = import.meta.env.VITE_GIPHY_API_KEY || ''
+const GIPHY_BASE_URL = API_URLS.GIPHY
+const GIPHY_PAGE_SIZE = 18
+
+interface GiphyApiResponse {
+	data: Array<{
+		id: string
+		title: string
+		images: {
+			original: { url: string }
+			fixed_height_small: { url: string }
+		}
+	}>
+	pagination: {
+		total_count: number
+		count: number
+		offset: number
+	}
+}
+
+function toGiphyPaginatedResponse(data: GiphyApiResponse): GiphyPaginatedResponse {
+	return {
+		gifs: data.data.map(gif => ({
+			id: gif.id,
+			title: gif.title || 'GIF',
+			url: gif.images.original.url,
+			previewUrl: gif.images.fixed_height_small.url,
+		})),
+		pagination: {
+			totalCount: data.pagination.total_count,
+			count: data.pagination.count,
+			offset: data.pagination.offset,
+		},
+	}
+}
+
+async function requestGiphy(
+	endpoint: 'trending' | 'search',
+	params: URLSearchParams
+): Promise<GiphyPaginatedResponse> {
+	if (!GIPHY_API_KEY) {
+		throw new Error('GIPHY API key not configured in environment')
+	}
+
+	params.set('api_key', GIPHY_API_KEY)
+	params.set('limit', String(GIPHY_PAGE_SIZE))
+	params.set('rating', 'g')
+
+	const response = await fetch(`${GIPHY_BASE_URL}/${endpoint}?${params.toString()}`)
+
+	if (!response.ok) {
+		throw new Error(`GIPHY API error: ${response.status}`)
+	}
+
+	const data = (await response.json()) as GiphyApiResponse
+	return toGiphyPaginatedResponse(data)
+}
 
 // =============================================================================
 // API Handlers
@@ -24,13 +82,32 @@ const TMDB_BASE_URL = API_URLS.TMDB_BASE
  * Setup options page opener handler
  */
 export function setupOptionsHandler(): void {
-	onMessage('openOptionsPage', ({ data: view }) => {
+	onMessage('openOptionsPage', async ({ data: view }) => {
 		let url = browser.runtime.getURL('/options.html')
 		if (view) {
 			// Support query params in view: "settings?tab=ai" -> "#/settings?tab=ai"
 			url += `#/${view}`
 		}
-		browser.tabs.create({ url })
+
+		const baseOptionsUrl = browser.runtime.getURL('/options.html')
+		const existingTabs = await browser.tabs.query({ url: `${baseOptionsUrl}*` })
+		const existingTab = existingTabs[0]
+
+		if (existingTab?.id) {
+			if (existingTab.url !== url) {
+				await browser.tabs.update(existingTab.id, { url })
+			}
+
+			await browser.tabs.update(existingTab.id, { active: true })
+
+			if (typeof existingTab.windowId === 'number') {
+				await browser.windows.update(existingTab.windowId, { focused: true })
+			}
+
+			return
+		}
+
+		await browser.tabs.create({ url })
 	})
 }
 
@@ -96,6 +173,44 @@ export function setupTmdbRequestHandler(): void {
 }
 
 /**
+ * Setup GIPHY API handlers
+ * Reads API key from env and proxies requests
+ */
+export function setupGiphyHandlers(): void {
+	onMessage('giphyTrending', async ({ data }) => {
+		try {
+			const offset = Math.max(0, data.offset ?? 0)
+			return await requestGiphy('trending', new URLSearchParams({ offset: String(offset) }))
+		} catch (error) {
+			logger.error('GIPHY trending request error:', error)
+			throw error
+		}
+	})
+
+	onMessage('giphySearch', async ({ data }) => {
+		try {
+			const query = data.query.trim()
+			if (!query) {
+				return { gifs: [], pagination: { totalCount: 0, count: 0, offset: 0 } }
+			}
+
+			const offset = Math.max(0, data.offset ?? 0)
+			return await requestGiphy(
+				'search',
+				new URLSearchParams({
+					q: query,
+					offset: String(offset),
+					lang: 'es',
+				})
+			)
+		} catch (error) {
+			logger.error('GIPHY search request error:', error)
+			throw error
+		}
+	})
+}
+
+/**
  * Setup all API handlers
  */
 export function setupApiHandlers(): void {
@@ -103,4 +218,5 @@ export function setupApiHandlers(): void {
 	setupSteamHandler()
 	setupTmdbKeyCheckHandler()
 	setupTmdbRequestHandler()
+	setupGiphyHandlers()
 }

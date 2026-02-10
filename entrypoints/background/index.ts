@@ -74,7 +74,7 @@ export default defineBackground(() => {
 	// Upload handlers (ImgBB, Freeimage)
 	setupUploadHandlers()
 
-	// API handlers (Steam, TMDB, options page)
+	// API handlers (Steam, TMDB, GIPHY, options page)
 	setupApiHandlers()
 
 	// AI handlers (Gemini)
