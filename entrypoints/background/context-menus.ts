@@ -8,6 +8,7 @@ import { logger } from '@/lib/logger'
 import { storage } from '#imports'
 import { STORAGE_KEYS } from '@/constants'
 import { saveThread, type SavedThread } from '@/features/saved-threads/logic/storage'
+import { sendMessage } from '@/lib/messaging'
 
 // =============================================================================
 // Context Menu Creation
@@ -227,12 +228,7 @@ async function handleMuteWord(word: string, tabId?: number): Promise<void> {
  */
 function notifyTab(tabId: number | undefined, message: string): void {
 	if (!tabId) return
-	browser.tabs
-		.sendMessage(tabId, {
-			type: 'MVP_TOAST',
-			message,
-		})
-		.catch(() => {
-			// Tab might not have content script, ignore
-		})
+	sendMessage('showToast', { message }, tabId).catch(() => {
+		// Tab might not have content script, ignore
+	})
 }

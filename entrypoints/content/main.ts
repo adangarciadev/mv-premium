@@ -36,8 +36,22 @@ import { updateMutedWordsConfig, applyMutedWordsFilter } from '@/features/muted-
 import { initUserCardInjector } from '@/features/user-customizations/user-card-injector'
 import { onMessage } from '@/lib/messaging'
 import { toast } from '@/lib/lazy-toast'
+import { logger } from '@/lib/logger'
 
 export async function runContentMain(ctx: unknown): Promise<void> {
+	const showToastFromMessage = (text: string) => {
+		// Determine toast type from emoji prefix
+		if (text.startsWith('✅') || text.startsWith('🔇') || text.startsWith('📌')) {
+			toast.success(text)
+		} else if (text.startsWith('❌')) {
+			toast.error(text)
+		} else if (text.startsWith('ℹ️')) {
+			toast.info(text)
+		} else {
+			toast.info(text)
+		}
+	}
+
 	// =====================================================================
 	// DEBUG: Expose a global function to inspect extension storage from console
 	// Usage: mvpDebug() in browser console
@@ -147,10 +161,34 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 		isMediaForum: isMediaForum(),
 	}
 
+	let isInjectionRunInFlight = false
+	let hasPendingInjectionRun = false
+
+	const runInjectionsSafely = async () => {
+		if (isInjectionRunInFlight) {
+			hasPendingInjectionRun = true
+			return
+		}
+
+		isInjectionRunInFlight = true
+		try {
+			do {
+				hasPendingInjectionRun = false
+				try {
+					await runInjections(ctx, pageContext)
+				} catch (error) {
+					logger.error('runInjections failed', error)
+				}
+			} while (hasPendingInjectionRun)
+		} finally {
+			isInjectionRunInFlight = false
+		}
+	}
+
 	// =====================================================================
 	// 5. RUN FEATURE INJECTIONS with pre-calculated context
 	// =====================================================================
-	await runInjections(ctx, pageContext)
+	await runInjectionsSafely()
 
 	// Initialize native preview interceptor for code highlighting
 	initNativePreviewInterceptor()
@@ -169,7 +207,14 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// =====================================================================
 	// 7. OBSERVE FOR DYNAMIC CONTENT
 	// =====================================================================
-	const observer = createDebouncedObserver({ onMutation: () => runInjections(ctx, pageContext) }, 100)
+	const observer = createDebouncedObserver(
+		{
+			onMutation: () => {
+				void runInjectionsSafely()
+			},
+		},
+		100
+	)
 	observeDocument(observer)
 
 	// =====================================================================
@@ -221,19 +266,7 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// =====================================================================
 	// 10. CONTEXT MENU TOAST LISTENER
 	// =====================================================================
-	browser.runtime.onMessage.addListener((message: { type: string; message: string }) => {
-		if (message.type === 'MVP_TOAST') {
-			// Determine toast type from emoji prefix
-			const text = message.message
-			if (text.startsWith('✅') || text.startsWith('🔇') || text.startsWith('📌')) {
-				toast.success(text)
-			} else if (text.startsWith('❌')) {
-				toast.error(text)
-			} else if (text.startsWith('ℹ️')) {
-				toast.info(text)
-			} else {
-				toast.info(text)
-			}
-		}
+	onMessage('showToast', ({ data }) => {
+		showToastFromMessage(data.message)
 	})
 }
