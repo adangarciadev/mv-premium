@@ -229,13 +229,25 @@ function isTemplatePlaceholder(value: string): boolean {
 	return /^\{\{[^{}]+\}\}$/.test(value.trim())
 }
 
-function toAbsoluteUrl(value: string): string {
-	return /^https?:\/\//i.test(value) ? value : `https://${value}`
+function toSafeAbsoluteUrl(value: string): string {
+	const withProtocol = /^https?:\/\//i.test(value) ? value : `https://${value}`
+
+	try {
+		const parsed = new URL(withProtocol)
+		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+			return '#'
+		}
+		return parsed.toString()
+	} catch {
+		return '#'
+	}
 }
 
 function parseMediaTag(url: string): string {
 	const cleanUrl = url.trim()
-	const absoluteUrl = toAbsoluteUrl(cleanUrl)
+	const absoluteUrl = toSafeAbsoluteUrl(cleanUrl)
+	const safeCleanUrl = escapeHtml(cleanUrl)
+	const safeAbsoluteUrl = escapeHtml(absoluteUrl)
 
 	// Template placeholders (e.g. {{trailerUrl}}) are not real URLs.
 	if (isTemplatePlaceholder(cleanUrl)) {
@@ -246,7 +258,7 @@ function parseMediaTag(url: string): string {
                 </div>
                 <div class="generic-content">
                     <div class="generic-domain">Variable de plantilla</div>
-                    <span class="generic-link">${cleanUrl}</span>
+                    <span class="generic-link">${safeCleanUrl}</span>
                     <div class="generic-footer">Se reemplaza al insertar contenido real</div>
                 </div>
             </div>
@@ -262,9 +274,9 @@ function parseMediaTag(url: string): string {
                 <div class="youtube_lite">
                     <a class="preinit" 
                        data-youtube="${id}" 
-                       /* CHANGE HERE: Added https: before // */
                        style="background-image:url(https://i.ytimg.com/vi/${id}/hqdefault.jpg)" 
                        href="https://www.youtube.com/watch?v=${id}" 
+                       rel="noopener noreferrer nofollow"
                        target="_blank">
                     </a>
                 </div>
@@ -277,7 +289,7 @@ function parseMediaTag(url: string): string {
 
 	if (twMatch) {
 		const username = twMatch[1]
-		// const tweetId = twMatch[2];
+		const safeUsername = escapeHtml(username)
 
 		return `
             <div class="embed-placeholder generic-card twitter-card">
@@ -289,8 +301,8 @@ function parseMediaTag(url: string): string {
                 </div>
                 <div class="generic-content">
                     <div class="generic-domain">Twitter / X</div>
-                    <a href="${absoluteUrl}" target="_blank" class="generic-link">${cleanUrl}</a>
-                    <div class="generic-footer">Tweet de @${username}</div>
+                    <a href="${safeAbsoluteUrl}" target="_blank" rel="noopener noreferrer nofollow" class="generic-link">${safeCleanUrl}</a>
+                    <div class="generic-footer">Tweet de @${safeUsername}</div>
                 </div>
             </div>
         `
@@ -310,7 +322,7 @@ function parseMediaTag(url: string): string {
                 </div>
                 <div class="generic-content">
                     <div class="generic-domain">Instagram</div>
-                    <a href="${absoluteUrl}" target="_blank" class="generic-link">${cleanUrl}</a>
+                    <a href="${safeAbsoluteUrl}" target="_blank" rel="noopener noreferrer nofollow" class="generic-link">${safeCleanUrl}</a>
                     <div class="generic-footer">Ver publicación en Instagram</div>
                 </div>
             </div>
@@ -338,14 +350,17 @@ function parseMediaTag(url: string): string {
 	}
 	// 5. AMAZON AND OTHERS
 	let domain = 'Enlace externo'
-	try {
-		const urlObj = new URL(cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`)
-		domain = urlObj.hostname.replace('www.', '')
-		// Capitalize (amazon.es -> Amazon.es)
-		domain = domain.charAt(0).toUpperCase() + domain.slice(1)
-	} catch {
-		// Malformed URL - use default domain 'External Link'
+	if (absoluteUrl !== '#') {
+		try {
+			const urlObj = new URL(absoluteUrl)
+			domain = urlObj.hostname.replace('www.', '')
+			// Capitalize (amazon.es -> Amazon.es)
+			domain = domain.charAt(0).toUpperCase() + domain.slice(1)
+		} catch {
+			// Malformed URL - use default domain 'External Link'
+		}
 	}
+	const safeDomain = escapeHtml(domain)
 
 	return `
         <div class="embed-placeholder generic-card">
@@ -353,8 +368,8 @@ function parseMediaTag(url: string): string {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
             </div>
             <div class="generic-content">
-                <div class="generic-domain">${domain}</div>
-                <a href="${absoluteUrl}" target="_blank" class="generic-link">${cleanUrl}</a>
+                <div class="generic-domain">${safeDomain}</div>
+                <a href="${safeAbsoluteUrl}" target="_blank" rel="noopener noreferrer nofollow" class="generic-link">${safeCleanUrl}</a>
                 <div class="generic-footer">Contenido incrustado no disponible en vista previa</div>
             </div>
         </div>
