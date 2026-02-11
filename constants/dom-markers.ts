@@ -38,6 +38,7 @@ export const DOM_MARKERS = {
 		NEW_THREAD_INJECTED: 'mvp-new-thread-injected',
 		SEARCH_REPLACED: 'mvp-search-replaced',
 		USER_CUSTOMIZED: 'mvp-customized',
+		STEAM_BUNDLE_CARD: 'mvp-steam-bundle-card',
 	},
 
 	// CSS Classes (all start with mvp-)
