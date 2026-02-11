@@ -43,6 +43,7 @@ export const FeatureFlag = {
 	ThreadSummarizer: 'thread-summarizer',
 	CinemaCards: 'cinema-cards',
 	MediaHoverCards: 'media-hover-cards',
+	SteamBundleInlineCards: 'steam-bundle-inline-cards',
 	PinnedPosts: 'pinned-posts',
 	SavedThreads: 'saved-threads',
 
@@ -100,6 +101,7 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 	},
 	[FeatureFlag.CinemaCards]: { settingsKey: 'cinemaButtonEnabled', requiresApiKey: 'tmdbApiKey' },
 	[FeatureFlag.MediaHoverCards]: { settingsKey: 'mediaHoverCardsEnabled' },
+	[FeatureFlag.SteamBundleInlineCards]: { settingsKey: 'steamBundleInlineCardsEnabled' },
 	[FeatureFlag.PinnedPosts]: { settingsKey: 'pinnedPostsEnabled' },
 	[FeatureFlag.SavedThreads]: { settingsKey: 'saveThreadEnabled' },
 

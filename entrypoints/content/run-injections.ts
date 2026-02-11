@@ -200,6 +200,12 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		import('@/features/drafts').then(({ injectSaveDraftButton }) => {
 			injectSaveDraftButton()
 		})
+
+		if (isFeatureEnabled(FeatureFlag.SteamBundleInlineCards)) {
+			import('@/features/media-hover-cards').then(({ initSteamBundleInlineCards }) => {
+				initSteamBundleInlineCards()
+			})
+		}
 	}
 
 	// =========================================================================
@@ -251,6 +257,12 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	// THREAD PAGES
 	// =========================================================================
 	if (pageContext?.isThread) {
+		if (isFeatureEnabled(FeatureFlag.SteamBundleInlineCards)) {
+			import('@/features/media-hover-cards').then(({ initSteamBundleInlineCards }) => {
+				initSteamBundleInlineCards()
+			})
+		}
+
 		// Inject scroll-to-bottom button (lightweight, no dynamic import needed)
 		import('@/lib/content-modules').then(({ injectScrollToBottomButton }) => {
 			injectScrollToBottomButton()

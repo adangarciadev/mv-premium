@@ -80,6 +80,10 @@ export const settingsSchema = z.object({
 	liveThreadEnabled: z.boolean().default(false),
 	nativeLiveDelayEnabled: z.boolean().default(true),
 
+	// Feature Toggles - Content
+	mediaHoverCardsEnabled: z.boolean().default(true),
+	steamBundleInlineCardsEnabled: z.boolean().default(true),
+
 	// Feature Toggles - Users
 	mutedWordsEnabled: z.boolean().default(false),
 	mutedWords: z.array(z.string()).default([]),

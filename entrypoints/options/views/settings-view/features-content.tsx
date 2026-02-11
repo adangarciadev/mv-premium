@@ -13,6 +13,7 @@ import FolderHeart from 'lucide-react/dist/esm/icons/folder-heart'
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import Search from 'lucide-react/dist/esm/icons/search'
 import Gamepad2 from 'lucide-react/dist/esm/icons/gamepad-2'
+import Package from 'lucide-react/dist/esm/icons/package'
 import { browser } from 'wxt/browser'
 import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
@@ -31,6 +32,7 @@ export function FeaturesContent() {
 		draftsButtonEnabled,
 		templateButtonEnabled,
 		mediaHoverCardsEnabled,
+		steamBundleInlineCardsEnabled,
 		pinnedPostsEnabled,
 		threadSummarizerEnabled,
 		postSummaryEnabled,
@@ -61,6 +63,7 @@ export function FeaturesContent() {
 				| 'draftsButtonEnabled'
 				| 'templateButtonEnabled'
 				| 'mediaHoverCardsEnabled'
+				| 'steamBundleInlineCardsEnabled'
 				| 'pinnedPostsEnabled'
 				| 'threadSummarizerEnabled'
 				| 'postSummaryEnabled'
@@ -160,6 +163,17 @@ export function FeaturesContent() {
 				description="Muestra tarjetas informativas al pasar el ratón sobre enlaces de TMDB o IMDb."
 			>
 				<Switch checked={mediaHoverCardsEnabled} onCheckedChange={withToastAndReload('mediaHoverCardsEnabled', true)} />
+			</SettingRow>
+
+			<SettingRow
+				icon={<Package className="h-4 w-4" />}
+				label="Cards de Bundles de Steam"
+				description="Muestra tarjetas inline para enlaces de bundles de Steam en editores y vistas previas. No afecta a las cards de juegos individuales."
+			>
+				<Switch
+					checked={steamBundleInlineCardsEnabled}
+					onCheckedChange={withToastAndReload('steamBundleInlineCardsEnabled', true)}
+				/>
 			</SettingRow>
 
 			<SettingRow

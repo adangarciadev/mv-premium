@@ -75,6 +75,7 @@ export interface Settings {
 
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: boolean
+	steamBundleInlineCardsEnabled: boolean
 	pinnedPostsEnabled: boolean
 	threadSummarizerEnabled: boolean
 	postSummaryEnabled: boolean
