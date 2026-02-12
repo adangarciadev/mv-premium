@@ -34,6 +34,9 @@ export type UltrawideMode = 'off' | 'wide' | 'extra-wide' | 'full'
 /** Dashboard icon options */
 export type DashboardIcon = 'logo' | 'user-shield' | 'dashboard' | 'rocket' | 'gears'
 
+/** Centered posts control bar position */
+export type CenteredControlsPosition = 'top' | 'side'
+
 /** Full settings object type */
 export interface Settings {
 	// Theme & Appearance
@@ -99,6 +102,7 @@ export interface Settings {
 	ultrawideMode: UltrawideMode
 	centeredPostsEnabled: boolean
 	centeredControlsSticky: boolean
+	centeredControlsPosition: CenteredControlsPosition
 
 	// Keyboard Shortcuts
 	shortcuts: Record<string, string | null>

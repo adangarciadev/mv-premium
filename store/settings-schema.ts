@@ -48,6 +48,7 @@ export const aiProviderSchema = z.enum(['gemini', 'groq'
 /** Ultrawide mode levels for page width control */
 export const ultrawideSchema = z.enum(['off', 'wide', 'extra-wide', 'full'])
 export type UltrawideMode = z.infer<typeof ultrawideSchema>
+export const centeredControlsPositionSchema = z.enum(['top', 'side'])
 
 // =============================================================================
 // SETTINGS SCHEMA
@@ -101,6 +102,7 @@ export const settingsSchema = z.object({
 	ultrawideMode: ultrawideSchema.default('off'),
 	centeredPostsEnabled: z.boolean().default(false),
 	centeredControlsSticky: z.boolean().default(false),
+	centeredControlsPosition: centeredControlsPositionSchema.default('top'),
 })
 
 // =============================================================================
