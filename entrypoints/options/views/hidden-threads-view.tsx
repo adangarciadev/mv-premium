@@ -133,6 +133,7 @@ export function HiddenThreadsView() {
 						id: thread.id,
 						title: thread.title,
 						subforum: thread.subforum,
+						subforumId: thread.subforumId,
 					})
 				},
 			},
