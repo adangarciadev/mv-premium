@@ -24,8 +24,26 @@ export function injectSaveThreadButton(): void {
 	// Only inject on thread pages
 	if (!isThreadPage()) return
 
+	// Always dedupe stale containers first (can happen after layout moves/reinjections).
+	const existingContainers = document.querySelectorAll<HTMLElement>(`#${CONTAINER_ID}`)
+	if (existingContainers.length > 1) {
+		const [, ...duplicates] = Array.from(existingContainers)
+		duplicates.forEach(container => container.remove())
+	}
+
 	// Check if already mounted
 	if (isFeatureMounted(FEATURE_ID)) return
+
+	// If a previous container exists in DOM, reuse it.
+	if (existingContainers.length > 0) {
+		const [firstContainer] = Array.from(existingContainers)
+
+		// If content is already present in the first container, avoid reinjecting.
+		if (firstContainer.childElementCount > 0) return
+
+		mountFeature(FEATURE_ID, firstContainer, <SaveThreadButton />)
+		return
+	}
 
 	// Get or create the main actions row
 	const mainActions = getMainActionsRow()
@@ -48,9 +66,5 @@ export function injectSaveThreadButton(): void {
  */
 export function cleanupSaveThreadButton(): void {
 	unmountFeature(FEATURE_ID)
-
-	const container = document.getElementById(CONTAINER_ID)
-	if (container) {
-		container.remove()
-	}
+	document.querySelectorAll<HTMLElement>(`#${CONTAINER_ID}`).forEach(container => container.remove())
 }
