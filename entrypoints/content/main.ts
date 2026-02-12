@@ -37,6 +37,7 @@ import { initUserCardInjector } from '@/features/user-customizations/user-card-i
 import { onMessage } from '@/lib/messaging'
 import { toast } from '@/lib/lazy-toast'
 import { logger } from '@/lib/logger'
+import { RUNTIME_CACHE_KEYS, TOAST_IDS, TOAST_TIMINGS } from '@/constants'
 
 export async function runContentMain(ctx: unknown): Promise<void> {
 	const pathname = window.location.pathname
@@ -45,24 +46,37 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 		if (!isHomepage) return null
 
 		try {
-			const cachedEnabled = localStorage.getItem('mvp-new-homepage-enabled-cache') === 'true'
+			const cachedEnabled = localStorage.getItem(RUNTIME_CACHE_KEYS.NEW_HOMEPAGE_ENABLED) === 'true'
 			return cachedEnabled ? import('@/features/new-homepage') : null
 		} catch {
 			return null
 		}
 	})()
 
+	let lastContextToast: { key: string; at: number } | null = null
 	const showToastFromMessage = (text: string) => {
-		// Determine toast type from emoji prefix
-		if (text.startsWith('✅') || text.startsWith('🔇') || text.startsWith('📌')) {
-			toast.success(text)
-		} else if (text.startsWith('❌')) {
-			toast.error(text)
-		} else if (text.startsWith('ℹ️')) {
-			toast.info(text)
-		} else {
-			toast.info(text)
+		const type = text.startsWith('✅') || text.startsWith('🔇') || text.startsWith('📌')
+			? 'success'
+			: text.startsWith('❌')
+				? 'error'
+				: 'info'
+
+		const now = Date.now()
+		const key = `${type}:${text}`
+		if (lastContextToast && lastContextToast.key === key && now - lastContextToast.at < TOAST_TIMINGS.DEDUP_MS) {
+			return
 		}
+		lastContextToast = { key, at: now }
+
+		if (type === 'success') {
+			toast.success(text, { id: TOAST_IDS.CONTEXT_ACTION })
+			return
+		}
+		if (type === 'error') {
+			toast.error(text, { id: TOAST_IDS.CONTEXT_ACTION })
+			return
+		}
+		toast.info(text, { id: TOAST_IDS.CONTEXT_ACTION })
 	}
 
 	// =====================================================================
@@ -125,7 +139,7 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 
 	// Keep cache in sync for the early homepage script
 	try {
-		localStorage.setItem('mvp-new-homepage-enabled-cache', String(newHomepageEnabled))
+		localStorage.setItem(RUNTIME_CACHE_KEYS.NEW_HOMEPAGE_ENABLED, String(newHomepageEnabled))
 	} catch {
 		// localStorage may be unavailable
 	}

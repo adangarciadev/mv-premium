@@ -17,6 +17,7 @@
  */
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
+import { EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
 
 type UltrawideMode = 'off' | 'wide' | 'extra-wide' | 'full'
 
@@ -26,8 +27,8 @@ interface SettingsState {
 	}
 }
 
-const STYLE_ID = 'mvp-ultrawide-early'
-const CACHE_KEY = 'mvp-ultrawide-mode-cache'
+const STYLE_ID = EARLY_STYLE_IDS.ULTRAWIDE
+const CACHE_KEY = RUNTIME_CACHE_KEYS.ULTRAWIDE_MODE
 
 /**
  * CSS selectors for Mediavida layout elements
@@ -160,9 +161,9 @@ export default defineContentScript({
 
 		// STEP 2: Verify with browser.storage (async) and update cache if needed
 		browser.storage.local
-			.get('mvp-settings')
+			.get(STORAGE_KEYS.SETTINGS)
 			.then(data => {
-				const raw = data['mvp-settings'] as string | SettingsState | undefined
+				const raw = data[STORAGE_KEYS.SETTINGS] as string | SettingsState | undefined
 				if (!raw) {
 					// No settings = clear cache and remove styles
 					updateCache('off')

@@ -9,11 +9,11 @@
  */
 import { storage } from '#imports'
 import { browser, type Browser } from 'wxt/browser'
-import { STORAGE_KEYS } from '@/constants'
+import { RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
 
 // localStorage cache keys (must match bold-color-early.content.ts)
-const CACHE_KEY_ENABLED = 'mvp-bold-color-enabled-cache'
-const CACHE_KEY_COLOR = 'mvp-bold-color-cache'
+const CACHE_KEY_ENABLED = RUNTIME_CACHE_KEYS.BOLD_COLOR_ENABLED
+const CACHE_KEY_COLOR = RUNTIME_CACHE_KEYS.BOLD_COLOR
 
 // Storage items for bold color settings
 const boldColorStorage = storage.defineItem<string | null>(`local:${STORAGE_KEYS.BOLD_COLOR}`, {

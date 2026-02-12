@@ -48,7 +48,7 @@ export function injectSaveDraftButton(): void {
 		saveDraftBtn.addEventListener('click', e => {
 			e.preventDefault()
 			e.stopPropagation()
-			textarea.dispatchEvent(new CustomEvent('mvp-save-draft', { bubbles: true }))
+			textarea.dispatchEvent(new CustomEvent(DOM_MARKERS.EVENTS.SAVE_DRAFT, { bubbles: true }))
 		})
 
 		// Insert after submit button for new thread, or before for quick reply
@@ -117,7 +117,7 @@ function setupKeyboardShortcut(): void {
 			const activeElement = document.activeElement
 			if (activeElement?.tagName === 'TEXTAREA' && activeElement.id === 'cuerpo') {
 				e.preventDefault()
-				activeElement.dispatchEvent(new CustomEvent('mvp-save-draft', { bubbles: true }))
+				activeElement.dispatchEvent(new CustomEvent(DOM_MARKERS.EVENTS.SAVE_DRAFT, { bubbles: true }))
 			}
 		}
 	})

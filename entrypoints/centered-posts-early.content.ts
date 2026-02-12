@@ -14,6 +14,7 @@
  */
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
+import { EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
 
 interface SettingsState {
 	state: {
@@ -21,8 +22,8 @@ interface SettingsState {
 	}
 }
 
-const STYLE_ID = 'mvp-centered-posts-early'
-const CACHE_KEY = 'mvp-centered-posts-cache'
+const STYLE_ID = EARLY_STYLE_IDS.CENTERED_POSTS
+const CACHE_KEY = RUNTIME_CACHE_KEYS.CENTERED_POSTS
 
 /**
  * Check if current page is a thread page
@@ -191,9 +192,9 @@ export default defineContentScript({
 
 		// Verify with browser.storage (async)
 		browser.storage.local
-			.get('mvp-settings')
+			.get(STORAGE_KEYS.SETTINGS)
 			.then(data => {
-				const raw = data['mvp-settings'] as string | SettingsState | undefined
+				const raw = data[STORAGE_KEYS.SETTINGS] as string | SettingsState | undefined
 				if (!raw) {
 					updateCache(false)
 					document.getElementById(STYLE_ID)?.remove()

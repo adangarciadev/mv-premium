@@ -11,6 +11,8 @@ export interface ExportData {
 }
 
 const CURRENT_EXPORT_VERSION = 2
+const LOCAL_PINNED_PREFIX = `local:${STORAGE_KEYS.PINNED_PREFIX}`
+const KEY_TIME_STATS = STORAGE_KEYS.TIME_STATS
 
 /**
  * Keys to exclude from export/import
@@ -169,15 +171,15 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 				await setFromImport(key, value)
 
 				// Calculate stats based on key and value
-				if (key.startsWith('local:mvp-pinned-') && !key.includes('-meta-')) {
+				if (key.startsWith(LOCAL_PINNED_PREFIX) && !key.includes('-meta-')) {
 					stats.pinnedPosts++
-				} else if (key.includes('mvp-saved-threads') && Array.isArray(value)) {
+				} else if (key.includes(STORAGE_KEYS.SAVED_THREADS) && Array.isArray(value)) {
 					stats.savedThreads += value.length
-				} else if (key.includes('mvp-muted-words') && Array.isArray(value)) {
+				} else if (key.includes(STORAGE_KEYS.MUTED_WORDS) && Array.isArray(value)) {
 					stats.mutedWords += value.length
-				} else if (key.includes('mvp-user-customizations') && typeof value === 'object') {
+				} else if (key.includes(STORAGE_KEYS.USER_CUSTOMIZATIONS) && typeof value === 'object') {
 					stats.userCustomizations += Object.keys(value).length
-				} else if (key.includes('mvp-drafts')) {
+				} else if (key.includes(STORAGE_KEYS.DRAFTS)) {
 					// Drafts are stored as { drafts: [], folders: [] }
 					// value is the decompressed object
 					const newDraftsData = value as any
@@ -190,13 +192,13 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 							else stats.drafts++
 						})
 					}
-				} else if (key.includes('mvp-activity') && typeof value === 'object') {
+				} else if (key.includes(STORAGE_KEYS.ACTIVITY) && typeof value === 'object') {
 					stats.activityDays += Object.keys(value).length
-				} else if (key.includes('mvp-time-stats') && typeof value === 'object') {
+				} else if (key.includes(KEY_TIME_STATS) && typeof value === 'object') {
 					stats.subforumStats += Object.keys(value).length
-				} else if (key.includes('mvp-favorite-subforums') && Array.isArray(value)) {
+				} else if (key.includes(STORAGE_KEYS.FAVORITE_SUBFORUMS) && Array.isArray(value)) {
 					stats.favorites += value.length
-				} else if (key.includes('mvp-settings')) {
+				} else if (key.includes(STORAGE_KEYS.SETTINGS)) {
 					// Settings contains multiple features, inspect deeply
 					try {
 						const newSettings = parseSettingsState(value)

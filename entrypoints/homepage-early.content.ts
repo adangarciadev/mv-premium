@@ -1,5 +1,6 @@
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
+import { RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
 
 interface SettingsState {
 	state?: {
@@ -8,7 +9,6 @@ interface SettingsState {
 }
 
 const READY_EVENT = 'mvp:new-homepage-ready'
-const ENABLED_CACHE_KEY = 'mvp-new-homepage-enabled-cache'
 const HP_ATTR = 'data-mvp-hp'
 const FAILSAFE_TIMEOUT_MS = 2500
 
@@ -19,7 +19,7 @@ function isHomepagePath(): boolean {
 
 function getCachedEnabled(): boolean {
 	try {
-		return localStorage.getItem(ENABLED_CACHE_KEY) === 'true'
+		return localStorage.getItem(RUNTIME_CACHE_KEYS.NEW_HOMEPAGE_ENABLED) === 'true'
 	} catch {
 		return false
 	}
@@ -27,7 +27,7 @@ function getCachedEnabled(): boolean {
 
 function setCachedEnabled(enabled: boolean): void {
 	try {
-		localStorage.setItem(ENABLED_CACHE_KEY, String(enabled))
+		localStorage.setItem(RUNTIME_CACHE_KEYS.NEW_HOMEPAGE_ENABLED, String(enabled))
 	} catch {
 		// localStorage may be unavailable
 	}
@@ -142,9 +142,9 @@ export default defineContentScript({
 
 		// Phase 3: Verify against actual storage (async)
 		browser.storage.local
-			.get('mvp-settings')
+			.get(STORAGE_KEYS.SETTINGS)
 			.then(data => {
-				const enabled = parseNewHomepageEnabled(data['mvp-settings'])
+				const enabled = parseNewHomepageEnabled(data[STORAGE_KEYS.SETTINGS])
 				setCachedEnabled(enabled)
 
 				if (!enabled) {

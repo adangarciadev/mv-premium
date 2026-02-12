@@ -17,9 +17,10 @@
  */
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
+import { RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
 
-const CACHE_KEY_ENABLED = 'mvp-bold-color-enabled-cache'
-const CACHE_KEY_COLOR = 'mvp-bold-color-cache'
+const CACHE_KEY_ENABLED = RUNTIME_CACHE_KEYS.BOLD_COLOR_ENABLED
+const CACHE_KEY_COLOR = RUNTIME_CACHE_KEYS.BOLD_COLOR
 const CSS_VAR = '--mvp-bold-color'
 
 /**
@@ -71,10 +72,10 @@ export default defineContentScript({
 
 		// STEP 2: Verify with browser.storage (async) and update cache if needed
 		browser.storage.local
-			.get(['mvp-bold-color-enabled', 'mvp-bold-color'])
+			.get([STORAGE_KEYS.BOLD_COLOR_ENABLED, STORAGE_KEYS.BOLD_COLOR])
 			.then(data => {
-				const enabled = data['mvp-bold-color-enabled'] as boolean | undefined
-				const color = data['mvp-bold-color'] as string | undefined
+				const enabled = data[STORAGE_KEYS.BOLD_COLOR_ENABLED] as boolean | undefined
+				const color = data[STORAGE_KEYS.BOLD_COLOR] as string | undefined
 
 				// Update cache for next page load
 				updateCache(!!enabled, color ?? null)

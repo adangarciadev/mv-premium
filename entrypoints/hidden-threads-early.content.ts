@@ -8,11 +8,12 @@
  * the main content script applies the canonical hidden-thread filter.
  */
 import { defineContentScript } from '#imports'
+import { DOM_MARKERS, EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS } from '@/constants'
 
-const CACHE_KEY = 'mvp-hidden-threads-cache'
-const EARLY_STYLE_ID = 'mvp-hidden-threads-early'
-const FALLBACK_STYLE_ID = 'mvp-hidden-threads-early-fallback'
-const HIDDEN_CLASS = 'mvp-hidden-thread'
+const CACHE_KEY = RUNTIME_CACHE_KEYS.HIDDEN_THREADS
+const EARLY_STYLE_ID = EARLY_STYLE_IDS.HIDDEN_THREADS
+const FALLBACK_STYLE_ID = EARLY_STYLE_IDS.HIDDEN_THREADS_FALLBACK
+const HIDDEN_CLASS = DOM_MARKERS.CLASSES.HIDDEN_THREAD
 const THREAD_LINK_SELECTOR = 'td.col-th .thread a[href*="/foro/"]'
 const THREAD_ROW_SELECTOR = 'tbody#temas tr, table#temas tbody tr'
 

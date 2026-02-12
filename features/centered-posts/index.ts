@@ -9,13 +9,13 @@
 
 import { storage } from '@wxt-dev/storage'
 import { logger } from '@/lib/logger'
-import { STORAGE_KEYS, MV_SELECTORS } from '@/constants'
+import { STORAGE_KEYS, MV_SELECTORS, EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS } from '@/constants'
 import { DOM_MARKERS } from '@/constants/dom-markers'
 
 const STYLE_ID = DOM_MARKERS.IDS.CENTERED_POSTS_STYLES
-const EARLY_STYLE_ID = 'mvp-centered-posts-early'
+const EARLY_STYLE_ID = EARLY_STYLE_IDS.CENTERED_POSTS
 const CONTROL_BAR_ID = DOM_MARKERS.IDS.CENTERED_CONTROL_BAR
-const CACHE_KEY = 'mvp-centered-posts-cache'
+const CACHE_KEY = RUNTIME_CACHE_KEYS.CENTERED_POSTS
 const SETTINGS_KEY = `local:${STORAGE_KEYS.SETTINGS}` as `local:${string}`
 
 interface SettingsState {

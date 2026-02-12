@@ -14,6 +14,7 @@
 import { storage } from '#imports'
 import { logger } from '@/lib/logger'
 import { onMessage } from '@/lib/messaging'
+import { STORAGE_KEYS } from '@/constants'
 
 // =============================================================================
 // Constants
@@ -27,8 +28,8 @@ const IGDB_CLIENT_ID = import.meta.env.VITE_IGDB_CLIENT_ID || ''
 const IGDB_CLIENT_SECRET = import.meta.env.VITE_IGDB_CLIENT_SECRET || ''
 
 // Storage keys for token caching only
-const STORAGE_KEY_ACCESS_TOKEN = 'local:mvp-igdb-access-token'
-const STORAGE_KEY_TOKEN_EXPIRY = 'local:mvp-igdb-token-expiry'
+const STORAGE_KEY_ACCESS_TOKEN = `local:${STORAGE_KEYS.IGDB_ACCESS_TOKEN}` as `local:${string}`
+const STORAGE_KEY_TOKEN_EXPIRY = `local:${STORAGE_KEYS.IGDB_TOKEN_EXPIRY}` as `local:${string}`
 
 // =============================================================================
 // Token Management
