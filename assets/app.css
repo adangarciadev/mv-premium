@@ -196,3 +196,29 @@ pre.code:has(code[data-mvp-highlighted="true"]) {
 	background-size: 200% 200%;
 	animation: gradient-x 3s ease infinite;
 }
+
+/* ============================================================================
+   HOMEPAGE ANTI-FLASH
+   Hides original content until the custom homepage React component mounts.
+   The data attribute is set at document_start by homepage-early.content.ts.
+   This CSS is manifest-injected (earliest possible — before any DOM rendering).
+   ============================================================================ */
+
+html[data-mvp-hp] {
+	overflow: hidden;
+}
+
+html[data-mvp-hp] #content {
+	opacity: 0 !important;
+	min-height: 100vh;
+}
+
+html[data-mvp-hp] #main {
+	visibility: hidden !important;
+	min-height: 100vh;
+}
+
+@keyframes mvp-hp-reveal {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}

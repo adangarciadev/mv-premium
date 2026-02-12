@@ -89,10 +89,25 @@
 }
 
 /* 
- * Dark Mode variables are NOT defined here.
- * They are injected dynamically by the theme system (lib/theme/injector.ts)
- * This eliminates specificity conflicts between base and dynamic CSS.
+ * Core dark-mode variables are NOT defined here.
+ * They are injected dynamically by the theme system (lib/theme/injector.ts).
+ * Only table tokens get static dark defaults below to avoid first-paint flash.
  */
+
+/*
+ * Static dark defaults for table tokens.
+ * Prevents light->dark flash on first paint before async theme injection.
+ * Values mirror the default "mediavida" preset used by theme storage.
+ */
+:host(.dark),
+.dark {
+	--table-header: #272d30;
+	--table-header-foreground: #e7e9ea;
+	--table-row: #39464c;
+	--table-row-alt: #445259;
+	--table-row-foreground: #e7e9ea;
+	--table-border: #30353a;
+}
 
 /* Shadow DOM host defaults */
 :host {
@@ -272,4 +287,27 @@ th[data-slot='table-head'] {
 	opacity: 0 !important;
 	transition: opacity 0.15s ease, transform 0.15s ease !important;
 	pointer-events: none !important;
+}
+
+/* Homepage news transitions */
+@keyframes mvp-news-slide-in-next {
+	from {
+		opacity: 0.7;
+		transform: translateX(24px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
+}
+
+@keyframes mvp-news-slide-in-prev {
+	from {
+		opacity: 0.7;
+		transform: translateX(-24px);
+	}
+	to {
+		opacity: 1;
+		transform: translateX(0);
+	}
 }
