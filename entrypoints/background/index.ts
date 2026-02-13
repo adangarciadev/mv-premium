@@ -18,7 +18,7 @@
 import { defineBackground, storage } from '#imports'
 import { browser } from 'wxt/browser'
 import { onMessage } from '@/lib/messaging'
-import { createContextMenus, setupContextMenuListener, initContextMenuWatcher } from './context-menus'
+import { createContextMenus, setupContextMenuListener } from './context-menus'
 import { setupUploadHandlers } from './upload-handlers'
 import { setupApiHandlers } from './api-handlers'
 import { setupAiHandlers } from './ai-handlers'
@@ -68,8 +68,10 @@ export default defineBackground(() => {
 	// ==========================================================================
 
 	// Context menus (save thread, hide thread, mute word)
+	createContextMenus().catch(() => {
+		// Ignore startup menu creation errors; onInstalled will retry on updates.
+	})
 	setupContextMenuListener()
-	initContextMenuWatcher()
 
 	// Upload handlers (ImgBB, Freeimage)
 	setupUploadHandlers()

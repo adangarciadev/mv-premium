@@ -311,7 +311,7 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 			threadModules.gallery.injectGalleryTrigger()
 		}
 
-		if (threadModules.savedThreads && isFeatureEnabled(FeatureFlag.SavedThreads)) {
+		if (threadModules.savedThreads) {
 			threadModules.savedThreads.injectSaveThreadButton()
 		}
 

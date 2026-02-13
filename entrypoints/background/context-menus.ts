@@ -5,8 +5,6 @@
 
 import { browser } from 'wxt/browser'
 import { logger } from '@/lib/logger'
-import { storage } from '#imports'
-import { STORAGE_KEYS } from '@/constants'
 import { saveThreadFromUrl } from '@/features/saved-threads/logic/storage'
 import { hideThreadFromUrl, isThreadHidden } from '@/features/hidden-threads/logic/storage'
 import { sendMessage } from '@/lib/messaging'
@@ -28,46 +26,21 @@ export async function createContextMenus(): Promise<void> {
 	// Remove existing menus first (for updates)
 	await browser.contextMenus.removeAll()
 
-	// Get current settings to check enabled features
-	const rawSettings = await storage.getItem<string>(`local:${STORAGE_KEYS.SETTINGS}`)
-	let saveThreadEnabled = true // Default to true
-	let hideThreadEnabled = true // Default to true
+	// "Guardar hilo" - always available from context menu
+	browser.contextMenus.create({
+		id: CONTEXT_MENU_IDS.SAVE_THREAD,
+		title: '📌  Guardar hilo',
+		contexts: ['link'],
+		targetUrlPatterns: ['*://www.mediavida.com/foro/*/*'],
+	})
 
-	if (rawSettings) {
-		try {
-			const parsed = JSON.parse(rawSettings)
-			// state.saveThreadEnabled might be undefined if key doesn't exist yet, default to true
-			if (parsed.state?.saveThreadEnabled === false) {
-				saveThreadEnabled = false
-			}
-			// state.hideThreadEnabled might be undefined if key doesn't exist yet, default to true
-			if (parsed.state?.hideThreadEnabled === false) {
-				hideThreadEnabled = false
-			}
-		} catch {
-			// Ignore parse error, use default
-		}
-	}
-
-	// "Guardar hilo" - ONLY if enabled
-	if (saveThreadEnabled) {
-		browser.contextMenus.create({
-			id: CONTEXT_MENU_IDS.SAVE_THREAD,
-			title: '📌  Guardar hilo',
-			contexts: ['link'],
-			targetUrlPatterns: ['*://www.mediavida.com/foro/*/*'],
-		})
-	}
-
-	// "Ocultar hilo" - ONLY if enabled
-	if (hideThreadEnabled) {
-		browser.contextMenus.create({
-			id: CONTEXT_MENU_IDS.HIDE_THREAD,
-			title: '🙈  Ocultar hilo',
-			contexts: ['link'],
-			targetUrlPatterns: ['*://www.mediavida.com/foro/*/*'],
-		})
-	}
+	// "Ocultar hilo" - always available from context menu
+	browser.contextMenus.create({
+		id: CONTEXT_MENU_IDS.HIDE_THREAD,
+		title: '🙈  Ocultar hilo',
+		contexts: ['link'],
+		targetUrlPatterns: ['*://www.mediavida.com/foro/*/*'],
+	})
 
 	// "Silenciar palabra" - appears when text is selected on Mediavida
 	// This is core functionality (muted words) but could be toggled too if requested.
@@ -77,30 +50,6 @@ export async function createContextMenus(): Promise<void> {
 		title: '🔇 Silenciar palabra',
 		contexts: ['selection'],
 		documentUrlPatterns: ['*://www.mediavida.com/*'],
-	})
-}
-
-/**
- * Watch for settings changes to update context menus dynamically
- */
-export function initContextMenuWatcher(): void {
-	storage.watch<string>(`local:${STORAGE_KEYS.SETTINGS}`, (newValue, oldValue) => {
-		if (!newValue) return
-
-		try {
-			const newSettings = JSON.parse(newValue)
-			const oldSettings = oldValue ? JSON.parse(oldValue) : {}
-
-			// Only update if the relevant setting changed
-			if (
-				newSettings.state?.saveThreadEnabled !== oldSettings.state?.saveThreadEnabled ||
-				newSettings.state?.hideThreadEnabled !== oldSettings.state?.hideThreadEnabled
-			) {
-				createContextMenus().catch(err => logger.error('Failed to update context menus:', err))
-			}
-		} catch (error) {
-			logger.warn('Error watching settings for context menus:', error)
-		}
 	})
 }
 

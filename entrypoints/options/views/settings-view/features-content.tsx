@@ -255,7 +255,7 @@ export function FeaturesContent() {
 			<SettingRow
 				icon={<FolderHeart className="h-4 w-4" />}
 				label="Guardar Hilo"
-				description="Añade un botón para guardar hilos localmente y leerlos después."
+				description="Muestra botones de guardar en listados y noticias. El botón de guardar dentro del hilo y el click derecho siempre están activos."
 			>
 				<Switch checked={saveThreadEnabled} onCheckedChange={withToastAndReload('saveThreadEnabled', true)} />
 			</SettingRow>
@@ -263,7 +263,7 @@ export function FeaturesContent() {
 			<SettingRow
 				icon={<EyeOff className="h-4 w-4" />}
 				label="Ocultar Hilos"
-				description="Muestra los botones para ocultar hilos y la opción de ocultar hilos con click derecho."
+				description="Muestra botones para ocultar hilos en listados. La opción de ocultar con click derecho siempre está activa."
 			>
 				<Switch checked={hideThreadEnabled} onCheckedChange={withToastAndReload('hideThreadEnabled', true)} />
 			</SettingRow>
