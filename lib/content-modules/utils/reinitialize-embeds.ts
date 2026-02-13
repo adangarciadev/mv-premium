@@ -90,10 +90,7 @@ export function reinitializeEmbeds(
 		const element = embedContainer as HTMLElement
 		const embedType = element.getAttribute('data-s9e-mediaembed')
 		const iframe = element.querySelector('iframe') as HTMLIFrameElement
-
-		if (embedType === 'reddit' && iframe) {
-			scheduleRedditHeightSync(iframe)
-		}
+		const isRedditEmbed = embedType === 'reddit' && !!iframe
 
 		// Twitter embeds need special handling
 		if (embedType === 'twitter' && iframe && !iframe.hasAttribute(EMBED_INIT_ATTR)) {
@@ -117,6 +114,12 @@ export function reinitializeEmbeds(
 		}
 
 		reinitializeEmbed(element, 0, forceReloadTwitter)
+
+		if (isRedditEmbed && iframe) {
+			// Run sync after initial reinit/fallback so we don't override immediate fallback height
+			// in environments like jsdom where contentWindow/message channel is unavailable.
+			scheduleRedditHeightSync(iframe)
+		}
 	})
 }
 

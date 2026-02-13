@@ -20,6 +20,7 @@ let originalFormParent: HTMLElement | null = null
 let originalFormNextSibling: Node | null = null
 let replyStateCallback: ((isOpen: boolean) => void) | null = null
 let postReplyClickHandler: ((event: Event) => void) | null = null
+const LIVE_EDITOR_PREPARED_ATTR = `data-${DOM_MARKERS.DATA_ATTRS.LIVE_EDITOR_PREPARED}`
 
 export function setReplyStateCallback(cb: ((isOpen: boolean) => void) | null): void {
 	replyStateCallback = cb
@@ -61,6 +62,7 @@ export function setupPostReplyHandler(): void {
 		if (!replyButton || !postsWrap.contains(replyButton)) return
 
 		event.preventDefault()
+		event.stopImmediatePropagation()
 		event.stopPropagation()
 
 		const postNum = getReplyPostNum(replyButton)
@@ -173,6 +175,7 @@ export function restoreForm(): void {
 
 		// Reset styles
 		postEditor.style.cssText = ''
+		postEditor.removeAttribute(LIVE_EDITOR_PREPARED_ATTR)
 		postEditor.classList.remove('live')
 
 		originalFormParent = null
@@ -427,17 +430,37 @@ export function forceEditorStyles(postEditor: HTMLElement): void {
 export function toggleFormVisibility(show: boolean): void {
 	const wrapper = document.getElementById(DOM_MARKERS.IDS.LIVE_EDITOR_WRAPPER)
 	if (!wrapper) return
+	const isVisible = wrapper.classList.contains('visible')
 
 	if (show) {
+		// If already open, avoid forcing full style reapplication (prevents flicker in Firefox).
+		if (isVisible) {
+			const postEditor = document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
+			const textarea = postEditor?.querySelector(`#${MV_SELECTORS.EDITOR.TEXTAREA_ID}`) as HTMLTextAreaElement | null
+			if (textarea) {
+				setTimeout(() => textarea.focus(), 0)
+			}
+			replyStateCallback?.(true)
+			return
+		}
+
 		wrapper.classList.add('visible')
 		const postEditor = document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
 		if (postEditor) {
 			postEditor.style.display = 'block'
-			forceEditorStyles(postEditor)
+			if (!postEditor.hasAttribute(LIVE_EDITOR_PREPARED_ATTR)) {
+				forceEditorStyles(postEditor)
+				postEditor.setAttribute(LIVE_EDITOR_PREPARED_ATTR, 'true')
+			}
 			const textarea = postEditor.querySelector(`#${MV_SELECTORS.EDITOR.TEXTAREA_ID}`) as HTMLTextAreaElement
 			if (textarea) setTimeout(() => textarea.focus(), 150)
 		}
 	} else {
+		if (!isVisible) {
+			replyStateCallback?.(false)
+			return
+		}
+
 		wrapper.classList.remove('visible')
 		setTimeout(() => {
 			if (!wrapper.classList.contains('visible')) {

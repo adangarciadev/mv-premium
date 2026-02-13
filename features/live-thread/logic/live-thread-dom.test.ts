@@ -84,4 +84,18 @@ describe('live-thread-dom post reply handler', () => {
 
 		expect(textarea.value).toBe('')
 	})
+
+	it('stops same-event native listeners to prevent editor flicker', () => {
+		setupThreadDom('52')
+		setupPostReplyHandler()
+
+		const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID) as HTMLElement
+		const nativeClickSpy = vi.fn()
+		postsWrap.addEventListener('click', nativeClickSpy, true)
+
+		const replyButton = document.querySelector('.btn-reply') as HTMLElement
+		replyButton.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+		expect(nativeClickSpy).not.toHaveBeenCalled()
+	})
 })

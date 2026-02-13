@@ -23,6 +23,7 @@ export const DOM_MARKERS = {
 		INJECTED: 'mvp-injected',
 		COUNTER: 'mvp-counter',
 		DRAFT: 'mvp-draft',
+		LIVE_EDITOR_PREPARED: 'mvp-live-editor-prepared',
 		SAVE_DRAFT_BTN: 'mvp-save-draft-btn',
 		PRESERVE: 'mvp-preserve',
 		HIDDEN: 'mvp-hidden',
