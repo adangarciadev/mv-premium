@@ -12,6 +12,7 @@ import ReactDOM from 'react-dom'
 import { setStoredTheme } from '../lib/themes'
 import { useUIStore } from '@/store'
 import { getSettings } from '@/store/settings-store'
+import { MV_SELECTORS } from '@/constants'
 import '@/assets/live-preview.css'
 
 // Hooks
@@ -270,34 +271,48 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 
 	// Overlay positioning for dropzone
 	const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({})
+	const overlayHost = useMemo(
+		() =>
+			(textarea.closest(`#${MV_SELECTORS.EDITOR.POST_EDITOR_ID}`) as HTMLElement | null) ||
+			textarea.parentElement ||
+			null,
+		[textarea]
+	)
+
 	const updateOverlayPosition = useCallback(() => {
-		const parent = textarea.parentElement
-		if (!parent) return
-		const computedStyle = getComputedStyle(parent)
+		const host = overlayHost
+		if (!host) return
+		const computedStyle = getComputedStyle(host)
 		if (computedStyle.position === 'static') {
-			parent.style.position = 'relative'
+			host.style.position = 'relative'
 		}
+
+		const hostRect = host.getBoundingClientRect()
+		const textareaRect = textarea.getBoundingClientRect()
+
 		setOverlayStyle({
 			position: 'absolute',
-			top: textarea.offsetTop,
-			left: textarea.offsetLeft,
-			width: textarea.offsetWidth,
-			height: textarea.offsetHeight,
+			top: Math.max(0, textareaRect.top - hostRect.top),
+			left: Math.max(0, textareaRect.left - hostRect.left),
+			width: Math.max(0, textareaRect.width),
+			height: Math.max(0, textareaRect.height),
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
 			zIndex: 100,
 			pointerEvents: 'none',
+			overflow: 'hidden',
 		})
-	}, [textarea])
+	}, [overlayHost])
 
 	useEffect(() => {
-		if (!showDropzone) return
+		if (!showDropzone || !overlayHost) return
 		updateOverlayPosition()
 		const ro = new ResizeObserver(() => updateOverlayPosition())
 		ro.observe(textarea)
+		ro.observe(overlayHost)
 		return () => ro.disconnect()
-	}, [showDropzone, textarea, updateOverlayPosition])
+	}, [overlayHost, showDropzone, textarea, updateOverlayPosition])
 
 	return (
 		<>
@@ -453,10 +468,10 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 
 			{/* Dropzone overlay */}
 			{showDropzone &&
-				textarea.parentElement &&
+				overlayHost &&
 				ReactDOM.createPortal(
-					<div style={overlayStyle}>
-						<div style={{ pointerEvents: 'auto', width: '80%', maxWidth: '400px' }}>
+					<div className="mvp-image-dropzone-overlay" data-mvp-dropzone-overlay="true" style={overlayStyle}>
+						<div style={{ pointerEvents: 'auto', width: '80%', maxWidth: '400px', maxHeight: 'calc(100% - 16px)', overflowY: 'auto' }}>
 							<ImageDropzone
 								isOpen={showDropzone}
 								onClose={() => setShowDropzone(false)}
@@ -466,7 +481,7 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 							/>
 						</div>
 					</div>,
-					textarea.parentElement
+					overlayHost
 				)}
 
 			{/* Dialogs */}

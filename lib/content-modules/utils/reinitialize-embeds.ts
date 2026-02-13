@@ -23,10 +23,12 @@ import { logger } from '@/lib/logger'
 
 // Data attribute used to mark embeds that have been processed by our extension
 const EMBED_INIT_ATTR = 'data-mvp-embed-init'
+const REDDIT_HEIGHT_SYNC_ATTR = 'data-mvp-reddit-height-sync'
 
 // Default heights for different embed types (fallback when MessageChannel fails)
 const DEFAULT_EMBED_HEIGHTS: Record<string, number> = {
 	twitter: 600,
+	reddit: 900,
 	instagram: 800,
 	tiktok: 750,
 	facebook: 500,
@@ -36,6 +38,9 @@ const DEFAULT_EMBED_HEIGHTS: Record<string, number> = {
 
 // Timeout for waiting for iframe height response (ms)
 const HEIGHT_RESPONSE_TIMEOUT = 5000
+const REDDIT_SYNC_INTERVAL = 120
+const REDDIT_SYNC_ATTEMPTS = 20
+const REDDIT_PROVISIONAL_HEIGHT = 700
 
 /**
  * Twitter widgets API type declaration
@@ -85,6 +90,10 @@ export function reinitializeEmbeds(
 		const element = embedContainer as HTMLElement
 		const embedType = element.getAttribute('data-s9e-mediaembed')
 		const iframe = element.querySelector('iframe') as HTMLIFrameElement
+
+		if (embedType === 'reddit' && iframe) {
+			scheduleRedditHeightSync(iframe)
+		}
 
 		// Twitter embeds need special handling
 		if (embedType === 'twitter' && iframe && !iframe.hasAttribute(EMBED_INIT_ATTR)) {
@@ -361,6 +370,20 @@ function applyFallbackHeight(iframe: HTMLIFrameElement, embedType: string): void
 		return
 	}
 
+	// Reddit embeds are wrapped in a same-origin MV iframe that contains another iframe
+	// with its own explicit height. Prefer that measured value over static fallback.
+	if (embedType === 'reddit') {
+		const measuredHeight = getMeasuredRedditHeight(iframe)
+		if (measuredHeight) {
+			iframe.style.height = `${measuredHeight}px`
+			iframe.setAttribute('scrolling', 'no')
+			iframe.style.overflow = 'hidden'
+			iframe.setAttribute(EMBED_INIT_ATTR, 'reddit-measured')
+			logger.debug(`Applied measured reddit height ${measuredHeight}px`)
+			return
+		}
+	}
+
 	const fallbackHeight = DEFAULT_EMBED_HEIGHTS[embedType] || DEFAULT_EMBED_HEIGHTS.default
 
 	iframe.style.height = `${fallbackHeight}px`
@@ -369,6 +392,93 @@ function applyFallbackHeight(iframe: HTMLIFrameElement, embedType: string): void
 	iframe.setAttribute(EMBED_INIT_ATTR, 'fallback')
 
 	logger.debug(`Applied fallback height ${fallbackHeight}px to ${embedType} embed`)
+}
+
+/**
+ * Starts a short-lived sync loop for Reddit embeds.
+ * This avoids waiting seconds with a clipped embed/scrollbar before final height settles.
+ */
+function scheduleRedditHeightSync(iframe: HTMLIFrameElement): void {
+	if (iframe.getAttribute(REDDIT_HEIGHT_SYNC_ATTR) === 'running') return
+	iframe.setAttribute(REDDIT_HEIGHT_SYNC_ATTR, 'running')
+
+	const initialHeight = parseInt(iframe.style.height || iframe.getAttribute('height') || '0', 10)
+	if (initialHeight > 0 && initialHeight < 300) {
+		iframe.style.height = `${REDDIT_PROVISIONAL_HEIGHT}px`
+		iframe.setAttribute('scrolling', 'no')
+		iframe.style.overflow = 'hidden'
+	}
+
+	let attempts = 0
+	let timer: ReturnType<typeof setInterval> | null = null
+
+	const finish = (state: 'done' | 'timeout' | 'detached') => {
+		if (timer) {
+			clearInterval(timer)
+			timer = null
+		}
+		iframe.setAttribute(REDDIT_HEIGHT_SYNC_ATTR, state)
+	}
+
+	const tick = () => {
+		if (!document.contains(iframe)) {
+			finish('detached')
+			return
+		}
+
+		attempts++
+		const measuredHeight = getMeasuredRedditHeight(iframe)
+
+		if (measuredHeight) {
+			const previousHeight = parseInt(iframe.style.height || iframe.getAttribute('height') || '0', 10)
+			if (!Number.isNaN(previousHeight) && Math.abs(previousHeight - measuredHeight) > 8) {
+				iframe.style.height = `${measuredHeight}px`
+				iframe.setAttribute('scrolling', 'no')
+				iframe.style.overflow = 'hidden'
+				iframe.setAttribute(EMBED_INIT_ATTR, 'reddit-measured')
+				logger.debug(`Synced reddit height to ${measuredHeight}px (attempt ${attempts})`)
+			}
+
+			// Give a couple of ticks for late media layout, then finish.
+			if (attempts >= 3) {
+				finish('done')
+				return
+			}
+		}
+
+		if (attempts >= REDDIT_SYNC_ATTEMPTS) {
+			finish('timeout')
+		}
+	}
+
+	timer = setInterval(tick, REDDIT_SYNC_INTERVAL)
+	tick()
+}
+
+/**
+ * Attempts to measure the real reddit embed height from the inner iframe.
+ * Returns null when it cannot be determined safely.
+ */
+function getMeasuredRedditHeight(iframe: HTMLIFrameElement): number | null {
+	try {
+		const doc = iframe.contentDocument
+		if (!doc) return null
+
+		const innerIframe = doc.querySelector('iframe') as HTMLIFrameElement | null
+		if (!innerIframe) return null
+
+		const fromAttr = parseInt(innerIframe.getAttribute('height') || '0', 10)
+		const fromStyle = parseInt(innerIframe.style.height || '0', 10)
+		const fromClient = innerIframe.clientHeight
+		const fromDoc = doc.body?.scrollHeight || 0
+
+		const candidates = [fromAttr, fromStyle, fromClient, fromDoc].filter(h => Number.isFinite(h) && h >= 200 && h <= 3000)
+		if (candidates.length === 0) return null
+
+		return Math.max(...candidates)
+	} catch {
+		return null
+	}
 }
 
 /**

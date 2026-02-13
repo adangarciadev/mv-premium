@@ -430,7 +430,7 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 #mvp-live-editor-wrapper #post-editor .placeholder,
 #mvp-live-editor-wrapper #post-editor .editor-placeholder,
 #mvp-live-editor-wrapper #post-editor .text-wrap > span,
-#mvp-live-editor-wrapper #post-editor .text-wrap > div:not(:first-child) {
+#mvp-live-editor-wrapper #post-editor .text-wrap > div:not(:first-child):not([data-mvp-dropzone-overlay='true']) {
 	display: none !important;
 }
 

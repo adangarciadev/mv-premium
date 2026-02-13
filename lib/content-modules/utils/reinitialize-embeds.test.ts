@@ -158,6 +158,7 @@ describe('reinitializeEmbeds', () => {
 		const container = document.createElement('div')
 		// Note: Twitter uses async reload, so we test others here
 		container.innerHTML = `
+			<div data-s9e-mediaembed="reddit"><iframe style="height: 10px;"></iframe></div>
 			<div data-s9e-mediaembed="instagram"><iframe style="height: 10px;"></iframe></div>
 			<div data-s9e-mediaembed="tiktok"><iframe style="height: 10px;"></iframe></div>
 			<div data-s9e-mediaembed="facebook"><iframe style="height: 10px;"></iframe></div>
@@ -167,17 +168,55 @@ describe('reinitializeEmbeds', () => {
 
 		reinitializeEmbeds(container)
 
+		const redditIframe = container.querySelector('[data-s9e-mediaembed="reddit"] iframe') as HTMLIFrameElement
 		const instagramIframe = container.querySelector('[data-s9e-mediaembed="instagram"] iframe') as HTMLIFrameElement
 		const tiktokIframe = container.querySelector('[data-s9e-mediaembed="tiktok"] iframe') as HTMLIFrameElement
 		const facebookIframe = container.querySelector('[data-s9e-mediaembed="facebook"] iframe') as HTMLIFrameElement
 		const blueskyIframe = container.querySelector('[data-s9e-mediaembed="bluesky"] iframe') as HTMLIFrameElement
 		const unknownIframe = container.querySelector('[data-s9e-mediaembed="unknown"] iframe') as HTMLIFrameElement
 
+		expect(redditIframe.style.height).toBe('900px')
 		expect(instagramIframe.style.height).toBe('800px')
 		expect(tiktokIframe.style.height).toBe('750px')
 		expect(facebookIframe.style.height).toBe('500px')
 		expect(blueskyIframe.style.height).toBe('400px')
 		expect(unknownIframe.style.height).toBe('500px') // default
+	})
+
+	it('should keep reddit embeds with valid existing height', () => {
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="reddit">
+				<iframe style="height: 600px;" src="//www.redditmedia.com/r/test/comments/abc123/embed"></iframe>
+			</div>
+		`
+
+		reinitializeEmbeds(container)
+
+		const redditIframe = container.querySelector('[data-s9e-mediaembed="reddit"] iframe') as HTMLIFrameElement
+		expect(redditIframe.getAttribute('data-mvp-embed-init')).toBe('true')
+	})
+
+	it('should use measured inner height for reddit fallback when available', () => {
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="reddit">
+				<iframe style="height: 10px;" src="//www.mediavida.com/embed/reddit.html"></iframe>
+			</div>
+		`
+
+		const redditIframe = container.querySelector('[data-s9e-mediaembed="reddit"] iframe') as HTMLIFrameElement
+		const fakeDoc = document.implementation.createHTMLDocument('')
+		fakeDoc.body.innerHTML = '<iframe height="740"></iframe>'
+		Object.defineProperty(redditIframe, 'contentDocument', {
+			value: fakeDoc,
+			configurable: true,
+		})
+
+		reinitializeEmbeds(container)
+
+		expect(redditIframe.style.height).toBe('740px')
+		expect(redditIframe.getAttribute('data-mvp-embed-init')).toBe('reddit-measured')
 	})
 
 	it('should handle Twitter embeds with async reload', () => {

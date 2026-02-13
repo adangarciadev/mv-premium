@@ -16,6 +16,7 @@ import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import Search from 'lucide-react/dist/esm/icons/search'
 import Gamepad2 from 'lucide-react/dist/esm/icons/gamepad-2'
 import Package from 'lucide-react/dist/esm/icons/package'
+import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import { browser } from 'wxt/browser'
 import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
@@ -102,7 +103,27 @@ export function FeaturesContent() {
 			<SettingRow
 				icon={<HomeIcon className="h-4 w-4" />}
 				label="Homepage de MV Premium"
-				description="Reemplaza la portada nativa por una homepage personalizada de MV Premium con noticias y actividad del foro."
+				description={
+					<div className="space-y-2 pr-1">
+						<p className="m-0 leading-relaxed">
+							Reemplaza la portada nativa por una homepage personalizada de MV Premium con noticias y actividad del foro.
+						</p>
+						<div className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5">
+							<p className="m-0 text-[11px] leading-snug font-medium text-foreground/90">
+								Todos los créditos del diseño visual original de esta homepage pertenecen a MV-Ignited.
+							</p>
+							<a
+								href="https://www.mediavida.com/foro/dev/mv-ignited-2024-tampoco-me-dejo-mediavida-extension-709386"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="mt-1 inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/15 hover:underline"
+							>
+								Ver MV-Ignited (diseño original)
+								<ExternalLink className="h-3 w-3" />
+							</a>
+						</div>
+					</div>
+				}
 			>
 				<Switch checked={newHomepageEnabled} onCheckedChange={withToastAndReload('newHomepageEnabled', true)} />
 			</SettingRow>

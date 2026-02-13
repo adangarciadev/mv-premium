@@ -27,6 +27,8 @@ import {
 	restoreForm,
 	toggleFormVisibility,
 	setReplyStateCallback,
+	setupPostReplyHandler,
+	cleanupPostReplyHandler,
 } from './live-thread-dom'
 import {
 	setIsLiveActive,
@@ -212,6 +214,7 @@ async function startLiveMode(): Promise<void> {
 	moveFormToTop()
 	toggleFormVisibility(false)
 	setupFormInterceptor()
+	setupPostReplyHandler()
 
 	// Step 2: Load posts (this clears postsWrap.innerHTML)
 	await loadInitialPosts()
@@ -243,6 +246,7 @@ async function stopLiveMode(): Promise<void> {
 	stopPolling()
 	disposeLiveThreadDelay()
 	cleanupFormInterceptor()
+	cleanupPostReplyHandler()
 	restoreForm()
 
 	await clearLiveState()
