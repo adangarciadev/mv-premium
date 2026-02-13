@@ -857,6 +857,7 @@ function clearFloatingVideoCssVars(): void {
 
 function clearFloatingVideoTargets(): void {
 	document.querySelectorAll<HTMLElement>(`.${FLOATING_VIDEO_CLASS}`).forEach(element => {
+		element.style.removeProperty('display')
 		element.classList.remove(FLOATING_VIDEO_CLASS)
 		element.classList.remove(FLOATING_VIDEO_INTERACTING_CLASS)
 		element.removeAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR)
@@ -912,19 +913,50 @@ function clearFloatingVideoManualState(target: HTMLElement): void {
 	target.style.removeProperty('max-height')
 }
 
+function findNativeFloatingVideoCloseControl(target: HTMLElement): HTMLElement | null {
+	const roots: HTMLElement[] = [target]
+	let current = target.parentElement
+
+	// Walk up only positioned ancestors around the floating player.
+	// This avoids matching unrelated ".close" controls elsewhere on the page.
+	while (current && current !== document.body && current !== document.documentElement) {
+		const position = window.getComputedStyle(current).position
+		if (position === 'fixed' || position === 'absolute') {
+			roots.push(current)
+		}
+		current = current.parentElement
+	}
+
+	for (const root of roots) {
+		const candidates = root.querySelectorAll<HTMLElement>(FLOATING_VIDEO_CLOSE_SELECTORS)
+		for (const candidate of candidates) {
+			if (candidate.classList.contains(FLOATING_VIDEO_CLOSE_BUTTON_CLASS)) continue
+			return candidate
+		}
+	}
+
+	return null
+}
+
 function hideFloatingVideoTarget(target: HTMLElement): void {
-	const nativeClose = target.querySelector<HTMLElement>(FLOATING_VIDEO_CLOSE_SELECTORS)
+	const nativeClose = findNativeFloatingVideoCloseControl(target)
 	if (nativeClose) {
 		nativeClose.click()
 	}
 
-	target.style.setProperty('display', 'none', 'important')
+	floatingVideoManualState = null
+	target.style.removeProperty('display')
 	target.classList.remove(FLOATING_VIDEO_CLASS)
 	target.classList.remove(FLOATING_VIDEO_INTERACTING_CLASS)
 	target.removeAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR)
 	target.querySelector(`.${FLOATING_VIDEO_DRAG_HANDLE_CLASS}`)?.remove()
 	target.querySelector(`.${FLOATING_VIDEO_RESIZE_HANDLE_CLASS}`)?.remove()
 	target.querySelector(`.${FLOATING_VIDEO_CLOSE_BUTTON_CLASS}`)?.remove()
+
+	// Let native MV lifecycle restore/move the player; then refresh our hooks.
+	window.setTimeout(() => {
+		scheduleFloatingVideoLayoutUpdate()
+	}, 0)
 }
 
 function getFloatingVideoRightInsetPx(): number {
@@ -1184,6 +1216,7 @@ function refreshFloatingVideoTargets(): void {
 
 	document.querySelectorAll<HTMLElement>(`.${FLOATING_VIDEO_CLASS}`).forEach(element => {
 		if (!activeTargets.has(element)) {
+			element.style.removeProperty('display')
 			element.classList.remove(FLOATING_VIDEO_CLASS)
 			element.classList.remove(FLOATING_VIDEO_INTERACTING_CLASS)
 			element.removeAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR)

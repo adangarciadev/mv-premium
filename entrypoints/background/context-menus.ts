@@ -4,7 +4,9 @@
  */
 
 import { browser } from 'wxt/browser'
+import { storage } from '#imports'
 import { logger } from '@/lib/logger'
+import { STORAGE_KEYS } from '@/constants'
 import { saveThreadFromUrl } from '@/features/saved-threads/logic/storage'
 import { hideThreadFromUrl, isThreadHidden } from '@/features/hidden-threads/logic/storage'
 import { sendMessage } from '@/lib/messaging'
