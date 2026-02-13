@@ -38,9 +38,12 @@ const DEFAULT_EMBED_HEIGHTS: Record<string, number> = {
 
 // Timeout for waiting for iframe height response (ms)
 const HEIGHT_RESPONSE_TIMEOUT = 5000
-const REDDIT_SYNC_INTERVAL = 120
-const REDDIT_SYNC_ATTEMPTS = 20
+const MIN_VALID_EMBED_HEIGHT = 200
+const REDDIT_SYNC_INTERVAL = 180
+const REDDIT_SYNC_ATTEMPTS = 60
 const REDDIT_PROVISIONAL_HEIGHT = 700
+const REDDIT_STABLE_TICKS_REQUIRED = 3
+const REDDIT_CONTROLLED_SHRINK_THRESHOLD = 80
 
 /**
  * Twitter widgets API type declaration
@@ -164,12 +167,19 @@ function reinitializeEmbed(embedContainer: HTMLElement, staggerDelay = 0, _force
 
 	// For non-Twitter embeds: Check if iframe already has a valid height (properly rendered)
 	// If so, just mark it as initialized and skip
-	if (currentHeight >= 200) {
+	if (currentHeight >= MIN_VALID_EMBED_HEIGHT) {
 		iframe.setAttribute(EMBED_INIT_ATTR, 'true')
 		// Also ensure no scrollbars on existing embeds
 		iframe.setAttribute('scrolling', 'no')
 		iframe.style.overflow = 'hidden'
 		logger.debug(`${embedType} embed already has valid height ${currentHeight}px, skipping`)
+		return
+	}
+
+	// Reddit embeds in live/infinite contexts are unstable with repeated s9e:init handshakes.
+	// Use fallback + sync loop only (triggered by caller) to avoid visible disappear/reappear flicker.
+	if (embedType === 'reddit') {
+		applyFallbackHeight(iframe, embedType)
 		return
 	}
 
@@ -240,6 +250,21 @@ function initializeS9eMessageChannel(iframe: HTMLIFrameElement, embedType: strin
 		// Set a timeout to apply fallback if no response
 		setTimeout(() => {
 			if (!receivedResponse) {
+				const currentHeight = parseInt(iframe.style.height || '0', 10)
+				if (!Number.isNaN(currentHeight) && currentHeight >= MIN_VALID_EMBED_HEIGHT) {
+					// Height is already valid (e.g. reddit measured/provisional sync), avoid disruptive reload.
+					iframe.setAttribute(EMBED_INIT_ATTR, embedType === 'reddit' ? 'reddit-measured' : 'true')
+					return
+				}
+
+				// Reddit embeds are especially sensitive to forced reload (visible disappear/reappear).
+				// Prefer fallback+sync path without resetting src.
+				if (embedType === 'reddit') {
+					logger.debug('No MessageChannel response for reddit, applying fallback without reload')
+					applyFallbackHeight(iframe, embedType)
+					return
+				}
+
 				logger.debug(`No MessageChannel response for ${embedType}, trying iframe reload`)
 				// Try reloading the iframe as a last resort
 				reloadIframe(iframe, embedType)
@@ -368,7 +393,7 @@ function initializeS9eMessageChannelAfterReload(iframe: HTMLIFrameElement, embed
 function applyFallbackHeight(iframe: HTMLIFrameElement, embedType: string): void {
 	// Don't override if already has a reasonable height
 	const currentHeight = parseInt(iframe.style.height || '0', 10)
-	if (currentHeight >= 200) {
+	if (currentHeight >= MIN_VALID_EMBED_HEIGHT) {
 		iframe.setAttribute(EMBED_INIT_ATTR, 'true')
 		return
 	}
@@ -402,8 +427,10 @@ function applyFallbackHeight(iframe: HTMLIFrameElement, embedType: string): void
  * This avoids waiting seconds with a clipped embed/scrollbar before final height settles.
  */
 function scheduleRedditHeightSync(iframe: HTMLIFrameElement): void {
-	if (iframe.getAttribute(REDDIT_HEIGHT_SYNC_ATTR) === 'running') return
+	const syncState = iframe.getAttribute(REDDIT_HEIGHT_SYNC_ATTR)
+	if (syncState === 'running' || syncState === 'done') return
 	iframe.setAttribute(REDDIT_HEIGHT_SYNC_ATTR, 'running')
+	const startedFromFallback = iframe.getAttribute(EMBED_INIT_ATTR) === 'fallback'
 
 	const initialHeight = parseInt(iframe.style.height || iframe.getAttribute('height') || '0', 10)
 	if (initialHeight > 0 && initialHeight < 300) {
@@ -414,6 +441,10 @@ function scheduleRedditHeightSync(iframe: HTMLIFrameElement): void {
 
 	let attempts = 0
 	let timer: ReturnType<typeof setInterval> | null = null
+	let bestMeasuredHeight = startedFromFallback ? 0 : initialHeight
+	let lastMeasuredHeight: number | null = null
+	let stableTicks = 0
+	let previewShrinkApplied = false
 
 	const finish = (state: 'done' | 'timeout' | 'detached') => {
 		if (timer) {
@@ -434,16 +465,61 @@ function scheduleRedditHeightSync(iframe: HTMLIFrameElement): void {
 
 		if (measuredHeight) {
 			const previousHeight = parseInt(iframe.style.height || iframe.getAttribute('height') || '0', 10)
-			if (!Number.isNaN(previousHeight) && Math.abs(previousHeight - measuredHeight) > 8) {
-				iframe.style.height = `${measuredHeight}px`
+			bestMeasuredHeight = Math.max(bestMeasuredHeight, measuredHeight)
+			const targetHeight = Math.max(previousHeight, bestMeasuredHeight)
+
+			if (!Number.isNaN(previousHeight) && targetHeight - previousHeight > 8) {
+				iframe.style.height = `${targetHeight}px`
 				iframe.setAttribute('scrolling', 'no')
 				iframe.style.overflow = 'hidden'
 				iframe.setAttribute(EMBED_INIT_ATTR, 'reddit-measured')
-				logger.debug(`Synced reddit height to ${measuredHeight}px (attempt ${attempts})`)
+				logger.debug(`Synced reddit height to ${targetHeight}px (attempt ${attempts})`)
 			}
 
-			// Give a couple of ticks for late media layout, then finish.
-			if (attempts >= 3) {
+			// Reduce visible fallback whitespace as soon as we have a first usable measurement,
+			// but keep a safe lower bound to avoid collapsing on transient early values.
+			if (startedFromFallback && !previewShrinkApplied) {
+				const currentHeight = parseInt(iframe.style.height || iframe.getAttribute('height') || '0', 10)
+				const previewHeight = Math.max(bestMeasuredHeight, REDDIT_PROVISIONAL_HEIGHT)
+				const shouldPreviewShrink = Number.isFinite(currentHeight)
+					&& currentHeight - previewHeight >= REDDIT_CONTROLLED_SHRINK_THRESHOLD
+
+				if (previewHeight >= MIN_VALID_EMBED_HEIGHT && shouldPreviewShrink) {
+					iframe.style.height = `${previewHeight}px`
+					iframe.setAttribute('scrolling', 'no')
+					iframe.style.overflow = 'hidden'
+					iframe.setAttribute(EMBED_INIT_ATTR, 'reddit-measured')
+					logger.debug(`Preview reddit shrink to ${previewHeight}px (attempt ${attempts})`)
+					previewShrinkApplied = true
+				}
+			}
+
+			if (lastMeasuredHeight !== null && Math.abs(lastMeasuredHeight - measuredHeight) <= 8) {
+				stableTicks++
+			} else {
+				stableTicks = 0
+			}
+			lastMeasuredHeight = measuredHeight
+
+			if (startedFromFallback && stableTicks >= REDDIT_STABLE_TICKS_REQUIRED) {
+				const currentHeight = parseInt(iframe.style.height || iframe.getAttribute('height') || '0', 10)
+				const shouldShrink = Number.isFinite(currentHeight)
+					&& currentHeight - bestMeasuredHeight >= REDDIT_CONTROLLED_SHRINK_THRESHOLD
+
+				if (bestMeasuredHeight >= MIN_VALID_EMBED_HEIGHT && shouldShrink) {
+					iframe.style.height = `${bestMeasuredHeight}px`
+					iframe.setAttribute('scrolling', 'no')
+					iframe.style.overflow = 'hidden'
+					iframe.setAttribute(EMBED_INIT_ATTR, 'reddit-measured')
+					logger.debug(`Controlled reddit shrink to ${bestMeasuredHeight}px (attempt ${attempts})`)
+				}
+
+				finish('done')
+				return
+			}
+
+			// Finish only after measurements stabilize for several ticks.
+			if (stableTicks >= REDDIT_STABLE_TICKS_REQUIRED) {
 				finish('done')
 				return
 			}

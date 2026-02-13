@@ -320,7 +320,7 @@ function calculatePollInterval(): number {
 	return POLL_INTERVALS.INACTIVE
 }
 
-function reinitializeMvScripts(): void {
+function reinitializeMvScripts(embedScope?: HTMLElement): void {
 	try {
 		// Reinitialize tooltips for quote hovers
 		if (typeof window.initTooltips === 'function') {
@@ -333,7 +333,7 @@ function reinitializeMvScripts(): void {
 	// Reinitialize embed iframes (Twitter, Instagram, etc.)
 	const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID)
 	if (postsWrap) {
-		reinitializeEmbeds(postsWrap)
+		reinitializeEmbeds(embedScope ?? postsWrap)
 	}
 
 	// Update relative timestamps
@@ -418,7 +418,7 @@ export function insertPostAtTop(postHtml: string, animate = true, pageNum?: numb
 			}
 		}
 
-		reinitializeMvScripts()
+		reinitializeMvScripts(newElement)
 	}
 }
 
@@ -480,7 +480,7 @@ export async function loadInitialPosts(): Promise<void> {
 	}
 
 	await saveLiveState({ enabled: true, lastSeenPostNum, timestamp: Date.now() })
-	reinitializeMvScripts()
+	reinitializeMvScripts(postsWrap)
 	statusUpdateCallback?.('connected')
 }
 

@@ -197,6 +197,28 @@ describe('reinitializeEmbeds', () => {
 		expect(redditIframe.getAttribute('data-mvp-embed-init')).toBe('true')
 	})
 
+	it('should avoid MessageChannel handshake for reddit embeds with small initial height', () => {
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="reddit">
+				<iframe style="height: 10px;" src="//www.mediavida.com/embed/reddit.html"></iframe>
+			</div>
+		`
+
+		const redditIframe = container.querySelector('[data-s9e-mediaembed="reddit"] iframe') as HTMLIFrameElement
+		const postMessage = vi.fn()
+		Object.defineProperty(redditIframe, 'contentWindow', {
+			value: { postMessage },
+			configurable: true,
+		})
+
+		reinitializeEmbeds(container)
+
+		expect(postMessage).not.toHaveBeenCalled()
+		expect(parseInt(redditIframe.style.height, 10)).toBeGreaterThanOrEqual(700)
+		expect(redditIframe.getAttribute('data-mvp-embed-init')).toBe('fallback')
+	})
+
 	it('should use measured inner height for reddit fallback when available', () => {
 		const container = document.createElement('div')
 		container.innerHTML = `
@@ -219,6 +241,91 @@ describe('reinitializeEmbeds', () => {
 		expect(redditIframe.getAttribute('data-mvp-embed-init')).toBe('reddit-measured')
 	})
 
+	it('should shrink reddit fallback height to stable measured value when discovered later', () => {
+		vi.useFakeTimers()
+
+		try {
+			const container = document.createElement('div')
+			container.innerHTML = `
+				<div data-s9e-mediaembed="reddit">
+					<iframe style="height: 10px;" src="//www.mediavida.com/embed/reddit.html"></iframe>
+				</div>
+			`
+			document.body.appendChild(container)
+
+			const redditIframe = container.querySelector('[data-s9e-mediaembed="reddit"] iframe') as HTMLIFrameElement
+			const fakeDoc = document.implementation.createHTMLDocument('')
+			fakeDoc.body.innerHTML = '<iframe height="740"></iframe>'
+
+			let reads = 0
+			Object.defineProperty(redditIframe, 'contentDocument', {
+				get() {
+					reads++
+					return reads < 3 ? null : fakeDoc
+				},
+				configurable: true,
+			})
+
+			reinitializeEmbeds(container)
+			expect(redditIframe.style.height).toBe('900px')
+
+			vi.advanceTimersByTime(400)
+
+			expect(redditIframe.style.height).toBe('740px')
+			expect(redditIframe.getAttribute('data-mvp-embed-init')).toBe('reddit-measured')
+
+			vi.advanceTimersByTime(1000)
+			expect(redditIframe.getAttribute('data-mvp-reddit-height-sync')).toBe('done')
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it('should not force reload reddit iframe after MessageChannel timeout when height is already valid', () => {
+		vi.useFakeTimers()
+
+		const OriginalMessageChannel = globalThis.MessageChannel
+		const globalAny = globalThis as any
+		class MockMessageChannel {
+			port1 = { onmessage: null as ((event: MessageEvent) => void) | null }
+			port2 = {} as MessagePort
+		}
+
+		try {
+			globalAny.MessageChannel = MockMessageChannel
+
+			const container = document.createElement('div')
+			container.innerHTML = `
+				<div data-s9e-mediaembed="reddit">
+					<iframe style="height: 10px;" src="//www.mediavida.com/embed/reddit.html"></iframe>
+				</div>
+			`
+			document.body.appendChild(container)
+
+			const redditIframe = container.querySelector('[data-s9e-mediaembed="reddit"] iframe') as HTMLIFrameElement
+			Object.defineProperty(redditIframe, 'contentWindow', {
+				value: { postMessage: vi.fn() },
+				configurable: true,
+			})
+
+			const fakeDoc = document.implementation.createHTMLDocument('')
+			fakeDoc.body.innerHTML = '<iframe height="740"></iframe>'
+			Object.defineProperty(redditIframe, 'contentDocument', {
+				value: fakeDoc,
+				configurable: true,
+			})
+
+			reinitializeEmbeds(container)
+			vi.advanceTimersByTime(6000)
+
+			expect(redditIframe.getAttribute('data-mvp-embed-init')).not.toBe('reloaded')
+			expect(parseInt(redditIframe.style.height, 10)).toBeGreaterThanOrEqual(700)
+		} finally {
+			globalAny.MessageChannel = OriginalMessageChannel
+			vi.useRealTimers()
+		}
+	})
+
 	it('should handle Twitter embeds with async reload', () => {
 		vi.useFakeTimers()
 
@@ -237,6 +344,58 @@ describe('reinitializeEmbeds', () => {
 		expect(twitterIframe.getAttribute('data-mvp-embed-init')).toBe('reloading')
 
 		vi.useRealTimers()
+	})
+
+	it('should not shrink reddit embed height when later measurements are smaller', () => {
+		vi.useFakeTimers()
+
+		try {
+			const container = document.createElement('div')
+			container.innerHTML = `
+				<div data-s9e-mediaembed="reddit">
+					<iframe style="height: 700px;" src="//www.mediavida.com/embed/reddit.html"></iframe>
+				</div>
+			`
+
+			const redditIframe = container.querySelector('[data-s9e-mediaembed="reddit"] iframe') as HTMLIFrameElement
+			const fakeDoc = document.implementation.createHTMLDocument('')
+			fakeDoc.body.innerHTML = '<iframe height="740"></iframe>'
+			const innerIframe = fakeDoc.querySelector('iframe') as HTMLIFrameElement
+
+			Object.defineProperty(redditIframe, 'contentDocument', {
+				value: fakeDoc,
+				configurable: true,
+			})
+
+			// Sync loop only runs while iframe is attached to DOM.
+			document.body.appendChild(container)
+
+			reinitializeEmbeds(container)
+			expect(redditIframe.style.height).toBe('740px')
+
+			innerIframe.setAttribute('height', '360')
+			vi.advanceTimersByTime(2000)
+
+			expect(parseInt(redditIframe.style.height, 10)).toBeGreaterThanOrEqual(740)
+		} finally {
+			vi.useRealTimers()
+		}
+	})
+
+	it('should not restart reddit sync loop when already done', () => {
+		const setIntervalSpy = vi.spyOn(globalThis, 'setInterval')
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="reddit">
+				<iframe data-mvp-reddit-height-sync="done" style="height: 720px;" src="//www.mediavida.com/embed/reddit.html"></iframe>
+			</div>
+		`
+
+		reinitializeEmbeds(container)
+
+		expect(setIntervalSpy).not.toHaveBeenCalled()
+		const redditIframe = container.querySelector('[data-s9e-mediaembed="reddit"] iframe') as HTMLIFrameElement
+		expect(redditIframe.getAttribute('data-mvp-reddit-height-sync')).toBe('done')
 	})
 })
 
