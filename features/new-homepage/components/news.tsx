@@ -23,6 +23,8 @@ function NewsItem({
 	title,
 	thumbnail,
 	createdAt,
+    author,
+    totalResponses,
 	onHide,
 	onSave,
 	isSaved,
@@ -44,6 +46,13 @@ function NewsItem({
 						: { backgroundColor: 'var(--mv-bg-tertiary)' }
 				}
 			>
+				{/* Post Count Badge (Bottom Left) */}
+				{totalResponses && (
+					<div className="absolute bottom-1 left-1 z-10 flex items-center justify-center rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+						{totalResponses}
+					</div>
+				)}
+
 				{/* Thread action buttons (Visible on Hover) */}
 				{(onSave || onHide) && (
 					<div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -107,9 +116,12 @@ function NewsItem({
 					</div>
 				</div>
 
-				{/* Date */}
-				<div className="mt-2 h-4 text-right text-[10px] text-white/60">
-					{createdAt || <span className="invisible">00 min</span>}
+				{/* Date & Author */}
+                <div className="mt-2 flex h-4 items-center justify-between text-[10px] text-white/60">
+                    <span className="truncate max-w-[60%]">
+                        <span className="text-primary">{author}</span>
+                    </span>
+					<span>{createdAt || <span className="invisible">00 min</span>}</span>
 				</div>
 			</div>
 		</a>
