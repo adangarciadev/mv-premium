@@ -252,6 +252,14 @@ export function DraftManager({ textarea }: DraftManagerProps) {
 			const hasChanges = currentContent !== initialContentRef.current && currentContent !== ''
 			setHasUnsavedChanges(hasChanges)
 
+			// Reset draft ID if content is cleared.
+			// This ensures that if the user starts writing again and saves,
+			// the system will check for existing drafts and prompt to overwrite/create new.
+			if (currentContent === '') {
+				currentDraftIdRef.current = null
+				setStatus('idle')
+			}
+
 			// Check for slash commands on each input (only if templates enabled)
 			if (templateButtonEnabled) {
 				checkForCommandRef.current()
