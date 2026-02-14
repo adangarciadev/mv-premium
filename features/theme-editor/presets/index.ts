@@ -49,8 +49,8 @@ export const defaultPreset: ThemePreset = {
       tableRow: '#ffffff',
       tableRowAlt: '#fafafa',
       tableRowForeground: '#09090b',
-      tableBorder: '#e4e4e7',
-    },
+      tableBorder: '',
+      },
     dark: {
       background: '#09090b',
       foreground: '#fafafa',
@@ -89,8 +89,8 @@ export const defaultPreset: ThemePreset = {
       tableRow: '#09090b',
       tableRowAlt: '#18181b',
       tableRowForeground: '#fafafa',
-      tableBorder: '#27272a',
-    },
+      tableBorder: '',
+      },
   },
   radius: '0.625rem',
 }
@@ -141,8 +141,8 @@ export const mediaviaPreset: ThemePreset = {
       tableRow: '#f9fcff',
       tableRowAlt: '#f2f5f7',
       tableRowForeground: '#1c1f22',
-      tableBorder: '#d3dce4',
-    },
+      tableBorder: '',
+      },
     dark: {
       background: '#101213',
       foreground: '#e7e9ea',
@@ -181,8 +181,8 @@ export const mediaviaPreset: ThemePreset = {
       tableRow: '#39464c',
       tableRowAlt: '#445259',
       tableRowForeground: '#e7e9ea',
-      tableBorder: '#30353a',
-    },
+      tableBorder: '',
+      },
   },
   radius: '0.5rem',
 }
@@ -233,8 +233,8 @@ export const oceanPreset: ThemePreset = {
       tableRow: '#f0f9ff',
       tableRowAlt: '#e0f2fe',
       tableRowForeground: '#0c4a6e',
-      tableBorder: '#bae6fd',
-    },
+      tableBorder: '',
+      },
     dark: {
       background: '#0b1120', // Very dark blue (almost black)
       foreground: '#e0f2fe',
@@ -273,8 +273,8 @@ export const oceanPreset: ThemePreset = {
       tableRow: '#0b1120',
       tableRowAlt: '#111a2c',
       tableRowForeground: '#e0f2fe',
-      tableBorder: '#1e293b',
-    },
+      tableBorder: '',
+      },
   },
   radius: '0.75rem',
 }
@@ -325,8 +325,8 @@ export const forestPreset: ThemePreset = {
       tableRow: '#ffffff',
       tableRowAlt: '#f0fdf4',
       tableRowForeground: '#14532d',
-      tableBorder: '#bbf7d0',
-    },
+      tableBorder: '',
+      },
     dark: {
       background: '#022c22', // Deep Green 950
       foreground: '#ecfccb', // Lime 100
@@ -365,8 +365,8 @@ export const forestPreset: ThemePreset = {
       tableRow: '#022c22',
       tableRowAlt: '#064e3b',
       tableRowForeground: '#ecfccb',
-      tableBorder: '#14532d',
-    },
+      tableBorder: '',
+      },
   },
   radius: '0.5rem',
 }
@@ -417,8 +417,8 @@ export const sunsetPreset: ThemePreset = {
       tableRow: '#fff7ed',
       tableRowAlt: '#ffedd5',
       tableRowForeground: '#431407',
-      tableBorder: '#fed7aa',
-    },
+      tableBorder: '',
+      },
     dark: {
       background: '#0f0a0a', // Casi negro rojizo
       foreground: '#fdba74', // Orange 300
@@ -457,8 +457,8 @@ export const sunsetPreset: ThemePreset = {
       tableRow: '#0f0a0a',
       tableRowAlt: '#1c100c',
       tableRowForeground: '#fdba74',
-      tableBorder: '#431407',
-    },
+      tableBorder: '',
+      },
   },
   radius: '0.75rem',
 }
@@ -509,8 +509,8 @@ export const rosePinePreset: ThemePreset = {
       tableRow: '#faf4ed',
       tableRowAlt: '#fffaf3',
       tableRowForeground: '#575279',
-      tableBorder: '#dfdad9',
-    },
+      tableBorder: '',
+      },
     dark: {
       background: '#191724',
       foreground: '#e0def4',
@@ -549,8 +549,8 @@ export const rosePinePreset: ThemePreset = {
       tableRow: '#191724',
       tableRowAlt: '#21202e',
       tableRowForeground: '#e0def4',
-      tableBorder: '#26233a',
-    },
+      tableBorder: '',
+      },
   },
   radius: '0.5rem',
 }
@@ -601,8 +601,8 @@ export const nordPreset: ThemePreset = {
       tableRow: '#eceff4',
       tableRowAlt: '#e5e9f0',
       tableRowForeground: '#2e3440',
-      tableBorder: '#d8dee9',
-    },
+      tableBorder: '',
+      },
     dark: {
       background: '#242933', // Custom Nord dark slightly darker
       foreground: '#eceff4',
@@ -641,8 +641,8 @@ export const nordPreset: ThemePreset = {
       tableRow: '#242933',
       tableRowAlt: '#2e3440',
       tableRowForeground: '#eceff4',
-      tableBorder: '#3b4252',
-    },
+      tableBorder: '',
+      },
   },
   radius: '0.375rem',
 }
@@ -693,8 +693,8 @@ export const catppuccinPreset: ThemePreset = {
       tableRow: '#eff1f5',
       tableRowAlt: '#e6e9ef',
       tableRowForeground: '#4c4f69',
-      tableBorder: '#bcc0cc',
-    },
+      tableBorder: '',
+      },
     dark: {
       background: '#1e1e2e', // Mocha Base
       foreground: '#cdd6f4', // Mocha Text
@@ -733,8 +733,8 @@ export const catppuccinPreset: ThemePreset = {
       tableRow: '#1e1e2e',
       tableRowAlt: '#181825',
       tableRowForeground: '#cdd6f4',
-      tableBorder: '#313244',
-    },
+      tableBorder: '',
+      },
   },
   radius: '0.625rem',
 }

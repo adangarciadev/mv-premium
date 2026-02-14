@@ -28,6 +28,7 @@ import { HistoryToolbarButtons } from './toolbar/history-toolbar-buttons'
 import { CineToolbarButton } from './toolbar/cine-toolbar-button'
 import { GameToolbarButton } from './toolbar/game-toolbar-button'
 import { ApiKeyDialog, ImageDropzone } from './toolbar'
+import { StandardToolbarButtons } from './toolbar/standard-toolbar-buttons'
 
 // Portal utilities
 import {
@@ -91,6 +92,11 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 		gameButtonEnabled: true,
 	})
 
+
+	// Page context
+	const isNewThread = useMemo(() => isNewThreadPage(), [])
+	const isPrivateMessage = useMemo(() => textarea.name === 'msg', [textarea])
+
 	useEffect(() => {
 		getSettings().then(settings => {
 			console.log('DistributedEditorToolbar settings loaded:', settings)
@@ -98,19 +104,29 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 			setFeatureToggles({
 				cinemaButtonEnabled: settings.cinemaButtonEnabled ?? true,
 				gifPickerEnabled: settings.gifPickerEnabled ?? true,
-				draftsButtonEnabled: settings.draftsButtonEnabled ?? true,
-				templateButtonEnabled: settings.templateButtonEnabled ?? true,
+				// Disable drafts and templates in Private Messages
+				draftsButtonEnabled: isPrivateMessage ? false : (settings.draftsButtonEnabled ?? true),
+				templateButtonEnabled: isPrivateMessage ? false : (settings.templateButtonEnabled ?? true),
 				gameButtonEnabled: settings.gameButtonEnabled ?? true,
 			})
 		})
-	}, [])
-
-	// Page context
-	const isNewThread = useMemo(() => isNewThreadPage(), [])
+	}, [isPrivateMessage])
 
 	// Custom hooks
-	const { insertText, insertCode, insertUnderline, insertStrikethrough, insertCenter, insertImageTag } =
-		useTextInsertion(textarea)
+	const {
+		insertText,
+		insertCode,
+		insertUnderline,
+		insertStrikethrough,
+		insertSpoiler,
+		insertNsfw,
+		insertCenter,
+		insertImageTag,
+		insertBold,
+		insertItalic,
+		insertLink,
+		insertQuote,
+	} = useTextInsertion(textarea)
 	const { insertUnorderedList, insertOrderedList, insertTaskList } = useListFormatting(textarea)
 	const imageUpload = useImageUpload(textarea, { onSuccess: insertImageTag })
 	const { undo, redo, canUndo, canRedo, initHistory } = useTextHistory(textarea)
@@ -327,12 +343,26 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 
 			{/* GROUP 1: Formatting */}
 			{ReactDOM.createPortal(
-				<FormattingToolbarButtons
-					onInsertUnderline={insertUnderline}
-					onInsertStrikethrough={insertStrikethrough}
-					onInsertCenter={insertCenter}
-					showNsfw={false}
-				/>,
+				<>
+					{isPrivateMessage && (
+						<StandardToolbarButtons
+							onInsertBold={insertBold}
+							onInsertItalic={insertItalic}
+							onInsertLink={insertLink}
+							onInsertQuote={insertQuote}
+							activeFormats={activeFormats}
+						/>
+					)}
+					<FormattingToolbarButtons
+						onInsertUnderline={insertUnderline}
+						onInsertStrikethrough={insertStrikethrough}
+						onInsertCenter={insertCenter}
+						onInsertSpoiler={insertSpoiler}
+						onInsertNsfw={insertNsfw}
+						showNsfw={isPrivateMessage}
+						showSpoiler={isPrivateMessage}
+					/>
+				</>,
 				containers.formatting
 			)}
 

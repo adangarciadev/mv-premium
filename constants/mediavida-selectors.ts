@@ -333,6 +333,8 @@ export const MV_SELECTORS = {
 		PM_CONTENT: '.pm-content',
 		/** PM wrap element */
 		PM_WRAP: '.wrap',
+		/** PM Reply Textarea */
+		TEXTAREA: 'textarea[name="msg"]',
 	},
 
 	// ============================================================================

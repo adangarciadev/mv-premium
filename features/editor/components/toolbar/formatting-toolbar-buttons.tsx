@@ -2,9 +2,11 @@ interface FormattingToolbarButtonsProps {
 	onInsertUnderline: () => void
 	onInsertStrikethrough: () => void
 	onInsertCenter: () => void
+	onInsertSpoiler: () => void
 	onInsertNsfw?: () => void
 	activeFormats?: string[]
 	showNsfw?: boolean
+	showSpoiler?: boolean
 }
 
 /**
@@ -15,9 +17,11 @@ export function FormattingToolbarButtons({
 	onInsertUnderline,
 	onInsertStrikethrough,
 	onInsertCenter,
+	onInsertSpoiler,
 	onInsertNsfw,
 	activeFormats = [],
 	showNsfw = true,
+	showSpoiler = false,
 }: FormattingToolbarButtonsProps) {
 	return (
 		<>
@@ -63,6 +67,22 @@ export function FormattingToolbarButtons({
 				<i className="fa fa-align-center" />
 			</button>
 
+			{/* Spoiler Button */}
+			{showSpoiler && (
+				<button
+					type="button"
+					className={`mvp-toolbar-btn${activeFormats.includes('spoiler') ? ' active' : ''}`}
+					onClick={e => {
+						e.preventDefault()
+						e.stopPropagation()
+						onInsertSpoiler()
+					}}
+					title="Spoiler"
+				>
+					<i className="fa fa-eye-slash" />
+				</button>
+			)}
+
 			{/* NSFW Button - Only shown if showNsfw is true */}
 			{showNsfw && onInsertNsfw && (
 				<button
@@ -75,7 +95,7 @@ export function FormattingToolbarButtons({
 					}}
 					title="Contenido sensible (NSFW)"
 				>
-					<i className="fa fa-ban" />
+					<i className="fa fa-warning" />
 				</button>
 			)}
 		</>

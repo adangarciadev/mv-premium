@@ -1,0 +1,70 @@
+/* PM Editor Toolbar Styles */
+.mvp-pm-toolbar {
+    background: var(--bg-color-2, #292d36);
+    border: 1px solid var(--border-color, #3a3f4b);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    padding: 4px;
+    margin-bottom: 0 !important; /* Override default mb-2 to attach to textarea */
+}
+
+/* Reset groups to play nice with flexbox */
+.mvp-pm-toolbar .mvp-toolbar-group {
+    float: none !important;
+    display: inline-flex !important;
+    gap: 1px;
+}
+
+/* Style the buttons to look like native editor buttons */
+.mvp-pm-toolbar .mvp-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    color: var(--text-color, #a8adb5);
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.1s ease;
+}
+
+.mvp-pm-toolbar .mvp-toolbar-btn:hover,
+.mvp-pm-toolbar .mvp-toolbar-btn.active {
+    background-color: var(--bg-highlight, #373d49);
+    border-color: var(--border-color-highlight, #4a5160);
+    color: var(--text-highlight, #fff);
+}
+
+.mvp-pm-toolbar .mvp-toolbar-btn i,
+.mvp-pm-toolbar .mvp-toolbar-btn svg {
+    font-size: 14px;
+    width: 14px;
+    height: 14px;
+}
+
+/* Hide the spacers in PM mode as we use flex gap */
+.mvp-pm-toolbar .spacer {
+    display: none !important;
+}
+
+/* History group specific */
+.mvp-pm-toolbar #mvp-group-history {
+    position: static !important; /* Override absolute positioning */
+    margin-left: auto; /* Push to right */
+    padding-left: 0 !important;
+    border-left: 1px solid var(--border-color, #3a3f4b);
+    padding-left: 4px !important;
+}
+
+/* Adjust textarea to look attached */
+.mvp-pm-toolbar + textarea {
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    margin-top: 0;
+    border-color: var(--border-color, #3a3f4b);
+}

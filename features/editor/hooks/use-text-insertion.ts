@@ -99,6 +99,11 @@ export function useTextInsertion(textarea: HTMLTextAreaElement) {
 	const insertStrikethrough = () => wrapSelection('[s]', '[/s]')
 
 	/**
+	 * Insert spoiler tags around selected text
+	 */
+	const insertSpoiler = () => wrapSelection('[spoiler]', '[/spoiler]')
+
+	/**
 	 * Insert NSFW spoiler tags around selected text
 	 */
 	const insertNsfw = () => wrapSelection('[spoiler=NSFW]', '[/spoiler]')
@@ -233,6 +238,7 @@ export function useTextInsertion(textarea: HTMLTextAreaElement) {
 		insertItalic,
 		insertUnderline,
 		insertStrikethrough,
+		insertSpoiler,
 		insertNsfw,
 		insertCenter,
 		insertLink,

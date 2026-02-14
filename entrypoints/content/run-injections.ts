@@ -190,7 +190,7 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	// EDITOR FEATURES - Only when editor exists on page
 	// These need to run on mutations too (for dynamically loaded editors)
 	// =========================================================================
-	const hasEditor = document.querySelector('textarea#cuerpo, textarea[name="cuerpo"]')
+	const hasEditor = document.querySelector('textarea#cuerpo, textarea[name="cuerpo"], textarea[name="msg"]')
 	if (hasEditor) {
 		import('@/features/editor/logic/editor-toolbar').then(
 			({ injectEditorToolbar, injectDraftAutosave, injectCharacterCounter, injectPasteHandler }) => {

@@ -39,8 +39,9 @@ export function getOrCreatePortalContainer(
 	container.style.display = 'inline-flex'
 	container.style.alignItems = 'center'
 
-	// Apply float: left to align with native buttons, unless it's history
-	if (id !== 'mvp-group-history') {
+	// Apply float: left to align with native buttons, unless it's history or PM toolbar
+	const isPmToolbar = parent.classList.contains('mvp-pm-toolbar')
+	if (id !== 'mvp-group-history' && !isPmToolbar) {
 		container.style.float = 'left'
 	}
 
