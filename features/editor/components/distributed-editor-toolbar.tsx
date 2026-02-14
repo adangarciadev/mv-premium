@@ -11,12 +11,11 @@ import ChartBar from 'lucide-react/dist/esm/icons/chart-bar'
 import ReactDOM from 'react-dom'
 import { setStoredTheme } from '../lib/themes'
 import { useUIStore } from '@/store'
-import { getSettings } from '@/store/settings-store'
 import { MV_SELECTORS } from '@/constants'
 import '@/assets/live-preview.css'
 
 // Hooks
-import { useTextInsertion, useListFormatting, useImageUpload, useTextHistory } from '../hooks'
+import { useTextInsertion, useListFormatting, useImageUpload, useTextHistory, useFeatureToggles } from '../hooks'
 
 // Toolbar button components
 import { CodeToolbarButton } from './toolbar/code-toolbar-button'
@@ -83,34 +82,12 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 
 	const { livePreview, toggleLivePreview } = useUIStore()
 
-	// Feature toggles
-	const [featureToggles, setFeatureToggles] = useState({
-		cinemaButtonEnabled: true,
-		gifPickerEnabled: true,
-		draftsButtonEnabled: true,
-		templateButtonEnabled: true,
-		gameButtonEnabled: true,
-	})
-
-
 	// Page context
 	const isNewThread = useMemo(() => isNewThreadPage(), [])
 	const isPrivateMessage = useMemo(() => textarea.name === 'msg', [textarea])
 
-	useEffect(() => {
-		getSettings().then(settings => {
-			console.log('DistributedEditorToolbar settings loaded:', settings)
-			console.log('gameButtonEnabled from settings:', settings.gameButtonEnabled)
-			setFeatureToggles({
-				cinemaButtonEnabled: settings.cinemaButtonEnabled ?? true,
-				gifPickerEnabled: settings.gifPickerEnabled ?? true,
-				// Disable drafts and templates in Private Messages
-				draftsButtonEnabled: isPrivateMessage ? false : (settings.draftsButtonEnabled ?? true),
-				templateButtonEnabled: isPrivateMessage ? false : (settings.templateButtonEnabled ?? true),
-				gameButtonEnabled: settings.gameButtonEnabled ?? true,
-			})
-		})
-	}, [isPrivateMessage])
+	// Feature toggles hook
+	const featureToggles = useFeatureToggles(isPrivateMessage)
 
 	// Custom hooks
 	const {
