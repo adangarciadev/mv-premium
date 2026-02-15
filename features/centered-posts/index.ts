@@ -27,6 +27,7 @@ const SIDE_BAR_GAP_PX = 12
 const SIDE_TOP_OFFSET_PX = 92
 const SIDE_MIN_INSET_PX = 12
 const SIDE_TOP_MIN_PX = 66
+const SIDE_HEADER_CLEARANCE_PX = 8
 const SIDE_BAR_FALLBACK_WIDTH_PX = 332
 const SIDE_BAR_MIN_WIDTH_PX = 220
 const SIDE_BAR_MAX_WIDTH_PX = 420
@@ -37,8 +38,16 @@ const FLOATING_VIDEO_DRAG_LABEL_CLASS = 'mvp-centered-floating-video-drag-label'
 const FLOATING_VIDEO_RESIZE_HANDLE_CLASS = 'mvp-centered-floating-video-resize-handle'
 const FLOATING_VIDEO_CLOSE_BUTTON_CLASS = 'mvp-centered-floating-video-dismiss-btn'
 const FLOATING_VIDEO_INTERACTING_CLASS = 'mvp-centered-floating-video-interacting'
-const FLOATING_VIDEO_IFRAME_SELECTOR =
-	"iframe[src*='youtube.com'], iframe[src*='youtube-nocookie.com'], iframe[src*='youtu.be']"
+const FLOATING_VIDEO_YT_EMBED_SELECTOR = '.youtube_lite, .embed.yt, [data-s9e-mediaembed="youtube"]'
+const FLOATING_VIDEO_IFRAME_SELECTOR = [
+	"iframe[src*='youtube.com']",
+	"iframe[src*='youtube-nocookie.com']",
+	"iframe[src*='youtu.be']",
+	'.youtube_lite iframe',
+	'.embed.yt iframe',
+	"[data-s9e-mediaembed='youtube'] iframe",
+].join(', ')
+const FLOATING_VIDEO_EMBED_SELECTOR = FLOATING_VIDEO_YT_EMBED_SELECTOR
 const FLOATING_VIDEO_INTERACTIONS_STYLE_ID = 'mvp-floating-video-interactions-styles'
 const FLOATING_VIDEO_VAR_RIGHT = '--mvp-centered-video-right'
 const FLOATING_VIDEO_VAR_WIDTH = '--mvp-centered-video-width'
@@ -51,6 +60,12 @@ const FLOATING_VIDEO_MAX_WIDTH_PX = 620
 const FLOATING_VIDEO_SCROLL_SHRINK_MAX_PX = 56
 const FLOATING_VIDEO_SCROLL_SHRINK_DISTANCE_PX = 1200
 const FLOATING_VIDEO_Z_INDEX = 95
+const INFINITE_DISMISS_COOLDOWN_MS = 1400
+const MVP_MANAGED_FLOAT_ATTR = 'data-mvp-managed-float'
+const FLOATING_VIDEO_DYNAMIC_ACTIVE_ATTR = 'data-mvp-floating-video-active'
+const FLOATING_VIDEO_DYNAMIC_DISMISSED_ATTR = 'data-mvp-floating-video-dismissed'
+const FLOATING_VIDEO_PENDING_ACTIVATION_ATTR = 'data-mvp-floating-video-pending'
+const FLOATING_VIDEO_MANUAL_POSITION_ATTR = 'data-mvp-floating-video-manual-position'
 const FLOATING_VIDEO_CLOSE_SELECTORS = [
 	'.close',
 	'.cerrar',
@@ -61,6 +76,49 @@ const FLOATING_VIDEO_CLOSE_SELECTORS = [
 	'[title*="close" i]',
 	'[title*="cerrar" i]',
 ].join(', ')
+const INLINE_RESET_TARGET_STYLE_PROPS = [
+	'position',
+	'display',
+	'box-sizing',
+	'float',
+	'left',
+	'right',
+	'top',
+	'bottom',
+	'width',
+	'height',
+	'margin',
+	'padding',
+	'line-height',
+	'transform',
+	'max-width',
+	'max-height',
+	'min-width',
+	'min-height',
+	'z-index',
+	'overflow',
+	'border',
+	'border-radius',
+	'box-shadow',
+	'background',
+] as const
+const INLINE_RESET_IFRAME_STYLE_PROPS = [
+	'display',
+	'border',
+	'width',
+	'height',
+	'max-width',
+	'max-height',
+	'min-width',
+	'min-height',
+	'position',
+	'left',
+	'right',
+	'top',
+	'bottom',
+	'transform',
+] as const
+const MANAGED_IFRAME_STYLE_PROPS = ['display', 'border', 'width', 'height', 'max-width', 'max-height'] as const
 
 type ControlBarPosition = 'top' | 'side'
 
@@ -84,6 +142,31 @@ let floatingVideoObserver: MutationObserver | null = null
 let floatingVideoRafId: number | undefined
 let floatingVideoListenersAttached = false
 let floatingVideoManualState: FloatingVideoManualState | null = null
+let floatingVideoMessageListenerAttached = false
+const liveDynamicPlayingIframes = new Set<HTMLIFrameElement>()
+let lastDynamicActiveIframe: HTMLIFrameElement | null = null
+
+interface ManagedFloatState {
+	placeholder: HTMLElement
+	originalParent: HTMLElement
+	originalNextSibling: Node | null
+	originalStyle: string | null
+	iframeOriginalStyles: Array<{
+		iframe: HTMLIFrameElement
+		style: string | null
+	}>
+}
+
+const managedFloats = new WeakMap<HTMLElement, ManagedFloatState>()
+let currentManagedFloat: HTMLElement | null = null
+let infiniteDismissedUntil = new WeakMap<HTMLIFrameElement, number>()
+const infiniteVisibleBlocks = new Map<
+	HTMLElement,
+	{
+		contentVisibility: string
+		containIntrinsicSize: string
+	}
+>()
 
 interface SettingsState {
 	state: {
@@ -925,6 +1008,17 @@ function measureNativeSidebarWidth(): number {
 	return cachedSidebarWidthPx
 }
 
+function getSideModeMinimumTopPx(): number {
+	const threadHeader =
+		document.querySelector<HTMLElement>('#topic > .head') || document.querySelector<HTMLElement>('#topic .head')
+	if (!threadHeader) return SIDE_TOP_MIN_PX
+
+	const rect = threadHeader.getBoundingClientRect()
+	if (rect.height <= 0 || rect.bottom <= 0) return SIDE_TOP_MIN_PX
+
+	return Math.max(SIDE_TOP_MIN_PX, Math.round(rect.bottom + SIDE_HEADER_CLEARANCE_PX))
+}
+
 function positionSideControlBar(): void {
 	if (appliedPosition !== 'side') return
 
@@ -948,15 +1042,16 @@ function positionSideControlBar(): void {
 	const maxLeft = Math.round(window.innerWidth - barWidth - SIDE_MIN_INSET_PX)
 	const clampedLeft = Math.max(SIDE_MIN_INSET_PX, Math.min(preferredLeft, maxLeft))
 
+	const minTopPx = getSideModeMinimumTopPx()
 	const barHeight = Math.max(160, Math.round(barRect.height))
-	const maxTop = Math.max(SIDE_MIN_INSET_PX, window.innerHeight - barHeight - SIDE_MIN_INSET_PX)
+	const maxTop = Math.max(minTopPx, window.innerHeight - barHeight - SIDE_MIN_INSET_PX)
 	const measuredTop = firstPostRect ? Math.round(firstPostRect.top + 2) : SIDE_TOP_OFFSET_PX
-	const normalizedMeasuredTop = Math.max(SIDE_TOP_MIN_PX, measuredTop)
+	const normalizedMeasuredTop = Math.max(minTopPx, measuredTop)
 	if (sideStableTopPx === null || normalizedMeasuredTop > sideStableTopPx) {
 		sideStableTopPx = normalizedMeasuredTop
 	}
 	const preferredTop = sideStableTopPx ?? normalizedMeasuredTop
-	const clampedTop = Math.max(SIDE_TOP_MIN_PX, Math.min(preferredTop, maxTop))
+	const clampedTop = Math.max(minTopPx, Math.min(preferredTop, maxTop))
 
 	bar.style.left = `${clampedLeft}px`
 	bar.style.right = 'auto'
@@ -983,16 +1078,106 @@ function clearFloatingVideoCssVars(): void {
 	host.style.removeProperty(FLOATING_VIDEO_VAR_HEIGHT)
 }
 
+function removeFloatingVideoInteractionNodes(target: ParentNode): void {
+	target.querySelector(`.${FLOATING_VIDEO_DRAG_HANDLE_CLASS}`)?.remove()
+	target.querySelector(`.${FLOATING_VIDEO_RESIZE_HANDLE_CLASS}`)?.remove()
+	target.querySelector(`.${FLOATING_VIDEO_CLOSE_BUTTON_CLASS}`)?.remove()
+}
+
+function removeInlineStyleProperties(element: HTMLElement, properties: readonly string[]): void {
+	properties.forEach(property => {
+		element.style.removeProperty(property)
+	})
+}
+
+function resetFloatingIframeInlineStyles(iframe: HTMLIFrameElement): void {
+	removeInlineStyleProperties(iframe, INLINE_RESET_IFRAME_STYLE_PROPS)
+	iframe.removeAttribute('width')
+	iframe.removeAttribute('height')
+}
+
+function scheduleFloatingVideoCloseCleanup(): void {
+	window.setTimeout(() => {
+		cleanupOrphanFloatingVideoInteractionNodes()
+		scheduleFloatingVideoLayoutUpdate()
+		scheduleNativeThreadCompanionOffsetReset()
+	}, 0)
+}
+
+function cleanupOrphanFloatingVideoInteractionNodes(): void {
+	const selector = [
+		`.${FLOATING_VIDEO_DRAG_HANDLE_CLASS}`,
+		`.${FLOATING_VIDEO_RESIZE_HANDLE_CLASS}`,
+		`.${FLOATING_VIDEO_CLOSE_BUTTON_CLASS}`,
+	].join(', ')
+
+	document.querySelectorAll<HTMLElement>(selector).forEach(control => {
+		const host = control.parentElement
+		if (!host) {
+			control.remove()
+			return
+		}
+
+		const hasEmbeddedYoutube = !!host.querySelector(FLOATING_VIDEO_IFRAME_SELECTOR)
+		const isFloatingHost = host.classList.contains(FLOATING_VIDEO_CLASS)
+		const isFixedHost = window.getComputedStyle(host).position === 'fixed'
+
+		if (!hasEmbeddedYoutube || !isFloatingHost || !isFixedHost) {
+			host.classList.remove(FLOATING_VIDEO_INTERACTING_CLASS)
+			host.removeAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR)
+			removeFloatingVideoInteractionNodes(host)
+		}
+	})
+}
+
 function clearFloatingVideoTargets(): void {
+	if (currentManagedFloat) {
+		unfloatManagedTarget(currentManagedFloat)
+	}
+	clearInfiniteVisibleBlocks()
+
 	document.querySelectorAll<HTMLElement>(`.${FLOATING_VIDEO_CLASS}`).forEach(element => {
 		element.style.removeProperty('display')
 		element.classList.remove(FLOATING_VIDEO_CLASS)
 		element.classList.remove(FLOATING_VIDEO_INTERACTING_CLASS)
 		element.removeAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR)
-		element.querySelector(`.${FLOATING_VIDEO_DRAG_HANDLE_CLASS}`)?.remove()
-		element.querySelector(`.${FLOATING_VIDEO_RESIZE_HANDLE_CLASS}`)?.remove()
-		element.querySelector(`.${FLOATING_VIDEO_CLOSE_BUTTON_CLASS}`)?.remove()
+		element.removeAttribute(FLOATING_VIDEO_MANUAL_POSITION_ATTR)
+		removeFloatingVideoInteractionNodes(element)
 	})
+
+	document.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR).forEach(iframe => {
+		iframe.removeAttribute(FLOATING_VIDEO_DYNAMIC_ACTIVE_ATTR)
+		iframe.removeAttribute(FLOATING_VIDEO_DYNAMIC_DISMISSED_ATTR)
+	})
+	document.querySelectorAll<HTMLElement>(FLOATING_VIDEO_EMBED_SELECTOR).forEach(embed => {
+		embed.removeAttribute(FLOATING_VIDEO_PENDING_ACTIVATION_ATTR)
+	})
+
+	liveDynamicPlayingIframes.clear()
+	lastDynamicActiveIframe = null
+	infiniteDismissedUntil = new WeakMap<HTMLIFrameElement, number>()
+
+	cleanupOrphanFloatingVideoInteractionNodes()
+}
+
+function resetNativeThreadCompanionOffset(): void {
+	const threadCompanion = document.querySelector<HTMLElement>(MV_SELECTORS.GLOBAL.THREAD_COMPANION)
+	if (!threadCompanion) return
+
+	threadCompanion.style.removeProperty('transform')
+	threadCompanion.style.removeProperty('top')
+}
+
+function scheduleNativeThreadCompanionOffsetReset(): void {
+	window.requestAnimationFrame(() => {
+		resetNativeThreadCompanionOffset()
+	})
+	window.setTimeout(() => {
+		resetNativeThreadCompanionOffset()
+	}, 140)
+	window.setTimeout(() => {
+		resetNativeThreadCompanionOffset()
+	}, 420)
 }
 
 function clampFloatingVideoManualState(state: FloatingVideoManualState): FloatingVideoManualState {
@@ -1026,11 +1211,13 @@ function applyFloatingVideoManualState(target: HTMLElement): void {
 
 function setFloatingVideoManualState(nextState: FloatingVideoManualState, target: HTMLElement): void {
 	floatingVideoManualState = clampFloatingVideoManualState(nextState)
+	target.setAttribute(FLOATING_VIDEO_MANUAL_POSITION_ATTR, 'true')
 	applyFloatingVideoManualState(target)
 }
 
 function clearFloatingVideoManualState(target: HTMLElement): void {
 	floatingVideoManualState = null
+	target.removeAttribute(FLOATING_VIDEO_MANUAL_POSITION_ATTR)
 	target.style.removeProperty('left')
 	target.style.removeProperty('top')
 	target.style.removeProperty('right')
@@ -1042,31 +1229,88 @@ function clearFloatingVideoManualState(target: HTMLElement): void {
 }
 
 function findNativeFloatingVideoCloseControl(target: HTMLElement): HTMLElement | null {
-	const roots: HTMLElement[] = [target]
-	let current = target.parentElement
-
-	// Walk up only positioned ancestors around the floating player.
-	// This avoids matching unrelated ".close" controls elsewhere on the page.
-	while (current && current !== document.body && current !== document.documentElement) {
-		const position = window.getComputedStyle(current).position
-		if (position === 'fixed' || position === 'absolute') {
-			roots.push(current)
-		}
-		current = current.parentElement
-	}
-
-	for (const root of roots) {
-		const candidates = root.querySelectorAll<HTMLElement>(FLOATING_VIDEO_CLOSE_SELECTORS)
-		for (const candidate of candidates) {
-			if (candidate.classList.contains(FLOATING_VIDEO_CLOSE_BUTTON_CLASS)) continue
-			return candidate
-		}
+	// Restrict search to the floating target subtree to avoid clicking unrelated
+	// close controls from the post/thread layout.
+	const candidates = target.querySelectorAll<HTMLElement>(FLOATING_VIDEO_CLOSE_SELECTORS)
+	for (const candidate of candidates) {
+		if (candidate.classList.contains(FLOATING_VIDEO_CLOSE_BUTTON_CLASS)) continue
+		return candidate
 	}
 
 	return null
 }
 
+function resetManagedFloatingTargetToInline(target: HTMLElement): void {
+	const parentEmbed = target.parentElement
+	const canUnwrapAffixedWrapper =
+		!!parentEmbed &&
+		parentEmbed.matches(FLOATING_VIDEO_EMBED_SELECTOR) &&
+		target.classList.contains('affixed') &&
+		target.querySelector(FLOATING_VIDEO_IFRAME_SELECTOR)
+
+	if (canUnwrapAffixedWrapper && parentEmbed) {
+		const iframes = Array.from(target.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR))
+		iframes.forEach(iframe => {
+			resetFloatingIframeInlineStyles(iframe)
+			parentEmbed.insertBefore(iframe, target)
+		})
+
+		target.remove()
+		return
+	}
+
+	target.classList.remove('affixed')
+	removeInlineStyleProperties(target, INLINE_RESET_TARGET_STYLE_PROPS)
+
+	target.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR).forEach(iframe => {
+		resetFloatingIframeInlineStyles(iframe)
+	})
+
+	// Native floating close controls may remain detached from their lifecycle in infinite mode.
+	// Remove close-like nodes left behind in this embed target.
+	target.querySelectorAll<HTMLElement>(FLOATING_VIDEO_CLOSE_SELECTORS).forEach(candidate => {
+		if (candidate.classList.contains(FLOATING_VIDEO_CLOSE_BUTTON_CLASS)) return
+		candidate.remove()
+	})
+}
+
+function markIframeAsDismissedInInfiniteMode(iframe: HTMLIFrameElement): void {
+	iframe.setAttribute(FLOATING_VIDEO_DYNAMIC_DISMISSED_ATTR, 'true')
+	infiniteDismissedUntil.set(iframe, Date.now() + INFINITE_DISMISS_COOLDOWN_MS)
+}
+
+function shouldSkipDismissedIframeInInfiniteMode(iframe: HTMLIFrameElement): boolean {
+	if (iframe.getAttribute(FLOATING_VIDEO_DYNAMIC_DISMISSED_ATTR) !== 'true') return false
+
+	const dismissedUntil = infiniteDismissedUntil.get(iframe) ?? 0
+	if (dismissedUntil > Date.now()) {
+		return true
+	}
+
+	iframe.removeAttribute(FLOATING_VIDEO_DYNAMIC_DISMISSED_ATTR)
+	infiniteDismissedUntil.delete(iframe)
+	return false
+}
+
 function hideFloatingVideoTarget(target: HTMLElement): void {
+	const managedIframes = target.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR)
+	managedIframes.forEach(iframe => {
+		iframe.removeAttribute(FLOATING_VIDEO_DYNAMIC_ACTIVE_ATTR)
+		markIframeAsDismissedInInfiniteMode(iframe)
+		liveDynamicPlayingIframes.delete(iframe)
+		if (lastDynamicActiveIframe === iframe) {
+			lastDynamicActiveIframe = null
+		}
+	})
+
+	if (managedFloats.has(target)) {
+		unfloatManagedTarget(target)
+		resetManagedFloatingTargetToInline(target)
+		floatingVideoManualState = null
+		scheduleFloatingVideoCloseCleanup()
+		return
+	}
+
 	const nativeClose = findNativeFloatingVideoCloseControl(target)
 	if (nativeClose) {
 		nativeClose.click()
@@ -1077,14 +1321,11 @@ function hideFloatingVideoTarget(target: HTMLElement): void {
 	target.classList.remove(FLOATING_VIDEO_CLASS)
 	target.classList.remove(FLOATING_VIDEO_INTERACTING_CLASS)
 	target.removeAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR)
-	target.querySelector(`.${FLOATING_VIDEO_DRAG_HANDLE_CLASS}`)?.remove()
-	target.querySelector(`.${FLOATING_VIDEO_RESIZE_HANDLE_CLASS}`)?.remove()
-	target.querySelector(`.${FLOATING_VIDEO_CLOSE_BUTTON_CLASS}`)?.remove()
+	target.removeAttribute(FLOATING_VIDEO_MANUAL_POSITION_ATTR)
+	removeFloatingVideoInteractionNodes(target)
 
 	// Let native MV lifecycle restore/move the player; then refresh our hooks.
-	window.setTimeout(() => {
-		scheduleFloatingVideoLayoutUpdate()
-	}, 0)
+	scheduleFloatingVideoCloseCleanup()
 }
 
 function getFloatingVideoRightInsetPx(): number {
@@ -1137,8 +1378,66 @@ function updateFloatingVideoCssVars(): void {
 	host.style.setProperty(FLOATING_VIDEO_VAR_HEIGHT, `${Math.round(heightPx)}px`)
 }
 
+function applyFloatingVideoControlInlineStyles(target: HTMLElement): void {
+	const dragHandle = target.querySelector<HTMLElement>(`.${FLOATING_VIDEO_DRAG_HANDLE_CLASS}`)
+	if (dragHandle) {
+		dragHandle.style.setProperty('position', 'absolute', 'important')
+		dragHandle.style.setProperty('left', '8px', 'important')
+		dragHandle.style.setProperty('right', 'auto', 'important')
+		dragHandle.style.setProperty('top', '6px', 'important')
+		dragHandle.style.setProperty('bottom', 'auto', 'important')
+		dragHandle.style.setProperty('width', 'auto', 'important')
+		dragHandle.style.setProperty('height', '24px', 'important')
+		dragHandle.style.setProperty('margin', '0', 'important')
+		dragHandle.style.setProperty('padding', '0 7px', 'important')
+		dragHandle.style.setProperty('display', 'inline-flex', 'important')
+		dragHandle.style.setProperty('align-items', 'center', 'important')
+		dragHandle.style.setProperty('justify-content', 'flex-start', 'important')
+		dragHandle.style.setProperty('white-space', 'nowrap', 'important')
+		dragHandle.style.setProperty('box-sizing', 'border-box', 'important')
+		dragHandle.style.setProperty('z-index', `${FLOATING_VIDEO_Z_INDEX + 1}`, 'important')
+	}
+
+	const resizeHandle = target.querySelector<HTMLElement>(`.${FLOATING_VIDEO_RESIZE_HANDLE_CLASS}`)
+	if (resizeHandle) {
+		resizeHandle.style.setProperty('position', 'absolute', 'important')
+		resizeHandle.style.setProperty('left', 'auto', 'important')
+		resizeHandle.style.setProperty('right', '5px', 'important')
+		resizeHandle.style.setProperty('top', 'auto', 'important')
+		resizeHandle.style.setProperty('bottom', '5px', 'important')
+		resizeHandle.style.setProperty('width', '22px', 'important')
+		resizeHandle.style.setProperty('height', '22px', 'important')
+		resizeHandle.style.setProperty('margin', '0', 'important')
+		resizeHandle.style.setProperty('padding', '0', 'important')
+		resizeHandle.style.setProperty('display', 'block', 'important')
+		resizeHandle.style.setProperty('box-sizing', 'border-box', 'important')
+		resizeHandle.style.setProperty('z-index', `${FLOATING_VIDEO_Z_INDEX + 1}`, 'important')
+	}
+
+	const closeButton = target.querySelector<HTMLElement>(`.${FLOATING_VIDEO_CLOSE_BUTTON_CLASS}`)
+	if (closeButton) {
+		closeButton.style.setProperty('position', 'absolute', 'important')
+		closeButton.style.setProperty('left', 'auto', 'important')
+		closeButton.style.setProperty('right', '6px', 'important')
+		closeButton.style.setProperty('top', '6px', 'important')
+		closeButton.style.setProperty('bottom', 'auto', 'important')
+		closeButton.style.setProperty('width', '22px', 'important')
+		closeButton.style.setProperty('height', '22px', 'important')
+		closeButton.style.setProperty('margin', '0', 'important')
+		closeButton.style.setProperty('padding', '0', 'important')
+		closeButton.style.setProperty('display', 'inline-flex', 'important')
+		closeButton.style.setProperty('align-items', 'center', 'important')
+		closeButton.style.setProperty('justify-content', 'center', 'important')
+		closeButton.style.setProperty('box-sizing', 'border-box', 'important')
+		closeButton.style.setProperty('z-index', `${FLOATING_VIDEO_Z_INDEX + 2}`, 'important')
+	}
+}
+
 function attachFloatingVideoInteractions(target: HTMLElement): void {
-	if (target.getAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR) === 'true') return
+	if (target.getAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR) === 'true') {
+		applyFloatingVideoControlInlineStyles(target)
+		return
+	}
 
 	target.setAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR, 'true')
 
@@ -1293,6 +1592,7 @@ function attachFloatingVideoInteractions(target: HTMLElement): void {
 	target.appendChild(dragHandle)
 	target.appendChild(resizeHandle)
 	target.appendChild(closeButton)
+	applyFloatingVideoControlInlineStyles(target)
 }
 
 function findFixedVideoTarget(iframe: HTMLIFrameElement): HTMLElement | null {
@@ -1300,6 +1600,8 @@ function findFixedVideoTarget(iframe: HTMLIFrameElement): HTMLElement | null {
 	let current: HTMLElement | null = iframe
 
 	while (current) {
+		if (current.hasAttribute(MVP_MANAGED_FLOAT_ATTR)) return null
+
 		const position = window.getComputedStyle(current).position
 		if (position === 'fixed') {
 			fixedAncestors.push(current)
@@ -1325,22 +1627,617 @@ function findFixedVideoTarget(iframe: HTMLIFrameElement): HTMLElement | null {
 	return closestSizedAncestor ?? fixedAncestors[0]
 }
 
+function normalizeFloatingTargetElement(
+	iframe: HTMLIFrameElement,
+	target: HTMLElement | null
+): HTMLElement | null {
+	if (!target) return null
+	if (target !== iframe) return target
+
+	const fallback =
+		iframe.closest<HTMLElement>('.affixed') ||
+		iframe.closest<HTMLElement>('.youtube_lite') ||
+		iframe.closest<HTMLElement>('[data-s9e-mediaembed="youtube"]') ||
+		iframe.closest<HTMLElement>('.embed.yt') ||
+		iframe.parentElement
+
+	if (!fallback || fallback === document.body || fallback === document.documentElement) {
+		return null
+	}
+
+	return fallback
+}
+
+function findEmbedContainer(iframe: HTMLIFrameElement): HTMLElement | null {
+	if (isInfiniteScrollModeActive()) {
+		const nativeAffixedContainer = iframe.closest<HTMLElement>('.affixed')
+		if (
+			nativeAffixedContainer &&
+			nativeAffixedContainer !== document.body &&
+			nativeAffixedContainer !== document.documentElement
+		) {
+			const rect = nativeAffixedContainer.getBoundingClientRect()
+			if (rect.width >= 120 && rect.height >= 68) {
+				return nativeAffixedContainer
+			}
+		}
+	}
+
+	const preferredSelectors = ['.youtube_lite', '[data-s9e-mediaembed="youtube"]', '.embed.yt']
+	for (const selector of preferredSelectors) {
+		const candidate = iframe.closest<HTMLElement>(selector)
+		if (!candidate) continue
+
+		const rect = candidate.getBoundingClientRect()
+		if (rect.width > 16 && rect.height > 16) {
+			return candidate
+		}
+	}
+
+	const iframeRect = iframe.getBoundingClientRect()
+	const iframeArea = Math.max(1, iframeRect.width * iframeRect.height)
+
+	let best: HTMLElement | null = null
+	let bestArea = Number.POSITIVE_INFINITY
+	let current = iframe.parentElement
+
+	while (current && current !== document.body && current !== document.documentElement) {
+		if (current.classList.contains('post') || current.classList.contains('post-contents')) break
+
+		const rect = current.getBoundingClientRect()
+		const area = rect.width * rect.height
+		const isSized = rect.width >= 120 && rect.height >= 68
+		const isReasonableArea = area >= iframeArea * 0.35 && area <= iframeArea * 6.5
+		const isReasonableRatio =
+			rect.width <= Math.max(iframeRect.width * 3.5, 900) &&
+			rect.height <= Math.max(iframeRect.height * 4.5, 700)
+
+		if (isSized && isReasonableArea && isReasonableRatio && area < bestArea) {
+			best = current
+			bestArea = area
+		}
+
+		current = current.parentElement
+	}
+
+	if (best) return best
+
+	const fallbackParent = iframe.parentElement
+	if (!fallbackParent || fallbackParent === document.body || fallbackParent === document.documentElement) {
+		return null
+	}
+
+	const fallbackRect = fallbackParent.getBoundingClientRect()
+	const maxFallbackWidth = Math.max(iframeRect.width * 4, 960)
+	const maxFallbackHeight = Math.max(iframeRect.height * 4, 760)
+	const fallbackLooksReasonable = fallbackRect.width <= maxFallbackWidth && fallbackRect.height <= maxFallbackHeight
+
+	return fallbackLooksReasonable ? fallbackParent : null
+}
+
+function isDynamicThreadModeActive(): boolean {
+	return (
+		document.getElementById(DOM_MARKERS.IDS.LIVE_MAIN_CONTAINER) !== null ||
+		document.getElementById(DOM_MARKERS.IDS.INFINITE_SENTINEL) !== null
+	)
+}
+
+function isInfiniteScrollModeActive(): boolean {
+	return document.getElementById(DOM_MARKERS.IDS.INFINITE_SENTINEL) !== null
+}
+
+function getInfinitePageBlockForElement(element: Element): HTMLElement | null {
+	return element.closest<HTMLElement>(`.${DOM_MARKERS.CLASSES.INFINITE_PAGE_BLOCK}`)
+}
+
+function ensureInfinitePageBlockVisible(pageBlock: HTMLElement): void {
+	if (infiniteVisibleBlocks.has(pageBlock)) return
+
+	infiniteVisibleBlocks.set(pageBlock, {
+		contentVisibility: pageBlock.style.contentVisibility,
+		containIntrinsicSize: pageBlock.style.containIntrinsicSize,
+	})
+
+	pageBlock.style.setProperty('content-visibility', 'visible', 'important')
+	pageBlock.style.setProperty('contain-intrinsic-size', 'auto', 'important')
+}
+
+function restoreInfinitePageBlockVisibility(pageBlock: HTMLElement): void {
+	const original = infiniteVisibleBlocks.get(pageBlock)
+	if (!original) return
+
+	if (original.contentVisibility) {
+		pageBlock.style.contentVisibility = original.contentVisibility
+	} else {
+		pageBlock.style.removeProperty('content-visibility')
+	}
+
+	if (original.containIntrinsicSize) {
+		pageBlock.style.containIntrinsicSize = original.containIntrinsicSize
+	} else {
+		pageBlock.style.removeProperty('contain-intrinsic-size')
+	}
+
+	infiniteVisibleBlocks.delete(pageBlock)
+}
+
+function reconcileInfiniteVisibleBlocks(activeBlocks: Set<HTMLElement>): void {
+	const staleBlocks = Array.from(infiniteVisibleBlocks.keys()).filter(block => !activeBlocks.has(block))
+	staleBlocks.forEach(restoreInfinitePageBlockVisibility)
+
+	activeBlocks.forEach(block => {
+		ensureInfinitePageBlockVisible(block)
+	})
+}
+
+function clearInfiniteVisibleBlocks(): void {
+	Array.from(infiniteVisibleBlocks.keys()).forEach(restoreInfinitePageBlockVisibility)
+}
+
+function hasYouTubeAutoplayParam(iframe: HTMLIFrameElement): boolean {
+	const rawSrc = iframe.getAttribute('src')
+	if (!rawSrc) return false
+
+	if (/[?&#]autoplay=1(?:[&#]|$)/i.test(rawSrc)) return true
+
+	try {
+		const normalizedSrc = new URL(rawSrc, window.location.href)
+		return normalizedSrc.searchParams.get('autoplay') === '1'
+	} catch {
+		return false
+	}
+}
+
+function markDynamicIframeAsActive(iframe: HTMLIFrameElement): void {
+	iframe.setAttribute(FLOATING_VIDEO_DYNAMIC_ACTIVE_ATTR, 'true')
+	iframe.removeAttribute(FLOATING_VIDEO_DYNAMIC_DISMISSED_ATTR)
+	infiniteDismissedUntil.delete(iframe)
+	iframe.closest<HTMLElement>(FLOATING_VIDEO_EMBED_SELECTOR)?.removeAttribute(FLOATING_VIDEO_PENDING_ACTIVATION_ATTR)
+	lastDynamicActiveIframe = iframe
+}
+
+function clearDynamicIframeAsActive(iframe: HTMLIFrameElement): void {
+	iframe.removeAttribute(FLOATING_VIDEO_DYNAMIC_ACTIVE_ATTR)
+	if (lastDynamicActiveIframe === iframe) {
+		lastDynamicActiveIframe = null
+	}
+}
+
+function isDynamicIframeActive(iframe: HTMLIFrameElement): boolean {
+	if (!iframe.isConnected) return false
+	if (iframe.getAttribute(FLOATING_VIDEO_DYNAMIC_DISMISSED_ATTR) === 'true') return false
+	if (liveDynamicPlayingIframes.has(iframe)) return true
+	if (hasYouTubeAutoplayParam(iframe)) return true
+	return iframe.getAttribute(FLOATING_VIDEO_DYNAMIC_ACTIVE_ATTR) === 'true'
+}
+
+function isElementOutsideFloatingViewport(element: Element): boolean {
+	const rect = element.getBoundingClientRect()
+	if (rect.width <= 2 || rect.height <= 2) {
+		return window.getComputedStyle(element).position === 'fixed'
+	}
+
+	const topBound = FLOATING_VIDEO_TOP_BUFFER_PX
+	const bottomBound = window.innerHeight - FLOATING_VIDEO_BOTTOM_PX
+	const verticalOut = rect.bottom <= topBound || rect.top >= bottomBound
+	const horizontalOut = rect.right <= SIDE_MIN_INSET_PX || rect.left >= window.innerWidth - SIDE_MIN_INSET_PX
+
+	return verticalOut || horizontalOut
+}
+
+function getDynamicAnchorRect(target: HTMLElement): DOMRect {
+	const state = managedFloats.get(target)
+	if (state?.placeholder.isConnected) {
+		return state.placeholder.getBoundingClientRect()
+	}
+	return target.getBoundingClientRect()
+}
+
+function findYouTubeIframeFromEventTarget(target: EventTarget | null): HTMLIFrameElement | null {
+	if (target instanceof HTMLIFrameElement && target.matches(FLOATING_VIDEO_IFRAME_SELECTOR)) {
+		return target
+	}
+
+	if (!(target instanceof Element)) return null
+
+	const directMatch = target.closest(FLOATING_VIDEO_IFRAME_SELECTOR)
+	if (directMatch instanceof HTMLIFrameElement) {
+		return directMatch
+	}
+
+	const embedContainer = target.closest<HTMLElement>(FLOATING_VIDEO_EMBED_SELECTOR)
+	if (!embedContainer) return null
+
+	return embedContainer.querySelector<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR)
+}
+
+function findYouTubeEmbedContainerFromEventTarget(target: EventTarget | null): HTMLElement | null {
+	if (!(target instanceof Element)) return null
+	return target.closest<HTMLElement>(FLOATING_VIDEO_EMBED_SELECTOR)
+}
+
+function consumePendingActivationForIframe(iframe: HTMLIFrameElement): void {
+	let current: HTMLElement | null = iframe.parentElement
+
+	while (current && current !== document.body && current !== document.documentElement) {
+		if (current.matches(FLOATING_VIDEO_EMBED_SELECTOR)) {
+			if (current.getAttribute(FLOATING_VIDEO_PENDING_ACTIVATION_ATTR) === 'true') {
+				current.removeAttribute(FLOATING_VIDEO_PENDING_ACTIVATION_ATTR)
+				markDynamicIframeAsActive(iframe)
+			}
+			return
+		}
+
+		if (current.classList.contains('post') || current.classList.contains('post-contents')) {
+			return
+		}
+
+		current = current.parentElement
+	}
+}
+
+function handleFloatingVideoPointerDown(event: PointerEvent): void {
+	if (!isDynamicThreadModeActive()) return
+
+	const iframe = findYouTubeIframeFromEventTarget(event.target)
+	if (iframe) {
+		markDynamicIframeAsActive(iframe)
+		scheduleFloatingVideoLayoutUpdate()
+		return
+	}
+
+	const embedContainer = findYouTubeEmbedContainerFromEventTarget(event.target)
+	if (!embedContainer) return
+
+	embedContainer.setAttribute(FLOATING_VIDEO_PENDING_ACTIVATION_ATTR, 'true')
+	scheduleFloatingVideoLayoutUpdate()
+}
+
+function handleFloatingVideoFocusIn(event: FocusEvent): void {
+	if (!isDynamicThreadModeActive()) return
+
+	const iframe = findYouTubeIframeFromEventTarget(event.target)
+	if (iframe) {
+		markDynamicIframeAsActive(iframe)
+		scheduleFloatingVideoLayoutUpdate()
+		return
+	}
+
+	const embedContainer = findYouTubeEmbedContainerFromEventTarget(event.target)
+	if (!embedContainer) return
+
+	embedContainer.setAttribute(FLOATING_VIDEO_PENDING_ACTIVATION_ATTR, 'true')
+	scheduleFloatingVideoLayoutUpdate()
+}
+
+function extractYouTubePlayerState(messageData: unknown): number | null {
+	let payload: unknown = messageData
+	if (typeof payload === 'string') {
+		try {
+			payload = JSON.parse(payload)
+		} catch {
+			return null
+		}
+	}
+
+	if (!payload || typeof payload !== 'object') return null
+
+	const candidate = payload as { event?: unknown; info?: unknown }
+	if (candidate.event === 'onStateChange' && typeof candidate.info === 'number') {
+		return candidate.info
+	}
+
+	if (
+		candidate.event === 'infoDelivery' &&
+		candidate.info &&
+		typeof candidate.info === 'object' &&
+		'playerState' in candidate.info
+	) {
+		const playerState = (candidate.info as { playerState?: unknown }).playerState
+		return typeof playerState === 'number' ? playerState : null
+	}
+
+	return null
+}
+
+function findYoutubeIframeByWindow(source: MessageEventSource | null): HTMLIFrameElement | null {
+	if (!source) return null
+
+	const iframes = document.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR)
+	for (const iframe of iframes) {
+		if (iframe.contentWindow === source) return iframe
+	}
+
+	return null
+}
+
+function handleFloatingVideoMessage(event: MessageEvent): void {
+	const origin = event.origin || ''
+	if (!origin.includes('youtube.com') && !origin.includes('youtube-nocookie.com')) {
+		return
+	}
+
+	const state = extractYouTubePlayerState(event.data)
+	if (state === null) return
+
+	const iframe = findYoutubeIframeByWindow(event.source)
+	if (!iframe) return
+
+	if (state === 1) {
+		liveDynamicPlayingIframes.add(iframe)
+		markDynamicIframeAsActive(iframe)
+		scheduleFloatingVideoLayoutUpdate()
+		return
+	}
+
+	if (state === 0 || state === 2) {
+		liveDynamicPlayingIframes.delete(iframe)
+		clearDynamicIframeAsActive(iframe)
+		scheduleFloatingVideoLayoutUpdate()
+	}
+}
+
+function applyManagedFloatBaseStyles(target: HTMLElement): void {
+	const rightPx = getFloatingVideoRightInsetPx()
+	const widthPx = FLOATING_VIDEO_BASE_WIDTH_PX
+	const heightPx = Math.round((widthPx * 9) / 16)
+
+	target.style.setProperty('position', 'fixed', 'important')
+	target.style.setProperty('display', 'block', 'important')
+	target.style.setProperty('box-sizing', 'border-box', 'important')
+	target.style.setProperty('float', 'none', 'important')
+	target.style.setProperty('left', 'auto', 'important')
+	target.style.setProperty('right', `${rightPx}px`, 'important')
+	target.style.setProperty('top', 'auto', 'important')
+	target.style.setProperty('bottom', `${FLOATING_VIDEO_BOTTOM_PX}px`, 'important')
+	target.style.setProperty('width', `${widthPx}px`, 'important')
+	target.style.setProperty('height', `${heightPx}px`, 'important')
+	target.style.setProperty('margin', '0', 'important')
+	target.style.setProperty('padding', '0', 'important')
+	target.style.setProperty('line-height', '0', 'important')
+	target.style.setProperty('transform', 'none', 'important')
+	target.style.setProperty('max-width', `min(${widthPx}px, calc(100vw - 24px))`, 'important')
+	target.style.setProperty(
+		'max-height',
+		`calc(100vh - ${FLOATING_VIDEO_TOP_BUFFER_PX + FLOATING_VIDEO_BOTTOM_PX}px)`,
+		'important'
+	)
+	target.style.setProperty('min-width', `${FLOATING_VIDEO_MIN_WIDTH_PX}px`, 'important')
+	target.style.setProperty(
+		'min-height',
+		`${Math.round((FLOATING_VIDEO_MIN_WIDTH_PX * 9) / 16)}px`,
+		'important'
+	)
+	target.style.setProperty('z-index', `${FLOATING_VIDEO_Z_INDEX}`, 'important')
+	target.style.setProperty('overflow', 'hidden', 'important')
+	target.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.2)', 'important')
+	target.style.setProperty('border-radius', '8px', 'important')
+	target.style.setProperty('box-shadow', '0 8px 24px rgba(0, 0, 0, 0.35)', 'important')
+	target.style.setProperty('background', '#000', 'important')
+
+	target.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR).forEach(iframe => {
+		iframe.style.setProperty('display', 'block', 'important')
+		iframe.style.setProperty('border', '0', 'important')
+		iframe.style.setProperty('width', '100%', 'important')
+		iframe.style.setProperty('height', '100%', 'important')
+		iframe.style.setProperty('max-width', '100%', 'important')
+		iframe.style.setProperty('max-height', '100%', 'important')
+	})
+}
+
+function unfloatManagedTarget(target: HTMLElement): void {
+	const state = managedFloats.get(target)
+	if (state) {
+		if (state.originalParent.isConnected) {
+			if (state.originalNextSibling && state.originalNextSibling.parentNode === state.originalParent) {
+				state.originalParent.insertBefore(target, state.originalNextSibling)
+			} else {
+				state.originalParent.appendChild(target)
+			}
+		} else {
+			const fallbackParent =
+				document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID) || document.body || document.documentElement
+			fallbackParent?.appendChild(target)
+		}
+		state.placeholder.remove()
+
+		if (state.originalStyle === null) {
+			target.removeAttribute('style')
+		} else {
+			target.setAttribute('style', state.originalStyle)
+		}
+
+		state.iframeOriginalStyles.forEach(({ iframe, style }) => {
+			if (!iframe.isConnected) return
+			if (style === null) {
+				iframe.removeAttribute('style')
+			} else {
+				iframe.setAttribute('style', style)
+			}
+		})
+
+		managedFloats.delete(target)
+	} else {
+		removeInlineStyleProperties(target, INLINE_RESET_TARGET_STYLE_PROPS)
+
+		target.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR).forEach(iframe => {
+			removeInlineStyleProperties(iframe, MANAGED_IFRAME_STYLE_PROPS)
+		})
+	}
+
+	target.removeAttribute(MVP_MANAGED_FLOAT_ATTR)
+	target.classList.remove(FLOATING_VIDEO_CLASS)
+	target.classList.remove(FLOATING_VIDEO_INTERACTING_CLASS)
+	target.removeAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR)
+	target.removeAttribute(FLOATING_VIDEO_MANUAL_POSITION_ATTR)
+	removeFloatingVideoInteractionNodes(target)
+
+	if (currentManagedFloat === target) {
+		currentManagedFloat = null
+	}
+}
+
+function floatDynamicEmbedTarget(target: HTMLElement): void {
+	if (managedFloats.has(target)) return
+	if (currentManagedFloat && currentManagedFloat !== target) return
+
+	const originalParent = target.parentElement
+	if (!originalParent) return
+	const originalStyle = target.getAttribute('style')
+	const iframeOriginalStyles = Array.from(target.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR)).map(
+		iframe => ({
+			iframe,
+			style: iframe.getAttribute('style'),
+		})
+	)
+
+	const rect = target.getBoundingClientRect()
+	const placeholder = document.createElement('div')
+	placeholder.style.width = `${Math.max(1, Math.round(rect.width))}px`
+	placeholder.style.height = `${Math.max(1, Math.round(rect.height))}px`
+	placeholder.style.flexShrink = '0'
+	placeholder.style.visibility = 'hidden'
+	placeholder.setAttribute('aria-hidden', 'true')
+
+	const originalNextSibling = target.nextSibling
+	originalParent.insertBefore(placeholder, target)
+	document.body.appendChild(target)
+
+	target.setAttribute(MVP_MANAGED_FLOAT_ATTR, 'true')
+	target.classList.add(FLOATING_VIDEO_CLASS)
+	applyManagedFloatBaseStyles(target)
+	attachFloatingVideoInteractions(target)
+
+	if (floatingVideoManualState) {
+		applyFloatingVideoManualState(target)
+	}
+
+	managedFloats.set(target, {
+		placeholder,
+		originalParent,
+		originalNextSibling,
+		originalStyle,
+		iframeOriginalStyles,
+	})
+	currentManagedFloat = target
+}
+
 function refreshFloatingVideoTargets(): void {
 	const activeTargets = new Set<HTMLElement>()
-	const iframes = document.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR)
+	const iframes = Array.from(document.querySelectorAll<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR))
+	const infiniteModeActive = isInfiniteScrollModeActive()
+	const activeInfiniteBlocks = new Set<HTMLElement>()
+	let hasNativeFixedTargets = false
 
 	iframes.forEach(iframe => {
-		const target = findFixedVideoTarget(iframe)
+		consumePendingActivationForIframe(iframe)
+		if (infiniteModeActive) {
+			if (shouldSkipDismissedIframeInInfiniteMode(iframe)) return
+		} else if (iframe.getAttribute(FLOATING_VIDEO_DYNAMIC_DISMISSED_ATTR) === 'true') {
+			return
+		}
+
+		let target = normalizeFloatingTargetElement(iframe, findFixedVideoTarget(iframe))
+		if (!target && infiniteModeActive) {
+			target = normalizeFloatingTargetElement(iframe, iframe.closest<HTMLElement>('.affixed'))
+		}
 		if (!target) return
 
+		if (infiniteModeActive && !managedFloats.has(target)) {
+			if (currentManagedFloat && currentManagedFloat !== target) {
+				unfloatManagedTarget(currentManagedFloat)
+			}
+			floatDynamicEmbedTarget(target)
+		}
+
+		hasNativeFixedTargets = true
 		activeTargets.add(target)
 		target.classList.add(FLOATING_VIDEO_CLASS)
 		attachFloatingVideoInteractions(target)
+		if (infiniteModeActive) {
+			// In infinite-scroll contexts, keep a deterministic geometry to prevent
+			// native affixed offsets from placing the player off-screen.
+			applyManagedFloatBaseStyles(target)
+		}
 
-		if (floatingVideoManualState) {
+		if (infiniteModeActive) {
+			const pageBlock = getInfinitePageBlockForElement(target) ?? getInfinitePageBlockForElement(iframe)
+			if (pageBlock) {
+				activeInfiniteBlocks.add(pageBlock)
+			}
+		}
+
+		if (floatingVideoManualState && target.getAttribute(FLOATING_VIDEO_MANUAL_POSITION_ATTR) === 'true') {
 			applyFloatingVideoManualState(target)
 		}
 	})
+
+	if (hasNativeFixedTargets && currentManagedFloat && !infiniteModeActive) {
+		unfloatManagedTarget(currentManagedFloat)
+	}
+
+	if (!hasNativeFixedTargets && isDynamicThreadModeActive() && !infiniteModeActive) {
+		let dynamicTarget: HTMLElement | null = null
+
+		if (currentManagedFloat) {
+			const managedIframe = currentManagedFloat.querySelector<HTMLIFrameElement>(FLOATING_VIDEO_IFRAME_SELECTOR)
+			if (managedIframe && isDynamicIframeActive(managedIframe)) {
+				const anchorRect = getDynamicAnchorRect(currentManagedFloat)
+				const anchorOutOfViewport =
+					anchorRect.bottom <= FLOATING_VIDEO_TOP_BUFFER_PX ||
+					anchorRect.top >= window.innerHeight - FLOATING_VIDEO_BOTTOM_PX
+
+				if (anchorOutOfViewport) {
+					dynamicTarget = currentManagedFloat
+				}
+			}
+		}
+
+		if (!dynamicTarget) {
+			const candidateIframes =
+				lastDynamicActiveIframe && lastDynamicActiveIframe.isConnected
+					? [lastDynamicActiveIframe, ...iframes.filter(iframe => iframe !== lastDynamicActiveIframe)]
+					: iframes
+
+			for (const iframe of candidateIframes) {
+				if (!isDynamicIframeActive(iframe)) continue
+				if (findFixedVideoTarget(iframe)) continue
+
+				const target = findEmbedContainer(iframe)
+				if (!target) continue
+				if (!isElementOutsideFloatingViewport(target)) continue
+
+				dynamicTarget = target
+				break
+			}
+		}
+
+		if (dynamicTarget) {
+			if (currentManagedFloat && currentManagedFloat !== dynamicTarget) {
+				unfloatManagedTarget(currentManagedFloat)
+			}
+			if (!managedFloats.has(dynamicTarget)) {
+				floatDynamicEmbedTarget(dynamicTarget)
+			} else {
+				applyManagedFloatBaseStyles(dynamicTarget)
+			}
+
+			activeTargets.add(dynamicTarget)
+			if (floatingVideoManualState && dynamicTarget.getAttribute(FLOATING_VIDEO_MANUAL_POSITION_ATTR) === 'true') {
+				applyFloatingVideoManualState(dynamicTarget)
+			}
+		} else if (currentManagedFloat) {
+			unfloatManagedTarget(currentManagedFloat)
+		}
+	} else if (currentManagedFloat && !activeTargets.has(currentManagedFloat)) {
+		unfloatManagedTarget(currentManagedFloat)
+	}
+
+	if (infiniteModeActive) {
+		reconcileInfiniteVisibleBlocks(activeInfiniteBlocks)
+	} else if (infiniteVisibleBlocks.size > 0) {
+		clearInfiniteVisibleBlocks()
+	}
 
 	document.querySelectorAll<HTMLElement>(`.${FLOATING_VIDEO_CLASS}`).forEach(element => {
 		if (!activeTargets.has(element)) {
@@ -1348,11 +2245,11 @@ function refreshFloatingVideoTargets(): void {
 			element.classList.remove(FLOATING_VIDEO_CLASS)
 			element.classList.remove(FLOATING_VIDEO_INTERACTING_CLASS)
 			element.removeAttribute(FLOATING_VIDEO_INTERACTIVE_ATTR)
-			element.querySelector(`.${FLOATING_VIDEO_DRAG_HANDLE_CLASS}`)?.remove()
-			element.querySelector(`.${FLOATING_VIDEO_RESIZE_HANDLE_CLASS}`)?.remove()
-			element.querySelector(`.${FLOATING_VIDEO_CLOSE_BUTTON_CLASS}`)?.remove()
+			removeFloatingVideoInteractionNodes(element)
 		}
 	})
+
+	cleanupOrphanFloatingVideoInteractionNodes()
 }
 
 function updateFloatingVideoLayout(): void {
@@ -1387,11 +2284,19 @@ function handleFloatingVideoViewportChange(): void {
 
 function startFloatingVideoGuard(): void {
 	ensureFloatingVideoInteractionStyles()
+	cleanupOrphanFloatingVideoInteractionNodes()
 
 	if (!floatingVideoListenersAttached) {
 		window.addEventListener('scroll', handleFloatingVideoViewportChange, { passive: true })
 		window.addEventListener('resize', handleFloatingVideoViewportChange)
+		document.addEventListener('pointerdown', handleFloatingVideoPointerDown, true)
+		document.addEventListener('focusin', handleFloatingVideoFocusIn, true)
 		floatingVideoListenersAttached = true
+	}
+
+	if (!floatingVideoMessageListenerAttached) {
+		window.addEventListener('message', handleFloatingVideoMessage)
+		floatingVideoMessageListenerAttached = true
 	}
 
 	if (!floatingVideoObserver) {
@@ -1419,7 +2324,14 @@ function stopFloatingVideoGuard(): void {
 	if (floatingVideoListenersAttached) {
 		window.removeEventListener('scroll', handleFloatingVideoViewportChange)
 		window.removeEventListener('resize', handleFloatingVideoViewportChange)
+		document.removeEventListener('pointerdown', handleFloatingVideoPointerDown, true)
+		document.removeEventListener('focusin', handleFloatingVideoFocusIn, true)
 		floatingVideoListenersAttached = false
+	}
+
+	if (floatingVideoMessageListenerAttached) {
+		window.removeEventListener('message', handleFloatingVideoMessage)
+		floatingVideoMessageListenerAttached = false
 	}
 
 	if (floatingVideoRafId) {

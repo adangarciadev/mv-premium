@@ -101,6 +101,11 @@ const POST_ALLOWED_ATTRS = [
 	'data-post',
 	'data-src',
 	'data-lazy',
+	'data-s9e-mediaembed',
+	'data-youtube',
+	'data-videoid',
+	'data-autor',
+	'data-s9e-livepreview-post',
 	'loading',
 	'srcset',
 	'sizes',
@@ -121,6 +126,9 @@ const POST_ALLOWED_ATTRS = [
 	'allow',
 	'sandbox',
 ]
+
+const LIVE_YOUTUBE_EMBED_SELECTOR = '.youtube_lite, .embed.yt, [data-s9e-mediaembed="youtube"]'
+const LIVE_YOUTUBE_WIRED_ATTR = 'data-mvp-live-youtube-wired'
 
 /**
  * Sanitize post HTML using DOMPurify directly (sync)
@@ -320,6 +328,83 @@ function calculatePollInterval(): number {
 	return POLL_INTERVALS.INACTIVE
 }
 
+function extractYouTubeVideoId(embed: HTMLElement): string | null {
+	const direct = embed.getAttribute('data-youtube')?.trim()
+	if (direct) return direct
+
+	const anchorWithData = embed.querySelector<HTMLAnchorElement>('a[data-youtube]')
+	const fromDataAnchor = anchorWithData?.getAttribute('data-youtube')?.trim()
+	if (fromDataAnchor) return fromDataAnchor
+
+	const href =
+		anchorWithData?.getAttribute('href') ||
+		embed.querySelector<HTMLAnchorElement>('a[href]')?.getAttribute('href') ||
+		''
+	if (!href) return null
+
+	const watchMatch = href.match(/[?&]v=([\w-]{6,})/i)
+	if (watchMatch) return watchMatch[1]
+
+	const shortMatch = href.match(/youtu\.be\/([\w-]{6,})/i)
+	if (shortMatch) return shortMatch[1]
+
+	const embedMatch = href.match(/\/embed\/([\w-]{6,})/i)
+	if (embedMatch) return embedMatch[1]
+
+	return null
+}
+
+function buildYouTubeIframe(videoId: string): HTMLIFrameElement {
+	const iframe = document.createElement('iframe')
+	iframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`
+	iframe.setAttribute('title', 'YouTube video player')
+	iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture')
+	iframe.setAttribute('allowfullscreen', '')
+	iframe.setAttribute('frameborder', '0')
+	iframe.style.width = '100%'
+	iframe.style.height = '100%'
+	iframe.style.display = 'block'
+	return iframe
+}
+
+function wireLiveYoutubeEmbeds(container: HTMLElement): void {
+	const embeds = container.querySelectorAll<HTMLElement>(LIVE_YOUTUBE_EMBED_SELECTOR)
+	embeds.forEach(embed => {
+		if (embed.hasAttribute(LIVE_YOUTUBE_WIRED_ATTR)) return
+		embed.setAttribute(LIVE_YOUTUBE_WIRED_ATTR, 'true')
+
+		embed.addEventListener(
+			'click',
+			event => {
+				if (embed.querySelector('iframe')) return
+
+				const videoId = extractYouTubeVideoId(embed)
+				if (!videoId) return
+
+				event.preventDefault()
+				event.stopPropagation()
+
+				embed.innerHTML = ''
+				embed.appendChild(buildYouTubeIframe(videoId))
+			},
+			true
+		)
+	})
+}
+
+function hydrateLazyIframes(container: HTMLElement): void {
+	const iframes = container.querySelectorAll<HTMLIFrameElement>('iframe')
+	iframes.forEach(iframe => {
+		const src = iframe.getAttribute('src')?.trim()
+		if (src) return
+
+		const lazySrc = iframe.getAttribute('data-src')?.trim() || iframe.getAttribute('data-lazy')?.trim()
+		if (!lazySrc) return
+
+		iframe.setAttribute('src', lazySrc)
+	})
+}
+
 function reinitializeMvScripts(embedScope?: HTMLElement): void {
 	try {
 		// Reinitialize tooltips for quote hovers
@@ -333,7 +418,10 @@ function reinitializeMvScripts(embedScope?: HTMLElement): void {
 	// Reinitialize embed iframes (Twitter, Instagram, etc.)
 	const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID)
 	if (postsWrap) {
-		reinitializeEmbeds(embedScope ?? postsWrap)
+		const scope = embedScope ?? postsWrap
+		hydrateLazyIframes(scope)
+		wireLiveYoutubeEmbeds(scope)
+		reinitializeEmbeds(scope)
 	}
 
 	// Update relative timestamps
