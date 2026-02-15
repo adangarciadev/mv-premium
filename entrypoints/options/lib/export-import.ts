@@ -10,29 +10,36 @@ export interface ExportData {
 	data: Record<string, any>
 }
 
-const CURRENT_EXPORT_VERSION = 2
-const LOCAL_PINNED_PREFIX = `local:${STORAGE_KEYS.PINNED_PREFIX}`
+const CURRENT_EXPORT_VERSION = 3
 const KEY_TIME_STATS = STORAGE_KEYS.TIME_STATS
+const LOCAL_PREFIX = 'local:'
 
 /**
  * Keys to exclude from export/import
  */
-const EXCLUDED_KEYS = [
-	`local:${STORAGE_KEYS.BOOKMARKS_VIEW_MODE}`, // View preference that shouldn't survive reset/import
+const EXCLUDED_KEYS: string[] = [
+	STORAGE_KEYS.BOOKMARKS_VIEW_MODE, // View preference that shouldn't survive reset/import
 	// Add other keys to exclude here if needed
 ]
+const EXCLUDED_KEYS_SET = new Set(EXCLUDED_KEYS)
+
+function normalizeStorageKey(key: string): string {
+	return key.startsWith(LOCAL_PREFIX) ? key.slice(LOCAL_PREFIX.length) : key
+}
 
 /**
  * Filter and process storage items for export
  */
 function shouldExportKey(key: string): boolean {
+	const normalizedKey = normalizeStorageKey(key)
+
 	// Only export our extension's keys
-	if (!key.startsWith('mvp-')) {
+	if (!normalizedKey.startsWith('mvp-')) {
 		return false
 	}
 
 	// Exclude specific keys
-	if (EXCLUDED_KEYS.includes(key)) {
+	if (EXCLUDED_KEYS_SET.has(normalizedKey)) {
 		return false
 	}
 
@@ -51,7 +58,7 @@ export async function exportAllData(): Promise<ExportData> {
 	// Filter and collect data
 	for (const [key, value] of Object.entries(snapshot)) {
 		if (shouldExportKey(key)) {
-			exportData[key] = value
+			exportData[normalizeStorageKey(key)] = value
 		}
 	}
 
@@ -152,13 +159,13 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 		const currentSnapshot = await getDecompressedSnapshot()
 
 		// Restore all items (setFromImport auto-compresses mvp-activity, mvp-drafts, etc.)
-		for (const [key, value] of entries) {
+		for (const [rawKey, value] of entries) {
+			const key = normalizeStorageKey(rawKey)
+
 			// Double check it's one of our keys before writing (security)
 			if (shouldExportKey(key)) {
 				// SMART IMPORT: Check if data is identical to skip write and noise in stats
 				// We use JSON.stringify for a quick deep comparison.
-				// Note: snapshot keys don't have 'local:' prefix, but export keys might depending on how they were saved.
-				// Based on previous fix, export keys are 'mvp-...'. snapshot keys are also 'mvp-...'.
 				const currentVal = currentSnapshot[key]
 
 				// sensitive check: if both are objects/arrays, stringify. If primitives, direct compare.
@@ -171,7 +178,7 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 				await setFromImport(key, value)
 
 				// Calculate stats based on key and value
-				if (key.startsWith(LOCAL_PINNED_PREFIX) && !key.includes('-meta-')) {
+				if (key.startsWith(STORAGE_KEYS.PINNED_PREFIX) && !key.includes('-meta-')) {
 					stats.pinnedPosts++
 				} else if (key.includes(STORAGE_KEYS.SAVED_THREADS) && Array.isArray(value)) {
 					stats.savedThreads += value.length
