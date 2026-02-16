@@ -69,7 +69,7 @@ FORMATO DE SALIDA (JSON estrictamente valido):
     { "name": "Usuario1", "contribution": "Resumen muy breve de su postura o aporte" },
     { "name": "Usuario2", "contribution": "Resumen muy breve de su postura o aporte" }
   ],
-  "status": "Una frase sobre el estado del debate (consenso, discusion acalorada, off-topic, dudas, etc.)"
+  "status": "Una frase ORIGINAL sobre el estado del debate. Ejemplo: 'Debate fragmentado y tenso, con discusiones circulares sobre [Tema] sin llegar a consenso.'"
 }
 
 REGLAS ESTRICTAS:
@@ -78,12 +78,15 @@ REGLAS ESTRICTAS:
 - Resume SOLO los posts que te paso.
 - Ignora posts sin contenido ("pole", "+1").
 - Incluye también el contenido que venga dentro de spoilers cuando aporte contexto.
-- No confundas apodos/rangos/títulos visuales junto al nick con el nombre del usuario: usa solo el nick real.
+- AGRUPACIÓN: Si varios usuarios comparten la misma postura, AGRÚPALOS (ej: "Pepito, Juanito").
+- OP: Mantén la etiqueta (OP) si identificas al creador del hilo.
+- No confundas apodos/rangos/títulos visuales junto al nick con el nombre del usuario: usa solo el nick real (salvo OP).
 - Si un post solo incluye media/embed/enlace (tweet, vídeo, etc.) sin comentario propio del autor, NO lo uses para atribuir postura personal.
 - Detecta ironía/sarcasmo y no la traduzcas como apoyo literal.
 - Si una postura es irónica o ambigua, descríbela como "ironiza con..." o "crítica sarcástica a...".
 - No uses verbos de apoyo ("defiende", "apoya", "celebra") salvo evidencia explícita y literal.
 - Si no hay certeza total de postura, usa verbos neutrales: "plantea", "argumenta", "cuestiona" o "ironiza".
+- Evita muletillas de IA como "En conclusión", "Cabe destacar" o "Es importante notar". Sé directo.
 - Responde en espanol.
 - IMPORTANTE: Tu respuesta debe empezar con { y terminar con }. Sin texto antes ni despues.`
 

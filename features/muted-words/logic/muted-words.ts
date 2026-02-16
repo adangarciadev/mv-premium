@@ -31,6 +31,17 @@ interface CompiledPattern {
 	lowerWord?: string // Lowercase word (if not regex)
 }
 
+function sanitizeRegexFlags(flags: string): string {
+	// Remove stateful flags that can cause RegExp.test() inconsistencies across posts.
+	const safeFlags = flags.replace(/[gy]/g, '')
+	return safeFlags || 'i'
+}
+
+function escapeHtml(text: string): string {
+	const map: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }
+	return text.replace(/[&<>"']/g, char => map[char])
+}
+
 // Cache for compiled patterns and config
 let cachedConfig: {
 	words: string[]
@@ -47,7 +58,7 @@ let cachedConfig: {
  * If the word starts with '/', it is treated as a regular expression.
  * @param word - The raw string or regex pattern to compile
  */
-function compilePattern(word: string): CompiledPattern {
+export function compilePattern(word: string): CompiledPattern {
 	const trimmed = word.trim()
 
 	// Check if it's a regex pattern (starts with /)
@@ -60,7 +71,7 @@ function compilePattern(word: string): CompiledPattern {
 				return {
 					original: word,
 					isRegex: true,
-					regex: new RegExp(pattern, flags || 'i'),
+					regex: new RegExp(pattern, sanitizeRegexFlags(flags)),
 				}
 			}
 			// Fallback: treat as simple pattern without closing /
@@ -93,8 +104,10 @@ function compilePattern(word: string): CompiledPattern {
 /**
  * Checks if a given text string matches a specific compiled pattern.
  */
-function matchesPattern(text: string, pattern: CompiledPattern): boolean {
+export function matchesPattern(text: string, pattern: CompiledPattern): boolean {
 	if (pattern.isRegex && pattern.regex) {
+		// Defensive reset in case an existing persisted pattern still has stateful flags.
+		pattern.regex.lastIndex = 0
 		return pattern.regex.test(text)
 	}
 	return text.toLowerCase().includes(pattern.lowerWord || '')
@@ -332,7 +345,7 @@ function createMuteOverlay(matchedWord: string): HTMLElement {
 		<div style="width: 1px; height: 12px; background-color: var(--border); flex-shrink: 0;"></div>
 
 		<div style="font-size: 11px; color: var(--muted-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-			Filtro: <span style="color: var(--foreground); font-weight: 500;">${matchedWord}</span>
+			Filtro: <span style="color: var(--foreground); font-weight: 500;">${escapeHtml(matchedWord)}</span>
 		</div>
 	`
 

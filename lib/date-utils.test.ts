@@ -123,8 +123,9 @@ describe('date-utils', () => {
 		})
 
 		it('should return formatted date for timestamps > 7 days ago', () => {
-			const now = Date.now()
-			const oldTimestamp = now - 604800000 // 7 days ago
+			// Use real timers for locale date formatting path to avoid fake-timer edge cases.
+			vi.useRealTimers()
+			const oldTimestamp = new Date(2025, 5, 8, 12, 0, 0).getTime() // June 8, 2025 12:00
 
 			const result = formatRelativeDate(oldTimestamp)
 			// Should contain date elements, not relative text

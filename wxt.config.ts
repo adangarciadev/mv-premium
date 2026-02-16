@@ -15,7 +15,6 @@ export default defineConfig({
 			'https://generativelanguage.googleapis.com/*',
 			'https://api.groq.com/*',
 			'https://api.imgbb.com/*',
-			'https://api.imgbb.com/*',
 			'https://freeimage.host/*',
 			'*://api.igdb.com/*',
 			'*://id.twitch.tv/*',

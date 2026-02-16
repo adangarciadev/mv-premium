@@ -10,27 +10,36 @@ export interface ExportData {
 	data: Record<string, any>
 }
 
-const CURRENT_EXPORT_VERSION = 2
+const CURRENT_EXPORT_VERSION = 3
+const KEY_TIME_STATS = STORAGE_KEYS.TIME_STATS
+const LOCAL_PREFIX = 'local:'
 
 /**
  * Keys to exclude from export/import
  */
-const EXCLUDED_KEYS = [
-	`local:${STORAGE_KEYS.BOOKMARKS_VIEW_MODE}`, // View preference that shouldn't survive reset/import
-	// Add other keys to exclude here if needed
+const EXCLUDED_KEYS: string[] = [
+	STORAGE_KEYS.BOOKMARKS_VIEW_MODE, // View preference that shouldn't survive reset/import
+	STORAGE_KEYS.MV_THEME_CSS, // Generated cache — regenerated from colorOverrides on import
 ]
+const EXCLUDED_KEYS_SET = new Set(EXCLUDED_KEYS)
+
+function normalizeStorageKey(key: string): string {
+	return key.startsWith(LOCAL_PREFIX) ? key.slice(LOCAL_PREFIX.length) : key
+}
 
 /**
  * Filter and process storage items for export
  */
 function shouldExportKey(key: string): boolean {
+	const normalizedKey = normalizeStorageKey(key)
+
 	// Only export our extension's keys
-	if (!key.startsWith('mvp-')) {
+	if (!normalizedKey.startsWith('mvp-')) {
 		return false
 	}
 
 	// Exclude specific keys
-	if (EXCLUDED_KEYS.includes(key)) {
+	if (EXCLUDED_KEYS_SET.has(normalizedKey)) {
 		return false
 	}
 
@@ -49,7 +58,7 @@ export async function exportAllData(): Promise<ExportData> {
 	// Filter and collect data
 	for (const [key, value] of Object.entries(snapshot)) {
 		if (shouldExportKey(key)) {
-			exportData[key] = value
+			exportData[normalizeStorageKey(key)] = value
 		}
 	}
 
@@ -150,13 +159,13 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 		const currentSnapshot = await getDecompressedSnapshot()
 
 		// Restore all items (setFromImport auto-compresses mvp-activity, mvp-drafts, etc.)
-		for (const [key, value] of entries) {
+		for (const [rawKey, value] of entries) {
+			const key = normalizeStorageKey(rawKey)
+
 			// Double check it's one of our keys before writing (security)
 			if (shouldExportKey(key)) {
 				// SMART IMPORT: Check if data is identical to skip write and noise in stats
 				// We use JSON.stringify for a quick deep comparison.
-				// Note: snapshot keys don't have 'local:' prefix, but export keys might depending on how they were saved.
-				// Based on previous fix, export keys are 'mvp-...'. snapshot keys are also 'mvp-...'.
 				const currentVal = currentSnapshot[key]
 
 				// sensitive check: if both are objects/arrays, stringify. If primitives, direct compare.
@@ -169,15 +178,15 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 				await setFromImport(key, value)
 
 				// Calculate stats based on key and value
-				if (key.startsWith('local:mvp-pinned-') && !key.includes('-meta-')) {
+				if (key.startsWith(STORAGE_KEYS.PINNED_PREFIX) && !key.includes('-meta-')) {
 					stats.pinnedPosts++
-				} else if (key.includes('mvp-saved-threads') && Array.isArray(value)) {
+				} else if (key.includes(STORAGE_KEYS.SAVED_THREADS) && Array.isArray(value)) {
 					stats.savedThreads += value.length
-				} else if (key.includes('mvp-muted-words') && Array.isArray(value)) {
+				} else if (key.includes(STORAGE_KEYS.MUTED_WORDS) && Array.isArray(value)) {
 					stats.mutedWords += value.length
-				} else if (key.includes('mvp-user-customizations') && typeof value === 'object') {
+				} else if (key.includes(STORAGE_KEYS.USER_CUSTOMIZATIONS) && typeof value === 'object') {
 					stats.userCustomizations += Object.keys(value).length
-				} else if (key.includes('mvp-drafts')) {
+				} else if (key.includes(STORAGE_KEYS.DRAFTS)) {
 					// Drafts are stored as { drafts: [], folders: [] }
 					// value is the decompressed object
 					const newDraftsData = value as any
@@ -190,13 +199,13 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 							else stats.drafts++
 						})
 					}
-				} else if (key.includes('mvp-activity') && typeof value === 'object') {
+				} else if (key.includes(STORAGE_KEYS.ACTIVITY) && typeof value === 'object') {
 					stats.activityDays += Object.keys(value).length
-				} else if (key.includes('mvp-time-stats') && typeof value === 'object') {
+				} else if (key.includes(KEY_TIME_STATS) && typeof value === 'object') {
 					stats.subforumStats += Object.keys(value).length
-				} else if (key.includes('mvp-favorite-subforums') && Array.isArray(value)) {
+				} else if (key.includes(STORAGE_KEYS.FAVORITE_SUBFORUMS) && Array.isArray(value)) {
 					stats.favorites += value.length
-				} else if (key.includes('mvp-settings')) {
+				} else if (key.includes(STORAGE_KEYS.SETTINGS)) {
 					// Settings contains multiple features, inspect deeply
 					try {
 						const newSettings = parseSettingsState(value)
@@ -237,6 +246,9 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 			}
 		}
 
+		// Regenerate MV theme CSS cache from the imported config (the CSS key is excluded from export)
+		await regenerateMvThemeCSSAfterImport()
+
 		return { success: true, stats }
 	} catch (error) {
 		logger.error('Import error:', error)
@@ -244,6 +256,20 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 			success: false,
 			error: error instanceof Error ? error.message : 'Error desconocido al importar',
 		}
+	}
+}
+
+/**
+ * Re-hydrate the MV theme store from the just-imported storage data and
+ * regenerate the CSS cache so the theme works immediately without a reload.
+ */
+async function regenerateMvThemeCSSAfterImport(): Promise<void> {
+	try {
+		const { useMvThemeStore } = await import('@/features/mv-theme/mv-theme-store')
+		await useMvThemeStore.getState().loadFromStorage()
+		useMvThemeStore.getState().regenerateAndCacheCSS()
+	} catch (error) {
+		logger.warn('MV theme CSS regeneration after import skipped:', error)
 	}
 }
 

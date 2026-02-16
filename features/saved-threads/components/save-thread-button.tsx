@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { logger } from '@/lib/logger'
 import { isThreadSaved, toggleSaveThread, watchSavedThreads } from '../logic/storage'
+import { showSavedThreadToggledToast, showSaveThreadErrorToast } from '../logic/save-toast'
 
 export function SaveThreadButton() {
 	const [isSaved, setIsSaved] = useState(false)
@@ -34,14 +35,17 @@ export function SaveThreadButton() {
 		try {
 			const nowSaved = await toggleSaveThread()
 			setIsSaved(nowSaved)
+			showSavedThreadToggledToast(nowSaved)
 		} catch (error) {
 			logger.error('Error toggling save state:', error)
+			showSaveThreadErrorToast()
 		}
 	}, [isLoading])
 
 	const label = isLoading ? 'Cargando...' : isSaved ? 'Quitar de guardados' : 'Guardar hilo'
+	const shortLabel = isLoading ? 'Cargando' : isSaved ? 'Guardado' : 'Guardar'
 
-	// Native MV button style - icon only like favorites
+	// Native MV button style (side-mode may append short label via CSS).
 	return (
 		<a
 			href="javascript:void(0);"
@@ -65,6 +69,9 @@ export function SaveThreadButton() {
 				}}
 				aria-hidden="true"
 			/>
+			<span className="mvp-save-thread-label" style={{ marginLeft: '5px', display: 'none' }}>
+				{shortLabel}
+			</span>
 		</a>
 	)
 }

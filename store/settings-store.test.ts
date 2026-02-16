@@ -68,6 +68,14 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().liveThreadEnabled).toBe(false)
 		})
 
+		it('has live thread delay enabled by default', () => {
+			expect(useSettingsStore.getState().liveThreadDelayEnabled).toBe(true)
+		})
+
+		it('has centered controls position set to top by default', () => {
+			expect(useSettingsStore.getState().centeredControlsPosition).toBe('top')
+		})
+
 		it('has empty API keys by default', () => {
 			const state = useSettingsStore.getState()
 			expect(state.imgbbApiKey).toBe('')
@@ -150,6 +158,13 @@ describe('settings-store', () => {
 				useSettingsStore.getState().setSetting('liveThreadEnabled', true)
 			})
 			expect(useSettingsStore.getState().liveThreadEnabled).toBe(true)
+		})
+
+		it('setSetting supports centered controls position', () => {
+			act(() => {
+				useSettingsStore.getState().setSetting('centeredControlsPosition', 'side')
+			})
+			expect(useSettingsStore.getState().centeredControlsPosition).toBe('side')
 		})
 	})
 

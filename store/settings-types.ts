@@ -34,6 +34,9 @@ export type UltrawideMode = 'off' | 'wide' | 'extra-wide' | 'full'
 /** Dashboard icon options */
 export type DashboardIcon = 'logo' | 'user-shield' | 'dashboard' | 'rocket' | 'gears'
 
+/** Centered posts control bar position */
+export type CenteredControlsPosition = 'top' | 'side'
+
 /** Full settings object type */
 export interface Settings {
 	// Theme & Appearance
@@ -62,8 +65,10 @@ export interface Settings {
 	infiniteScrollEnabled: boolean
 	autoInfiniteScrollEnabled: boolean
 	liveThreadEnabled: boolean
+	newHomepageEnabled: boolean
 	galleryButtonEnabled: boolean
 	nativeLiveDelayEnabled: boolean
+	liveThreadDelayEnabled: boolean
 	navbarSearchEnabled: boolean
 
 	// Feature Toggles - Editor
@@ -75,10 +80,12 @@ export interface Settings {
 
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: boolean
+	steamBundleInlineCardsEnabled: boolean
 	pinnedPostsEnabled: boolean
 	threadSummarizerEnabled: boolean
 	postSummaryEnabled: boolean
 	saveThreadEnabled: boolean
+	hideThreadEnabled: boolean
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: boolean
@@ -95,6 +102,7 @@ export interface Settings {
 	ultrawideMode: UltrawideMode
 	centeredPostsEnabled: boolean
 	centeredControlsSticky: boolean
+	centeredControlsPosition: CenteredControlsPosition
 
 	// Keyboard Shortcuts
 	shortcuts: Record<string, string | null>

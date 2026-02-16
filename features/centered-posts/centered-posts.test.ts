@@ -2,6 +2,7 @@
  * Tests for Centered Posts Mode configuration
  */
 import { describe, it, expect } from 'vitest'
+import { RUNTIME_CACHE_KEYS } from '@/constants'
 
 // Test the CSS generation logic
 describe('centered posts mode', () => {
@@ -37,7 +38,7 @@ describe('centered posts mode', () => {
 	})
 
 	describe('cache management', () => {
-		const CACHE_KEY = 'mvp-centered-posts-cache'
+		const CACHE_KEY = RUNTIME_CACHE_KEYS.CENTERED_POSTS
 
 		it('should store enabled state in cache', () => {
 			const updateCache = (enabled: boolean): void => {

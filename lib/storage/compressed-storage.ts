@@ -10,9 +10,15 @@
 import LZString from 'lz-string'
 import { storage } from '#imports'
 import { logger } from '@/lib/logger'
+import { STORAGE_KEYS } from '@/constants'
 
 // Keys that should be compressed (high-growth data)
-const COMPRESSED_KEYS = ['mvp-activity', 'mvp-drafts']
+const COMPRESSED_KEYS = [
+	STORAGE_KEYS.ACTIVITY,
+	STORAGE_KEYS.DRAFTS,
+	STORAGE_KEYS.MV_THEME_CSS,
+	STORAGE_KEYS.MV_THEME_SAVED_PRESETS,
+]
 
 // Marker prefix to detect compressed data
 const COMPRESSED_MARKER = '__LZB64__'

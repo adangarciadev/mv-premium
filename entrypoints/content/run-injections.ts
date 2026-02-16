@@ -31,10 +31,99 @@ export interface PageContext {
 // Heavy features are loaded dynamically below
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled, FeatureFlag } from '@/lib/feature-flags'
-import { useSettingsStore } from '@/store/settings-store'
 
 // Track initialization state
 let globalFeaturesInitialized = false
+
+type PinnedPostsModule = typeof import('@/features/pinned-posts/logic/pin-posts')
+type InfiniteScrollModule = typeof import('@/features/infinite-scroll')
+type LiveThreadModule = typeof import('@/features/live-thread')
+type GalleryModule = typeof import('@/features/gallery')
+type SavedThreadsModule = typeof import('@/features/saved-threads')
+type ThreadSummarizerModule = typeof import('@/features/thread-summarizer')
+type PostSummaryModule = typeof import('@/features/post-summary')
+type MutedWordsModule = typeof import('@/features/muted-words/logic/muted-words')
+
+interface ThreadFeatureModules {
+	pinnedPosts?: PinnedPostsModule
+	infiniteScroll?: InfiniteScrollModule
+	liveThread?: LiveThreadModule
+	gallery?: GalleryModule
+	savedThreads?: SavedThreadsModule
+	threadSummarizer?: ThreadSummarizerModule
+	postSummary?: PostSummaryModule
+	mutedWords?: MutedWordsModule
+}
+
+const THREAD_FEATURE_NAMES = [
+	'pinned-posts',
+	'infinite-scroll',
+	'live-thread',
+	'gallery',
+	'saved-threads',
+	'thread-summarizer',
+	'post-summary',
+	'muted-words',
+] as const
+
+let threadFeatureModulesCache: ThreadFeatureModules | null = null
+let threadFeatureModulesPromise: Promise<ThreadFeatureModules> | null = null
+
+async function loadThreadFeatureModules(): Promise<ThreadFeatureModules> {
+	if (threadFeatureModulesCache) {
+		return threadFeatureModulesCache
+	}
+
+	if (threadFeatureModulesPromise) {
+		return threadFeatureModulesPromise
+	}
+
+	threadFeatureModulesPromise = (async () => {
+		// Parallel load thread features using allSettled so single failures don't break others.
+		const results = await Promise.allSettled([
+			import('@/features/pinned-posts/logic/pin-posts'),
+			import('@/features/infinite-scroll'),
+			import('@/features/live-thread'),
+			import('@/features/gallery'),
+			import('@/features/saved-threads'),
+			import('@/features/thread-summarizer'),
+			import('@/features/post-summary'),
+			import('@/features/muted-words/logic/muted-words'),
+		])
+
+		const [pinnedPosts, infiniteScroll, liveThread, gallery, savedThreads, threadSummarizer, postSummary, mutedWords] = results
+
+		const modules: ThreadFeatureModules = {
+			pinnedPosts: pinnedPosts.status === 'fulfilled' ? pinnedPosts.value : undefined,
+			infiniteScroll: infiniteScroll.status === 'fulfilled' ? infiniteScroll.value : undefined,
+			liveThread: liveThread.status === 'fulfilled' ? liveThread.value : undefined,
+			gallery: gallery.status === 'fulfilled' ? gallery.value : undefined,
+			savedThreads: savedThreads.status === 'fulfilled' ? savedThreads.value : undefined,
+			threadSummarizer: threadSummarizer.status === 'fulfilled' ? threadSummarizer.value : undefined,
+			postSummary: postSummary.status === 'fulfilled' ? postSummary.value : undefined,
+			mutedWords: mutedWords.status === 'fulfilled' ? mutedWords.value : undefined,
+		}
+
+		logger.debug('Thread feature modules loaded', {
+			failed: results.filter(r => r.status === 'rejected').length,
+		})
+
+		results.forEach((result, index) => {
+			if (result.status === 'rejected') {
+				logger.error(`Failed to load thread feature: ${THREAD_FEATURE_NAMES[index]}`, result.reason)
+			}
+		})
+
+		threadFeatureModulesCache = modules
+		return modules
+	})()
+
+	try {
+		return await threadFeatureModulesPromise
+	} finally {
+		threadFeatureModulesPromise = null
+	}
+}
 
 /**
  * Run all content injections based on current page
@@ -89,10 +178,19 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	}
 
 	// =========================================================================
+	// HOMEPAGE
+	// =========================================================================
+	if (pageContext?.isHomepage && isFeatureEnabled(FeatureFlag.NewHomepage)) {
+		import('@/features/new-homepage').then(({ injectHomepage }) => {
+			injectHomepage()
+		})
+	}
+
+	// =========================================================================
 	// EDITOR FEATURES - Only when editor exists on page
 	// These need to run on mutations too (for dynamically loaded editors)
 	// =========================================================================
-	const hasEditor = document.querySelector('textarea#cuerpo, textarea[name="cuerpo"]')
+	const hasEditor = document.querySelector('textarea#cuerpo, textarea[name="cuerpo"], textarea[name="msg"], textarea.inline-edit')
 	if (hasEditor) {
 		import('@/features/editor/logic/editor-toolbar').then(
 			({ injectEditorToolbar, injectDraftAutosave, injectCharacterCounter, injectPasteHandler }) => {
@@ -111,6 +209,12 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		import('@/features/drafts').then(({ injectSaveDraftButton }) => {
 			injectSaveDraftButton()
 		})
+
+		if (isFeatureEnabled(FeatureFlag.SteamBundleInlineCards)) {
+			import('@/features/media-hover-cards').then(({ initSteamBundleInlineCards }) => {
+				initSteamBundleInlineCards()
+			})
+		}
 	}
 
 	// =========================================================================
@@ -127,6 +231,22 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	// =========================================================================
 	// FORUM LIST / SUBFORUM PAGES
 	// =========================================================================
+	// Hidden threads first to minimize visible time before canonical filter is applied.
+	// Includes profile pages where "Últimos posts" or similar thread lists may appear.
+	const isPaginatedSubforum = /^\/foro\/[^/]+\/p\d+\/?$/.test(window.location.pathname)
+	const isUserProfilePage = /^\/id\/[^/]+(?:\/.*)?$/.test(window.location.pathname)
+	if (
+		pageContext?.isForumList ||
+		pageContext?.isSubforum ||
+		isPaginatedSubforum ||
+		pageContext?.isForumGlobalView ||
+		pageContext?.isFavorites ||
+		isUserProfilePage
+	) {
+		const { initHiddenThreadsFiltering } = await import('@/features/hidden-threads')
+		void initHiddenThreadsFiltering()
+	}
+
 	if (pageContext?.isForumList || pageContext?.isSubforum) {
 		const { injectFavoriteSubforumButtons } = await import(
 			'@/features/favorite-subforums/logic/favorite-subforum-inject'
@@ -146,6 +266,12 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	// THREAD PAGES
 	// =========================================================================
 	if (pageContext?.isThread) {
+		if (isFeatureEnabled(FeatureFlag.SteamBundleInlineCards)) {
+			import('@/features/media-hover-cards').then(({ initSteamBundleInlineCards }) => {
+				initSteamBundleInlineCards()
+			})
+		}
+
 		// Inject scroll-to-bottom button (lightweight, no dynamic import needed)
 		import('@/lib/content-modules').then(({ injectScrollToBottomButton }) => {
 			injectScrollToBottomButton()
@@ -165,77 +291,42 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 			}
 		)
 
-		// Parallel load thread features using allSettled to prevent single failure from breaking all
-		const results = await Promise.allSettled([
-			import('@/features/pinned-posts/logic/pin-posts'),
-			import('@/features/infinite-scroll'),
-			import('@/features/live-thread'),
-			import('@/features/gallery'),
-			import('@/features/saved-threads'),
-			import('@/features/thread-summarizer'),
-			import('@/features/post-summary'),
-			import('@/features/muted-words/logic/muted-words'),
-		])
-
-		// Process each result individually - failed imports don't block others
-		const [pinnedPosts, infiniteScroll, liveThread, gallery, savedThreads, threadSummarizer, postSummary, mutedWords] =
-			results
-
-		logger.debug('Thread features loaded', {
-			failed: results.filter(r => r.status === 'rejected').length,
-		})
+		const threadModules = await loadThreadFeatureModules()
 
 		// Each feature initializes independently
-		if (pinnedPosts.status === 'fulfilled' && isFeatureEnabled(FeatureFlag.PinnedPosts)) {
-			pinnedPosts.value.initPinButtonsObserver()
-			pinnedPosts.value.injectPinnedPostsSidebar()
+		if (threadModules.pinnedPosts && isFeatureEnabled(FeatureFlag.PinnedPosts)) {
+			threadModules.pinnedPosts.initPinButtonsObserver()
+			threadModules.pinnedPosts.injectPinnedPostsSidebar()
 		}
 
-		if (infiniteScroll.status === 'fulfilled' && isFeatureEnabled(FeatureFlag.InfiniteScroll)) {
-			infiniteScroll.value.injectInfiniteScroll(ctx)
+		if (threadModules.infiniteScroll && isFeatureEnabled(FeatureFlag.InfiniteScroll)) {
+			threadModules.infiniteScroll.injectInfiniteScroll(ctx)
 		}
 
-		if (liveThread.status === 'fulfilled' && isFeatureEnabled(FeatureFlag.LiveThread)) {
-			liveThread.value.injectLiveThreadButton()
+		if (threadModules.liveThread && isFeatureEnabled(FeatureFlag.LiveThread)) {
+			threadModules.liveThread.injectLiveThreadButton()
 		}
 
-		if (gallery.status === 'fulfilled' && isFeatureEnabled(FeatureFlag.Gallery)) {
-			gallery.value.injectGalleryTrigger()
+		if (threadModules.gallery && isFeatureEnabled(FeatureFlag.Gallery)) {
+			threadModules.gallery.injectGalleryTrigger()
 		}
 
-		if (savedThreads.status === 'fulfilled' && isFeatureEnabled(FeatureFlag.SavedThreads)) {
-			savedThreads.value.injectSaveThreadButton()
+		if (threadModules.savedThreads) {
+			threadModules.savedThreads.injectSaveThreadButton()
 		}
 
-		if (threadSummarizer.status === 'fulfilled' && isFeatureEnabled(FeatureFlag.ThreadSummarizer)) {
-			threadSummarizer.value.injectSummarizerButton()
-			threadSummarizer.value.injectMultiPageSummarizerButton()
+		if (threadModules.threadSummarizer && isFeatureEnabled(FeatureFlag.ThreadSummarizer)) {
+			threadModules.threadSummarizer.injectSummarizerButton()
+			threadModules.threadSummarizer.injectMultiPageSummarizerButton()
 		}
 
-		if (postSummary.status === 'fulfilled' && isFeatureEnabled(FeatureFlag.PostSummary)) {
-			postSummary.value.initSummaryButtonsObserver()
+		if (threadModules.postSummary && isFeatureEnabled(FeatureFlag.PostSummary)) {
+			threadModules.postSummary.initSummaryButtonsObserver()
 		}
 
-		if (mutedWords.status === 'fulfilled' && isFeatureEnabled(FeatureFlag.MutedWords)) {
-			void mutedWords.value.applyMutedWordsFilter()
+		if (threadModules.mutedWords && isFeatureEnabled(FeatureFlag.MutedWords)) {
+			void threadModules.mutedWords.applyMutedWordsFilter()
 		}
-
-		// Log any failures for debugging
-		results.forEach((result, index) => {
-			if (result.status === 'rejected') {
-				const featureNames = [
-					'pinned-posts',
-					'infinite-scroll',
-					'live-thread',
-					'gallery',
-					'saved-threads',
-					'thread-summarizer',
-					'post-summary',
-					'muted-words',
-				]
-				logger.error(`Failed to load thread feature: ${featureNames[index]}`, result.reason)
-			}
-		})
 	}
 
 	// =========================================================================

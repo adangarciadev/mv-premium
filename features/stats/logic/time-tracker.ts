@@ -5,8 +5,9 @@
 import { storage } from '#imports'
 import { logger } from '@/lib/logger'
 import { getSubforumInfo, getThreadId } from '@/lib/url-helpers'
+import { STORAGE_KEYS } from '@/constants'
 
-const STORAGE_KEY = 'local:mvp-time-stats'
+const STORAGE_KEY = `local:${STORAGE_KEYS.TIME_STATS}` as `local:${string}`
 const SYNC_INTERVAL_MS = 30_000 // Sync to storage every 30s
 const TRACK_INTERVAL_MS = 1_000 // Tick every 1s
 

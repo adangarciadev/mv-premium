@@ -12,7 +12,7 @@ import { onMessage, type UploadResult } from '@/lib/messaging'
 // Storage Definitions
 // =============================================================================
 
-const imgbbApiKeyStorage = storage.defineItem<string | null>(`local:${STORAGE_KEYS.IMGBB_KEY}`, {
+const settingsStorageItem = storage.defineItem<string | null>(`local:${STORAGE_KEYS.SETTINGS}`, {
 	defaultValue: null,
 })
 
@@ -34,10 +34,7 @@ export function setupImgbbHandler(): void {
 	onMessage('uploadImageToImgbb', async ({ data }): Promise<UploadResult> => {
 		try {
 			// Read API key from Settings Store (Zustand persisted state)
-			const settingsStorage = storage.defineItem<string | null>(`local:${STORAGE_KEYS.SETTINGS}`, {
-				defaultValue: null,
-			})
-			const rawSettings = await settingsStorage.getValue()
+			const rawSettings = await settingsStorageItem.getValue()
 			let apiKey = ''
 
 			if (rawSettings) {

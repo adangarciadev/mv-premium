@@ -21,24 +21,37 @@ export const STORAGE_KEYS = {
 
 	// API Keys
 	IMGBB_KEY: 'mvp-imgbb-key',
+	IGDB_ACCESS_TOKEN: 'mvp-igdb-access-token',
+	IGDB_TOKEN_EXPIRY: 'mvp-igdb-token-expiry',
 	BOLD_COLOR: 'mvp-bold-color',
 	BOLD_COLOR_ENABLED: 'mvp-bold-color-enabled',
 
 	// Features
 	MUTED_WORDS: 'mvp-muted-words',
+	HIDDEN_THREADS: 'mvp-hidden-threads',
 	SAVED_THREADS: 'mvp-saved-threads',
 	USER_CUSTOMIZATIONS: 'mvp-user-customizations',
 	FAVORITE_SUBFORUMS: 'mvp-favorite-subforums',
 	LIVE_THREADS: 'mvp-live-threads',
 	ACTIVITY: 'mvp-activity',
+	TIME_STATS: 'mvp-time-stats',
 	PENDING_THREAD_CREATION: 'mvp-pending-thread-creation',
 	PENDING_POST_EDIT: 'mvp-pending-post-edit',
 	PENDING_REPLY: 'mvp-pending-reply',
 	LAST_SEEN_VERSION: 'mvp-last-seen-version',
+	STORAGE_VERSION: 'mvp-storage-version',
 	DRAFTS: 'mvp-drafts',
 	EDITOR_PRESERVE: 'mvp-editor-preserve',
 	BOOKMARKS_VIEW_MODE: 'mvp-bookmarks-view-mode',
+	FID_ICONS_CACHE: 'mvp-fid-icons-cache',
 	NATIVE_LIVE_DELAY: 'mvp-native-live-delay',
+	LIVE_THREAD_DELAY: 'mvp-live-thread-delay',
+	HOMEPAGE_RECENT_FORUMS: 'mvp-homepage-recent-forums',
+
+	// MV Site Theme
+	MV_THEME: 'mvp-mv-theme',
+	MV_THEME_CSS: 'mvp-mv-theme-css',
+	MV_THEME_SAVED_PRESETS: 'mvp-mv-theme-presets',
 
 	// UI State
 	LIVE_PREVIEW_ENABLED: 'mvp-live-preview-enabled',

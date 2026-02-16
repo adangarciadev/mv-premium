@@ -1,5 +1,5 @@
 import { browser, type Browser } from 'wxt/browser'
-import { themeStorage, themeStateStorage, customFontStorage, savedPresetsStorage, type Theme } from './storage'
+import { themeStorage, customFontStorage, type Theme } from './storage'
 import { getActivePresetColors, getActivePresetRadius, generateThemeCSS } from './generator'
 import { DOM_MARKERS } from '@/constants/dom-markers'
 import { STORAGE_KEYS } from '@/constants/storage-keys'

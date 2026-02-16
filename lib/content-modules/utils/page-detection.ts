@@ -2,6 +2,8 @@
  * Page detection utilities for Mediavida
  */
 
+export type CenteredPostsPageKind = 'thread' | 'listing' | 'unsupported'
+
 /**
  * Whitelist of valid subforum slugs from Mediavida
  * These are the ONLY paths that should be considered subforum main pages
@@ -53,6 +55,8 @@ const VALID_SUBFORUM_SLUGS = new Set([
 	// Comunidad
 	'mediavida',
 ])
+
+const FORUM_GLOBAL_VIEWS = ['/foro/spy', '/foro/new', '/foro/unread', '/foro/top', '/foro/featured'] as const
 
 /**
  * Check if we're on the main forum list page
@@ -139,8 +143,39 @@ export function isSpyPage(): boolean {
  */
 export function isForumGlobalViewPage(): boolean {
 	const path = window.location.pathname
-	const globalViews = ['/foro/spy', '/foro/new', '/foro/unread', '/foro/top', '/foro/featured']
-	return globalViews.some(view => path.startsWith(view))
+	return FORUM_GLOBAL_VIEWS.some(view => path.startsWith(view))
+}
+
+/**
+ * Check if we're on a paginated subforum page
+ * Pattern: /foro/category/p2
+ */
+export function isPaginatedSubforumPage(): boolean {
+	const path = window.location.pathname
+	const match = path.match(/^\/foro\/([^/]+)\/p\d+\/?$/)
+	if (!match) return false
+
+	const slug = match[1].toLowerCase()
+	return VALID_SUBFORUM_SLUGS.has(slug)
+}
+
+/**
+ * Returns page kind for centered posts mode.
+ * - thread: native controls can be moved to the custom bar
+ * - listing: only hide sidebar + expand content (spy/subforums)
+ * - unsupported: do nothing
+ */
+export function getCenteredPostsPageKind(): CenteredPostsPageKind {
+	if (isThreadPage()) return 'thread'
+	if (isSpyPage() || isSubforumPage() || isPaginatedSubforumPage()) return 'listing'
+	return 'unsupported'
+}
+
+/**
+ * Check if centered posts can run on current page.
+ */
+export function isCenteredPostsSupportedPage(): boolean {
+	return getCenteredPostsPageKind() !== 'unsupported'
 }
 
 /**

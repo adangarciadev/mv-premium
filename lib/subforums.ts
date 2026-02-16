@@ -116,3 +116,11 @@ export function getSubforumName(slug: string): string {
         .replace(/-/g, ' ')
         .replace(/\b\w/g, c => c.toUpperCase());
 }
+
+/**
+ * Get the icon ID for a subforum by its slug
+ * Returns null if the slug is not found
+ */
+export function getSubforumIconId(slug: string): number | null {
+    return ALL_SUBFORUMS.find(s => s.slug === slug)?.iconId ?? null;
+}

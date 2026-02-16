@@ -14,6 +14,7 @@ import {
 } from '@/features/pinned-posts/logic/storage'
 import { storage } from '#imports'
 import { toast } from '@/lib/lazy-toast'
+import { STORAGE_KEYS } from '@/constants'
 import { getSubforumInfo, ITEMS_PER_PAGE } from './utils'
 import type { FlatPinnedPost, SubforumOption, DateFilter } from './types'
 
@@ -102,7 +103,7 @@ export function useWikiPostsTable(): UseWikiPostsTableReturn {
 		}
 		load()
 
-		const unwatch = storage.watch<unknown>('local:mvp-pinned-', () => {
+		const unwatch = storage.watch<unknown>(`local:${STORAGE_KEYS.PINNED_PREFIX}`, () => {
 			void load()
 		})
 		return unwatch

@@ -4,10 +4,18 @@
  */
 
 import { browser } from 'wxt/browser'
-import { logger } from '@/lib/logger'
 import { storage } from '#imports'
+import { logger } from '@/lib/logger'
 import { STORAGE_KEYS } from '@/constants'
-import { saveThread, type SavedThread } from '@/features/saved-threads/logic/storage'
+import { saveThreadFromUrl } from '@/features/saved-threads/logic/storage'
+import { hideThreadFromUrl, isThreadHidden } from '@/features/hidden-threads/logic/storage'
+import { sendMessage } from '@/lib/messaging'
+
+const CONTEXT_MENU_IDS = {
+	SAVE_THREAD: 'mvp-save-thread',
+	HIDE_THREAD: 'mvp-hide-thread',
+	MUTE_WORD: 'mvp-mute-word',
+} as const
 
 // =============================================================================
 // Context Menu Creation
@@ -20,61 +28,30 @@ export async function createContextMenus(): Promise<void> {
 	// Remove existing menus first (for updates)
 	await browser.contextMenus.removeAll()
 
-	// Get current settings to check enabled features
-	const rawSettings = await storage.getItem<string>(`local:${STORAGE_KEYS.SETTINGS}`)
-	let saveThreadEnabled = true // Default to true
+	// "Guardar hilo" - always available from context menu
+	browser.contextMenus.create({
+		id: CONTEXT_MENU_IDS.SAVE_THREAD,
+		title: '📌  Guardar hilo',
+		contexts: ['link'],
+		targetUrlPatterns: ['*://www.mediavida.com/foro/*/*'],
+	})
 
-	if (rawSettings) {
-		try {
-			const parsed = JSON.parse(rawSettings)
-			// state.saveThreadEnabled might be undefined if key doesn't exist yet, default to true
-			if (parsed.state?.saveThreadEnabled === false) {
-				saveThreadEnabled = false
-			}
-		} catch {
-			// Ignore parse error, use default
-		}
-	}
-
-	// "Guardar hilo" - ONLY if enabled
-	if (saveThreadEnabled) {
-		browser.contextMenus.create({
-			id: 'mvp-save-thread',
-			title: '📌  Guardar hilo',
-			contexts: ['link'],
-			targetUrlPatterns: ['*://www.mediavida.com/foro/*/*'],
-		})
-	}
+	// "Ocultar hilo" - always available from context menu
+	browser.contextMenus.create({
+		id: CONTEXT_MENU_IDS.HIDE_THREAD,
+		title: '🙈  Ocultar hilo',
+		contexts: ['link'],
+		targetUrlPatterns: ['*://www.mediavida.com/foro/*/*'],
+	})
 
 	// "Silenciar palabra" - appears when text is selected on Mediavida
 	// This is core functionality (muted words) but could be toggled too if requested.
 	// For now keeping it always available as it's the primary way to add muted words.
 	browser.contextMenus.create({
-		id: 'mvp-mute-word',
+		id: CONTEXT_MENU_IDS.MUTE_WORD,
 		title: '🔇 Silenciar palabra',
 		contexts: ['selection'],
 		documentUrlPatterns: ['*://www.mediavida.com/*'],
-	})
-}
-
-/**
- * Watch for settings changes to update context menus dynamically
- */
-export function initContextMenuWatcher(): void {
-	storage.watch<string>(`local:${STORAGE_KEYS.SETTINGS}`, (newValue, oldValue) => {
-		if (!newValue) return
-
-		try {
-			const newSettings = JSON.parse(newValue)
-			const oldSettings = oldValue ? JSON.parse(oldValue) : {}
-
-			// Only update if the relevant setting changed
-			if (newSettings.state?.saveThreadEnabled !== oldSettings.state?.saveThreadEnabled) {
-				createContextMenus().catch(err => logger.error('Failed to update context menus:', err))
-			}
-		} catch (error) {
-			logger.warn('Error watching settings for context menus:', error)
-		}
 	})
 }
 
@@ -90,10 +67,13 @@ export function setupContextMenuListener(): void {
 		const { menuItemId, linkUrl, selectionText } = info
 
 		switch (menuItemId) {
-			case 'mvp-save-thread':
+			case CONTEXT_MENU_IDS.SAVE_THREAD:
 				if (linkUrl) await handleSaveThread(linkUrl, tab?.id)
 				break
-			case 'mvp-mute-word':
+			case CONTEXT_MENU_IDS.HIDE_THREAD:
+				if (linkUrl) await handleHideThread(linkUrl, tab?.id)
+				break
+			case CONTEXT_MENU_IDS.MUTE_WORD:
 				if (selectionText) await handleMuteWord(selectionText, tab?.id)
 				break
 		}
@@ -109,37 +89,39 @@ export function setupContextMenuListener(): void {
  */
 async function handleSaveThread(url: string, tabId?: number): Promise<void> {
 	try {
-		// Parse thread URL: /foro/subforum/title-123456
-		const match = url.match(/mediavida\.com(\/foro\/([^/]+)\/([^/?#]+))/)
-		if (!match) {
+		const savedThread = await saveThreadFromUrl(url)
+		if (!savedThread) {
 			notifyTab(tabId, '❌ URL de hilo no válida')
 			return
 		}
-
-		const [, threadPath, subforum, slug] = match
-
-		// Clean path (remove page number if present)
-		const cleanPath = threadPath.replace(/\/\d+$/, '')
-
-		// Extract title from slug (replace dashes with spaces, capitalize)
-		const titleFromSlug = slug
-			.replace(/-\d+$/, '') // Remove ID suffix
-			.replace(/-/g, ' ')
-			.replace(/\b\w/g, c => c.toUpperCase())
-
-		const thread: SavedThread = {
-			id: cleanPath,
-			title: titleFromSlug,
-			subforum: subforum,
-			subforumId: `/foro/${subforum}`,
-			savedAt: Date.now(),
-		}
-
-		await saveThread(thread)
 		notifyTab(tabId, '✅ Hilo guardado')
 	} catch (error) {
 		logger.error('Error saving thread:', error)
 		notifyTab(tabId, '❌ Error al guardar')
+	}
+}
+
+/**
+ * Hide a thread from context menu
+ */
+async function handleHideThread(url: string, tabId?: number): Promise<void> {
+	try {
+		const alreadyHidden = await isThreadHidden(url)
+		if (alreadyHidden) {
+			notifyTab(tabId, 'ℹ️ El hilo ya estaba oculto')
+			return
+		}
+
+		const hiddenThread = await hideThreadFromUrl(url)
+		if (!hiddenThread) {
+			notifyTab(tabId, '❌ URL de hilo no válida')
+			return
+		}
+
+		notifyTab(tabId, '🙈 Hilo ocultado')
+	} catch (error) {
+		logger.error('Error hiding thread:', error)
+		notifyTab(tabId, '❌ Error al ocultar hilo')
 	}
 }
 
@@ -227,12 +209,7 @@ async function handleMuteWord(word: string, tabId?: number): Promise<void> {
  */
 function notifyTab(tabId: number | undefined, message: string): void {
 	if (!tabId) return
-	browser.tabs
-		.sendMessage(tabId, {
-			type: 'MVP_TOAST',
-			message,
-		})
-		.catch(() => {
-			// Tab might not have content script, ignore
-		})
+	sendMessage('showToast', { message }, tabId).catch(() => {
+		// Tab might not have content script, ignore
+	})
 }

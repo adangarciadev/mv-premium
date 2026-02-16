@@ -48,6 +48,7 @@ export const aiProviderSchema = z.enum(['gemini', 'groq'
 /** Ultrawide mode levels for page width control */
 export const ultrawideSchema = z.enum(['off', 'wide', 'extra-wide', 'full'])
 export type UltrawideMode = z.infer<typeof ultrawideSchema>
+export const centeredControlsPositionSchema = z.enum(['top', 'side'])
 
 // =============================================================================
 // SETTINGS SCHEMA
@@ -78,7 +79,13 @@ export const settingsSchema = z.object({
 	// Feature Toggles - Navigation
 	infiniteScrollEnabled: z.boolean().default(false),
 	liveThreadEnabled: z.boolean().default(false),
+	newHomepageEnabled: z.boolean().default(false),
 	nativeLiveDelayEnabled: z.boolean().default(true),
+	liveThreadDelayEnabled: z.boolean().default(true),
+
+	// Feature Toggles - Content
+	mediaHoverCardsEnabled: z.boolean().default(true),
+	steamBundleInlineCardsEnabled: z.boolean().default(true),
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: z.boolean().default(false),
@@ -95,6 +102,7 @@ export const settingsSchema = z.object({
 	ultrawideMode: ultrawideSchema.default('off'),
 	centeredPostsEnabled: z.boolean().default(false),
 	centeredControlsSticky: z.boolean().default(false),
+	centeredControlsPosition: centeredControlsPositionSchema.default('top'),
 })
 
 // =============================================================================

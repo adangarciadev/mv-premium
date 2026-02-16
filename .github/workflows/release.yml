@@ -32,8 +32,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript typecheck
+        run: npm run typecheck
+
       - name: Run tests
-        run: npm run test -- --run
+        run: npm run test:run
 
       - name: Build for Chrome
         run: npm run build:chrome

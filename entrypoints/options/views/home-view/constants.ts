@@ -9,6 +9,7 @@ import Users from 'lucide-react/dist/esm/icons/users'
 import Pin from 'lucide-react/dist/esm/icons/pin'
 import BarChart from 'lucide-react/dist/esm/icons/bar-chart-2'
 import Activity from 'lucide-react/dist/esm/icons/activity'
+import { STORAGE_KEYS } from '@/constants'
 
 // Current year constant (avoid magic numbers)
 export const currentYear = new Date().getFullYear()
@@ -46,6 +47,9 @@ export const CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: st
 	otros: Package,
 }
 
+const ACTIVITY_KEY_MATCHERS = ['activity', STORAGE_KEYS.ACTIVITY]
+const DRAFT_KEY_MATCHERS = ['draft', STORAGE_KEYS.DRAFTS]
+
 // Helper to get first letter (defensive)
 export function getInitial(name?: string): string {
 	return name ? name.charAt(0).toUpperCase() : 'M'
@@ -70,8 +74,8 @@ export function analyzeStorageValue(key: string, value: unknown): StorageItem {
 
 	// Categorize by key prefix
 	let category = 'otros'
-	if (key.includes('activity') || key.includes('mvp-activity')) category = 'actividad'
-	else if (key.includes('draft') || key.includes('mvp-drafts')) category = 'borradores'
+	if (ACTIVITY_KEY_MATCHERS.some(matcher => key.includes(matcher))) category = 'actividad'
+	else if (DRAFT_KEY_MATCHERS.some(matcher => key.includes(matcher))) category = 'borradores'
 	else if (key.includes('favorite') || key.includes('fav-')) category = 'favoritos'
 	else if (key.includes('user') || key.includes('muted')) category = 'usuarios'
 	else if (key.includes('setting') || key.includes('theme') || key.includes('config')) category = 'configuracion'

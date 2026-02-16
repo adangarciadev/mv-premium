@@ -11,11 +11,11 @@ import ChartBar from 'lucide-react/dist/esm/icons/chart-bar'
 import ReactDOM from 'react-dom'
 import { setStoredTheme } from '../lib/themes'
 import { useUIStore } from '@/store'
-import { getSettings } from '@/store/settings-store'
+import { MV_SELECTORS } from '@/constants'
 import '@/assets/live-preview.css'
 
 // Hooks
-import { useTextInsertion, useListFormatting, useImageUpload, useTextHistory } from '../hooks'
+import { useTextInsertion, useListFormatting, useImageUpload, useTextHistory, useFeatureToggles } from '../hooks'
 
 // Toolbar button components
 import { CodeToolbarButton } from './toolbar/code-toolbar-button'
@@ -27,6 +27,7 @@ import { HistoryToolbarButtons } from './toolbar/history-toolbar-buttons'
 import { CineToolbarButton } from './toolbar/cine-toolbar-button'
 import { GameToolbarButton } from './toolbar/game-toolbar-button'
 import { ApiKeyDialog, ImageDropzone } from './toolbar'
+import { StandardToolbarButtons } from './toolbar/standard-toolbar-buttons'
 
 // Portal utilities
 import {
@@ -81,35 +82,36 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 
 	const { livePreview, toggleLivePreview } = useUIStore()
 
-	// Feature toggles
-	const [featureToggles, setFeatureToggles] = useState({
-		cinemaButtonEnabled: true,
-		gifPickerEnabled: true,
-		draftsButtonEnabled: true,
-		templateButtonEnabled: true,
-		gameButtonEnabled: true,
-	})
-
-	useEffect(() => {
-		getSettings().then(settings => {
-			console.log('DistributedEditorToolbar settings loaded:', settings)
-			console.log('gameButtonEnabled from settings:', settings.gameButtonEnabled)
-			setFeatureToggles({
-				cinemaButtonEnabled: settings.cinemaButtonEnabled ?? true,
-				gifPickerEnabled: settings.gifPickerEnabled ?? true,
-				draftsButtonEnabled: settings.draftsButtonEnabled ?? true,
-				templateButtonEnabled: settings.templateButtonEnabled ?? true,
-				gameButtonEnabled: settings.gameButtonEnabled ?? true,
-			})
-		})
-	}, [])
-
 	// Page context
 	const isNewThread = useMemo(() => isNewThreadPage(), [])
+	const isPrivateMessage = useMemo(() => textarea.name === 'msg', [textarea])
+	const isInlineEdit = useMemo(() => textarea.classList.contains('inline-edit'), [textarea])
+	/** Standalone editor = no native toolbar (PMs, inline-edit quick edit) */
+	const isStandaloneEditor = isPrivateMessage || isInlineEdit
+
+	// Local Live Preview state for isolation between multiple editors on same page
+	const [localPreviewVisible, setLocalPreviewVisible] = useState(false)
+	const isPreviewVisible = isStandaloneEditor ? localPreviewVisible : livePreview.isVisible
+	const onTogglePreview = isStandaloneEditor ? () => setLocalPreviewVisible(v => !v) : toggleLivePreview
+
+	// Feature toggles hook - treats all standalone editors (PMs, Inline-edit) same way for now
+	const featureToggles = useFeatureToggles(isStandaloneEditor)
 
 	// Custom hooks
-	const { insertText, insertCode, insertUnderline, insertStrikethrough, insertCenter, insertImageTag } =
-		useTextInsertion(textarea)
+	const {
+		insertText,
+		insertCode,
+		insertUnderline,
+		insertStrikethrough,
+		insertSpoiler,
+		insertNsfw,
+		insertCenter,
+		insertImageTag,
+		insertBold,
+		insertItalic,
+		insertLink,
+		insertQuote,
+	} = useTextInsertion(textarea)
 	const { insertUnorderedList, insertOrderedList, insertTaskList } = useListFormatting(textarea)
 	const imageUpload = useImageUpload(textarea, { onSuccess: insertImageTag })
 	const { undo, redo, canUndo, canRedo, initHistory } = useTextHistory(textarea)
@@ -270,34 +272,74 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 
 	// Overlay positioning for dropzone
 	const [overlayStyle, setOverlayStyle] = useState<React.CSSProperties>({})
-	const updateOverlayPosition = useCallback(() => {
-		const parent = textarea.parentElement
-		if (!parent) return
-		const computedStyle = getComputedStyle(parent)
-		if (computedStyle.position === 'static') {
-			parent.style.position = 'relative'
+	const overlayHost = useMemo(() => {
+		if (isStandaloneEditor) {
+			return document.body
 		}
+
+		return (
+			(textarea.closest(`#${MV_SELECTORS.EDITOR.POST_EDITOR_ID}`) as HTMLElement | null) ||
+			textarea.parentElement ||
+			null
+		)
+	}, [textarea, isStandaloneEditor])
+
+	const updateOverlayPosition = useCallback(() => {
+		const host = overlayHost
+		const ta = textarea
+		if (!host || !ta) return
+
+		const textareaRect = textarea.getBoundingClientRect()
+
+		// For standalone editors (Inline/PM), we attach to body to avoid overflow clipping
+		if (host === document.body) {
+			setOverlayStyle({
+				position: 'absolute',
+				top: textareaRect.top + window.scrollY,
+				left: textareaRect.left + window.scrollX,
+				width: textareaRect.width,
+				height: textareaRect.height,
+				display: 'flex',
+				alignItems: 'center',
+				justifyContent: 'center',
+				zIndex: 9999,
+				pointerEvents: 'none',
+				overflow: 'hidden',
+				borderRadius: '4px',
+			})
+			return
+		}
+
+		const computedStyle = getComputedStyle(host)
+		if (computedStyle.position === 'static') {
+			host.style.position = 'relative'
+		}
+
+		const hostRect = host.getBoundingClientRect()
+
 		setOverlayStyle({
 			position: 'absolute',
-			top: textarea.offsetTop,
-			left: textarea.offsetLeft,
-			width: textarea.offsetWidth,
-			height: textarea.offsetHeight,
+			top: Math.max(0, textareaRect.top - hostRect.top),
+			left: Math.max(0, textareaRect.left - hostRect.left),
+			width: Math.max(0, textareaRect.width),
+			height: Math.max(0, textareaRect.height),
 			display: 'flex',
 			alignItems: 'center',
 			justifyContent: 'center',
 			zIndex: 100,
 			pointerEvents: 'none',
+			overflow: 'hidden',
 		})
-	}, [textarea])
+	}, [overlayHost, textarea])
 
 	useEffect(() => {
-		if (!showDropzone) return
+		if (!showDropzone || !overlayHost) return
 		updateOverlayPosition()
 		const ro = new ResizeObserver(() => updateOverlayPosition())
 		ro.observe(textarea)
+		ro.observe(overlayHost)
 		return () => ro.disconnect()
-	}, [showDropzone, textarea, updateOverlayPosition])
+	}, [overlayHost, showDropzone, textarea, updateOverlayPosition])
 
 	return (
 		<>
@@ -312,12 +354,26 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 
 			{/* GROUP 1: Formatting */}
 			{ReactDOM.createPortal(
-				<FormattingToolbarButtons
-					onInsertUnderline={insertUnderline}
-					onInsertStrikethrough={insertStrikethrough}
-					onInsertCenter={insertCenter}
-					showNsfw={false}
-				/>,
+				<>
+					{isStandaloneEditor && (
+						<StandardToolbarButtons
+							onInsertBold={insertBold}
+							onInsertItalic={insertItalic}
+							onInsertLink={insertLink}
+							onInsertQuote={insertQuote}
+							activeFormats={activeFormats}
+						/>
+					)}
+					<FormattingToolbarButtons
+						onInsertUnderline={insertUnderline}
+						onInsertStrikethrough={insertStrikethrough}
+						onInsertCenter={insertCenter}
+						onInsertSpoiler={insertSpoiler}
+						onInsertNsfw={insertNsfw}
+						showNsfw={isStandaloneEditor}
+						showSpoiler={isStandaloneEditor}
+					/>
+				</>,
 				containers.formatting
 			)}
 
@@ -337,8 +393,7 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 			{/* GROUP 3: Media */}
 			{ReactDOM.createPortal(
 				<>
-					{/* Log to verify render attempt */}
-					{(() => { console.log('Rendering Media Group. gameButtonEnabled:', featureToggles.gameButtonEnabled); return null; })()}
+
 					<ImageToolbarButton
 						isUploading={imageUpload.isUploading}
 						onTriggerUpload={() => setShowDropzone(prev => !prev)}
@@ -431,32 +486,39 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 					)}
 					<button
 						type="button"
-						className={`mvp-toolbar-btn ${livePreview.isVisible ? 'active' : ''}`}
+						className={`mvp-toolbar-btn ${isPreviewVisible ? 'active' : ''}`}
 						onClick={e => {
 							e.preventDefault()
 							e.stopPropagation()
-							toggleLivePreview()
+							onTogglePreview()
 						}}
 						title="Live preview"
 					>
-						<i className={`fa ${livePreview.isVisible ? 'fa-eye-slash' : 'fa-eye'}`} />
+						<i className={`fa ${isPreviewVisible ? 'fa-eye-slash' : 'fa-eye'}`} />
 					</button>
 				</>,
 				containers.tools
 			)}
 
-			{/* GROUP 7: History */}
+			{/* History Group */}
 			{ReactDOM.createPortal(
-				<HistoryToolbarButtons onUndo={undo} onRedo={redo} canUndo={canUndo} canRedo={canRedo} />,
+				<HistoryToolbarButtons
+					onUndo={undo}
+					onRedo={redo}
+					canUndo={canUndo}
+					canRedo={canRedo}
+				/>,
 				containers.history
 			)}
 
+
+
 			{/* Dropzone overlay */}
 			{showDropzone &&
-				textarea.parentElement &&
+				overlayHost &&
 				ReactDOM.createPortal(
-					<div style={overlayStyle}>
-						<div style={{ pointerEvents: 'auto', width: '80%', maxWidth: '400px' }}>
+					<div className="mvp-image-dropzone-overlay" data-mvp-dropzone-overlay="true" style={overlayStyle}>
+						<div style={{ pointerEvents: 'auto', width: '80%', maxWidth: '400px', maxHeight: 'calc(100% - 16px)', overflowY: 'auto' }}>
 							<ImageDropzone
 								isOpen={showDropzone}
 								onClose={() => setShowDropzone(false)}
@@ -466,7 +528,7 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 							/>
 						</div>
 					</div>,
-					textarea.parentElement
+					overlayHost
 				)}
 
 			{/* Dialogs */}
@@ -524,8 +586,8 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 			)}
 
 			{/* Live Preview Panel */}
-			{livePreview.isVisible &&
-				ReactDOM.createPortal(<LivePreviewPanel textarea={textarea} onClose={toggleLivePreview} />, document.body)}
+			{isPreviewVisible &&
+				ReactDOM.createPortal(<LivePreviewPanel textarea={textarea} onClose={onTogglePreview} />, document.body)}
 		</>
 	)
 }

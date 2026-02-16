@@ -5,7 +5,15 @@
  * Uses @wxt-dev/storage (unified API)
  */
 import { storage } from '#imports'
-import { getThreadId, getCurrentPage, getSubforumInfo, extractThreadTitle, isThreadUrl } from '@/lib/url-helpers'
+import {
+	getThreadId,
+	getCurrentPage,
+	getSubforumInfo,
+	extractThreadTitle,
+	isThreadUrl,
+	slugToName,
+	slugToTitle,
+} from '@/lib/url-helpers'
 
 // Re-export URL helpers for backwards compatibility
 export { getThreadId, getCurrentPage, getSubforumInfo } from '@/lib/url-helpers'
@@ -17,6 +25,8 @@ export { getThreadId, getCurrentPage, getSubforumInfo } from '@/lib/url-helpers'
 import { STORAGE_KEYS } from '@/constants'
 
 const SAVED_THREADS_KEY = `local:${STORAGE_KEYS.SAVED_THREADS}` as `local:${string}`
+const THREAD_PATH_REGEX = /^\/foro\/[^/]+\/[^/]+-\d+/
+const MV_BASE_URL = 'https://www.mediavida.com'
 
 // ============================================================================
 // TYPES
@@ -29,6 +39,36 @@ export interface SavedThread {
 	subforumId: string // Subforum path (e.g., "/foro/cine")
 	savedAt: number // Timestamp when saved
 	notes?: string // User notes about the thread (max 160 chars)
+}
+
+function isMediavidaHost(hostname: string): boolean {
+	return hostname === 'www.mediavida.com' || hostname === 'mediavida.com'
+}
+
+function normalizeThreadPathFromUrl(input: string): string | null {
+	try {
+		const parsed = new URL(input, MV_BASE_URL)
+		if (!isMediavidaHost(parsed.hostname)) {
+			return null
+		}
+
+		let path = parsed.pathname
+		if (path.endsWith('/')) {
+			path = path.slice(0, -1)
+		}
+
+		path = path.replace(/\/live$/i, '')
+		path = path.replace(/\/\d+$/, '')
+
+		if (path.endsWith('/')) {
+			path = path.slice(0, -1)
+		}
+
+		const match = path.match(THREAD_PATH_REGEX)
+		return match ? match[0] : null
+	} catch {
+		return null
+	}
 }
 
 // ============================================================================
@@ -58,6 +98,27 @@ export function extractThreadInfo(): SavedThread | null {
 		title,
 		subforum: subforumInfo.name,
 		subforumId: subforumInfo.path,
+		savedAt: Date.now(),
+	}
+}
+
+/**
+ * Extracts thread information from any Mediavida thread URL/path.
+ */
+export function parseSavedThreadFromUrl(input: string): SavedThread | null {
+	const threadPath = normalizeThreadPathFromUrl(input)
+	if (!threadPath) return null
+
+	const match = threadPath.match(/^\/foro\/([^/]+)\/([^/]+)$/)
+	if (!match) return null
+
+	const [, subforumSlug, threadSlug] = match
+
+	return {
+		id: threadPath,
+		title: slugToTitle(threadSlug),
+		subforum: slugToName(subforumSlug),
+		subforumId: `/foro/${subforumSlug}`,
 		savedAt: Date.now(),
 	}
 }
@@ -111,6 +172,17 @@ export async function saveThread(thread?: SavedThread): Promise<void> {
 }
 
 /**
+ * Save a thread by URL/path.
+ * @returns Saved thread metadata or null if URL is invalid.
+ */
+export async function saveThreadFromUrl(url: string): Promise<SavedThread | null> {
+	const thread = parseSavedThreadFromUrl(url)
+	if (!thread) return null
+	await saveThread(thread)
+	return thread
+}
+
+/**
  * Removes multiple threads from the saved threads collection.
  */
 export async function unsaveThreads(threadIds: string[]): Promise<void> {
@@ -147,6 +219,24 @@ export async function toggleSaveThread(): Promise<boolean> {
 		await saveThread(threadInfo)
 		return true
 	}
+}
+
+/**
+ * Toggle save state for a thread URL/path.
+ * @returns true when saved, false when unsaved, null when URL is invalid.
+ */
+export async function toggleSaveThreadFromUrl(url: string): Promise<boolean | null> {
+	const thread = parseSavedThreadFromUrl(url)
+	if (!thread) return null
+
+	const isSaved = await isThreadSaved(thread.id)
+	if (isSaved) {
+		await unsaveThread(thread.id)
+		return false
+	}
+
+	await saveThread(thread)
+	return true
 }
 
 /**

@@ -15,6 +15,7 @@ const mockState = {
 	tmdbApiKey: 'test-api-key',
 	// Premium features default to true to match test expectations
 	mediaHoverCardsEnabled: true,
+	steamBundleInlineCardsEnabled: true,
 	pinnedPostsEnabled: true,
 	saveThreadEnabled: true,
 	galleryButtonEnabled: true,
@@ -47,6 +48,7 @@ describe('feature-flags', () => {
 		mockState.tmdbApiKey = 'test-api-key'
 		// Reset premium defaults
 		mockState.mediaHoverCardsEnabled = true
+		mockState.steamBundleInlineCardsEnabled = true
 		mockState.pinnedPostsEnabled = true
 		mockState.saveThreadEnabled = true
 		mockState.galleryButtonEnabled = true
@@ -86,6 +88,10 @@ describe('feature-flags', () => {
 
 			it('returns true for Gallery feature when enabled', () => {
 				expect(isFeatureEnabled(FeatureFlag.Gallery)).toBe(true)
+			})
+
+			it('returns true for SteamBundleInlineCards feature when enabled', () => {
+				expect(isFeatureEnabled(FeatureFlag.SteamBundleInlineCards)).toBe(true)
 			})
 		})
 

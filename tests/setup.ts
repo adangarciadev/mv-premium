@@ -182,6 +182,9 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+	// Ensure fake timers never leak between tests/suites.
+	vi.useRealTimers()
+
 	// Clean up any DOM modifications
 	document.body.innerHTML = ''
 })

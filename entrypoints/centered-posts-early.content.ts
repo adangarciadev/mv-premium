@@ -8,12 +8,14 @@
  * browser.storage.local is async and causes visual flash even at document_start.
  *
  * The main centered-posts feature (features/centered-posts/index.ts) handles:
- * - Control bar creation and element moving
+ * - Thread-only control bar creation and element moving
  * - Reactivity to setting changes
  * - Keeping localStorage cache in sync
  */
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
+import { EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
+import { isCenteredPostsSupportedPage } from '@/lib/content-modules/utils/page-detection'
 
 interface SettingsState {
 	state: {
@@ -21,18 +23,8 @@ interface SettingsState {
 	}
 }
 
-const STYLE_ID = 'mvp-centered-posts-early'
-const CACHE_KEY = 'mvp-centered-posts-cache'
-
-/**
- * Check if current page is a thread page
- * Pattern: /foro/{subforum}/{thread-slug}
- */
-function isThreadPage(): boolean {
-	const pathname = window.location.pathname
-	const segments = pathname.split('/').filter(Boolean)
-	return segments.length >= 3 && segments[0] === 'foro'
-}
+const STYLE_ID = EARLY_STYLE_IDS.CENTERED_POSTS
+const CACHE_KEY = RUNTIME_CACHE_KEYS.CENTERED_POSTS
 
 /**
  * CSS selectors for Mediavida layout elements
@@ -51,11 +43,20 @@ function generateStyles(): string {
 	return `
 		/* MVP Centered Posts Early Inject */
 
-		/* Hide Sidebar immediately */
+		/* Keep sidebar measurable for native MV scripts (e.g. floating video sizing),
+		   but fully invisible/non-interactive for centered mode */
 		${SELECTORS.C_SIDE},
 		.wrw > .c-side,
 		#main .c-side {
-			display: none !important;
+			display: block !important;
+			position: absolute !important;
+			top: 0 !important;
+			right: 0 !important;
+			visibility: hidden !important;
+			opacity: 0 !important;
+			pointer-events: none !important;
+			height: 0 !important;
+			overflow: hidden !important;
 		}
 
 		/* Content wrapper - force full width */
@@ -171,11 +172,11 @@ function updateCache(enabled: boolean): void {
 }
 
 export default defineContentScript({
-	matches: ['*://www.mediavida.com/foro/*/*'],
+	matches: ['*://www.mediavida.com/foro/*'],
 	runAt: 'document_start',
 
 	main() {
-		if (!isThreadPage()) {
+		if (!isCenteredPostsSupportedPage()) {
 			return
 		}
 
@@ -191,9 +192,9 @@ export default defineContentScript({
 
 		// Verify with browser.storage (async)
 		browser.storage.local
-			.get('mvp-settings')
+			.get(STORAGE_KEYS.SETTINGS)
 			.then(data => {
-				const raw = data['mvp-settings'] as string | SettingsState | undefined
+				const raw = data[STORAGE_KEYS.SETTINGS] as string | SettingsState | undefined
 				if (!raw) {
 					updateCache(false)
 					document.getElementById(STYLE_ID)?.remove()

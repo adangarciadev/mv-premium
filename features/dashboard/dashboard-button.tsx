@@ -11,10 +11,33 @@ import { hasUnseenChanges, watchVersionChanges } from './lib/whats-new-storage'
 import { browser } from 'wxt/browser'
 import { DOM_MARKERS, MV_SELECTORS } from '@/constants'
 import { getSettings } from '@/store/settings-store'
+import { logger } from '@/lib/logger'
 import type { DashboardIcon } from '@/store/settings-types'
 
 const INJECTED_MARKER = DOM_MARKERS.CLASSES.DASHBOARD_INJECTED
 const BADGE_ID = DOM_MARKERS.IDS.WHATS_NEW_BADGE
+
+function getOptionsUrl(view?: string): string {
+	let url = browser.runtime.getURL('/options.html')
+	if (view) url += `#/${view}`
+	return url
+}
+
+async function openDashboard(view?: string): Promise<void> {
+	try {
+		await sendMessage('openOptionsPage', view)
+		return
+	} catch (error) {
+		logger.error('Dashboard open options via message failed:', error)
+	}
+
+	try {
+		const url = getOptionsUrl(view)
+		window.open(url, '_blank', 'noopener,noreferrer')
+	} catch (error) {
+		logger.error('Dashboard open options fallback failed:', error)
+	}
+}
 
 /**
  * Returns the HTML for the dashboard icon based on user preference.
@@ -54,7 +77,7 @@ const BADGE_STYLES = `
 	text-transform: uppercase;
 	letter-spacing: 0.3px;
 	box-shadow: 0 2px 4px rgba(245, 158, 11, 0.4);
-	animation: badge-pulse 2s ease-in-out infinite;
+	animation: badgePulse 2s ease-in-out infinite;
 	pointer-events: none;
 `
 
@@ -88,9 +111,11 @@ export async function injectDashboardButton(): Promise<void> {
 	const avatarItem = usermenu.querySelector(MV_SELECTORS.GLOBAL.USERMENU_AVATAR)
 	if (!avatarItem) return
 
-	// Check if new-thread button exists, if so insert after it
-	const newThreadButton = usermenu.querySelector(`[${DOM_MARKERS.INJECTION.NEW_THREAD}]`)
-	const insertAfter = newThreadButton?.parentElement || avatarItem
+	// Prefer inserting after "Nuevo hilo" if present (extension or native), else after avatar.
+	// TODO: Keep migration local for now; replace deprecated INJECTION markers incrementally across the codebase.
+	const injectedNewThreadButton = usermenu.querySelector(`[${DOM_MARKERS.DATA_ATTRS.NEW_THREAD_INJECTED}]`)
+	const anyNewThreadLink = usermenu.querySelector('a[title="Nuevo hilo"], a[aria-label="Crear nuevo hilo"]')
+	const insertAfter = injectedNewThreadButton?.parentElement || anyNewThreadLink?.parentElement || avatarItem
 
 	// Check if there are unseen changes
 	const hasUnseen = await hasUnseenChanges()
@@ -101,14 +126,15 @@ export async function injectDashboardButton(): Promise<void> {
 
 	// Create the button container (matching native navbar style)
 	const li = document.createElement('li')
-	li.className = 'dropdown'
+	li.className = 'mvp-dashboard-nav-item'
 	li.setAttribute(INJECTED_MARKER, 'true')
 
-	// Create the button
+	// Create the button (anchor to preserve native navbar layout/styles)
 	const button = document.createElement('a')
-	button.href = '#'
-	button.className = 'flink'
-	button.setAttribute('title', hasUnseen ? '¡Hay novedades en MVPremium!' : 'MVPremium Dashboard')
+	button.href = getOptionsUrl(hasUnseen ? 'whats-new' : undefined)
+	button.className = 'flink mvp-dashboard-link'
+	button.setAttribute('rel', 'noopener noreferrer')
+	button.setAttribute('data-mvp-dashboard-link', 'true')
 	button.setAttribute('aria-label', 'Abrir panel de MVPremium')
 	button.style.position = 'relative'
 
@@ -117,24 +143,29 @@ export async function injectDashboardButton(): Promise<void> {
 		${iconHTML}
 		<span class="title">Dashboard</span>
 		${hasUnseen ? `<span id="${BADGE_ID}" style="${BADGE_STYLES}">NEW</span>` : ''}
-		<style>
-			.flink:hover .mv-dashboard-logo,
-			.flink:hover .mv-dashboard-icon {
-				opacity: 0.8;
-			}
-			@keyframes badge-pulse {
-				0%, 100% { opacity: 1; transform: scale(1); }
-				50% { opacity: 0.85; transform: scale(0.95); }
-			}
-		</style>
 	`
 
 	// Open options page on click (via typed messaging)
 	// If there are unseen changes, open directly to whats-new view
-	button.addEventListener('click', e => {
-		e.preventDefault()
-		sendMessage('openOptionsPage', hasUnseen ? 'whats-new' : undefined)
-	})
+	const suppressNativeHandlers = (event: Event) => {
+		event.stopPropagation()
+		if ('stopImmediatePropagation' in event) {
+			event.stopImmediatePropagation()
+		}
+	}
+
+	// Firefox: native Mediavida homepage handlers can intercept navbar interactions.
+	button.addEventListener('pointerdown', suppressNativeHandlers, true)
+	button.addEventListener('mousedown', suppressNativeHandlers, true)
+	button.addEventListener(
+		'click',
+		e => {
+			e.preventDefault()
+			suppressNativeHandlers(e)
+			void openDashboard(hasUnseen ? 'whats-new' : undefined)
+		},
+		true
+	)
 
 	li.appendChild(button)
 
@@ -167,11 +198,14 @@ function setupBadgeSync(): void {
 async function updateBadge(): Promise<void> {
 	const hasUnseen = await hasUnseenChanges()
 	const badge = document.getElementById(BADGE_ID)
-	const button = document.querySelector(`[${INJECTED_MARKER}] .flink`) as HTMLElement | null
+	const button = document.querySelector(`[${INJECTED_MARKER}] [data-mvp-dashboard-link]`) as HTMLElement | null
 
-	// Update button title
 	if (button) {
-		button.setAttribute('title', hasUnseen ? '¡Hay novedades en MVPremium!' : 'MVPremium Dashboard')
+		button.setAttribute('href', getOptionsUrl(hasUnseen ? 'whats-new' : undefined))
+		button.setAttribute(
+			'aria-label',
+			hasUnseen ? 'Abrir panel de MVPremium (hay novedades)' : 'Abrir panel de MVPremium'
+		)
 	}
 
 	if (hasUnseen && !badge) {

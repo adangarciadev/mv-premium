@@ -188,6 +188,115 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 	gap: 8px !important;
 }
 
+/* Delay control */
+.mvp-live-delay {
+	position: relative !important;
+	display: inline-flex !important;
+}
+
+.mvp-live-delay-trigger {
+	display: inline-flex !important;
+	align-items: center !important;
+	gap: 6px !important;
+	padding: 6px 10px !important;
+	border-radius: calc(var(--radius, 6px) - 2px) !important;
+	border: 1px solid var(--border, rgba(255, 255, 255, 0.2)) !important;
+	background: transparent !important;
+	color: var(--foreground, #e5e7eb) !important;
+	font-size: 12px !important;
+	font-weight: 500 !important;
+	cursor: pointer !important;
+	transition: all 0.2s ease !important;
+}
+
+.mvp-live-delay-trigger:hover {
+	background: var(--accent, rgba(255, 255, 255, 0.05)) !important;
+	border-color: color-mix(in srgb, var(--primary) 30%, transparent) !important;
+}
+
+.mvp-live-delay-trigger.active {
+	border-color: color-mix(in srgb, var(--primary) 45%, transparent) !important;
+	background: color-mix(in srgb, var(--primary) 12%, var(--card)) !important;
+}
+
+.mvp-live-delay-icon {
+	width: 14px !important;
+	height: 14px !important;
+}
+
+.mvp-live-delay-badge {
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	min-width: 18px !important;
+	height: 16px !important;
+	padding: 0 4px !important;
+	border-radius: 999px !important;
+	background: color-mix(in srgb, var(--primary) 25%, transparent) !important;
+	color: var(--primary, #fc8f22) !important;
+	font-size: 10px !important;
+	font-weight: 700 !important;
+	line-height: 1 !important;
+}
+
+.mvp-live-delay-menu {
+	position: absolute !important;
+	right: 0 !important;
+	top: calc(100% + 6px) !important;
+	z-index: 10 !important;
+	min-width: 180px !important;
+	padding: 8px !important;
+	border-radius: calc(var(--radius, 8px) - 2px) !important;
+	border: 1px solid var(--border, rgba(255, 255, 255, 0.12)) !important;
+	background: color-mix(in srgb, var(--card) 95%, black 5%) !important;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+}
+
+.mvp-live-delay-title {
+	margin: 0 0 6px !important;
+	font-size: 11px !important;
+	font-weight: 700 !important;
+	color: var(--muted-foreground, #9ca3af) !important;
+}
+
+.mvp-live-delay-option {
+	width: 100% !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: space-between !important;
+	gap: 8px !important;
+	padding: 6px 8px !important;
+	margin: 0 !important;
+	border: none !important;
+	border-radius: 6px !important;
+	background: transparent !important;
+	color: var(--foreground, #e5e7eb) !important;
+	font-size: 12px !important;
+	cursor: pointer !important;
+	text-align: left !important;
+}
+
+.mvp-live-delay-option:hover {
+	background: var(--accent, rgba(255, 255, 255, 0.06)) !important;
+}
+
+.mvp-live-delay-option.active {
+	background: color-mix(in srgb, var(--primary) 14%, transparent) !important;
+	color: var(--primary, #fc8f22) !important;
+}
+
+.mvp-live-delay-check {
+	font-weight: 700 !important;
+	min-width: 12px !important;
+	text-align: right !important;
+}
+
+.mvp-live-delay-queue-note {
+	margin: 6px 0 0 !important;
+	font-size: 10px !important;
+	color: var(--muted-foreground, #9ca3af) !important;
+}
+
 .mvp-live-btn {
 	display: inline-flex !important;
 	align-items: center !important;
@@ -321,7 +430,7 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 #mvp-live-editor-wrapper #post-editor .placeholder,
 #mvp-live-editor-wrapper #post-editor .editor-placeholder,
 #mvp-live-editor-wrapper #post-editor .text-wrap > span,
-#mvp-live-editor-wrapper #post-editor .text-wrap > div:not(:first-child) {
+#mvp-live-editor-wrapper #post-editor .text-wrap > div:not(:first-child):not([data-mvp-dropzone-overlay='true']) {
 	display: none !important;
 }
 
@@ -430,6 +539,31 @@ html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls 
 	color: var(--foreground, #000000) !important;
 	fill: var(--foreground, #000000) !important;
 	filter: none !important;
+}
+
+/* Premium toolbar buttons: override native live-thread hover coloring */
+#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover {
+	background: rgba(128, 128, 128, 0.25) !important;
+	color: var(--primary, #fc8f22) !important;
+}
+
+#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover i,
+#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover .fa {
+	color: inherit !important;
+}
+
+#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover svg,
+#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover svg * {
+	color: inherit !important;
+	stroke: currentColor !important;
+	fill: none !important;
+	filter: none !important;
+}
+
+.light #mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover,
+html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover {
+	background: rgba(0, 0, 0, 0.1) !important;
+	color: var(--foreground, #000000) !important;
 }
 
 /* Hide undo/redo buttons in Live mode - they appear incorrectly */

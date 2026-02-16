@@ -32,11 +32,13 @@ import {
 	ToolbarSeparator,
 	getToolbarIcon,
 	CODE_LANGUAGES,
+	INLINE_C_CODE_LANGUAGE_ID,
 	LIST_TYPES,
 	HEADER_TYPES,
 	EmojiPicker,
 } from './toolbar'
 import type { MvEmoji } from '@/constants/mv-emojis'
+import { useState } from 'react'
 
 import { GifPicker } from '@/features/editor/components/toolbar/gif-picker'
 import { useSettingsStore } from '@/store/settings-store'
@@ -123,6 +125,8 @@ export function SharedEditorToolbar({
 	documentTitle,
 	hideMediaTemplateButtons = false,
 }: SharedEditorToolbarProps) {
+	const [isCodeDropdownOpen, setIsCodeDropdownOpen] = useState(false)
+
 	// Feature toggles from settings
 	const gifPickerEnabled = useSettingsStore(state => state.gifPickerEnabled)
 	const cinemaButtonEnabled = useSettingsStore(state => state.cinemaButtonEnabled) && !hideMediaTemplateButtons
@@ -148,6 +152,15 @@ export function SharedEditorToolbar({
 
 	// Handle code language selection
 	const handleCodeInsert = (langId: string) => {
+		if (langId === INLINE_C_CODE_LANGUAGE_ID) {
+			if (onWrapSelection) {
+				onWrapSelection('[c]', '[/c]')
+			} else {
+				onInsertSnippet?.('[c]{{cursor}}[/c]')
+			}
+			return
+		}
+
 		const template = langId ? `[code=${langId}]\n{{cursor}}\n[/code]` : `[code]\n{{cursor}}\n[/code]`
 		onInsertSnippet?.(template)
 	}
@@ -296,7 +309,7 @@ export function SharedEditorToolbar({
 						highlightTooltip="Editar tabla"
 					/>
 
-					<DropdownMenu modal={false}>
+					<DropdownMenu modal={false} open={isCodeDropdownOpen} onOpenChange={setIsCodeDropdownOpen}>
 						<Tooltip>
 							<TooltipTrigger asChild>
 								<DropdownMenuTrigger asChild>
@@ -305,6 +318,16 @@ export function SharedEditorToolbar({
 										variant="ghost"
 										size="icon-sm"
 										className="text-muted-foreground hover:text-foreground"
+										onPointerDown={e => {
+											// Firefox can open+close in the same pointer gesture with long dropdowns.
+											// We prevent default trigger behavior and toggle explicitly on click.
+											e.preventDefault()
+										}}
+										onClick={e => {
+											e.preventDefault()
+											e.stopPropagation()
+											setIsCodeDropdownOpen(prev => !prev)
+										}}
 									>
 										<Code className="h-4 w-4" />
 									</Button>
@@ -314,11 +337,21 @@ export function SharedEditorToolbar({
 								Insertar bloque de código
 							</TooltipContent>
 						</Tooltip>
-						<DropdownMenuContent align="start" className="w-48 max-h-80 overflow-y-auto">
+						<DropdownMenuContent
+							align="start"
+							className="w-48 max-h-80 overflow-y-auto"
+							onCloseAutoFocus={e => e.preventDefault()}
+						>
 							<DropdownMenuLabel>Lenguaje</DropdownMenuLabel>
 							<DropdownMenuSeparator />
 							{CODE_LANGUAGES.map(lang => (
-								<DropdownMenuItem key={lang.id || 'default'} onClick={() => handleCodeInsert(lang.id)}>
+								<DropdownMenuItem
+									key={lang.id || 'default'}
+									onSelect={() => {
+										handleCodeInsert(lang.id)
+										setIsCodeDropdownOpen(false)
+									}}
+								>
 									{lang.label}
 								</DropdownMenuItem>
 							))}

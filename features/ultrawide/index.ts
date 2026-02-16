@@ -10,13 +10,13 @@
 
 import { storage } from '@wxt-dev/storage'
 import { logger } from '@/lib/logger'
-import { STORAGE_KEYS, MV_SELECTORS } from '@/constants'
+import { STORAGE_KEYS, MV_SELECTORS, EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS } from '@/constants'
 import { DOM_MARKERS } from '@/constants/dom-markers'
 import type { UltrawideMode } from '@/store/settings-types'
 
 const STYLE_ID = DOM_MARKERS.IDS.ULTRAWIDE_STYLES
-const EARLY_STYLE_ID = 'mvp-ultrawide-early'
-const CACHE_KEY = 'mvp-ultrawide-mode-cache'
+const EARLY_STYLE_ID = EARLY_STYLE_IDS.ULTRAWIDE
+const CACHE_KEY = RUNTIME_CACHE_KEYS.ULTRAWIDE_MODE
 const SETTINGS_KEY = `local:${STORAGE_KEYS.SETTINGS}` as `local:${string}`
 
 interface SettingsState {

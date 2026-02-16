@@ -30,3 +30,11 @@ select:not([data-slot="native-select"]):not([class*="mvp-"]) option {
   background-color: canvas !important;
   color: canvastext !important;
 }
+
+/* 
+ * FIX: Hide Undo/Redo buttons in Native Live Mode 
+ * The #post-editor element gets the .live class when Mediavida's native live mode is active
+ */
+#post-editor.live #mvp-group-history {
+  display: none !important;
+}

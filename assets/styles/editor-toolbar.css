@@ -67,6 +67,39 @@
 	color: #ffffff !important; /* white icon - "se aclaren" */
 }
 
+/* Boost specificity for MV editor contexts where #post-editor button rules can override hover color */
+#post-editor .editor-controls .mvp-toolbar-btn:hover,
+#post-editor .editor-toolbar .mvp-toolbar-btn:hover,
+#post-editor .toolbar .mvp-toolbar-btn:hover,
+#standalone-editor .editor-controls .mvp-toolbar-btn:hover,
+#standalone-editor .editor-toolbar .mvp-toolbar-btn:hover,
+#standalone-editor .toolbar .mvp-toolbar-btn:hover {
+	color: #ffffff !important;
+}
+
+/* Ensure icon glyphs and SVG strokes/fills follow hover color in injected buttons */
+.editor-controls .mvp-toolbar-btn:hover *,
+.editor-toolbar .mvp-toolbar-btn:hover *,
+.toolbar .mvp-toolbar-btn:hover * {
+	color: #ffffff !important;
+}
+
+.editor-controls .mvp-toolbar-btn:hover svg,
+.editor-toolbar .mvp-toolbar-btn:hover svg,
+.toolbar .mvp-toolbar-btn:hover svg,
+.editor-controls .mvp-toolbar-btn:hover svg *,
+.editor-toolbar .mvp-toolbar-btn:hover svg *,
+.toolbar .mvp-toolbar-btn:hover svg * {
+	color: #ffffff !important;
+	stroke: currentColor !important;
+}
+
+.editor-controls .mvp-toolbar-btn:hover svg *[fill]:not([fill='none']),
+.editor-toolbar .mvp-toolbar-btn:hover svg *[fill]:not([fill='none']),
+.toolbar .mvp-toolbar-btn:hover svg *[fill]:not([fill='none']) {
+	fill: currentColor !important;
+}
+
 .editor-controls .mvp-toolbar-btn:disabled,
 .editor-toolbar .mvp-toolbar-btn:disabled,
 .toolbar .mvp-toolbar-btn:disabled {
@@ -85,7 +118,7 @@
 .editor-toolbar .mvp-toolbar-btn.active:hover,
 .toolbar .mvp-toolbar-btn.active:hover {
 	background-color: rgba(99, 102, 241, 0.35) !important; /* indigo-500/35 - more visible on hover */
-	color: #18181b !important; /* zinc-900 - even darker on hover */
+	color: #ffffff !important; /* keep hover icon color homogeneous with native MV buttons */
 }
 
 /* FontAwesome icons - ensure vertical centering */

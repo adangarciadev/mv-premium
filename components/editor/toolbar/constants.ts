@@ -7,8 +7,11 @@ import Heading2 from 'lucide-react/dist/esm/icons/heading-2'
 import Heading3 from 'lucide-react/dist/esm/icons/heading-3'
 import Heading from 'lucide-react/dist/esm/icons/heading'
 
+export const INLINE_C_CODE_LANGUAGE_ID = 'inline-c'
+
 export const CODE_LANGUAGES = [
 	{ id: '', label: 'Auto / Default' },
+	{ id: INLINE_C_CODE_LANGUAGE_ID, label: 'Inline [c][/c]' },
 	{ id: 'bash', label: 'Bash / Shell' },
 	{ id: 'c', label: 'C' },
 	{ id: 'csharp', label: 'C#' },

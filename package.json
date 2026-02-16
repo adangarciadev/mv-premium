@@ -2,7 +2,7 @@
 	"name": "mediavida-premium-extension",
 	"description": "Premium features for Mediavida.com forum - Browser Extension",
 	"private": true,
-	"version": "1.3.0",
+	"version": "1.4.0",
 	"author": "Adán García",
 	"keywords": [
 		"mediavida",
@@ -27,7 +27,8 @@
 		"test:run": "vitest run",
 		"test:coverage": "vitest run --coverage",
 		"test:ui": "vitest --ui",
-		"postinstall": "wxt prepare"
+		"postinstall": "wxt prepare",
+		"generate:mv-color-map": "tsx scripts/generate-mv-color-map.ts"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",

@@ -24,7 +24,7 @@ export type { UploadResult } from '@/lib/messaging'
 
 const MAX_FILE_SIZE_IMGBB = 32 * 1024 * 1024 // 32MB (ImgBB limit)
 const MAX_FILE_SIZE_FREEIMAGE = 64 * 1024 * 1024 // 64MB (freeimage.host limit)
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif']
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
 
 // =============================================================================
 // API Key Management (reads from Settings store)
@@ -114,8 +114,27 @@ export async function uploadImage(file: File | Blob): Promise<UploadResult> {
 		let result: UploadResult
 
 		if (useImgBB) {
-			// Use ImgBB (user-configured)
-			result = await sendMessage('uploadImageToImgbb', { base64, fileName })
+			// Use ImgBB first (user-configured), fallback to freeimage on failure.
+			try {
+				result = await sendMessage('uploadImageToImgbb', { base64, fileName })
+			} catch (error) {
+				logger.warn('ImgBB upload request failed, falling back to freeimage.host', error)
+				result = {
+					success: false,
+					error: error instanceof Error ? error.message : 'ImgBB upload failed',
+				}
+			}
+
+			if (!result.success) {
+				logger.warn('ImgBB upload failed, trying freeimage.host fallback', result.error)
+				const fallback = await sendMessage('uploadImageToFreeimage', { base64, fileName })
+				if (fallback.success) return fallback
+
+				return {
+					success: false,
+					error: fallback.error || result.error || 'Upload failed',
+				}
+			}
 		} else {
 			// Use freeimage.host (default, permanent storage)
 			result = await sendMessage('uploadImageToFreeimage', { base64, fileName })

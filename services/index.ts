@@ -49,12 +49,16 @@ export type { UploadResult } from '@/lib/messaging'
 // Steam
 export {
   extractSteamAppId,
+  extractSteamBundleId,
   isSteamUrl,
+  isSteamBundleUrl,
   fetchSteamGameDetails,
   fetchSteamGameDetailsViaBackground,
+  fetchSteamBundleDetails,
+  fetchSteamBundleDetailsViaBackground,
 } from './api/steam'
 
-export type { SteamGameDetails } from './api/steam'
+export type { SteamGameDetails, SteamBundleDetails } from './api/steam'
 
 // AI Service
 export {

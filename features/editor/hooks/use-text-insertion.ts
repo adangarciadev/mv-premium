@@ -5,6 +5,8 @@
 import { logger } from '@/lib/logger'
 import { needsMultilineCenter } from '../lib/bbcode-utils'
 
+const INLINE_C_CODE_LANGUAGE_ID = 'inline-c'
+
 export function useTextInsertion(textarea: HTMLTextAreaElement) {
 	/**
 	 * Injects raw text at the current cursor position, replacing any selection.
@@ -97,6 +99,11 @@ export function useTextInsertion(textarea: HTMLTextAreaElement) {
 	const insertStrikethrough = () => wrapSelection('[s]', '[/s]')
 
 	/**
+	 * Insert spoiler tags around selected text
+	 */
+	const insertSpoiler = () => wrapSelection('[spoiler]', '[/spoiler]')
+
+	/**
 	 * Insert NSFW spoiler tags around selected text
 	 */
 	const insertNsfw = () => wrapSelection('[spoiler=NSFW]', '[/spoiler]')
@@ -178,6 +185,11 @@ export function useTextInsertion(textarea: HTMLTextAreaElement) {
 	 * Insert code block with optional language
 	 */
 	const insertCode = (lang: string) => {
+		if (lang === INLINE_C_CODE_LANGUAGE_ID) {
+			wrapSelection('[c]', '[/c]')
+			return
+		}
+
 		const start = textarea.selectionStart
 		const end = textarea.selectionEnd
 		const text = textarea.value
@@ -226,6 +238,7 @@ export function useTextInsertion(textarea: HTMLTextAreaElement) {
 		insertItalic,
 		insertUnderline,
 		insertStrikethrough,
+		insertSpoiler,
 		insertNsfw,
 		insertCenter,
 		insertLink,

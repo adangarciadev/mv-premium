@@ -49,6 +49,9 @@ export const MV_SELECTORS = {
 		/** Preview container */
 		PREVIEW_CONTAINER: '#preview',
 		PREVIEW_CONTAINER_ID: 'preview',
+		/** Submit button inside preview modal ("Editar") */
+		PREVIEW_SUBMIT_BUTTON: '#prsubmit',
+		PREVIEW_SUBMIT_BUTTON_ID: 'prsubmit',
 		/** Submit button */
 		SUBMIT_BUTTON: '#btsubmit',
 		SUBMIT_BUTTON_ID: 'btsubmit',
@@ -235,6 +238,8 @@ export const MV_SELECTORS = {
 		/** Formbox container */
 		FORMBOX: '#formbox',
 		FORMBOX_ID: 'formbox',
+		/** Inline-edit textarea (double-click quick edit on posts) */
+		INLINE_EDIT: 'textarea.inline-edit',
 	},
 
 	// ============================================================================
@@ -330,6 +335,8 @@ export const MV_SELECTORS = {
 		PM_CONTENT: '.pm-content',
 		/** PM wrap element */
 		PM_WRAP: '.wrap',
+		/** PM Reply Textarea */
+		TEXTAREA: 'textarea[name="msg"]',
 	},
 
 	// ============================================================================

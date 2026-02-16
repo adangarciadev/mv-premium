@@ -19,9 +19,71 @@ import {
 let originalFormParent: HTMLElement | null = null
 let originalFormNextSibling: Node | null = null
 let replyStateCallback: ((isOpen: boolean) => void) | null = null
+let postReplyClickHandler: ((event: Event) => void) | null = null
+const LIVE_EDITOR_PREPARED_ATTR = `data-${DOM_MARKERS.DATA_ATTRS.LIVE_EDITOR_PREPARED}`
 
 export function setReplyStateCallback(cb: ((isOpen: boolean) => void) | null): void {
 	replyStateCallback = cb
+}
+
+function appendReplyReferenceToEditor(postNum: string): void {
+	const textarea = document.querySelector(MV_SELECTORS.EDITOR.TEXTAREA) as HTMLTextAreaElement | null
+	if (!textarea) return
+
+	const currentValue = textarea.value
+	const hasExistingText = currentValue.trim().length > 0
+	const separator = hasExistingText && !currentValue.endsWith('\n') ? '\n' : ''
+	textarea.value = `${currentValue}${separator}#${postNum} `
+	textarea.dispatchEvent(new Event('input', { bubbles: true }))
+	textarea.focus()
+	const cursorPos = textarea.value.length
+	textarea.setSelectionRange(cursorPos, cursorPos)
+}
+
+function getReplyPostNum(replyButton: Element): string | null {
+	const dataNum = replyButton.getAttribute('data-num')?.trim()
+	if (dataNum) return dataNum
+
+	const postEl = replyButton.closest<HTMLElement>(MV_SELECTORS.THREAD.POST_ALL)
+	return postEl?.getAttribute('data-num')?.trim() || null
+}
+
+export function setupPostReplyHandler(): void {
+	if (postReplyClickHandler) return
+
+	const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID)
+	if (!postsWrap) return
+
+	postReplyClickHandler = (event: Event) => {
+		const target = event.target
+		if (!(target instanceof Element)) return
+
+		const replyButton = target.closest('.btn-reply')
+		if (!replyButton || !postsWrap.contains(replyButton)) return
+
+		event.preventDefault()
+		event.stopImmediatePropagation()
+		event.stopPropagation()
+
+		const postNum = getReplyPostNum(replyButton)
+		if (!postNum) return
+
+		toggleFormVisibility(true)
+		appendReplyReferenceToEditor(postNum)
+	}
+
+	postsWrap.addEventListener('click', postReplyClickHandler, true)
+}
+
+export function cleanupPostReplyHandler(): void {
+	const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID)
+	if (!postsWrap || !postReplyClickHandler) {
+		postReplyClickHandler = null
+		return
+	}
+
+	postsWrap.removeEventListener('click', postReplyClickHandler, true)
+	postReplyClickHandler = null
 }
 
 // =============================================================================
@@ -113,6 +175,7 @@ export function restoreForm(): void {
 
 		// Reset styles
 		postEditor.style.cssText = ''
+		postEditor.removeAttribute(LIVE_EDITOR_PREPARED_ATTR)
 		postEditor.classList.remove('live')
 
 		originalFormParent = null
@@ -286,11 +349,14 @@ export function forceEditorStyles(postEditor: HTMLElement): void {
 	const editorControls = postEditor.querySelector(MV_SELECTORS.EDITOR.EDITOR_CONTROLS) as HTMLElement
 	if (editorControls) {
 		editorControls.style.setProperty('display', 'flex', 'important')
-		editorControls.style.setProperty('flex-wrap', 'wrap', 'important')
+		editorControls.style.setProperty('flex-wrap', 'nowrap', 'important')
+		editorControls.style.setProperty('align-items', 'center', 'important')
 		editorControls.style.setProperty('visibility', 'visible', 'important')
 		editorControls.style.setProperty('opacity', '1', 'important')
-		editorControls.style.setProperty('height', 'auto', 'important')
-		editorControls.style.setProperty('min-height', '38px', 'important')
+		editorControls.style.setProperty('height', '30px', 'important')
+		editorControls.style.setProperty('min-height', '30px', 'important')
+		editorControls.style.setProperty('overflow-x', 'auto', 'important')
+		editorControls.style.setProperty('overflow-y', 'hidden', 'important')
 	}
 
 	// Force editor meta (hide native, inject custom)
@@ -364,17 +430,37 @@ export function forceEditorStyles(postEditor: HTMLElement): void {
 export function toggleFormVisibility(show: boolean): void {
 	const wrapper = document.getElementById(DOM_MARKERS.IDS.LIVE_EDITOR_WRAPPER)
 	if (!wrapper) return
+	const isVisible = wrapper.classList.contains('visible')
 
 	if (show) {
+		// If already open, avoid forcing full style reapplication (prevents flicker in Firefox).
+		if (isVisible) {
+			const postEditor = document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
+			const textarea = postEditor?.querySelector(`#${MV_SELECTORS.EDITOR.TEXTAREA_ID}`) as HTMLTextAreaElement | null
+			if (textarea) {
+				setTimeout(() => textarea.focus(), 0)
+			}
+			replyStateCallback?.(true)
+			return
+		}
+
 		wrapper.classList.add('visible')
 		const postEditor = document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
 		if (postEditor) {
 			postEditor.style.display = 'block'
-			forceEditorStyles(postEditor)
+			if (!postEditor.hasAttribute(LIVE_EDITOR_PREPARED_ATTR)) {
+				forceEditorStyles(postEditor)
+				postEditor.setAttribute(LIVE_EDITOR_PREPARED_ATTR, 'true')
+			}
 			const textarea = postEditor.querySelector(`#${MV_SELECTORS.EDITOR.TEXTAREA_ID}`) as HTMLTextAreaElement
 			if (textarea) setTimeout(() => textarea.focus(), 150)
 		}
 	} else {
+		if (!isVisible) {
+			replyStateCallback?.(false)
+			return
+		}
+
 		wrapper.classList.remove('visible')
 		setTimeout(() => {
 			if (!wrapper.classList.contains('visible')) {

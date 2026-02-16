@@ -19,12 +19,13 @@
  */
 import { storage } from '@wxt-dev/storage'
 import { logger } from '@/lib/logger'
+import { STORAGE_KEYS } from '@/constants'
 
 // =============================================================================
 // VERSION TRACKING
 // =============================================================================
 
-const VERSION_KEY = 'local:mvp-storage-version'
+const VERSION_KEY = `local:${STORAGE_KEYS.STORAGE_VERSION}` as `local:${string}`
 const CURRENT_VERSION = 1
 
 /**

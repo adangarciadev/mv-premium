@@ -38,13 +38,16 @@ let draftCounter = 0
  * Injects a live character counter into the bottom-right of textareas
  */
 export function injectCharacterCounter(): void {
-	const textareas = document.querySelectorAll(MV_SELECTORS.EDITOR.TEXTAREA_ALL)
+	const textareas = document.querySelectorAll(
+		`${MV_SELECTORS.EDITOR.TEXTAREA_ALL}, ${MV_SELECTORS.MESSAGES.TEXTAREA}`
+	)
 
 	textareas.forEach(textarea => {
 		if (isAlreadyInjected(textarea, COUNTER_MARKER)) return
 		markAsInjected(textarea, COUNTER_MARKER)
 
 		const ta = textarea as HTMLTextAreaElement
+		ta.style.resize = 'vertical'
 
 		const counter = document.createElement('div')
 		counter.className = 'mvp-char-counter'
@@ -114,7 +117,9 @@ function insertTagAtCursor(textarea: HTMLTextAreaElement, tag: string, content: 
  * - Media (YouTube, Instagram, Twitter, Amazon, Steam, etc.) → [media][/media]
  */
 export function injectPasteHandler(): void {
-	const textareas = document.querySelectorAll<HTMLTextAreaElement>(MV_SELECTORS.EDITOR.TEXTAREA_ALL)
+	const textareas = document.querySelectorAll<HTMLTextAreaElement>(
+		`${MV_SELECTORS.EDITOR.TEXTAREA_ALL}, ${MV_SELECTORS.MESSAGES.TEXTAREA}`
+	)
 
 	textareas.forEach(textarea => {
 		if (isAlreadyInjected(textarea, PASTE_MARKER)) return
@@ -262,18 +267,156 @@ export function injectEditorToolbar(): void {
 		}
 	})
 
-	// Fallback for standalone textareas
-	const textareas = document.querySelectorAll(`${MV_SELECTORS.EDITOR.TEXTAREA}, ${MV_SELECTORS.EDITOR.TEXTAREA_NAME}`)
+	// Fallback for standalone textareas (PMs, inline-edit quick edit)
+	const textareas = document.querySelectorAll(
+		`${MV_SELECTORS.EDITOR.TEXTAREA}, ${MV_SELECTORS.EDITOR.TEXTAREA_NAME}, ${MV_SELECTORS.MESSAGES.TEXTAREA}, ${MV_SELECTORS.EDITOR.INLINE_EDIT}`
+	)
 	textareas.forEach(textarea => {
 		if (isAlreadyInjected(textarea, TOOLBAR_MARKER)) return
 		markAsInjected(textarea, TOOLBAR_MARKER)
 
+		// Inject styles
+		const styleId = 'mvp-pm-toolbar-styles'
+
+		let style = document.getElementById(styleId)
+		if (!style) {
+			style = document.createElement('style')
+			style.id = styleId
+			document.head.appendChild(style)
+		}
+		style.textContent = `
+				/* PM Editor Toolbar Styles */
+				.mvp-pm-toolbar {
+					display: flex !important;
+					flex-wrap: nowrap !important;
+					align-items: center !important;
+					gap: 0 !important;
+					background: var(--card, var(--bg-color-2, #292d36)) !important;
+					border: 1px solid var(--border, var(--border-color, #3a3f4b)) !important;
+					border-bottom: none !important;
+					border-radius: 4px 4px 0 0;
+					padding-top: 4px !important;
+					padding-bottom: 0px !important;
+					padding-left: 2px !important;
+					padding-right: 4px !important;
+					overflow: hidden;
+					margin: 0;
+					margin-bottom: 0 !important;
+					box-sizing: border-box;
+					width: 100%;
+					animation: mvp-toolbar-appear 0.5s ease-out;
+				}
+
+				@keyframes mvp-toolbar-appear {
+					from { opacity: 0; transform: translateY(-5px); }
+					to { opacity: 1; transform: translateY(0); }
+				}
+
+				/* Groups */
+				.mvp-pm-toolbar .mvp-toolbar-group {
+					display: inline-flex !important;
+					align-items: center !important;
+					gap: 1px !important;
+					margin: 0 !important;
+					padding: 0 4px !important;
+					height: 28px;
+					position: relative;
+				}
+				
+				.mvp-pm-toolbar .mvp-toolbar-group:not(:last-child)::after {
+					content: "" !important;
+					display: block !important;
+					width: 1px !important;
+					height: 14px !important;
+					background-color: var(--border, #71717a) !important;
+					margin-left: 4px !important;
+					opacity: 0.6;
+				}
+
+				/* Specific Group adjustments */
+				.mvp-pm-toolbar #mvp-group-tools {
+					margin-right: 12px !important;
+				}
+
+				/* Hide history group and trailing tools separator */
+				.mvp-pm-toolbar #mvp-group-history,
+				.mvp-pm-toolbar #mvp-group-tools::after {
+					display: none !important;
+				}
+
+				/* Buttons */
+				.mvp-pm-toolbar .mvp-toolbar-btn {
+					display: inline-flex !important;
+					align-items: center !important;
+					justify-content: center !important;
+					width: 28px !important;
+					height: 28px !important;
+					padding: 0 !important;
+					margin: 0 !important;
+					background: transparent !important;
+					border: 1px solid transparent !important;
+					border-radius: 3px !important;
+					color: var(--foreground, var(--text-color, #a8adb5)) !important;
+					cursor: pointer !important;
+					font-size: 13px !important;
+					transition: all 0.1s ease;
+					float: none !important;
+					box-shadow: none !important;
+				}
+
+				.mvp-pm-toolbar .mvp-toolbar-btn:hover,
+				.mvp-pm-toolbar .mvp-toolbar-btn.active {
+					background-color: var(--accent, var(--bg-highlight, #373d49)) !important;
+					border-color: var(--primary, var(--border-color-highlight, #4a5160)) !important;
+					color: var(--accent-foreground, var(--text-highlight, #fff)) !important;
+				}
+
+				.mvp-pm-toolbar .mvp-toolbar-btn i,
+				.mvp-pm-toolbar .mvp-toolbar-btn svg {
+					font-size: 14px !important;
+					width: 14px !important;
+					height: 14px !important;
+					line-height: 1 !important;
+					color: inherit !important;
+				}
+
+				/* Hide history group (undo-redo) and trailing separator in PM editor */
+				.mvp-pm-toolbar #mvp-group-history,
+				.mvp-pm-toolbar #mvp-group-tools::after {
+					display: none !important;
+				}
+
+				/* Hide spacers */
+				.mvp-pm-toolbar .spacer {
+					display: none !important;
+				}
+
+				/* Adjust textarea attachment */
+				.mvp-pm-toolbar + textarea {
+					border-top-left-radius: 0 !important;
+					border-top-right-radius: 0 !important;
+					margin-top: 0 !important;
+					border-color: var(--border-color, #3a3f4b) !important;
+					resize: vertical !important;
+				}
+
+
+			`
+
 		const container = document.createElement('div')
-		container.className = 'mvp-toolbar-container mb-2'
+		container.className = 'mvp-toolbar-container mvp-pm-toolbar'
 		textarea.parentNode?.insertBefore(container, textarea)
 
+		// Match the toolbar width/position to the textarea exactly
+		const ta = textarea as HTMLElement
+		const computed = window.getComputedStyle(ta)
+		container.style.marginLeft = computed.marginLeft
+		container.style.marginRight = computed.marginRight
+		container.style.width = `${ta.offsetWidth}px`
+		container.style.boxSizing = 'border-box'
+
 		const host = document.createElement('div')
-		host.style.display = 'inline-block'
+		host.style.cssText = 'position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none;'
 		container.appendChild(host)
 
 		const featureId = `${FEATURE_IDS.TOOLBAR_FALLBACK_PREFIX}${++toolbarCounter}`

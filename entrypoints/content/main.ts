@@ -17,6 +17,7 @@ import {
 	isCineForum,
 	isFavoritesPage,
 	isForumGlobalViewPage,
+	isCenteredPostsSupportedPage,
 	isBookmarksPage,
 	isForumListPage,
 	isSubforumPage,
@@ -27,6 +28,7 @@ import { runInjections, type PageContext } from './run-injections'
 import { applyBoldColor, watchBoldColor } from './init-bold-color'
 import { syncFidIcons } from '@/features/icons/icon-syncer'
 import { initUltrawide } from '@/features/ultrawide'
+import { initMvThemeListener } from '@/features/mv-theme/logic/mv-theme-injector'
 import { initCenteredPosts } from '@/features/centered-posts'
 import { setupPostTracker } from '@/features/stats/post-tracker'
 import { initTimeTracker } from '@/features/stats/logic/time-tracker'
@@ -36,8 +38,49 @@ import { updateMutedWordsConfig, applyMutedWordsFilter } from '@/features/muted-
 import { initUserCardInjector } from '@/features/user-customizations/user-card-injector'
 import { onMessage } from '@/lib/messaging'
 import { toast } from '@/lib/lazy-toast'
+import { logger } from '@/lib/logger'
+import { RUNTIME_CACHE_KEYS, TOAST_IDS, TOAST_TIMINGS } from '@/constants'
 
 export async function runContentMain(ctx: unknown): Promise<void> {
+	const pathname = window.location.pathname
+	const isHomepage = pathname === '/' || pathname === '' || /^\/p\d+$/.test(pathname)
+	const earlyHomepageModulePromise = (() => {
+		if (!isHomepage) return null
+
+		try {
+			const cachedEnabled = localStorage.getItem(RUNTIME_CACHE_KEYS.NEW_HOMEPAGE_ENABLED) === 'true'
+			return cachedEnabled ? import('@/features/new-homepage') : null
+		} catch {
+			return null
+		}
+	})()
+
+	let lastContextToast: { key: string; at: number } | null = null
+	const showToastFromMessage = (text: string) => {
+		const type = text.startsWith('✅') || text.startsWith('🔇') || text.startsWith('📌')
+			? 'success'
+			: text.startsWith('❌')
+				? 'error'
+				: 'info'
+
+		const now = Date.now()
+		const key = `${type}:${text}`
+		if (lastContextToast && lastContextToast.key === key && now - lastContextToast.at < TOAST_TIMINGS.DEDUP_MS) {
+			return
+		}
+		lastContextToast = { key, at: now }
+
+		if (type === 'success') {
+			toast.success(text, { id: TOAST_IDS.CONTEXT_ACTION })
+			return
+		}
+		if (type === 'error') {
+			toast.error(text, { id: TOAST_IDS.CONTEXT_ACTION })
+			return
+		}
+		toast.info(text, { id: TOAST_IDS.CONTEXT_ACTION })
+	}
+
 	// =====================================================================
 	// DEBUG: Expose a global function to inspect extension storage from console
 	// Usage: mvpDebug() in browser console
@@ -94,6 +137,22 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	await waitForHydration()
 	initCrossTabSync()
 
+	const newHomepageEnabled = useSettingsStore.getState().newHomepageEnabled
+
+	// Keep cache in sync for the early homepage script
+	try {
+		localStorage.setItem(RUNTIME_CACHE_KEYS.NEW_HOMEPAGE_ENABLED, String(newHomepageEnabled))
+	} catch {
+		// localStorage may be unavailable
+	}
+
+	// Fast path: inject homepage as early as possible (before other async init)
+	if (isHomepage && newHomepageEnabled) {
+		;(earlyHomepageModulePromise ?? import('@/features/new-homepage')).then(({ injectHomepage }) => {
+			injectHomepage()
+		})
+	}
+
 	// =====================================================================
 	// 2. DETECT AND SAVE CURRENT USER
 	// =====================================================================
@@ -112,6 +171,9 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// Initialize global theme listener (syncs theme colors to :root for scrollbars, etc.)
 	initGlobalThemeListener()
 
+	// Initialize MV site theme listener (live updates when colors change in dashboard)
+	initMvThemeListener()
+
 	// Initialize page width feature (applies max-width constraints if enabled)
 	await initUltrawide()
 
@@ -119,8 +181,6 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// 4. CALCULATE PAGE CONTEXT (once)
 	// Note: Mediavida is MPA, URL won't change without reload
 	// =====================================================================
-	const pathname = window.location.pathname
-	const isHomepage = pathname === '/' || pathname === ''
 	const isThread = isThreadPage()
 	const isCine = isCineForum()
 	const isFavorites = isFavoritesPage()
@@ -147,10 +207,45 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 		isMediaForum: isMediaForum(),
 	}
 
+	// Track forum visits for the custom homepage quick-access shortcuts
+	if (pathname.startsWith('/foro/')) {
+		const forumSlug = pathname.split('/')[2]
+		const excludedSlugs = new Set(['spy', 'top', 'unread', 'featured', 'new', 'favoritos', 'marcadores'])
+		if (forumSlug && !excludedSlugs.has(forumSlug)) {
+			import('@/features/new-homepage/lib/visited-forums').then(({ setLatestVisitedForum }) => {
+				void setLatestVisitedForum(forumSlug)
+			})
+		}
+	}
+
+	let isInjectionRunInFlight = false
+	let hasPendingInjectionRun = false
+
+	const runInjectionsSafely = async () => {
+		if (isInjectionRunInFlight) {
+			hasPendingInjectionRun = true
+			return
+		}
+
+		isInjectionRunInFlight = true
+		try {
+			do {
+				hasPendingInjectionRun = false
+				try {
+					await runInjections(ctx, pageContext)
+				} catch (error) {
+					logger.error('runInjections failed', error)
+				}
+			} while (hasPendingInjectionRun)
+		} finally {
+			isInjectionRunInFlight = false
+		}
+	}
+
 	// =====================================================================
 	// 5. RUN FEATURE INJECTIONS with pre-calculated context
 	// =====================================================================
-	await runInjections(ctx, pageContext)
+	await runInjectionsSafely()
 
 	// Initialize native preview interceptor for code highlighting
 	initNativePreviewInterceptor()
@@ -169,7 +264,14 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// =====================================================================
 	// 7. OBSERVE FOR DYNAMIC CONTENT
 	// =====================================================================
-	const observer = createDebouncedObserver({ onMutation: () => runInjections(ctx, pageContext) }, 100)
+	const observer = createDebouncedObserver(
+		{
+			onMutation: () => {
+				void runInjectionsSafely()
+			},
+		},
+		100
+	)
 	observeDocument(observer)
 
 	// =====================================================================
@@ -191,8 +293,12 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 
 		// Initialize user card button injection
 		initUserCardInjector()
+	}
 
-		// Initialize centered posts mode (hides sidebar, expands posts)
+	// Initialize centered posts mode:
+	// - thread pages: full mode (control bar + layout)
+	// - spy/subforum pages: layout-only mode (hide sidebar + expand content)
+	if (isCenteredPostsSupportedPage()) {
 		await initCenteredPosts()
 	}
 
@@ -221,19 +327,7 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// =====================================================================
 	// 10. CONTEXT MENU TOAST LISTENER
 	// =====================================================================
-	browser.runtime.onMessage.addListener((message: { type: string; message: string }) => {
-		if (message.type === 'MVP_TOAST') {
-			// Determine toast type from emoji prefix
-			const text = message.message
-			if (text.startsWith('✅') || text.startsWith('🔇') || text.startsWith('📌')) {
-				toast.success(text)
-			} else if (text.startsWith('❌')) {
-				toast.error(text)
-			} else if (text.startsWith('ℹ️')) {
-				toast.info(text)
-			} else {
-				toast.info(text)
-			}
-		}
+	onMessage('showToast', ({ data }) => {
+		showToastFromMessage(data.message)
 	})
 }

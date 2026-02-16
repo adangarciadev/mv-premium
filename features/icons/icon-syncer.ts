@@ -1,6 +1,7 @@
 import { ALL_SUBFORUMS } from '@/lib/subforums'
 import { logger } from '@/lib/logger'
 import { storage } from '#imports'
+import { STORAGE_KEYS } from '@/constants'
 
 export interface FidIconStyle {
 	backgroundImage: string
@@ -9,7 +10,7 @@ export interface FidIconStyle {
 	height: string
 }
 
-export const ICONS_STORAGE_KEY = 'local:mvp-fid-icons-cache'
+export const ICONS_STORAGE_KEY = `local:${STORAGE_KEYS.FID_ICONS_CACHE}` as `local:${string}`
 
 /**
  * Extracts FID icon styles from the DOM and saves them to storage

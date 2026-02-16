@@ -23,6 +23,7 @@ export const DOM_MARKERS = {
 		INJECTED: 'mvp-injected',
 		COUNTER: 'mvp-counter',
 		DRAFT: 'mvp-draft',
+		LIVE_EDITOR_PREPARED: 'mvp-live-editor-prepared',
 		SAVE_DRAFT_BTN: 'mvp-save-draft-btn',
 		PRESERVE: 'mvp-preserve',
 		HIDDEN: 'mvp-hidden',
@@ -38,6 +39,7 @@ export const DOM_MARKERS = {
 		NEW_THREAD_INJECTED: 'mvp-new-thread-injected',
 		SEARCH_REPLACED: 'mvp-search-replaced',
 		USER_CUSTOMIZED: 'mvp-customized',
+		STEAM_BUNDLE_CARD: 'mvp-steam-bundle-card',
 	},
 
 	// CSS Classes (all start with mvp-)
@@ -45,6 +47,7 @@ export const DOM_MARKERS = {
 		// User Customizations
 		IGNORED_USER: 'mvp-ignored-user',
 		IGNORED_MESSAGE: 'mvp-ignored-message',
+		HIDDEN_THREAD: 'mvp-hidden-thread',
 		MUTED_USER: 'mvp-muted-user',
 		MUTE_PLACEHOLDER: 'mvp-mute-placeholder',
 		REVEAL_BTN: 'mvp-reveal-btn',
@@ -131,6 +134,7 @@ export const DOM_MARKERS = {
 		NEW_THREAD_BUTTON: 'mvp-new-thread-button',
 		NEW_THREAD_DROPDOWN: 'mvp-new-thread-dropdown',
 		WHATS_NEW_BADGE: 'mvp-whats-new-badge',
+		HIDDEN_THREADS_STYLES: 'mvp-hidden-threads-styles',
 		// Gallery
 		GALLERY_BTN: 'mvp-gallery-btn',
 		GALLERY_TRIGGER: 'mvp-gallery-trigger',
@@ -155,6 +159,10 @@ export const DOM_MARKERS = {
 		INFINITE_SCROLL_BUTTON_CONTAINER: 'mvp-infinite-scroll-button-container',
 		// Media Hover
 		MEDIA_HOVER_CARD_CONTAINER: 'mvp-media-hover-card-container',
+		// Homepage
+		NEW_HOMEPAGE_ROOT: 'mvp-new-homepage-root',
+		// MV Theme
+		MV_THEME_STYLES: 'mvp-mv-theme-early',
 		// Active Button Styles
 		BTN_STYLES_DARK: 'mvp-btn-styles-dark',
 		BTN_STYLES_LIGHT: 'mvp-btn-styles-light',

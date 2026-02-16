@@ -231,7 +231,7 @@ export async function injectNewThreadButton(): Promise<void> {
 		currentDropdown.replaceWith(newDropdown)
 		currentDropdown = newDropdown
 	}
-	window.addEventListener('mvp-favorite-subforums-changed', favoritesChangeHandler)
+	window.addEventListener(DOM_MARKERS.EVENTS.FAVORITE_SUBFORUMS_CHANGED, favoritesChangeHandler)
 }
 
 /**
@@ -256,7 +256,7 @@ export function cleanupNewThreadButton(): void {
 	}
 
 	if (favoritesChangeHandler) {
-		window.removeEventListener('mvp-favorite-subforums-changed', favoritesChangeHandler)
+		window.removeEventListener(DOM_MARKERS.EVENTS.FAVORITE_SUBFORUMS_CHANGED, favoritesChangeHandler)
 		favoritesChangeHandler = null
 	}
 }

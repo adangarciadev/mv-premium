@@ -34,6 +34,7 @@ export const FeatureFlag = {
 	// User-controlled Features (via settings)
 	InfiniteScroll: 'infinite-scroll',
 	LiveThread: 'live-thread',
+	NewHomepage: 'new-homepage',
 	MutedWords: 'muted-words',
 	NativeLiveDelay: 'native-live-delay',
 
@@ -43,6 +44,7 @@ export const FeatureFlag = {
 	ThreadSummarizer: 'thread-summarizer',
 	CinemaCards: 'cinema-cards',
 	MediaHoverCards: 'media-hover-cards',
+	SteamBundleInlineCards: 'steam-bundle-inline-cards',
 	PinnedPosts: 'pinned-posts',
 	SavedThreads: 'saved-threads',
 
@@ -79,6 +81,7 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 	// User-controlled Features
 	[FeatureFlag.InfiniteScroll]: { settingsKey: 'infiniteScrollEnabled' },
 	[FeatureFlag.LiveThread]: { settingsKey: 'liveThreadEnabled' },
+	[FeatureFlag.NewHomepage]: { settingsKey: 'newHomepageEnabled' },
 	[FeatureFlag.MutedWords]: { settingsKey: 'mutedWordsEnabled' },
 	[FeatureFlag.NativeLiveDelay]: { settingsKey: 'nativeLiveDelayEnabled' },
 
@@ -100,6 +103,7 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 	},
 	[FeatureFlag.CinemaCards]: { settingsKey: 'cinemaButtonEnabled', requiresApiKey: 'tmdbApiKey' },
 	[FeatureFlag.MediaHoverCards]: { settingsKey: 'mediaHoverCardsEnabled' },
+	[FeatureFlag.SteamBundleInlineCards]: { settingsKey: 'steamBundleInlineCardsEnabled' },
 	[FeatureFlag.PinnedPosts]: { settingsKey: 'pinnedPostsEnabled' },
 	[FeatureFlag.SavedThreads]: { settingsKey: 'saveThreadEnabled' },
 

@@ -7,6 +7,7 @@
 
 export const FEATURE_IDS = {
 	// Single Instance Features
+	NEW_HOMEPAGE: 'mvp-new-homepage',
 	SIDEBAR_FAVORITES: 'mvp-favorite-subforums-sidebar',
 	SIDEBAR_PINNED: 'mvp-pinned-posts-sidebar',
 	BOOKMARKS_MANAGER: 'mvp-bookmarks-manager',
@@ -34,4 +35,5 @@ export const FEATURE_IDS = {
 	TOOLBAR_STATE_PREFIX: 'mvp-toolbar-state-',
 	DRAFT_MANAGER_PREFIX: 'mvp-draft-manager-',
 	INFINITE_SCROLL_DIVIDER_PREFIX: 'mvp-infinite-scroll-divider-',
+	STEAM_BUNDLE_INLINE_CARD_PREFIX: 'mvp-steam-bundle-inline-card-',
 } as const
