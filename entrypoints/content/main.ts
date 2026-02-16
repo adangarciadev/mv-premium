@@ -28,6 +28,7 @@ import { runInjections, type PageContext } from './run-injections'
 import { applyBoldColor, watchBoldColor } from './init-bold-color'
 import { syncFidIcons } from '@/features/icons/icon-syncer'
 import { initUltrawide } from '@/features/ultrawide'
+import { initMvThemeListener } from '@/features/mv-theme/logic/mv-theme-injector'
 import { initCenteredPosts } from '@/features/centered-posts'
 import { setupPostTracker } from '@/features/stats/post-tracker'
 import { initTimeTracker } from '@/features/stats/logic/time-tracker'
@@ -169,6 +170,9 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 
 	// Initialize global theme listener (syncs theme colors to :root for scrollbars, etc.)
 	initGlobalThemeListener()
+
+	// Initialize MV site theme listener (live updates when colors change in dashboard)
+	initMvThemeListener()
 
 	// Initialize page width feature (applies max-width constraints if enabled)
 	await initUltrawide()

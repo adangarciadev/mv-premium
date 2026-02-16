@@ -46,9 +46,13 @@ export function StorageInspector({ triggerButton }: StorageInspectorProps) {
 	const compressedCount = items?.filter(item => item.isCompressed).length ?? 0
 	const estimatedSavings =
 		items?.reduce((sum, item) => {
-			if (item.isCompressed && item.originalSize) {
-				return sum + (item.originalSize - item.compressedSize)
+			if (!item.isCompressed || item.originalSize === null || !Number.isFinite(item.originalSize)) {
+				return sum
 			}
+
+			const savings = item.originalSize - item.compressedSize
+			if (savings > 0) return sum + savings
+
 			return sum
 		}, 0) ?? 0
 
@@ -168,7 +172,10 @@ export function StorageInspector({ triggerButton }: StorageInspectorProps) {
 																			<span className="font-mono text-xs font-semibold text-foreground/90 block">
 																				{formatBytes(item.compressedSize)}
 																			</span>
-																			{item.isCompressed && item.originalSize && (
+																			{item.isCompressed &&
+																				typeof item.originalSize === 'number' &&
+																				Number.isFinite(item.originalSize) &&
+																				item.originalSize > item.compressedSize && (
 																				<span className="text-[9px] text-emerald-500/80 block -mt-0.5">
 																					-{Math.round((1 - item.compressedSize / item.originalSize) * 100)}%
 																				</span>

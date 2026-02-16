@@ -16,6 +16,7 @@ import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import StickyNote from 'lucide-react/dist/esm/icons/sticky-note'
 import Layout from 'lucide-react/dist/esm/icons/layout'
+import Palette from 'lucide-react/dist/esm/icons/palette'
 import { getDrafts, draftsStorage } from '@/features/drafts/storage'
 import { getHiddenThreads, watchHiddenThreads } from '@/features/hidden-threads/logic/storage'
 import { useSettingsStore } from '@/store/settings-store'
@@ -97,6 +98,11 @@ const platformItems: NavItem[] = [
 ]
 
 const settingsItems: NavItem[] = [
+	{
+		title: 'Tema de Mediavida',
+		path: '/mv-theme',
+		icon: Palette,
+	},
 	{
 		title: 'Ajustes',
 		path: '/settings',

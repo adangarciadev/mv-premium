@@ -10,7 +10,12 @@ import { STORAGE_KEYS } from '@/constants'
 // Re-implement the core logic for testing (without browser dependencies)
 const COMPRESSED_MARKER = '__LZB64__'
 const LEGACY_MARKER = '__LZ__'
-const COMPRESSED_KEYS = [STORAGE_KEYS.ACTIVITY, STORAGE_KEYS.DRAFTS]
+const COMPRESSED_KEYS = [
+	STORAGE_KEYS.ACTIVITY,
+	STORAGE_KEYS.DRAFTS,
+	STORAGE_KEYS.MV_THEME_CSS,
+	STORAGE_KEYS.MV_THEME_SAVED_PRESETS,
+]
 
 function shouldCompress(key: string): boolean {
 	return COMPRESSED_KEYS.some(k => key.includes(k))
@@ -40,6 +45,11 @@ describe('compressed-storage', () => {
 			expect(shouldCompress('local:mvp-settings')).toBe(false)
 			expect(shouldCompress('local:mvp-bookmarks')).toBe(false)
 			expect(shouldCompress('some-random-key')).toBe(false)
+		})
+
+		it('should return true for mv theme css and presets keys', () => {
+			expect(shouldCompress(`local:${STORAGE_KEYS.MV_THEME_CSS}`)).toBe(true)
+			expect(shouldCompress(`local:${STORAGE_KEYS.MV_THEME_SAVED_PRESETS}`)).toBe(true)
 		})
 	})
 

@@ -21,7 +21,7 @@ import Eye from 'lucide-react/dist/esm/icons/eye'
 import User from 'lucide-react/dist/esm/icons/user'
 import { getCurrentUser, type CurrentUser } from './lib/current-user'
 import { MV_BASE_URL, MV_URLS, getUserProfileUrl } from '@/constants'
-import { useState, useEffect } from 'react'
+import React, { Suspense, lazy, useEffect, useState } from 'react'
 import { ModeToggle } from '@/components/mode-toggle'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -37,7 +37,20 @@ import MutedPostsView from './views/muted-posts-view'
 import { HiddenThreadsView } from './views/hidden-threads-view'
 import { WhatsNewView } from './views/whats-new-view'
 
-import React from 'react'
+const MvThemeView = lazy(() =>
+	import('@/features/mv-theme/components/mv-theme-view').then(module => ({
+		default: module.MvThemeView,
+	}))
+)
+
+function MvThemeViewFallback() {
+	return (
+		<div className="space-y-6 animate-pulse">
+			<div className="h-8 w-64 bg-muted rounded" />
+			<div className="h-48 bg-muted rounded-lg" />
+		</div>
+	)
+}
 
 /**
  * Route configuration for breadcrumb generation
@@ -55,6 +68,7 @@ const routeLabels: Record<string, string> = {
 	users: 'Usuarios',
 	settings: 'Ajustes',
 
+	'mv-theme': 'Tema de Mediavida',
 	'whats-new': 'Novedades',
 	shortcuts: 'Atajos de Teclado',
 }
@@ -240,6 +254,16 @@ export default function OptionsApp() {
 							<Route path="/templates" element={<DraftsView filterType="template" />} />
 							<Route path="/templates/new" element={<DraftEditorView docType="template" />} />
 							<Route path="/templates/edit/:id" element={<DraftEditorView docType="template" />} />
+
+							{/* MV Theme */}
+							<Route
+								path="/mv-theme"
+								element={
+									<Suspense fallback={<MvThemeViewFallback />}>
+										<MvThemeView />
+									</Suspense>
+								}
+							/>
 
 							{/* Others */}
 							<Route path="/muted-posts" element={<MutedPostsView />} />

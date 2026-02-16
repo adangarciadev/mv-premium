@@ -27,7 +27,8 @@
 		"test:run": "vitest run",
 		"test:coverage": "vitest run --coverage",
 		"test:ui": "vitest --ui",
-		"postinstall": "wxt prepare"
+		"postinstall": "wxt prepare",
+		"generate:mv-color-map": "tsx scripts/generate-mv-color-map.ts"
 	},
 	"dependencies": {
 		"@hookform/resolvers": "^5.2.2",

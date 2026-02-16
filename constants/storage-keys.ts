@@ -48,6 +48,11 @@ export const STORAGE_KEYS = {
 	LIVE_THREAD_DELAY: 'mvp-live-thread-delay',
 	HOMEPAGE_RECENT_FORUMS: 'mvp-homepage-recent-forums',
 
+	// MV Site Theme
+	MV_THEME: 'mvp-mv-theme',
+	MV_THEME_CSS: 'mvp-mv-theme-css',
+	MV_THEME_SAVED_PRESETS: 'mvp-mv-theme-presets',
+
 	// UI State
 	LIVE_PREVIEW_ENABLED: 'mvp-live-preview-enabled',
 	LIVE_PREVIEW_POSITION: 'mvp-live-preview-position',

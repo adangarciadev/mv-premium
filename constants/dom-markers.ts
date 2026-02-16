@@ -161,6 +161,8 @@ export const DOM_MARKERS = {
 		MEDIA_HOVER_CARD_CONTAINER: 'mvp-media-hover-card-container',
 		// Homepage
 		NEW_HOMEPAGE_ROOT: 'mvp-new-homepage-root',
+		// MV Theme
+		MV_THEME_STYLES: 'mvp-mv-theme-early',
 		// Active Button Styles
 		BTN_STYLES_DARK: 'mvp-btn-styles-dark',
 		BTN_STYLES_LIGHT: 'mvp-btn-styles-light',

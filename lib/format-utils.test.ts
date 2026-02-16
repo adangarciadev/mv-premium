@@ -59,6 +59,12 @@ describe('format-utils', () => {
 			expect(formatBytes(0)).toBe('0 B')
 		})
 
+		it('handles invalid or negative values safely', () => {
+			expect(formatBytes(Number.NaN)).toBe('0 B')
+			expect(formatBytes(Number.POSITIVE_INFINITY)).toBe('0 B')
+			expect(formatBytes(-1)).toBe('0 B')
+		})
+
 		it('formats bytes', () => {
 			expect(formatBytes(1)).toBe('1 B')
 			expect(formatBytes(500)).toBe('500 B')

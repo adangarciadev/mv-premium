@@ -140,7 +140,8 @@ export function AdvancedContent() {
 						</Button>
 					</div>
 					<p className="text-xs text-muted-foreground">
-						La exportación incluye: palabras silenciadas, posts anclados, borradores, plantillas y preferencias.
+						La exportación incluye: palabras silenciadas, posts anclados, borradores, plantillas, preferencias y
+						temas guardados (incluyendo tema MV personalizado y presets).
 					</p>
 				</div>
 			</SettingsSection>

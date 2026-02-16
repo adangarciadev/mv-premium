@@ -12,6 +12,8 @@ export const RUNTIME_CACHE_KEYS = {
 	CENTERED_POSTS: 'mvp-centered-posts-cache',
 	BOLD_COLOR_ENABLED: 'mvp-bold-color-enabled-cache',
 	BOLD_COLOR: 'mvp-bold-color-cache',
+	MV_THEME_ENABLED: 'mvp-mv-theme-enabled-cache',
+	MV_THEME_CSS: 'mvp-mv-theme-css-cache',
 } as const
 
 export const EARLY_STYLE_IDS = {
@@ -19,5 +21,6 @@ export const EARLY_STYLE_IDS = {
 	CENTERED_POSTS: 'mvp-centered-posts-early',
 	HIDDEN_THREADS: 'mvp-hidden-threads-early',
 	HIDDEN_THREADS_FALLBACK: 'mvp-hidden-threads-early-fallback',
+	MV_THEME: 'mvp-mv-theme-early',
 } as const
 
