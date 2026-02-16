@@ -3,7 +3,7 @@
  * This data is used to inform users about updates via the dashboard and badges.
  */
 
-import { browser } from "#imports"
+import { browser } from '#imports'
 
 export interface ChangeEntry {
 	type: 'feature' | 'fix' | 'improvement'
@@ -21,6 +21,118 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.4.0',
+		date: '2026-02-16',
+		title: 'Tema de Mediavida y Homepage Rediseñada',
+		summary:
+			'Personaliza los colores de Mediavida con presets y temas propios, nueva homepage rediseñada, ocultar hilos, bundles de Steam, editor en MPs y respuestas inline, y muchas correcciones.',
+		changes: [
+			// NEW FEATURES
+			{
+				type: 'feature',
+				description:
+					'Tema de Mediavida: Cambia los colores del sitio a tu gusto con presets incluidos, temas personalizados, importar/exportar y aplicación en tiempo real.',
+				category: 'Diseño',
+			},
+			{
+				type: 'feature',
+				description: 'Homepage rediseñada.',
+				category: 'Diseño',
+			},
+			{
+				type: 'feature',
+				description:
+					'Ocultar hilos: Esconde hilos desde el menú contextual o al pasar el ratón. Panel de gestión con búsqueda, acciones por lotes y desocultar.',
+				category: 'Navegación',
+			},
+			{
+				type: 'feature',
+				description:
+					'Tarjetas de bundles de Steam: Los enlaces a bundles muestran automáticamente una tarjeta con juegos incluidos, precio y descuento.',
+				category: 'Multimedia',
+			},
+			{
+				type: 'feature',
+				description:
+					'Toolbar del editor en respuestas inline y mensajes privados: Las mismas herramientas disponibles en la caja de respuesta rápida y en MPs.',
+				category: 'Editor',
+			},
+			{
+				type: 'feature',
+				description:
+					'Código inline [c]: Nuevo tag para escribir código en línea dentro de los posts, insertable desde la toolbar.',
+				category: 'Editor',
+			},
+			{
+				type: 'feature',
+				description: 'Video flotante mejorado: Arrastrar, redimensionar y controles en todas las páginas de hilos.',
+				category: 'Multimedia',
+			},
+			{
+				type: 'feature',
+				description:
+					'Delay personalizable en modo Live (no nativo): Configura cada cuántos segundos se comprueban posts nuevos.',
+				category: 'Navegación',
+			},
+
+			// IMPROVEMENTS
+			{
+				type: 'improvement',
+				description:
+					'Botones de guardar y ocultar hilo visibles al pasar el ratón en listados, spy, subforos y homepage.',
+				category: 'Navegación',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Vista de hilos ocultos renovada: Selección múltiple, acciones por lotes, buscador y mejor organización.',
+				category: 'Experiencia',
+			},
+			{
+				type: 'improvement',
+				description: 'Posts centrados ahora funcionan en spy y listados de subforos.',
+				category: 'Diseño',
+			},
+			{
+				type: 'improvement',
+				description: 'Noticias de la homepage muestran autor y número de respuestas.',
+				category: 'Diseño',
+			},
+
+			// FIXES
+			{
+				type: 'fix',
+				description: 'Corregido aviso falso de "cambios sin guardar" al editar un post desde vista previa.',
+				category: 'Editor',
+			},
+			{
+				type: 'fix',
+				description: 'La galería ahora sincroniza correctamente el contador en modo live.',
+				category: 'Multimedia',
+			},
+			{
+				type: 'fix',
+				description: 'Los likes en posts cargados por el modo live vuelven a ser clicables.',
+				category: 'Navegación',
+			},
+			{
+				type: 'fix',
+				description: 'Subida de imágenes: Fallback si ImgBB falla.',
+				category: 'Editor',
+			},
+			{
+				type: 'fix',
+				description: 'Los borradores se reinician correctamente al limpiar el editor.',
+				category: 'Productividad',
+			},
+			{
+				type: 'fix',
+				description: 'Corregido bug visual del dashboard al entrar desde la homepage en Firefox.',
+				category: 'Experiencia',
+			},
+		],
+	},
+	{
 		version: '1.3.0',
 		date: '2026-02-09',
 		title: 'IA Multiprovider y Media Templates',
@@ -30,17 +142,20 @@ export const CHANGELOG: ChangelogEntry[] = [
 			// NEW FEATURES
 			{
 				type: 'feature',
-				description: 'Modo Posts Centrados: Nuevo modo de visualización que centra los posts con una barra de control sticky.',
+				description:
+					'Modo Posts Centrados: Nuevo modo de visualización que centra los posts con una barra de control sticky.',
 				category: 'Diseño',
 			},
 			{
 				type: 'feature',
-				description: 'Integración con IGDB: Busca juegos y genera plantillas automáticas con toda la información (nombre, fecha, géneros, plataformas).',
+				description:
+					'Integración con IGDB: Busca juegos y genera plantillas automáticas con toda la información (nombre, fecha, géneros, plataformas).',
 				category: 'Multimedia',
 			},
 			{
 				type: 'feature',
-				description: 'Sistema de Media Templates: Motor de plantillas completo para crear templates personalizados de medios (juegos, películas, series).',
+				description:
+					'Sistema de Media Templates: Motor de plantillas completo para crear templates personalizados de medios (juegos, películas, series).',
 				category: 'Productividad',
 			},
 			{
@@ -50,7 +165,8 @@ export const CHANGELOG: ChangelogEntry[] = [
 			},
 			{
 				type: 'feature',
-				description: 'Resumen multi-página: El resumidor de hilos ahora maneja hilos largos con múltiples páginas, generando resúmenes globales coherentes.',
+				description:
+					'Resumen multi-página: El resumidor de hilos ahora maneja hilos largos con múltiples páginas, generando resúmenes globales coherentes.',
 				category: 'Inteligencia Artificial',
 			},
 			{
@@ -62,17 +178,20 @@ export const CHANGELOG: ChangelogEntry[] = [
 			// IMPROVEMENTS
 			{
 				type: 'improvement',
-				description: 'Resúmenes de posts más detallados: La IA genera resúmenes proporcionales al contenido, con detección de ironía y sarcasmo.',
+				description:
+					'Resúmenes de posts más detallados: La IA genera resúmenes proporcionales al contenido, con detección de ironía y sarcasmo.',
 				category: 'Inteligencia Artificial',
 			},
 			{
 				type: 'improvement',
-				description: 'Editor mejorado: Smart center wrapping para encabezados y mejor detección de contenido multimedia.',
+				description:
+					'Editor mejorado: Smart center wrapping para encabezados y mejor detección de contenido multimedia.',
 				category: 'Editor',
 			},
 			{
 				type: 'improvement',
-				description: 'Arquitectura de IA refactorizada: Mejor separación entre providers para facilitar añadir nuevos modelos.',
+				description:
+					'Arquitectura de IA refactorizada: Mejor separación entre providers para facilitar añadir nuevos modelos.',
 				category: 'Inteligencia Artificial',
 			},
 			{
@@ -134,7 +253,8 @@ export const CHANGELOG: ChangelogEntry[] = [
 			},
 			{
 				type: 'fix',
-				description: 'El filtro de usuario (?u=...) y el botón de "Manita" ahora funcionan correctamente con el Scroll Infinito.',
+				description:
+					'El filtro de usuario (?u=...) y el botón de "Manita" ahora funcionan correctamente con el Scroll Infinito.',
 				category: 'Navegación',
 			},
 			{
@@ -144,7 +264,8 @@ export const CHANGELOG: ChangelogEntry[] = [
 			},
 			{
 				type: 'fix',
-				description: 'Los botones de la extensión (Resumir, Guardar hilo) ahora aparecen correctamente para moderadores.',
+				description:
+					'Los botones de la extensión (Resumir, Guardar hilo) ahora aparecen correctamente para moderadores.',
 				category: 'Comunidad',
 			},
 			{
@@ -154,7 +275,8 @@ export const CHANGELOG: ChangelogEntry[] = [
 			},
 			{
 				type: 'feature',
-				description: 'Opción para mantener la búsqueda nativa en lugar de reemplazarla por el Menú de Comandos (Ctrl+K).',
+				description:
+					'Opción para mantener la búsqueda nativa en lugar de reemplazarla por el Menú de Comandos (Ctrl+K).',
 				category: 'Accesibilidad',
 			},
 			{
@@ -168,12 +290,12 @@ export const CHANGELOG: ChangelogEntry[] = [
 		version: '1.2.0',
 		date: '2025-01-26',
 		title: 'Mejoras en el Editor',
-		summary:
-			'Nuevas formas de subir imágenes, mejoras en el scroll infinito y más opciones de personalización.',
+		summary: 'Nuevas formas de subir imágenes, mejoras en el scroll infinito y más opciones de personalización.',
 		changes: [
 			{
 				type: 'feature',
-				description: 'Copia cualquier imagen de tu ordenador o haz una captura de pantalla y pégala directamente en el editor (Ctrl+V) para subirla.',
+				description:
+					'Copia cualquier imagen de tu ordenador o haz una captura de pantalla y pégala directamente en el editor (Ctrl+V) para subirla.',
 				category: 'Editor',
 			},
 			{
@@ -183,7 +305,8 @@ export const CHANGELOG: ChangelogEntry[] = [
 			},
 			{
 				type: 'feature',
-				description: 'Los enlaces de YouTube Shorts se convierten automáticamente al formato estándar y se insertan con el auto-tag de media.',
+				description:
+					'Los enlaces de YouTube Shorts se convierten automáticamente al formato estándar y se insertan con el auto-tag de media.',
 				category: 'Editor',
 			},
 			{
@@ -329,7 +452,8 @@ export const CHANGELOG: ChangelogEntry[] = [
 			},
 			{
 				type: 'feature',
-				description: 'Delay en LIVE nativos: Control de retraso configurable para evitar spoilers en hilos LIVE de Mediavida.',
+				description:
+					'Delay en LIVE nativos: Control de retraso configurable para evitar spoilers en hilos LIVE de Mediavida.',
 				category: 'Navegación',
 			},
 
