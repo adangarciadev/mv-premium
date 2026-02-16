@@ -267,9 +267,9 @@ export function injectEditorToolbar(): void {
 		}
 	})
 
-	// Fallback for standalone textareas
+	// Fallback for standalone textareas (PMs, inline-edit quick edit)
 	const textareas = document.querySelectorAll(
-		`${MV_SELECTORS.EDITOR.TEXTAREA}, ${MV_SELECTORS.EDITOR.TEXTAREA_NAME}, ${MV_SELECTORS.MESSAGES.TEXTAREA}`
+		`${MV_SELECTORS.EDITOR.TEXTAREA}, ${MV_SELECTORS.EDITOR.TEXTAREA_NAME}, ${MV_SELECTORS.MESSAGES.TEXTAREA}, ${MV_SELECTORS.EDITOR.INLINE_EDIT}`
 	)
 	textareas.forEach(textarea => {
 		if (isAlreadyInjected(textarea, TOOLBAR_MARKER)) return
@@ -288,18 +288,28 @@ export function injectEditorToolbar(): void {
 				/* PM Editor Toolbar Styles */
 				.mvp-pm-toolbar {
 					display: flex !important;
-					flex-wrap: wrap !important;
+					flex-wrap: nowrap !important;
 					align-items: center !important;
-					gap: 2px !important;
+					gap: 0 !important;
 					background: var(--card, var(--bg-color-2, #292d36)) !important;
 					border: 1px solid var(--border, var(--border-color, #3a3f4b)) !important;
 					border-bottom: none !important;
 					border-radius: 4px 4px 0 0;
-					padding: 4px 4px 0 0 !important;
-					margin: 0 !important;
+					padding-top: 4px !important;
+					padding-bottom: 0px !important;
+					padding-left: 2px !important;
+					padding-right: 4px !important;
+					overflow: hidden;
+					margin: 0;
 					margin-bottom: 0 !important;
 					box-sizing: border-box;
 					width: 100%;
+					animation: mvp-toolbar-appear 0.5s ease-out;
+				}
+
+				@keyframes mvp-toolbar-appear {
+					from { opacity: 0; transform: translateY(-5px); }
+					to { opacity: 1; transform: translateY(0); }
 				}
 
 				/* Groups */
@@ -308,7 +318,7 @@ export function injectEditorToolbar(): void {
 					align-items: center !important;
 					gap: 1px !important;
 					margin: 0 !important;
-					padding: 0 6px !important;
+					padding: 0 4px !important;
 					height: 28px;
 					position: relative;
 				}
@@ -319,15 +329,20 @@ export function injectEditorToolbar(): void {
 					width: 1px !important;
 					height: 14px !important;
 					background-color: var(--border, #71717a) !important;
-					margin-left: 6px !important;
+					margin-left: 4px !important;
 					opacity: 0.6;
 				}
-				
-				.mvp-pm-toolbar .mvp-toolbar-group:first-of-type {
-					padding-left: 2px !important;
+
+				/* Specific Group adjustments */
+				.mvp-pm-toolbar #mvp-group-tools {
+					margin-right: 12px !important;
 				}
 
-
+				/* Hide history group and trailing tools separator */
+				.mvp-pm-toolbar #mvp-group-history,
+				.mvp-pm-toolbar #mvp-group-tools::after {
+					display: none !important;
+				}
 
 				/* Buttons */
 				.mvp-pm-toolbar .mvp-toolbar-btn {
@@ -384,12 +399,21 @@ export function injectEditorToolbar(): void {
 					border-color: var(--border-color, #3a3f4b) !important;
 					resize: vertical !important;
 				}
+
+
 			`
 
-
 		const container = document.createElement('div')
-		container.className = 'mvp-toolbar-container mvp-pm-toolbar mb-2'
+		container.className = 'mvp-toolbar-container mvp-pm-toolbar'
 		textarea.parentNode?.insertBefore(container, textarea)
+
+		// Match the toolbar width/position to the textarea exactly
+		const ta = textarea as HTMLElement
+		const computed = window.getComputedStyle(ta)
+		container.style.marginLeft = computed.marginLeft
+		container.style.marginRight = computed.marginRight
+		container.style.width = `${ta.offsetWidth}px`
+		container.style.boxSizing = 'border-box'
 
 		const host = document.createElement('div')
 		host.style.cssText = 'position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none;'

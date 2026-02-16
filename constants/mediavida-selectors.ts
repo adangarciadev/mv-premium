@@ -238,6 +238,8 @@ export const MV_SELECTORS = {
 		/** Formbox container */
 		FORMBOX: '#formbox',
 		FORMBOX_ID: 'formbox',
+		/** Inline-edit textarea (double-click quick edit on posts) */
+		INLINE_EDIT: 'textarea.inline-edit',
 	},
 
 	// ============================================================================

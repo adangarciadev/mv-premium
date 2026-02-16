@@ -30,7 +30,7 @@ export function getOrCreatePortalContainer(
 	iconClassOrId: string | null = null,
 	position: 'before' | 'after' = 'after'
 ): HTMLElement {
-	let container = document.getElementById(id)
+	let container = parent.querySelector(`#${id}`) as HTMLElement | null
 	if (container) return container
 
 	container = document.createElement('div')
@@ -52,7 +52,7 @@ export function getOrCreatePortalContainer(
 
 	if (iconClassOrId) {
 		// First try to find by ID (for our own containers)
-		target = document.getElementById(iconClassOrId)
+		target = parent.querySelector(`#${iconClassOrId}`)
 
 		// If not found by ID, try by icon class
 		if (!target) {

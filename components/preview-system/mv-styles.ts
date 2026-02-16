@@ -159,7 +159,68 @@ blockquote, .quote {
     border-left-color: var(--mv-quote-border) !important;
 }
 blockquote p, .quote p { margin: 0; }
-blockquote footer { margin-top: 6px; font-size: 0.85em; color: #999; }
+blockquote footer { margin-top: 8px; font-size: 14px; color: var(--mv-quote-text); font-style: italic; }
+blockquote footer cite { font-style: italic; }
+
+.quote-formal {
+    background: var(--mv-quote-bg);
+    margin: 14px 0;
+    border-left: 3px solid var(--mv-quote-border);
+    border-radius: 0 2px 2px 0;
+    overflow: hidden;
+}
+
+.quote-header {
+    background: rgba(0, 0, 0, 0.12);
+    padding: 6px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.quote-header-info {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.quote-postid {
+    font-weight: 800;
+    color: var(--mv-quote-text);
+}
+
+.quote-author-name {
+    color: #9da5b4;
+}
+
+.quote-header-plus {
+    font-weight: bold;
+    color: #9da5b4;
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+.quote-content {
+    padding: 10px 12px;
+    color: var(--mv-quote-text);
+}
+
+.quote-content p:last-child {
+    margin-bottom: 0;
+}
+
+:host(.light) .quote-header {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+:host(.light) .quote-author-name,
+:host(.light) .quote-header-plus {
+    color: #64748b;
+}
+
+
 
 ul, ol { margin: 12px 0; padding-left: 22px; }
 ul { list-style: disc; }

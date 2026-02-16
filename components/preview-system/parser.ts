@@ -727,6 +727,12 @@ export async function parseBBCode(input: string): Promise<string> {
 
 	// 8. BBCode Quotes - with and without author
 	html = html.replace(/\[quote=([^\]]+)\]([\s\S]*?)\[\/quote\]/gi, (_, author, content) => {
+		const authorMatch = author.match(/^([^:]+):(\d+)$/)
+		if (authorMatch) {
+			const userName = authorMatch[1]
+			const postId = authorMatch[2]
+			return `<div class="quote-formal"><div class="quote-header"><span class="quote-header-info"><span class="quote-postid">#${postId}</span><span class="quote-author-name">${userName}:</span></span><span class="quote-header-plus">+</span></div><div class="quote-content">${content}</div></div>\n\n`
+		}
 		return `<blockquote class="quote"><p>${content}</p><footer>— <cite>${author}</cite></footer></blockquote>\n\n`
 	})
 	html = html.replace(/\[quote\]([\s\S]*?)\[\/quote\]/gi, '<blockquote class="quote"><p>$1</p></blockquote>\n\n')
