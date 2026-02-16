@@ -112,6 +112,11 @@ export const CHANGELOG: ChangelogEntry[] = [
 			},
 			{
 				type: 'fix',
+				description: 'Ahora en modo live funciona correctamente el botón de responder citando.',
+				category: 'Editor.',
+			},
+			{
+				type: 'fix',
 				description: 'Los likes en posts cargados por el modo live vuelven a ser clicables.',
 				category: 'Navegación',
 			},
