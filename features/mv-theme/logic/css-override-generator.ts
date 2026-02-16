@@ -13,6 +13,7 @@ import { shiftColor } from './color-shift'
 const HEX_RE = /#[0-9a-f]{3,8}\b/gi
 const PROTECTED_SELECTOR_PATTERNS = [
 	/\.thread-live\b/,
+	/^\.blocker$/,
 ]
 const HOVER_SELECTOR_RE = /:hover\b|\.hover\b/
 const HOVER_GROUP_ID = 'hover-bg'
