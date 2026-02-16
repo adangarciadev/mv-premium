@@ -19,6 +19,7 @@ web-ext.config.ts
 
 # Claude Code
 .claude/
+.agent/
 
 # Editor directories and files
 .vscode/*
