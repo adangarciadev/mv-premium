@@ -19,7 +19,7 @@ const LOCAL_PREFIX = 'local:'
  */
 const EXCLUDED_KEYS: string[] = [
 	STORAGE_KEYS.BOOKMARKS_VIEW_MODE, // View preference that shouldn't survive reset/import
-	// Add other keys to exclude here if needed
+	STORAGE_KEYS.MV_THEME_CSS, // Generated cache — regenerated from colorOverrides on import
 ]
 const EXCLUDED_KEYS_SET = new Set(EXCLUDED_KEYS)
 
@@ -246,6 +246,9 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 			}
 		}
 
+		// Regenerate MV theme CSS cache from the imported config (the CSS key is excluded from export)
+		await regenerateMvThemeCSSAfterImport()
+
 		return { success: true, stats }
 	} catch (error) {
 		logger.error('Import error:', error)
@@ -253,6 +256,20 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 			success: false,
 			error: error instanceof Error ? error.message : 'Error desconocido al importar',
 		}
+	}
+}
+
+/**
+ * Re-hydrate the MV theme store from the just-imported storage data and
+ * regenerate the CSS cache so the theme works immediately without a reload.
+ */
+async function regenerateMvThemeCSSAfterImport(): Promise<void> {
+	try {
+		const { useMvThemeStore } = await import('@/features/mv-theme/mv-theme-store')
+		await useMvThemeStore.getState().loadFromStorage()
+		useMvThemeStore.getState().regenerateAndCacheCSS()
+	} catch (error) {
+		logger.warn('MV theme CSS regeneration after import skipped:', error)
 	}
 }
 
