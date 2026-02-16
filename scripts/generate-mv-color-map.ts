@@ -89,7 +89,8 @@ async function main() {
 		if (!selector) return
 
 		rule.walkDecls(decl => {
-			const value = normalizeWhitespace(decl.value)
+			// Strip !important — the runtime generator always appends its own
+			const value = normalizeWhitespace(decl.value).replace(/\s*!important\s*$/i, '').trim()
 			if (!value) return
 
 			const colors = extractNormalizedHexes(value)

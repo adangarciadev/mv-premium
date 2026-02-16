@@ -11,6 +11,7 @@ import { getGroupHexes, MV_COLOR_GROUPS, type MvColorGroup } from './color-group
 import { shiftColor } from './color-shift'
 
 const HEX_RE = /#[0-9a-f]{3,8}\b/gi
+const IMPORTANT_TAIL_RE = /\s*!important\s*$/i
 const PROTECTED_SELECTOR_PATTERNS = [
 	/\.thread-live\b/,
 	/^\.blocker$/,
@@ -248,7 +249,14 @@ export function generateMvThemeCSS(colorOverrides: Record<string, string>): stri
 					return replacement
 				})
 				if (hasMappedColor) {
-					rules.push(`${selectors.join(',')}{${entry.p}:${newValue} !important}`)
+					const hadImportant = IMPORTANT_TAIL_RE.test(newValue)
+					const cleanValue = newValue.replace(IMPORTANT_TAIL_RE, '').trim()
+					// Boost specificity for rules that compete with MV's own !important
+					// declarations so ours win regardless of injection order.
+					const finalSelectors = hadImportant
+						? selectors.map(s => `:root ${s}`)
+						: selectors
+					rules.push(`${finalSelectors.join(',')}{${entry.p}:${cleanValue} !important}`)
 				}
 			}
 
