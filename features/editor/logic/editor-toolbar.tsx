@@ -43,10 +43,17 @@ export function injectCharacterCounter(): void {
 	)
 
 	textareas.forEach(textarea => {
+		const ta = textarea as HTMLTextAreaElement
+		const isPrivateMessageTextarea =
+			ta.matches(MV_SELECTORS.MESSAGES.TEXTAREA) || Boolean(ta.closest('.pm-compose, .pm-reply'))
+
+		// PM compose/reply uses a submit button in the same wrapper; counter overlaps in these layouts.
+		// We explicitly disable it there.
+		if (isPrivateMessageTextarea) return
+
 		if (isAlreadyInjected(textarea, COUNTER_MARKER)) return
 		markAsInjected(textarea, COUNTER_MARKER)
 
-		const ta = textarea as HTMLTextAreaElement
 		ta.style.resize = 'vertical'
 
 		const counter = document.createElement('div')
