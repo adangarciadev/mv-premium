@@ -73,6 +73,14 @@ export const MV_COLOR_GROUPS: MvColorGroup[] = [
 		shades: ['#444c55'],
 		category: 'backgrounds',
 	},
+	{
+		id: 'tweet-card',
+		label: 'Card de tweets',
+		description: 'Fondo de las tarjetas ligeras de Twitter/X',
+		baseColor: '#15202b',
+		shades: [],
+		category: 'backgrounds',
+	},
 
 	// ── Text ─────────────────────────────────────────────────────────────
 	{

@@ -1,5 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { reinitializeEmbeds, forceReinitializeEmbeds, setupGlobalEmbedListener } from './reinitialize-embeds'
+import {
+	reinitializeEmbeds,
+	forceReinitializeEmbeds,
+	setupGlobalEmbedListener,
+	replaceTwitterEmbedsWithLite,
+	startTwitterLiteEmbedGuard,
+	stopTwitterLiteEmbedGuard,
+	clearTwitterLiteCache,
+} from './reinitialize-embeds'
+
+const mockSendMessage = vi.fn()
+
+vi.mock('@/lib/messaging', () => ({
+	sendMessage: (...args: unknown[]) => mockSendMessage(...args),
+}))
 
 describe('reinitializeEmbeds', () => {
 	beforeEach(() => {
@@ -8,9 +22,23 @@ describe('reinitializeEmbeds', () => {
 		delete (window as any).twttr
 		// Reset global listener flag
 		delete (window as any).__mvpEmbedListenerActive
+		stopTwitterLiteEmbedGuard()
+		// Clear tweet lite cache between tests to avoid stale data
+		clearTwitterLiteCache()
+		mockSendMessage.mockReset()
+		mockSendMessage.mockResolvedValue({
+			success: true,
+			data: {
+				username: 'usuario',
+				displayName: 'Usuario',
+				text: 'Texto del tweet',
+				url: 'https://twitter.com/usuario/status/123',
+			},
+		})
 	})
 
 	afterEach(() => {
+		stopTwitterLiteEmbedGuard()
 		vi.restoreAllMocks()
 	})
 
@@ -344,6 +372,295 @@ describe('reinitializeEmbeds', () => {
 		expect(twitterIframe.getAttribute('data-mvp-embed-init')).toBe('reloading')
 
 		vi.useRealTimers()
+	})
+
+	it('should replace twitter embed with lightweight card when twitterLiteMode is enabled', async () => {
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="twitter" class="embed twitter">
+				<a href="https://x.com/usuario/status/123">Tweet</a>
+				<iframe style="height: 10px;" src="//platform.twitter.com/embed/Tweet.html?id=123"></iframe>
+			</div>
+		`
+
+		reinitializeEmbeds(container, { twitterLiteMode: true })
+		// Allow full async chain: start → sendMessage resolve → card render
+		await vi.waitFor(() => {
+			const card = container.querySelector('.mvp-twitter-lite-card')
+			expect(card).toBeTruthy()
+			expect(card?.textContent).toContain('@usuario')
+			expect(card?.textContent).toContain('Texto del tweet')
+			expect(card?.classList.contains('mvp-twitter-lite-card')).toBe(true)
+		})
+		const embedContainer = container.querySelector('[data-mvp-twitter-lite-host="true"]') as HTMLDivElement
+		expect(embedContainer.getAttribute('data-mvp-twitter-lite-host')).toBe('true')
+		expect(embedContainer.getAttribute('data-s9e-mediaembed')).toBeNull()
+		expect(embedContainer.classList.contains('twitter')).toBe(false)
+		expect(mockSendMessage).toHaveBeenCalledWith('fetchTweetLiteData', {
+			tweetUrl: 'https://twitter.com/usuario/status/123',
+		})
+	})
+
+	it('should render replied tweet context when replyTo payload is available', async () => {
+		mockSendMessage.mockResolvedValueOnce({
+			success: true,
+			data: {
+				username: 'usuario',
+				displayName: 'Usuario',
+				text: 'Mensaje de respuesta',
+				url: 'https://twitter.com/usuario/status/321',
+				replyTo: {
+					username: 'autorOriginal',
+					displayName: 'Autor Original',
+					text: 'Este es el tweet original al que responde.',
+					url: 'https://twitter.com/autorOriginal/status/111',
+				},
+			},
+		})
+
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="twitter">
+				<a href="https://twitter.com/usuario/status/321">Tweet</a>
+				<iframe style="height: 10px;" src="//platform.twitter.com/embed/Tweet.html?id=321"></iframe>
+			</div>
+		`
+
+		reinitializeEmbeds(container, { twitterLiteMode: true })
+		await vi.waitFor(() => {
+			const card = container.querySelector('.mvp-twitter-lite-card')
+			expect(card).toBeTruthy()
+			const textContent = card?.textContent || ''
+			expect(textContent).toContain('Mensaje de respuesta')
+			expect(textContent).toContain('Este es el tweet original al que responde.')
+			expect(textContent).not.toContain('Responde a')
+			expect(card?.textContent).toContain('Ver tweet')
+			expect(textContent.indexOf('Este es el tweet original al que responde.')).toBeLessThan(
+				textContent.indexOf('Mensaje de respuesta')
+			)
+		})
+	})
+
+	it('should render reply context text even when replyTo has no URL', async () => {
+		mockSendMessage.mockResolvedValueOnce({
+			success: true,
+			data: {
+				username: 'usuario',
+				displayName: 'Usuario',
+				text: 'Mensaje de respuesta',
+				url: 'https://twitter.com/usuario/status/321',
+				replyTo: {
+					username: '',
+					displayName: '',
+					text: 'Contexto inferido del tweet original.',
+				},
+			},
+		})
+
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="twitter">
+				<a href="https://twitter.com/usuario/status/321">Tweet</a>
+				<iframe style="height: 10px;" src="//platform.twitter.com/embed/Tweet.html?id=321"></iframe>
+			</div>
+		`
+
+		reinitializeEmbeds(container, { twitterLiteMode: true })
+		await vi.waitFor(() => {
+			const card = container.querySelector('.mvp-twitter-lite-card')
+			expect(card).toBeTruthy()
+			expect(card?.textContent).toContain('Contexto inferido del tweet original.')
+			expect(card?.textContent).not.toContain('Responde a')
+		})
+		expect(container.querySelector('.mvp-twitter-lite-card')?.textContent).not.toContain('Ver tweet original')
+	})
+
+	it('should render verification and date metadata when available', async () => {
+		mockSendMessage.mockResolvedValueOnce({
+			success: true,
+			data: {
+				username: 'usuario',
+				displayName: 'Usuario',
+				text: 'Mensaje con metadatos',
+				url: 'https://twitter.com/usuario/status/321',
+				isVerified: true,
+				createdAt: '23 oct 2025, 16:16',
+			},
+		})
+
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="twitter">
+				<a href="https://twitter.com/usuario/status/321">Tweet</a>
+				<iframe style="height: 10px;" src="//platform.twitter.com/embed/Tweet.html?id=321"></iframe>
+			</div>
+		`
+
+		reinitializeEmbeds(container, { twitterLiteMode: true })
+		await vi.waitFor(() => {
+			const card = container.querySelector('.mvp-twitter-lite-card')
+			expect(card).toBeTruthy()
+			expect(card?.textContent).toContain('23 oct 2025, 16:16')
+			expect(card?.textContent).toContain('Mensaje con metadatos')
+		})
+		expect(container.querySelector('.mvp-twitter-lite-card [aria-label="Verified account"]')).toBeTruthy()
+	})
+
+	it('should render "Ver tweet" button even when tweet has no media', async () => {
+		mockSendMessage.mockResolvedValueOnce({
+			success: true,
+			data: {
+				username: 'usuario',
+				displayName: 'Usuario',
+				text: 'Tweet sin media',
+				url: 'https://twitter.com/usuario/status/321',
+				hasMedia: false,
+			},
+		})
+
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="twitter">
+				<a href="https://twitter.com/usuario/status/321">Tweet</a>
+				<iframe style="height: 10px;" src="//platform.twitter.com/embed/Tweet.html?id=321"></iframe>
+			</div>
+		`
+
+		reinitializeEmbeds(container, { twitterLiteMode: true })
+		await vi.waitFor(() => {
+			const button = container.querySelector<HTMLButtonElement>('.mvp-twitter-lite-media-btn')
+			expect(button).toBeTruthy()
+			expect(button?.textContent).toContain('Ver tweet')
+		})
+	})
+
+	it('should load original twitter iframe on demand when media is available', async () => {
+		mockSendMessage.mockResolvedValueOnce({
+			success: true,
+			data: {
+				username: 'usuario',
+				displayName: 'Usuario',
+				text: 'Tweet con media',
+				url: 'https://twitter.com/usuario/status/456',
+				hasMedia: true,
+			},
+		})
+
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="twitter">
+				<a href="https://twitter.com/usuario/status/456">Tweet</a>
+				<iframe style="height: 10px;" src="//platform.twitter.com/embed/Tweet.html?id=456"></iframe>
+			</div>
+		`
+
+		reinitializeEmbeds(container, { twitterLiteMode: true })
+		await vi.waitFor(() => {
+			expect(container.querySelector('.mvp-twitter-lite-media-btn')).toBeTruthy()
+		})
+
+		const mediaButton = container.querySelector<HTMLButtonElement>('.mvp-twitter-lite-media-btn')!
+		mediaButton.click()
+
+		const iframe = container.querySelector<HTMLIFrameElement>('[data-s9e-mediaembed="twitter"] iframe')
+		expect(iframe).toBeTruthy()
+		expect(iframe?.getAttribute('src')).toContain('platform.twitter.com/embed/Tweet.html?id=456')
+		expect(iframe?.getAttribute('src')).toContain('mvp_allow=1')
+		expect(iframe?.style.height).toBe('980px')
+		expect(container.querySelector('[data-s9e-mediaembed="twitter"]')?.getAttribute('data-mvp-twitter-lite-expanded')).toBe(
+			'true'
+		)
+		expect(container.querySelector('[data-s9e-mediaembed="twitter"]')?.getAttribute('data-mvp-twitter-lite-host')).toBeNull()
+	})
+
+	it('replaceTwitterEmbedsWithLite should skip embeds without tweet URL', async () => {
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="twitter">
+				<iframe style="height: 10px;" src="//platform.twitter.com/embed/Tweet.html"></iframe>
+			</div>
+		`
+
+		replaceTwitterEmbedsWithLite(container)
+		// Give a tick for the void promise to start (but it should bail early)
+		await Promise.resolve()
+		await Promise.resolve()
+
+		expect(container.querySelector('.mvp-twitter-lite-card')).toBeFalsy()
+		expect(mockSendMessage).not.toHaveBeenCalled()
+	})
+
+	it('twitter lite guard should remove late native iframes from non-expanded cards', async () => {
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="twitter" class="embed twitter">
+				<a href="https://twitter.com/usuario/status/123">Tweet</a>
+			</div>
+		`
+		document.body.appendChild(container)
+
+		replaceTwitterEmbedsWithLite(container)
+		await vi.waitFor(() => {
+			expect(container.querySelector('.mvp-twitter-lite-card')).toBeTruthy()
+		})
+
+		startTwitterLiteEmbedGuard()
+
+		const rogueIframe = document.createElement('iframe')
+		rogueIframe.src = 'https://platform.twitter.com/embed/Tweet.html?id=123'
+		container.querySelector('[data-s9e-mediaembed="twitter"]')?.appendChild(rogueIframe)
+
+		await vi.waitFor(() => {
+			expect(container.querySelector('.mvp-twitter-lite-card')).toBeTruthy()
+			expect(container.querySelector('iframe[src*="platform.twitter.com"]')).toBeFalsy()
+		})
+	})
+
+	it('twitter lite guard should preserve expanded embeds opened by user', async () => {
+		mockSendMessage.mockResolvedValueOnce({
+			success: true,
+			data: {
+				username: 'usuario',
+				displayName: 'Usuario',
+				text: 'Tweet con media',
+				url: 'https://twitter.com/usuario/status/456',
+				hasMedia: true,
+			},
+		})
+
+		const container = document.createElement('div')
+		container.innerHTML = `
+			<div data-s9e-mediaembed="twitter" class="embed twitter">
+				<a href="https://twitter.com/usuario/status/456">Tweet</a>
+				<iframe style="height: 10px;" src="//platform.twitter.com/embed/Tweet.html?id=456"></iframe>
+			</div>
+		`
+		document.body.appendChild(container)
+
+		reinitializeEmbeds(container, { twitterLiteMode: true })
+		await vi.waitFor(() => {
+			expect(container.querySelector('.mvp-twitter-lite-media-btn')).toBeTruthy()
+		})
+
+		startTwitterLiteEmbedGuard()
+		container.querySelector<HTMLButtonElement>('.mvp-twitter-lite-media-btn')?.click()
+
+		await vi.waitFor(() => {
+			expect(container.querySelector('[data-mvp-twitter-lite-expanded="true"]')).toBeTruthy()
+			expect(container.querySelector('iframe[src*="platform.twitter.com"]')).toBeTruthy()
+		})
+	})
+
+	it('twitter lite guard should remove orphan twitter iframes', async () => {
+		const orphanWrapper = document.createElement('div')
+		orphanWrapper.innerHTML = '<iframe src="https://platform.twitter.com/embed/Tweet.html?id=999"></iframe>'
+		document.body.appendChild(orphanWrapper)
+
+		startTwitterLiteEmbedGuard()
+
+		await vi.waitFor(() => {
+			expect(orphanWrapper.querySelector('iframe[src*="platform.twitter.com"]')).toBeFalsy()
+		})
 	})
 
 	it('should not shrink reddit embed height when later measurements are smaller', () => {

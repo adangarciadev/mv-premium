@@ -20,10 +20,22 @@
  */
 
 import { logger } from '@/lib/logger'
+import { sendMessage } from '@/lib/messaging'
+import { createTwitterLiteCard, injectTwitterLiteStyles } from '../twitter-lite/card-renderer'
+import type { TwitterLiteCardData } from '../twitter-lite/types'
+import { normalizeTweetUrl, TWITTER_LITE_ALLOW_PARAM, TWITTER_LITE_ALLOW_VALUE } from '../twitter-lite/utils'
 
 // Data attribute used to mark embeds that have been processed by our extension
 const EMBED_INIT_ATTR = 'data-mvp-embed-init'
 const REDDIT_HEIGHT_SYNC_ATTR = 'data-mvp-reddit-height-sync'
+const TWITTER_LITE_ATTR = 'data-mvp-twitter-lite'
+const TWITTER_LITE_LOADING_ATTR = 'data-mvp-twitter-lite-loading'
+const TWITTER_LITE_EXPANDED_ATTR = 'data-mvp-twitter-lite-expanded'
+const TWITTER_LITE_HOST_ATTR = 'data-mvp-twitter-lite-host'
+
+const TWITTER_STATUS_URL_REGEX = /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/([A-Za-z0-9_]+)\/status\/(\d+)/i
+const TWITTER_EMBED_CONTAINER_SELECTOR = `[data-s9e-mediaembed="twitter"], .embed.twitter, [${TWITTER_LITE_HOST_ATTR}="true"]`
+const TWITTER_EMBED_IFRAME_SELECTOR = 'iframe[src*="platform.twitter.com"], iframe[src*="twitter.com"], iframe[src*="x.com"]'
 
 // Default heights for different embed types (fallback when MessageChannel fails)
 const DEFAULT_EMBED_HEIGHTS: Record<string, number> = {
@@ -44,6 +56,28 @@ const REDDIT_SYNC_ATTEMPTS = 60
 const REDDIT_PROVISIONAL_HEIGHT = 700
 const REDDIT_STABLE_TICKS_REQUIRED = 3
 const REDDIT_CONTROLLED_SHRINK_THRESHOLD = 80
+const TWITTER_LITE_MEDIA_INITIAL_HEIGHT = 980
+const TWITTER_LITE_CACHE_MAX_SIZE = 200
+const TWITTER_LITE_CACHE_KEY_PREFIX = 'v2:'
+const TWITTER_LITE_GUARD_SWEEP_DELAY_MS = 80
+
+
+
+const twitterLiteCache = new Map<string, TwitterLiteCardData | null>()
+let twitterLiteGuardObserver: MutationObserver | null = null
+let twitterLiteGuardSweepTimeout: ReturnType<typeof setTimeout> | null = null
+
+function getTwitterLiteCacheKey(tweetUrl: string): string {
+	return `${TWITTER_LITE_CACHE_KEY_PREFIX}${tweetUrl}`
+}
+
+/**
+ * Clears the in-memory tweet lite data cache.
+ * Exposed for testing and for manual cache invalidation.
+ */
+export function clearTwitterLiteCache(): void {
+	twitterLiteCache.clear()
+}
 
 /**
  * Twitter widgets API type declaration
@@ -56,6 +90,7 @@ declare global {
 			}
 			ready: (callback: () => void) => void
 		}
+		__mvpEmbedListenerActive?: boolean
 	}
 }
 
@@ -77,14 +112,18 @@ declare global {
  */
 export function reinitializeEmbeds(
 	container: HTMLElement | Document = document,
-	options: { forceReloadTwitter?: boolean } = {}
+	options: { forceReloadTwitter?: boolean; twitterLiteMode?: boolean } = {}
 ): void {
-	const { forceReloadTwitter = true } = options
+	const { forceReloadTwitter = true, twitterLiteMode = false } = options
 	const embedContainers = container.querySelectorAll('[data-s9e-mediaembed]')
 
 	if (embedContainers.length === 0) return
 
 	logger.debug(`Reinitializing ${embedContainers.length} embeds`)
+
+	if (twitterLiteMode) {
+		startTwitterLiteEmbedGuard()
+	}
 
 	// Count Twitter embeds that need reloading to stagger them
 	let twitterIndex = 0
@@ -97,6 +136,11 @@ export function reinitializeEmbeds(
 
 		// Twitter embeds need special handling
 		if (embedType === 'twitter' && iframe && !iframe.hasAttribute(EMBED_INIT_ATTR)) {
+			if (twitterLiteMode) {
+				void replaceTwitterEmbedWithLiteCard(element, iframe)
+				return
+			}
+
 			const currentHeight = parseInt(iframe.style.height || '0', 10)
 
 			// Determine if this embed needs reloading:
@@ -124,6 +168,363 @@ export function reinitializeEmbeds(
 			scheduleRedditHeightSync(iframe)
 		}
 	})
+}
+
+/**
+ * Replaces native Twitter/X iframe embeds with lightweight cards when enabled.
+ */
+export function replaceTwitterEmbedsWithLite(container: HTMLElement | Document = document): void {
+	const twitterEmbeds = new Set<HTMLElement>()
+
+	container.querySelectorAll<HTMLIFrameElement>(TWITTER_EMBED_IFRAME_SELECTOR).forEach(iframe => {
+		const embedContainer = iframe.closest<HTMLElement>(TWITTER_EMBED_CONTAINER_SELECTOR)
+		if (!embedContainer) {
+			clearTwitterIframe(iframe)
+			return
+		}
+
+		if (embedContainer.getAttribute(TWITTER_LITE_EXPANDED_ATTR) !== 'true') {
+			twitterEmbeds.add(embedContainer)
+		}
+	})
+
+	container.querySelectorAll<HTMLElement>(TWITTER_EMBED_CONTAINER_SELECTOR).forEach(embed => {
+		const isS9ETwitter = embed.getAttribute('data-s9e-mediaembed') === 'twitter'
+		const isLiteHost = embed.getAttribute(TWITTER_LITE_HOST_ATTR) === 'true'
+		const hasTwitterIframe = !!embed.querySelector(TWITTER_EMBED_IFRAME_SELECTOR)
+		if (isS9ETwitter || isLiteHost || hasTwitterIframe) twitterEmbeds.add(embed)
+	})
+	if (twitterEmbeds.size === 0) return
+
+	twitterEmbeds.forEach(embed => {
+		if (embed.getAttribute(TWITTER_LITE_EXPANDED_ATTR) === 'true') return
+		const iframe = embed.querySelector(TWITTER_EMBED_IFRAME_SELECTOR) as HTMLIFrameElement | null
+		const allowNetworkFetch = embed.getAttribute(TWITTER_LITE_ATTR) !== 'true'
+		void replaceTwitterEmbedWithLiteCard(embed, iframe, allowNetworkFetch)
+	})
+}
+
+function clearTwitterIframe(iframe: HTMLIFrameElement): void {
+	iframe.remove()
+}
+
+function prepareContainerForTwitterLite(embedContainer: HTMLElement): void {
+	embedContainer.setAttribute(TWITTER_LITE_HOST_ATTR, 'true')
+	embedContainer.removeAttribute('data-s9e-mediaembed')
+	embedContainer.classList.remove('twitter')
+}
+
+function hasTwitterRelatedMutations(mutations: MutationRecord[]): boolean {
+	return mutations.some(mutation => {
+		if (mutation.type === 'attributes') {
+			const target = mutation.target as HTMLElement
+			if (!(target instanceof HTMLIFrameElement)) return false
+			if (!target.matches(TWITTER_EMBED_IFRAME_SELECTOR)) return false
+			const embed = target.closest<HTMLElement>(TWITTER_EMBED_CONTAINER_SELECTOR)
+			if (!embed) return true
+			return embed.getAttribute(TWITTER_LITE_EXPANDED_ATTR) !== 'true'
+		}
+
+		for (const addedNode of mutation.addedNodes) {
+			if (!(addedNode instanceof HTMLElement)) continue
+			if (addedNode.matches(TWITTER_EMBED_CONTAINER_SELECTOR)) return true
+			if (addedNode.matches(TWITTER_EMBED_IFRAME_SELECTOR)) {
+				const embed = addedNode.closest<HTMLElement>(TWITTER_EMBED_CONTAINER_SELECTOR)
+				if (!embed || embed.getAttribute(TWITTER_LITE_EXPANDED_ATTR) !== 'true') return true
+			}
+			if (addedNode.querySelector(TWITTER_EMBED_CONTAINER_SELECTOR)) return true
+			const twitterIframe = addedNode.querySelector<HTMLIFrameElement>(TWITTER_EMBED_IFRAME_SELECTOR)
+			if (!twitterIframe) continue
+			const embed = twitterIframe.closest<HTMLElement>(TWITTER_EMBED_CONTAINER_SELECTOR)
+			if (!embed || embed.getAttribute(TWITTER_LITE_EXPANDED_ATTR) !== 'true') return true
+		}
+
+		return false
+	})
+}
+
+function scheduleTwitterLiteGuardSweep(): void {
+	if (twitterLiteGuardSweepTimeout !== null) return
+
+	twitterLiteGuardSweepTimeout = setTimeout(() => {
+		twitterLiteGuardSweepTimeout = null
+		replaceTwitterEmbedsWithLite(document)
+	}, TWITTER_LITE_GUARD_SWEEP_DELAY_MS)
+}
+
+export function startTwitterLiteEmbedGuard(): void {
+	if (twitterLiteGuardObserver) {
+		scheduleTwitterLiteGuardSweep()
+		return
+	}
+
+	const root = document.getElementById('posts-wrap') || document.body || document.documentElement
+	if (!root) return
+
+	twitterLiteGuardObserver = new MutationObserver(mutations => {
+		if (!hasTwitterRelatedMutations(mutations)) return
+		scheduleTwitterLiteGuardSweep()
+	})
+
+	twitterLiteGuardObserver.observe(root, {
+		childList: true,
+		subtree: true,
+		attributes: true,
+		attributeFilter: ['src'],
+	})
+
+	injectTwitterLiteStyles()
+	scheduleTwitterLiteGuardSweep()
+}
+
+export function stopTwitterLiteEmbedGuard(): void {
+	twitterLiteGuardObserver?.disconnect()
+	twitterLiteGuardObserver = null
+	if (twitterLiteGuardSweepTimeout !== null) {
+		clearTimeout(twitterLiteGuardSweepTimeout)
+		twitterLiteGuardSweepTimeout = null
+	}
+}
+
+function extractTweetUrl(embedContainer: HTMLElement, iframe?: HTMLIFrameElement | null): string | null {
+	const directLink = embedContainer.querySelector<HTMLAnchorElement>('a[href*="/status/"]')?.getAttribute('href')
+	if (directLink) {
+		const normalized = normalizeTweetUrl(directLink)
+		if (normalized) return normalized
+	}
+
+	const iframeSrc = iframe?.getAttribute('src') || ''
+	if (iframeSrc) {
+		const normalizedIframeSrc = iframeSrc.startsWith('//') ? `https:${iframeSrc}` : iframeSrc
+
+		try {
+			const url = new URL(normalizedIframeSrc)
+			const statusId = url.searchParams.get('id')
+			if (statusId && /^\d+$/.test(statusId)) {
+				const usernameFromPath = url.searchParams.get('screen_name')?.trim()
+				if (usernameFromPath) {
+					return `https://twitter.com/${usernameFromPath}/status/${statusId}`
+				}
+
+				return `https://twitter.com/i/status/${statusId}`
+			}
+		} catch {
+			// Ignore parse errors and continue with fallback regex.
+		}
+	}
+
+	const html = embedContainer.innerHTML
+	const match = html.match(TWITTER_STATUS_URL_REGEX)
+	if (!match) return null
+
+	return `https://twitter.com/${match[1]}/status/${match[2]}`
+}
+
+
+
+function resolveTwitterEmbedSrc(tweetUrl: string, iframe?: HTMLIFrameElement | null): string | null {
+	const iframeSrc = iframe?.getAttribute('src')?.trim() || iframe?.src?.trim() || ''
+	if (iframeSrc) {
+		return iframeSrc.startsWith('//') ? `https:${iframeSrc}` : iframeSrc
+	}
+
+	const statusId = tweetUrl.match(/\/status\/(\d+)/i)?.[1]
+	if (!statusId) return null
+
+	return `https://platform.twitter.com/embed/Tweet.html?id=${statusId}&dnt=true&hide_thread=true`
+}
+
+function appendTwitterLiteAllowParam(src: string): string {
+	try {
+		const normalizedSrc = src.startsWith('//') ? `https:${src}` : src
+		const parsed = new URL(normalizedSrc)
+		parsed.searchParams.set(TWITTER_LITE_ALLOW_PARAM, TWITTER_LITE_ALLOW_VALUE)
+		return parsed.toString()
+	} catch {
+		return src
+	}
+}
+
+function createTwitterEmbedIframe(src: string, title: string, initialHeight = TWITTER_LITE_MEDIA_INITIAL_HEIGHT): HTMLIFrameElement {
+	const iframe = document.createElement('iframe')
+	iframe.src = appendTwitterLiteAllowParam(src)
+	iframe.title = title
+	iframe.setAttribute('scrolling', 'no')
+	iframe.setAttribute('frameborder', '0')
+	iframe.style.width = '100%'
+	iframe.style.height = `${initialHeight}px`
+	iframe.style.border = '0'
+	iframe.style.display = 'block'
+	iframe.style.overflow = 'hidden'
+	return iframe
+}
+
+function evictOldestCacheEntry(): void {
+	if (twitterLiteCache.size < TWITTER_LITE_CACHE_MAX_SIZE) return
+	const firstKey = twitterLiteCache.keys().next().value
+	if (firstKey !== undefined) twitterLiteCache.delete(firstKey)
+}
+
+async function fetchTwitterLiteData(tweetUrl: string): Promise<TwitterLiteCardData | null> {
+	const cacheKey = getTwitterLiteCacheKey(tweetUrl)
+	const cached = twitterLiteCache.get(cacheKey)
+	if (typeof cached !== 'undefined') {
+		return cached
+	}
+
+	try {
+		const result = await sendMessage('fetchTweetLiteData', { tweetUrl })
+		if (!result?.success || !result.data) {
+			twitterLiteCache.set(cacheKey, null)
+			evictOldestCacheEntry()
+			return null
+		}
+
+		const payload: TwitterLiteCardData = {
+			username: (result.data.username || '').trim(),
+			displayName: (result.data.displayName || '').trim(),
+			text: (result.data.text || '').trim(),
+			url: normalizeTweetUrl(result.data.url || tweetUrl) || tweetUrl,
+			hasMedia: result.data.hasMedia === true,
+			thumbnailUrl: typeof result.data.thumbnailUrl === 'string' ? result.data.thumbnailUrl.trim() || undefined : undefined,
+			isVerified: result.data.isVerified === true,
+            verifiedType: typeof result.data.verifiedType === 'string' ? result.data.verifiedType : undefined,
+			createdAt: typeof result.data.createdAt === 'string' ? result.data.createdAt.trim() || undefined : undefined,
+            authorAvatarUrl: typeof result.data.authorAvatarUrl === 'string' ? result.data.authorAvatarUrl.trim() || undefined : undefined,
+			// Media: pass through image URLs and video info
+			mediaUrls: Array.isArray(result.data.mediaUrls) && result.data.mediaUrls.length > 0 ? result.data.mediaUrls : undefined,
+			hasVideo: result.data.hasVideo === true,
+			videoThumbnailUrls: Array.isArray(result.data.videoThumbnailUrls) && result.data.videoThumbnailUrls.length > 0 ? result.data.videoThumbnailUrls : undefined,
+		}
+
+		const replyTo = result.data.replyTo
+		if (replyTo && typeof replyTo.text === 'string') {
+			const replyText = replyTo.text.trim()
+			if (replyText) {
+				const normalizedReplyUrl = normalizeTweetUrl(replyTo.url || '') || undefined
+				payload.replyTo = {
+					username: (replyTo.username || '').trim(),
+					displayName: (replyTo.displayName || '').trim(),
+					text: replyText,
+					url: normalizedReplyUrl,
+					isVerified: replyTo.isVerified === true,
+                    verifiedType: typeof replyTo.verifiedType === 'string' ? replyTo.verifiedType : undefined,
+					createdAt: typeof replyTo.createdAt === 'string' ? replyTo.createdAt.trim() || undefined : undefined,
+                    authorAvatarUrl: typeof replyTo.authorAvatarUrl === 'string' ? replyTo.authorAvatarUrl.trim() || undefined : undefined,
+				}
+			}
+		}
+
+		const quotedTweet = result.data.quotedTweet
+		if (quotedTweet && typeof quotedTweet.text === 'string') {
+			const quotedText = quotedTweet.text.trim()
+			if (quotedText) {
+				payload.quotedTweet = {
+					username: (quotedTweet.username || '').trim(),
+					displayName: (quotedTweet.displayName || '').trim(),
+					text: quotedText,
+					url: normalizeTweetUrl(quotedTweet.url || '') || quotedTweet.url || '',
+					isVerified: quotedTweet.isVerified === true,
+					verifiedType: typeof quotedTweet.verifiedType === 'string' ? quotedTweet.verifiedType : undefined,
+					createdAt: typeof quotedTweet.createdAt === 'string' ? quotedTweet.createdAt.trim() || undefined : undefined,
+					authorAvatarUrl: typeof quotedTweet.authorAvatarUrl === 'string' ? quotedTweet.authorAvatarUrl.trim() || undefined : undefined,
+					hasMedia: quotedTweet.hasMedia === true,
+					mediaUrls: Array.isArray(quotedTweet.mediaUrls) && quotedTweet.mediaUrls.length > 0 ? quotedTweet.mediaUrls : undefined,
+				}
+			}
+		}
+
+		twitterLiteCache.set(cacheKey, payload)
+		evictOldestCacheEntry()
+		return payload
+	} catch (error) {
+		logger.debug('Twitter lite fetch failed', error)
+		twitterLiteCache.set(cacheKey, null)
+		evictOldestCacheEntry()
+		return null
+	}
+}
+
+async function replaceTwitterEmbedWithLiteCard(
+	embedContainer: HTMLElement,
+	iframe?: HTMLIFrameElement | null,
+	allowNetworkFetch = true
+): Promise<void> {
+	// Guard checks BEFORE any DOM mutations to prevent concurrent processing
+	if (embedContainer.getAttribute(TWITTER_LITE_EXPANDED_ATTR) === 'true') return
+	if (embedContainer.getAttribute(TWITTER_LITE_LOADING_ATTR) === 'true') return
+	if (
+		embedContainer.getAttribute(TWITTER_LITE_ATTR) === 'true' &&
+		embedContainer.querySelector('.mvp-twitter-lite-card')
+	) {
+		return
+	}
+
+	// Extract URL while iframe is still in DOM (before clearing)
+	const tweetUrl = extractTweetUrl(embedContainer, iframe)
+	if (!tweetUrl) return
+	const embedSrc = resolveTwitterEmbedSrc(tweetUrl, iframe)
+
+	// Now safe to modify DOM — we have URL and guards passed
+	prepareContainerForTwitterLite(embedContainer)
+	const existingTwitterIframes = embedContainer.querySelectorAll<HTMLIFrameElement>(TWITTER_EMBED_IFRAME_SELECTOR)
+	if (existingTwitterIframes.length > 0) {
+		existingTwitterIframes.forEach(clearTwitterIframe)
+	}
+
+	const [, rawFallbackUsername = ''] = tweetUrl.match(TWITTER_STATUS_URL_REGEX) || []
+	// 'i' is Twitter's anonymous route (/i/status/...), not a real username
+	const fallbackUsername = rawFallbackUsername === 'i' ? '' : rawFallbackUsername
+	const fallbackData: TwitterLiteCardData = {
+		username: fallbackUsername,
+		displayName: fallbackUsername ? `@${fallbackUsername}` : 'Tweet',
+		text: 'No se pudo cargar el texto de este tweet.',
+		url: tweetUrl,
+		hasMedia: false,
+	}
+
+	embedContainer.setAttribute(TWITTER_LITE_LOADING_ATTR, 'true')
+	embedContainer.innerHTML = ''
+	embedContainer.appendChild(createTwitterLiteCard({ ...fallbackData, text: '' }, true))
+
+	let data: TwitterLiteCardData | null = null
+	if (allowNetworkFetch) {
+		data = await fetchTwitterLiteData(tweetUrl)
+	}
+	embedContainer.innerHTML = ''
+	const resolvedData = data ?? fallbackData
+	const canExpandTweet = Boolean(embedSrc)
+	const card = createTwitterLiteCard({
+		...resolvedData,
+		canExpandTweet,
+	})
+	embedContainer.appendChild(card)
+
+	if (canExpandTweet && embedSrc) {
+		const mediaButton = card.querySelector<HTMLButtonElement>('.mvp-twitter-lite-media-btn')
+		mediaButton?.addEventListener('click', () => {
+			// Ensure Twitter resize postMessages are handled outside infinite/live contexts.
+			setupGlobalEmbedListener()
+
+			embedContainer.innerHTML = ''
+			embedContainer.setAttribute('data-s9e-mediaembed', 'twitter')
+			embedContainer.classList.add('embed', 'twitter')
+			embedContainer.setAttribute(TWITTER_LITE_EXPANDED_ATTR, 'true')
+			embedContainer.removeAttribute(TWITTER_LITE_ATTR)
+			embedContainer.removeAttribute(TWITTER_LITE_LOADING_ATTR)
+			embedContainer.removeAttribute(TWITTER_LITE_HOST_ATTR)
+			embedContainer.appendChild(
+				createTwitterEmbedIframe(
+					embedSrc,
+					`Tweet de ${resolvedData.username || resolvedData.displayName || 'Twitter'}`,
+					TWITTER_LITE_MEDIA_INITIAL_HEIGHT
+				)
+			)
+		})
+	}
+
+	embedContainer.setAttribute(TWITTER_LITE_ATTR, 'true')
+	embedContainer.removeAttribute(TWITTER_LITE_LOADING_ATTR)
 }
 
 /**
@@ -586,8 +987,8 @@ export function forceReinitializeEmbeds(container: HTMLElement | Document = docu
  */
 export function setupGlobalEmbedListener(): void {
 	// Only set up once
-	if ((window as any).__mvpEmbedListenerActive) return
-	(window as any).__mvpEmbedListenerActive = true
+	if (window.__mvpEmbedListenerActive) return
+	window.__mvpEmbedListenerActive = true
 
 	window.addEventListener('message', (event: MessageEvent) => {
 		// Twitter sends messages with specific structure

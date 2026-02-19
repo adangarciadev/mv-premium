@@ -21,7 +21,8 @@ const HOVER_GROUP_ID = 'hover-bg'
 const UNREAD_OLD_GROUP_ID = 'unread-old'
 const UNREAD_NEW_GROUP_ID = 'unread-new'
 const SURFACE_GROUP_ID = 'surface-bg'
-const MANUAL_ONLY_GROUP_IDS = new Set([HOVER_GROUP_ID, UNREAD_OLD_GROUP_ID, UNREAD_NEW_GROUP_ID])
+const TWEET_CARD_GROUP_ID = 'tweet-card'
+const MANUAL_ONLY_GROUP_IDS = new Set([HOVER_GROUP_ID, UNREAD_OLD_GROUP_ID, UNREAD_NEW_GROUP_ID, TWEET_CARD_GROUP_ID])
 
 const TOPBAR_LINK_SELECTOR = '#sections > li > a, #usermenu > li > a, #usermenu > li.avw > a.av'
 const TOPBAR_HOVER_SELECTOR = '#foros_spy #tab_for:hover, #sections > li > a:hover, #usermenu > li > a:hover'
@@ -270,6 +271,7 @@ export function generateMvThemeCSS(colorOverrides: Record<string, string>): stri
 			rules.push(...buildUnreadBadgeRules(changedGroups))
 			rules.push(...buildModeratedInfoRules(changedGroups))
 			rules.push(...buildLightThemeReadabilityRules(changedGroups))
+			rules.push(...buildTwitterLiteCardFallbackRules(changedGroups))
 			rules.push(...THREAD_LIVE_LOCK_RULES)
 		}
 	}
@@ -600,6 +602,55 @@ function buildLightThemeReadabilityRules(changedGroups: Map<string, string>): st
 		`${HERO_PRIMARY_BUTTON_SELECTOR}{color:${accentText} !important}`,
 		`${HERO_NEUTRAL_BUTTON_SELECTOR}{color:${neutralText} !important}`,
 		`${EDITOR_BUTTON_SELECTOR}{color:${editorText} !important}`,
+	]
+}
+
+function buildTwitterLiteCardFallbackRules(changedGroups: Map<string, string>): string[] {
+	if (changedGroups.size === 0) return []
+
+	// Use dedicated tweet-card group if customized, otherwise fall back to container-bg
+	const hasDedicatedColor = changedGroups.has(TWEET_CARD_GROUP_ID)
+	const cardBg = hasDedicatedColor
+		? getEffectiveGroupColor(TWEET_CARD_GROUP_ID, changedGroups)
+		: getEffectiveGroupColor('container-bg', changedGroups)
+	const globalLinkColor = getEffectiveGroupColor('link', changedGroups)
+
+	// Auto-derive text and border from the card background
+	const textColor = pickReadableTextColor(cardBg)
+	const borderColor = shiftColor('#1e2d3d', '#15202b', cardBg)
+
+	// Ensure link color has enough contrast against the card background.
+	// If not (e.g. blue links on blue card), fall back to the readable text color.
+	const cardLinkColor = wcagContrast(globalLinkColor, cardBg) >= 3
+		? globalLinkColor
+		: textColor
+
+	// X icon opacity: higher on light backgrounds (dark icon needs less opacity to be visible)
+	const iconOpacity = isLightBackground(cardBg) ? '0.55' : '0.35'
+
+	const mutedColor = hexToRgba(textColor, 0.7)
+
+	return [
+		`.mvp-twitter-lite-card{background:${cardBg} !important;border-color:${borderColor} !important;color:${textColor} !important}`,
+		`.mvp-twitter-lite-card:hover{background:${shiftColor('#1a2d3d', '#15202b', cardBg)} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-logo-overlay{color:${textColor} !important;opacity:${iconOpacity} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-footer{border-top-color:${borderColor} !important}`,
+		`.mvp-twitter-lite-card a{color:${cardLinkColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-media-btn{color:${cardLinkColor} !important;border-color:${borderColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-media-btn:hover{border-color:${cardLinkColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-quote-card{border-color:${borderColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-quote-text{color:${textColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-content{color:${textColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-display-name{color:${textColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-username{color:${mutedColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-date{color:${mutedColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-separator-dot{color:${mutedColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-bottom-date{color:${mutedColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-action-btn{color:${mutedColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-reply-context{color:${mutedColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-show-original-btn{border-color:${borderColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-thread-item::before{background-color:${borderColor} !important}`,
+		`.mvp-twitter-lite-card .mvp-twitter-lite-media-preview{border-color:${borderColor} !important}`,
 	]
 }
 

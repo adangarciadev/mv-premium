@@ -24,6 +24,7 @@ import { setupApiHandlers } from './api-handlers'
 import { setupAiHandlers } from './ai-handlers'
 import { setupIgdbHandlers } from './igdb-handlers'
 import { highlightCode } from './prism-highlighter'
+import { setupTwitterLiteNetworkGuard } from './twitter-lite-network-guard'
 import { clearCache } from '@/services/media/cache'
 
 /**
@@ -84,6 +85,9 @@ export default defineBackground(() => {
 
 	// IGDB handlers (game database)
 	setupIgdbHandlers()
+
+	// Strict Twitter Lite network guard (blocks native Twitter embeds until explicit user action)
+	setupTwitterLiteNetworkGuard()
 
 	// ==========================================================================
 	// Code Highlighting Handler
