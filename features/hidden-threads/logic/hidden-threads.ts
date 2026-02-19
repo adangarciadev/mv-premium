@@ -34,6 +34,8 @@ let unwatchHiddenThreads: (() => void) | null = null
 let unwatchSavedThreads: (() => void) | null = null
 let delegationSetup = false
 let savedThreadIds = new Set<string>()
+let forumListObserver: MutationObserver | null = null
+let forumListObserverTimer: ReturnType<typeof setTimeout> | null = null
 
 function areHideThreadControlsEnabled(): boolean {
 	return useSettingsStore.getState().hideThreadEnabled !== false
@@ -117,17 +119,25 @@ function ensureHiddenThreadStyles(): void {
 		.${SAVE_BTN_CLASS}.${SAVE_BTN_ACTIVE_CLASS} {
 			color: #f7be58;
 		}
-		td.col-th.${HIDE_BTN_CELL_CLASS} {
+		/* Covers td.col-th (normal subforum rows) and plain td (spy compact rows) */
+		td.${HIDE_BTN_CELL_CLASS} {
 			position: relative;
 			overflow: visible;
-			padding-right: var(--mvp-thread-actions-padding, 34px);
 		}
-		#temas tr:hover td.col-th .${HIDE_BTN_CLASS}:not(.${HIDE_BTN_FEATURED_CLASS}),
-		#temas tr:hover td.col-th .${SAVE_BTN_CLASS}:not(.${SAVE_BTN_FEATURED_CLASS}),
-		#temas td.col-th .${HIDE_BTN_CLASS}:not(.${HIDE_BTN_FEATURED_CLASS}):hover,
-		#temas td.col-th .${SAVE_BTN_CLASS}:not(.${SAVE_BTN_FEATURED_CLASS}):hover,
-		#temas td.col-th .${HIDE_BTN_CLASS}:not(.${HIDE_BTN_FEATURED_CLASS}):focus-visible,
-		#temas td.col-th .${SAVE_BTN_CLASS}:not(.${SAVE_BTN_FEATURED_CLASS}):focus-visible {
+		/* Keep thread title and inline unread/unfollow badges away from the
+		   absolutely-positioned buttons. Using margin-right on .thread (specificity 0,2,1)
+		   instead of padding-right on td (0,1,1) to win over MV's #temas td.col-th rules. */
+		td.${HIDE_BTN_CELL_CLASS} > .thread {
+			margin-right: var(--mvp-thread-actions-padding, 42px);
+			word-break: break-word;
+			overflow-wrap: break-word;
+		}
+		#temas tr:hover td.${HIDE_BTN_CELL_CLASS} .${HIDE_BTN_CLASS}:not(.${HIDE_BTN_FEATURED_CLASS}),
+		#temas tr:hover td.${HIDE_BTN_CELL_CLASS} .${SAVE_BTN_CLASS}:not(.${SAVE_BTN_FEATURED_CLASS}),
+		#temas td.${HIDE_BTN_CELL_CLASS} .${HIDE_BTN_CLASS}:not(.${HIDE_BTN_FEATURED_CLASS}):hover,
+		#temas td.${HIDE_BTN_CELL_CLASS} .${SAVE_BTN_CLASS}:not(.${SAVE_BTN_FEATURED_CLASS}):hover,
+		#temas td.${HIDE_BTN_CELL_CLASS} .${HIDE_BTN_CLASS}:not(.${HIDE_BTN_FEATURED_CLASS}):focus-visible,
+		#temas td.${HIDE_BTN_CELL_CLASS} .${SAVE_BTN_CLASS}:not(.${SAVE_BTN_FEATURED_CLASS}):focus-visible {
 			opacity: 1;
 			visibility: visible;
 			pointer-events: auto;
@@ -262,7 +272,7 @@ function removeThreadActionButtons(): void {
 		btn.remove()
 	})
 
-	document.querySelectorAll<HTMLElement>(`td.col-th.${HIDE_BTN_CELL_CLASS}`).forEach(cell => {
+	document.querySelectorAll<HTMLElement>(`td.${HIDE_BTN_CELL_CLASS}`).forEach(cell => {
 		cell.classList.remove(HIDE_BTN_CELL_CLASS)
 		cell.style.removeProperty('--mvp-thread-actions-padding')
 	})
@@ -286,19 +296,28 @@ function injectHideButtons(): void {
 	}
 
 	// Thread table rows (spy, subforums, favorites, user posts…)
+	//
+	// Two different row structures exist on Mediavida:
+	// - Normal subforum rows (cine, tv, etc.): td.col-th contains .thread
+	// - Spy compact rows (live updates, no col-th): plain td contains .thread
 	document.querySelectorAll<HTMLTableRowElement>(THREAD_ROWS_SELECTOR).forEach(row => {
-		const threadLink = row.querySelector<HTMLAnchorElement>('td.col-th .thread a[href*="/foro/"]')
+		const threadDiv = row.querySelector<HTMLElement>('.thread')
+		if (!threadDiv) return
+
+		const threadLink = threadDiv.querySelector<HTMLAnchorElement>('a[href*="/foro/"]')
 		if (!threadLink) return
 
 		const url = threadLink.getAttribute('href')
 		if (!url) return
 
-		const cell = row.querySelector<HTMLElement>('td.col-th')
+		// Prefer td.col-th (normal subforum rows); fall back to the thread's direct parent
+		// td for spy compact rows that don't carry the col-th class.
+		const cell = row.querySelector<HTMLElement>('td.col-th') ?? threadDiv.closest<HTMLElement>('td')
 		if (!cell) return
 
 		if (hideEnabled || saveEnabled) {
 			cell.classList.add(HIDE_BTN_CELL_CLASS)
-			cell.style.setProperty('--mvp-thread-actions-padding', hideEnabled && saveEnabled ? '62px' : '34px')
+			cell.style.setProperty('--mvp-thread-actions-padding', hideEnabled && saveEnabled ? '70px' : '42px')
 		} else {
 			cell.classList.remove(HIDE_BTN_CELL_CLASS)
 			cell.style.removeProperty('--mvp-thread-actions-padding')
@@ -360,6 +379,48 @@ function injectHideButtons(): void {
 				li.appendChild(saveBtn)
 			}
 		}
+	})
+}
+
+/**
+ * Sets up a dedicated MutationObserver for the forum thread list table.
+ * This handles dynamic pages like /foro/spy where rows appear and move
+ * without the global mutation observer necessarily catching them.
+ */
+function setupForumListObserver(): void {
+	if (forumListObserver) return
+
+	const tbody = document.querySelector<HTMLElement>('tbody#temas')
+	if (!tbody) return
+
+	const container = tbody.closest('table') ?? tbody.parentElement
+	if (!container) return
+
+	forumListObserver = new MutationObserver((mutations) => {
+		let hasNewElements = false
+		for (const mutation of mutations) {
+			if (mutation.type !== 'childList') continue
+			for (let i = 0; i < mutation.addedNodes.length; i++) {
+				if (mutation.addedNodes[i].nodeType === Node.ELEMENT_NODE) {
+					hasNewElements = true
+					break
+				}
+			}
+			if (hasNewElements) break
+		}
+
+		if (!hasNewElements) return
+
+		if (forumListObserverTimer) clearTimeout(forumListObserverTimer)
+		forumListObserverTimer = setTimeout(() => {
+			updateRowsVisibility()
+			forumListObserverTimer = null
+		}, 50)
+	})
+
+	forumListObserver.observe(container, {
+		childList: true,
+		subtree: true,
 	})
 }
 
@@ -503,6 +564,7 @@ export async function initHiddenThreadsFiltering(): Promise<void> {
 			}
 
 			initialized = true
+			setupForumListObserver()
 		} catch (error) {
 			logger.error('Failed to initialize hidden threads filtering:', error)
 			removeEarlyHiddenThreadStyles()
