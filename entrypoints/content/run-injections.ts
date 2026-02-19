@@ -31,6 +31,7 @@ export interface PageContext {
 // Heavy features are loaded dynamically below
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled, FeatureFlag } from '@/lib/feature-flags'
+import { useSettingsStore } from '@/store/settings-store'
 
 // Track initialization state
 let globalFeaturesInitialized = false
@@ -266,6 +267,18 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	// THREAD PAGES
 	// =========================================================================
 	if (pageContext?.isThread) {
+		const twitterLiteEnabled = useSettingsStore.getState().twitterLiteEmbedsEnabled === true
+		if (twitterLiteEnabled) {
+			const { replaceTwitterEmbedsWithLite, startTwitterLiteEmbedGuard } = await import(
+				'@/lib/content-modules/utils/reinitialize-embeds'
+			)
+			startTwitterLiteEmbedGuard()
+			replaceTwitterEmbedsWithLite(document)
+		} else {
+			const { stopTwitterLiteEmbedGuard } = await import('@/lib/content-modules/utils/reinitialize-embeds')
+			stopTwitterLiteEmbedGuard()
+		}
+
 		if (isFeatureEnabled(FeatureFlag.SteamBundleInlineCards)) {
 			import('@/features/media-hover-cards').then(({ initSteamBundleInlineCards }) => {
 				initSteamBundleInlineCards()

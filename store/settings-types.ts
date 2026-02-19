@@ -81,6 +81,7 @@ export interface Settings {
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: boolean
 	steamBundleInlineCardsEnabled: boolean
+	twitterLiteEmbedsEnabled: boolean
 	pinnedPostsEnabled: boolean
 	threadSummarizerEnabled: boolean
 	postSummaryEnabled: boolean

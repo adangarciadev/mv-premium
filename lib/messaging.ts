@@ -45,6 +45,51 @@ export interface GroqResult {
 	modelUsed?: string
 }
 
+export interface TweetLiteData {
+	username: string
+	displayName: string
+	text: string
+	url: string
+	hasMedia?: boolean
+	thumbnailUrl?: string
+	isVerified?: boolean
+	createdAt?: string
+	replyTo?: {
+		username: string
+		displayName: string
+		text: string
+		url?: string
+		isVerified?: boolean
+		verifiedType?: string // 'Business' | 'Government' | 'None' (default blue if isVerified=true)
+		createdAt?: string
+		authorAvatarUrl?: string
+		mediaUrls?: string[]
+	}
+	authorAvatarUrl?: string
+	verifiedType?: string
+	mediaUrls?: string[]
+	hasVideo?: boolean
+	videoThumbnailUrls?: string[]
+	quotedTweet?: {
+		username: string
+		displayName: string
+		text: string
+		url: string
+		isVerified?: boolean
+		verifiedType?: string
+		createdAt?: string
+		authorAvatarUrl?: string
+		hasMedia?: boolean
+		mediaUrls?: string[]
+	}
+}
+
+export interface TweetLiteResult {
+	success: boolean
+	data?: TweetLiteData
+	error?: string
+}
+
 // =============================================================================
 // Protocol Map - Define all RPC messages here
 // =============================================================================
@@ -174,6 +219,12 @@ interface ProtocolMap {
 	 * @returns JSON response from IGDB
 	 */
 	igdbRequest: (data: { endpoint: string; body: string }) => unknown
+
+	/**
+	 * Fetch a lightweight tweet payload (username + text) via background script.
+	 * Keeps network requests out of content scripts.
+	 */
+	fetchTweetLiteData: (data: { tweetUrl: string }) => TweetLiteResult
 }
 
 // =============================================================================

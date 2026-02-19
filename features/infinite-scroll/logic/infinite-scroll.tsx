@@ -15,7 +15,7 @@ import { PageIndicator } from '../components/page-indicator'
 import { PageDivider } from '../components/page-divider'
 import { InfiniteScrollButton } from '../components/scroll-toggle-button'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
-import { getSettings } from '@/store/settings-store'
+import { getSettings, useSettingsStore } from '@/store/settings-store'
 import {
 	mountFeature,
 	unmountFeature,
@@ -294,7 +294,9 @@ async function injectPosts(posts: Element[], pageNum: number): Promise<void> {
 	)
 
 	// Reinitialize embeds (Twitter, Instagram, etc.) in the newly loaded content
-	reinitializeEmbeds(pageBlockContainer)
+	reinitializeEmbeds(pageBlockContainer, {
+		twitterLiteMode: useSettingsStore.getState().twitterLiteEmbedsEnabled === true,
+	})
 
 	scheduleWindowManagement()
 }
@@ -401,7 +403,9 @@ function reloadPage(block: PageBlock): void {
 	logger.debug(`Reloaded page ${block.page}`)
 
 	// Reinitialize embeds in the reloaded content
-	reinitializeEmbeds(container)
+	reinitializeEmbeds(container, {
+		twitterLiteMode: useSettingsStore.getState().twitterLiteEmbedsEnabled === true,
+	})
 
 	window.dispatchEvent(
 		new CustomEvent(DOM_MARKERS.EVENTS.CONTENT_INJECTED, {

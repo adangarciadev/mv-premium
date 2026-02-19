@@ -5,6 +5,7 @@
  * Uses DOMPurify directly in content script for reliable HTML sanitization.
  */
 import { sanitizeHTML } from '@/lib/sanitize'
+import { useSettingsStore } from '@/store/settings-store'
 import { MV_SELECTORS, DOM_MARKERS } from '@/constants'
 import { logger } from '@/lib/logger'
 import { reinitializeEmbeds, setupGlobalEmbedListener } from '@/lib/content-modules/utils/reinitialize-embeds'
@@ -424,7 +425,9 @@ function reinitializeMvScripts(embedScope?: HTMLElement): void {
 		const scope = embedScope ?? postsWrap
 		hydrateLazyIframes(scope)
 		wireLiveYoutubeEmbeds(scope)
-		reinitializeEmbeds(scope)
+		reinitializeEmbeds(scope, {
+			twitterLiteMode: useSettingsStore.getState().twitterLiteEmbedsEnabled === true,
+		})
 	}
 
 	// Update relative timestamps
