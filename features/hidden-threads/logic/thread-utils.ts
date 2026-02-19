@@ -67,9 +67,13 @@ export function parseHiddenThreadFromUrl(input: string): HiddenThreadMetadata | 
 
 /**
  * Extracts a canonical thread path from a forum list row.
+ *
+ * Handles two different row structures used by Mediavida:
+ * - Normal subforum rows (cine, tv, etc.): `td.col-th > .thread > a`
+ * - Spy compact rows (live updates, no col-th): `td > .thread > a`
  */
 export function extractThreadPathFromRow(row: Element): string | null {
-	const threadLink = row.querySelector<HTMLAnchorElement>('td.col-th .thread a[href*="/foro/"]')
+	const threadLink = row.querySelector<HTMLAnchorElement>('.thread a[href*="/foro/"]')
 	if (!threadLink) return null
 
 	return normalizeThreadPath(threadLink.getAttribute('href') || threadLink.href)
