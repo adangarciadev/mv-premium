@@ -104,6 +104,11 @@ vi.mock('wxt/browser', () => ({
 	browser: mockBrowser,
 }))
 
+// @wxt-dev/storage resolves browser APIs from this package.
+vi.mock('@wxt-dev/browser', () => ({
+	browser: mockBrowser,
+}))
+
 // =============================================================================
 // WINDOW API MOCKS
 // =============================================================================

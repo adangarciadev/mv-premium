@@ -28,6 +28,14 @@ vi.mock('@/lib/content-modules/utils/reinitialize-embeds', () => ({
 	setupGlobalEmbedListener: vi.fn(),
 }))
 
+vi.mock('@/store/settings-store', () => ({
+	useSettingsStore: {
+		getState: vi.fn(() => ({
+			twitterLiteEmbedsEnabled: false,
+		})),
+	},
+}))
+
 vi.mock('./live-thread-state', () => ({
 	POLL_INTERVALS: {
 		HIGH_ACTIVITY: 3000,
