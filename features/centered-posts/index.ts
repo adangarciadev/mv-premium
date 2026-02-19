@@ -2025,6 +2025,41 @@ function applyManagedFloatBaseStyles(target: HTMLElement): void {
 	})
 }
 
+function keepNativeFloatingTargetInViewport(target: HTMLElement): void {
+	if (target.getAttribute(FLOATING_VIDEO_MANUAL_POSITION_ATTR) === 'true') return
+	if (managedFloats.has(target)) return
+
+	const rect = target.getBoundingClientRect()
+	if (rect.width <= 2 || rect.height <= 2) return
+
+	const minLeft = SIDE_MIN_INSET_PX
+	const maxRight = window.innerWidth - SIDE_MIN_INSET_PX
+	const minTop = FLOATING_VIDEO_TOP_BUFFER_PX
+	const maxBottom = window.innerHeight - SIDE_MIN_INSET_PX
+	const horizontalOut = rect.left < minLeft || rect.right > maxRight
+	const verticalOut = rect.top < minTop || rect.bottom > maxBottom
+
+	if (!horizontalOut && !verticalOut) return
+
+	if (horizontalOut) {
+		target.style.setProperty('left', 'auto', 'important')
+		target.style.setProperty('right', `${getFloatingVideoRightInsetPx()}px`, 'important')
+	}
+
+	if (verticalOut) {
+		target.style.setProperty('top', 'auto', 'important')
+		target.style.setProperty('bottom', `${FLOATING_VIDEO_BOTTOM_PX}px`, 'important')
+	}
+
+	target.style.setProperty('transform', 'none', 'important')
+	target.style.setProperty('max-width', 'calc(100vw - 24px)', 'important')
+	target.style.setProperty(
+		'max-height',
+		`calc(100vh - ${FLOATING_VIDEO_TOP_BUFFER_PX + FLOATING_VIDEO_BOTTOM_PX}px)`,
+		'important'
+	)
+}
+
 function unfloatManagedTarget(target: HTMLElement): void {
 	const state = managedFloats.get(target)
 	if (state) {
@@ -2154,6 +2189,7 @@ function refreshFloatingVideoTargets(): void {
 		activeTargets.add(target)
 		target.classList.add(FLOATING_VIDEO_CLASS)
 		attachFloatingVideoInteractions(target)
+		keepNativeFloatingTargetInViewport(target)
 		if (infiniteModeActive) {
 			// In infinite-scroll contexts, keep a deterministic geometry to prevent
 			// native affixed offsets from placing the player off-screen.
@@ -2289,6 +2325,7 @@ function startFloatingVideoGuard(): void {
 	if (!floatingVideoListenersAttached) {
 		window.addEventListener('scroll', handleFloatingVideoViewportChange, { passive: true })
 		window.addEventListener('resize', handleFloatingVideoViewportChange)
+		window.visualViewport?.addEventListener('resize', handleFloatingVideoViewportChange)
 		document.addEventListener('pointerdown', handleFloatingVideoPointerDown, true)
 		document.addEventListener('focusin', handleFloatingVideoFocusIn, true)
 		floatingVideoListenersAttached = true
@@ -2324,6 +2361,7 @@ function stopFloatingVideoGuard(): void {
 	if (floatingVideoListenersAttached) {
 		window.removeEventListener('scroll', handleFloatingVideoViewportChange)
 		window.removeEventListener('resize', handleFloatingVideoViewportChange)
+		window.visualViewport?.removeEventListener('resize', handleFloatingVideoViewportChange)
 		document.removeEventListener('pointerdown', handleFloatingVideoPointerDown, true)
 		document.removeEventListener('focusin', handleFloatingVideoFocusIn, true)
 		floatingVideoListenersAttached = false
