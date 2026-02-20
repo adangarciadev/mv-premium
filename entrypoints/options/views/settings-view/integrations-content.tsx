@@ -141,6 +141,7 @@ export function IntegrationsContent() {
 
 							<button
 								onClick={() => setImgbbExpanded(!imgbbExpanded)}
+								aria-expanded={imgbbExpanded}
 								className="flex items-center gap-1 text-xs text-primary hover:underline mt-2"
 							>
 								<ChevronDown className={cn('h-3 w-3 transition-transform', imgbbExpanded && 'rotate-180')} />
@@ -224,6 +225,7 @@ export function IntegrationsContent() {
 							<div className="flex items-center gap-4 mt-2">
 								<button
 									onClick={() => setGeminiExpanded(!geminiExpanded)}
+									aria-expanded={geminiExpanded}
 									className="flex items-center gap-1 text-xs text-primary hover:underline"
 								>
 									<ChevronDown className={cn('h-3 w-3 transition-transform', geminiExpanded && 'rotate-180')} />
@@ -297,6 +299,7 @@ export function IntegrationsContent() {
 							<div className="flex items-center gap-4 mt-2">
 								<button
 									onClick={() => setGroqExpanded(!groqExpanded)}
+									aria-expanded={groqExpanded}
 									className="flex items-center gap-1 text-xs text-primary hover:underline"
 								>
 									<ChevronDown className={cn('h-3 w-3 transition-transform', groqExpanded && 'rotate-180')} />

@@ -117,6 +117,23 @@
 	}
 }
 
+.mvp-whats-new-badge {
+	position: absolute;
+	top: -4px;
+	right: -6px;
+	padding: 2px 5px;
+	background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+	border-radius: 4px;
+	font-size: 8px;
+	font-weight: 700;
+	color: #000;
+	text-transform: uppercase;
+	letter-spacing: 0.3px;
+	box-shadow: 0 2px 4px rgba(245, 158, 11, 0.4);
+	animation: badgePulse 2s ease-in-out infinite;
+	pointer-events: none;
+}
+
 /* ============================================================================
    MEDIAVIDA GLOBAL OVERRIDES
    ============================================================================ */
