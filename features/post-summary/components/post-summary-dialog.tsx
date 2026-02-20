@@ -4,13 +4,17 @@ import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import Bot from 'lucide-react/dist/esm/icons/bot'
 import Copy from 'lucide-react/dist/esm/icons/copy'
 import Check from 'lucide-react/dist/esm/icons/check'
-import MessageSquare from 'lucide-react/dist/esm/icons/message-square' // Using generic icon for tone if needed
+import MessageSquare from 'lucide-react/dist/esm/icons/message-square'
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import Settings from 'lucide-react/dist/esm/icons/settings'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { summarizePost, isPostLongEnough, getShortPostMessage, extractPostText } from '../logic/summarize-post'
 import { getLastModelUsed } from '@/services/ai/gemini-service'
 import { useAIModelLabel } from '@/hooks/use-ai-model-label'
+import { sendMessage } from '@/lib/messaging'
+import { logger } from '@/lib/logger'
 
 interface PostSummaryDialogProps {
 	postElement: HTMLElement
@@ -22,6 +26,7 @@ type DialogState = 'loading' | 'success' | 'error' | 'short-post'
 export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogProps) {
 	const [state, setState] = useState<DialogState>('loading')
 	const [content, setContent] = useState<{ summary: string; tone: string }>({ summary: '', tone: '' })
+	const [isAIConfigError, setIsAIConfigError] = useState(false)
 	const [copied, setCopied] = useState(false)
 	const [actualModel, setActualModel] = useState<string | null>(null)
 	const { modelLabel, isModelFallback, configuredModel, isProviderFallback, providerFallbackMessage } =
@@ -36,6 +41,7 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 		// Prevent body scroll
 		document.body.style.overflow = 'hidden'
 		setActualModel(null)
+		setIsAIConfigError(false)
         
 		// Extract post content
 		const postBody = postElement.querySelector('.post-contents, .post-contents .body, .post-body, .cuerpo')
@@ -63,8 +69,16 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 				setContent(result)
 			})
 			.catch(err => {
+				logger.error('PostSummary error:', err)
+				const isConfigError = Boolean(err.message?.includes('IA no configurada'))
+				setIsAIConfigError(isConfigError)
 				setState('error')
-				setContent({ summary: err.message || 'Error al generar resumen', tone: 'Error' })
+				setContent({
+					summary: isConfigError
+						? 'Necesitas una API Key de Gemini o Groq para usar esta función.'
+						: 'No se pudo generar el resumen. Por favor, inténtalo de nuevo.',
+					tone: 'Error',
+				})
 			})
 
 		return () => {
@@ -148,9 +162,22 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 								</div>
 							</div>
 						) : state === 'error' ? (
-							<div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20 text-center">
-								<p className="text-sm font-medium text-destructive mb-1">Ocurrió un error</p>
-								<p className="text-xs text-destructive/80">{content.summary}</p>
+							<div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
+								<div className={cn(
+									'w-12 h-12 rounded-full flex items-center justify-center',
+									isAIConfigError ? 'bg-primary/10' : 'bg-destructive/10'
+								)}>
+									{isAIConfigError
+										? <Settings className="w-6 h-6 text-primary" />
+										: <AlertCircle className="w-6 h-6 text-destructive" />
+									}
+								</div>
+								<div className="space-y-1.5">
+									<p className={cn('text-sm font-medium', isAIConfigError ? 'text-foreground' : 'text-destructive')}>
+										{isAIConfigError ? 'IA no configurada' : 'Error al generar el resumen'}
+									</p>
+									<p className="text-xs text-muted-foreground">{content.summary}</p>
+								</div>
 							</div>
 						) : state === 'short-post' ? (
 							<div className="text-center py-6 px-4">
@@ -179,13 +206,21 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 					</div>
 
 					{/* Footer (Actions) */}
-					{state === 'success' && (
+					{(state === 'success' || state === 'error') && (
 						<div className="p-4 border-t border-border bg-muted/10 flex justify-end gap-3">
 							<Button variant="outline" onClick={onClose}>Cerrar</Button>
-							<Button onClick={handleCopy} disabled={copied} className="gap-2">
-								{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-								{copied ? 'Copiado' : 'Copiar Resumen'}
-							</Button>
+							{state === 'error' && isAIConfigError && (
+								<Button onClick={() => { void sendMessage('openOptionsPage', 'settings?tab=ai'); onClose() }} className="gap-2">
+									<Settings className="w-4 h-4" />
+									Configurar API
+								</Button>
+							)}
+							{state === 'success' && (
+								<Button onClick={handleCopy} disabled={copied} className="gap-2">
+									{copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+									{copied ? 'Copiado' : 'Copiar Resumen'}
+								</Button>
+							)}
 						</div>
 					)}
 				</div>
