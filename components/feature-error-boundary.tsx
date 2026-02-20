@@ -62,8 +62,7 @@ export class FeatureErrorBoundary extends Component<FeatureErrorBoundaryProps, F
 						borderRadius: 'var(--radius, 4px)',
 						border: '1px solid rgba(239, 68, 68, 0.2)',
 					}}
-					title={this.state.error?.message}
-				>
+					>
 					⚠️ Error en {this.props.featureName}
 				</div>
 			)
