@@ -42,7 +42,7 @@ export function TableSkeleton({
 	return (
 		<div className={cn('rounded-lg border border-border overflow-hidden', className)}>
 			<Table>
-				<TableHeader className="bg-[#272d30] border-b border-border">
+				<TableHeader className="bg-muted border-b border-border">
 					<TableRow className="hover:bg-transparent border-none h-10">
 						{effectiveColumns.map((width, i) => (
 							<TableHead
@@ -63,7 +63,7 @@ export function TableSkeleton({
 					{Array.from({ length: rows }).map((_, rowIdx) => (
 						<TableRow
 							key={rowIdx}
-							className="h-12 border-b border-[#30353a] bg-[#39464c]"
+							className="h-12 border-b border-border bg-muted/40"
 						>
 							{effectiveColumns.map((width, colIdx) => (
 								<TableCell

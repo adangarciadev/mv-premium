@@ -117,7 +117,7 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 					
 					{/* Header */}
 					<div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
-						<div className="flex items-center gap-2.5">
+						<div className="flex items-center gap-2">
 							<div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
 								<Bot className="w-5 h-5 text-primary" />
 							</div>
@@ -147,7 +147,7 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 					</div>
 
 					{/* Content */}
-					<div className="p-6 overflow-y-auto">
+					<div className="p-6 overflow-y-auto" aria-live="polite" aria-busy={state === 'loading'}>
 						{providerFallbackMessage && state !== 'loading' && (
 							<div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-md">
 								<p className="text-xs text-amber-700 dark:text-amber-400">{providerFallbackMessage}</p>

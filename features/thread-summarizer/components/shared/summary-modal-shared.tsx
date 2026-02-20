@@ -21,6 +21,7 @@ import Clock3 from 'lucide-react/dist/esm/icons/clock-3'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { renderInlineMarkdown } from '../../logic/render-inline-markdown'
+import { toast } from '@/lib/lazy-toast'
 
 // =============================================================================
 // UTILITIES
@@ -70,6 +71,7 @@ export function useSummaryClipboard(buildText: () => string | null) {
 			navigator.clipboard.writeText(text)
 			setCopied(true)
 			setTimeout(() => setCopied(false), 2000)
+			toast.success('Resumen copiado al portapapeles')
 		}
 	}, [buildText])
 
