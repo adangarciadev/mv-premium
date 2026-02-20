@@ -28,8 +28,6 @@ export function useFeatureToggles(isPrivateMessage: boolean) {
 			// If the component unmounted, do nothing
 			if (ignore) return
 
-			console.log('Settings loaded (Hook):', settings)
-
 			setToggles({
 				cinemaButtonEnabled: settings.cinemaButtonEnabled ?? true,
 				gifPickerEnabled: settings.gifPickerEnabled ?? true,
