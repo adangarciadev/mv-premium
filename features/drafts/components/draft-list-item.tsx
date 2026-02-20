@@ -2,9 +2,7 @@
  * Draft List Item Component
  * Renders a single draft item in the list
  */
-import { Button } from '@/components/ui/button'
-import FileText from 'lucide-react/dist/esm/icons/file-text'
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
+import { memo } from 'react'
 import Tag from 'lucide-react/dist/esm/icons/tag'
 import { cn } from '@/lib/utils'
 import type { Draft } from '@/features/drafts/storage'
@@ -13,11 +11,15 @@ interface DraftListItemProps {
 	draft: Draft
 	isSelected: boolean
 	onSelect: (draft: Draft) => void
-	onDelete: (draft: Draft) => void
 	formatRelativeTime: (timestamp: number) => string
 }
 
-export function DraftListItem({ draft, isSelected, onSelect, onDelete, formatRelativeTime }: DraftListItemProps) {
+export const DraftListItem = memo(function DraftListItem({
+	draft,
+	isSelected,
+	onSelect,
+	formatRelativeTime,
+}: DraftListItemProps) {
 	return (
 		<div
 			onClick={() => onSelect(draft)}
@@ -56,4 +58,4 @@ export function DraftListItem({ draft, isSelected, onSelect, onDelete, formatRel
 			</div>
 		</div>
 	)
-}
+})

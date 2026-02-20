@@ -1,7 +1,7 @@
 /**
  * FolderItem - Folder button for the sidebar with drag & drop support
  */
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import MoreHorizontal from 'lucide-react/dist/esm/icons/more-horizontal'
 import Folder from 'lucide-react/dist/esm/icons/folder'
@@ -32,7 +32,7 @@ export interface FolderItemProps {
 // Component
 // ============================================================================
 
-export function FolderItem({ folder, isSelected, onClick, onDrop, onDelete }: FolderItemProps) {
+export const FolderItem = memo(function FolderItem({ folder, isSelected, onClick, onDrop, onDelete }: FolderItemProps) {
 	const [isDragOver, setIsDragOver] = useState(false)
 	const [justDropped, setJustDropped] = useState(false)
 
@@ -107,4 +107,4 @@ export function FolderItem({ folder, isSelected, onClick, onDrop, onDelete }: Fo
 			)}
 		</div>
 	)
-}
+})

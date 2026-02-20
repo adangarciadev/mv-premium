@@ -66,7 +66,8 @@ export function DraftGrid({
 		}
 	}, [columns])
 
-	// Handle card selection with shift-click support
+	// Handle card selection with shift-click support.
+	// Signature matches DraftCard's onSelect: (draftId, event) => void
 	const handleSelect = useCallback(
 		(draftId: string, event: React.MouseEvent) => {
 			const newSelection = new Set(selectedIds)
@@ -106,6 +107,10 @@ export function DraftGrid({
 		[selectedIds, lastClickedId, drafts, onSelectionChange, onLastClickedChange]
 	)
 
+	// Adapter: DraftGrid receives onEdit(draftId) but DraftCard expects onEdit(draft).
+	// Stable reference so memo on DraftCard is effective.
+	const stableOnEdit = useCallback((draft: Draft) => onEdit(draft.id), [onEdit])
+
 	// Check if any items are selected
 	const hasSelection = selectedIds.size > 0
 
@@ -117,12 +122,12 @@ export function DraftGrid({
 					draft={draft}
 					isSelected={selectedIds.has(draft.id)}
 					showCheckbox={hasSelection}
-					onSelect={e => handleSelect(draft.id, e)}
-					onEdit={() => onEdit(draft.id)}
-					onDuplicate={() => onDuplicate(draft)}
-					onDelete={() => onDelete(draft)}
-					onMove={() => onMove(draft)}
-					onConvert={onConvert ? () => onConvert(draft) : undefined}
+					onSelect={handleSelect}
+					onEdit={stableOnEdit}
+					onDuplicate={onDuplicate}
+					onDelete={onDelete}
+					onMove={onMove}
+					onConvert={onConvert}
 				/>
 			))}
 		</div>

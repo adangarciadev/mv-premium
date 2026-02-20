@@ -2,6 +2,7 @@
  * DraftCard - Card component for displaying draft/template items
  * Supports selection and drag & drop
  */
+import { memo, useState } from 'react'
 import Pencil from 'lucide-react/dist/esm/icons/pencil'
 import Copy from 'lucide-react/dist/esm/icons/copy'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
@@ -26,7 +27,6 @@ import { formatRelativeDate } from '@/lib/date-utils'
 import { ALL_SUBFORUMS } from '@/lib/subforums'
 import { getCategoriesForSubforum } from '@/lib/subforum-categories'
 import type { Draft } from '@/features/drafts/storage'
-import { useState } from 'react'
 
 // ============================================================================
 // Types
@@ -38,21 +38,21 @@ export interface DraftCardProps {
 	isSelected?: boolean
 	/** Whether to show the checkbox (true when any card is selected) */
 	showCheckbox?: boolean
-	/** Callback when selection checkbox is clicked */
-	onSelect?: (event: React.MouseEvent) => void
-	onEdit: () => void
-	onDuplicate: () => void
-	onDelete: () => void
-	onMove: () => void
+	/** Callback when selection checkbox is clicked — receives draftId for stable reference */
+	onSelect?: (draftId: string, event: React.MouseEvent) => void
+	onEdit: (draft: Draft) => void
+	onDuplicate: (draft: Draft) => void
+	onDelete: (draft: Draft) => void
+	onMove: (draft: Draft) => void
 	/** Called when converting draft to template or vice versa */
-	onConvert?: () => void
+	onConvert?: (draft: Draft) => void
 }
 
 // ============================================================================
 // Component
 // ============================================================================
 
-export function DraftCard({
+export const DraftCard = memo(function DraftCard({
 	draft,
 	isSelected = false,
 	showCheckbox = false,
@@ -94,7 +94,7 @@ export function DraftCard({
 	const handleCheckboxClick = (e: React.MouseEvent) => {
 		e.stopPropagation()
 		e.preventDefault()
-		onSelect?.(e)
+		onSelect?.(draft.id, e)
 	}
 
 	return (
@@ -146,26 +146,26 @@ export function DraftCard({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
-							<DropdownMenuItem onSelect={onEdit}>
+							<DropdownMenuItem onSelect={() => onEdit(draft)}>
 								<Pencil className="h-4 w-4 mr-2" />
 								Editar
 							</DropdownMenuItem>
-							<DropdownMenuItem onSelect={onMove}>
+							<DropdownMenuItem onSelect={() => onMove(draft)}>
 								<FolderOpen className="h-4 w-4 mr-2" />
 								Mover a carpeta
 							</DropdownMenuItem>
-							<DropdownMenuItem onSelect={onDuplicate}>
+							<DropdownMenuItem onSelect={() => onDuplicate(draft)}>
 								<Copy className="h-4 w-4 mr-2" />
 								Duplicar
 							</DropdownMenuItem>
 							{onConvert && (
-								<DropdownMenuItem onSelect={onConvert}>
+								<DropdownMenuItem onSelect={() => onConvert(draft)}>
 									<RefreshCw className="h-4 w-4 mr-2" />
 									{isTemplate ? 'Convertir a borrador' : 'Convertir a plantilla'}
 								</DropdownMenuItem>
 							)}
 							<DropdownMenuSeparator />
-							<DropdownMenuItem onSelect={onDelete} className="text-destructive">
+							<DropdownMenuItem onSelect={() => onDelete(draft)} className="text-destructive">
 								<Trash2 className="h-4 w-4 mr-2" />
 								Eliminar
 							</DropdownMenuItem>
@@ -219,4 +219,4 @@ export function DraftCard({
 			</CardFooter>
 		</Card>
 	)
-}
+})
