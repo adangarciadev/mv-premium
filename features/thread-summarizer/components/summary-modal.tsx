@@ -163,7 +163,7 @@ export function SummaryModal({ isOpen, onClose }: SummaryModalProps) {
 						onClose={onClose}
 					/>
 
-					<div className="flex-1 overflow-y-auto p-4">
+					<div className="flex-1 overflow-y-auto p-4" aria-live="polite" aria-busy={isLoading}>
 						{providerFallbackMessage && (
 							<div className="mb-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md p-2.5">
 								<AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
