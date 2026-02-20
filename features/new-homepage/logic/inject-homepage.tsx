@@ -3,7 +3,7 @@ import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { FEATURE_IDS } from '@/constants/feature-ids'
 import { DOM_MARKERS } from '@/constants/dom-markers'
 import { isFeatureEnabled, FeatureFlag } from '@/lib/feature-flags'
-import { isFeatureMounted, mountFeature } from '@/lib/content-modules/utils/react-helpers'
+import { isFeatureMounted, mountFeatureWithBoundary } from '@/lib/content-modules/utils/react-helpers'
 import { Home } from '../components/home'
 
 export function injectHomepage(): void {
@@ -19,11 +19,12 @@ export function injectHomepage(): void {
 	container.id = DOM_MARKERS.IDS.NEW_HOMEPAGE_ROOT
 	mainElement.appendChild(container)
 
-	mountFeature(
+	mountFeatureWithBoundary(
 		FEATURE_IDS.NEW_HOMEPAGE,
 		container,
 		createElement(ShadowWrapper, {
 			children: createElement(Home),
-		})
+		}),
+		'Nueva Portada'
 	)
 }

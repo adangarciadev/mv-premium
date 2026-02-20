@@ -6,7 +6,7 @@
  */
 
 import { isThreadPage } from '@/features/gallery/lib/thread-scraper'
-import { mountFeature, isFeatureMounted, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, isFeatureMounted, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import {
 	createThreadActionButton,
 	isThreadActionButtonInjected,
@@ -51,10 +51,11 @@ export function createSummarizerInjection(config: SummarizerInjectionConfig): Su
 			document.body.appendChild(container)
 		}
 
-		mountFeature(
+		mountFeatureWithBoundary(
 			modalFeatureId,
 			container,
-			createElement(ModalWrapper, { onClose: () => closeModal() })
+			createElement(ModalWrapper, { onClose: () => closeModal() }),
+			'Resumen de Hilo'
 		)
 	}
 

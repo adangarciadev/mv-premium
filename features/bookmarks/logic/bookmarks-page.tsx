@@ -4,7 +4,7 @@
  */
 
 import { storage } from '@wxt-dev/storage'
-import { mountFeature, isFeatureMounted, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, isFeatureMounted, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import { applyStoredTheme } from '@/lib/theme-sync'
 import { BookmarksManager } from '../components/bookmarks-manager'
 import { STORAGE_KEYS, FEATURE_IDS, DOM_MARKERS, MV_SELECTORS } from '@/constants'
@@ -130,7 +130,7 @@ export async function injectBookmarksUI(): Promise<void> {
 	container.insertBefore(managerContainer, container.firstChild)
 
 	// Mount the React component
-	mountFeature(
+	mountFeatureWithBoundary(
 		FEATURE_ID,
 		managerContainer,
 		<BookmarksManager
@@ -140,7 +140,8 @@ export async function injectBookmarksUI(): Promise<void> {
 				await viewModeStorage.setValue(mode)
 			}}
 			nativeCardsContainer={container as HTMLElement}
-		/>
+		/>,
+		'Gestor de Marcadores'
 	)
 }
 

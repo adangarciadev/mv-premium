@@ -11,7 +11,7 @@ import Search from 'lucide-react/dist/esm/icons/search'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
-import { mountFeature, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import { batchDeleteFavorites } from './delete-favorites'
 
 import {
@@ -363,7 +363,7 @@ export function injectFavoritesPageButtons(): void {
 	// Insert before the table container
 	t.closest('.wpx')?.insertBefore(container, t.closest('.wpx')?.firstChild ?? null)
 
-	mountFeature(FEATURE_ID, container, <FavoritesActionBar />)
+	mountFeatureWithBoundary(FEATURE_ID, container, <FavoritesActionBar />, 'Barra de Favoritos')
 
 	// Initialize snapshot
 	emitChange()

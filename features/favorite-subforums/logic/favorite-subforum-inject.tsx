@@ -10,7 +10,7 @@ import {
 	extractSubforumInfoFromPage,
 	isSubforumFavorite,
 } from '@/features/favorite-subforums/logic/storage'
-import { mountFeature, isFeatureMounted, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, isFeatureMounted, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { MV_SELECTORS, FEATURE_IDS, Z_INDEXES, DOM_MARKERS } from '@/constants'
 
@@ -146,12 +146,13 @@ function injectOnForumListPage(): void {
 		link.appendChild(container)
 
 		// Mount React component with ShadowWrapper for CSS isolation
-		mountFeature(
+		mountFeatureWithBoundary(
 			featureId,
 			container,
 			<ShadowWrapper>
 				<FavoriteSubforumButton subforum={subforumInfo} size={18} />
-			</ShadowWrapper>
+			</ShadowWrapper>,
+			'Subforo Favorito'
 		)
 	})
 }
@@ -199,12 +200,13 @@ function injectOnSubforumPage(): void {
 	}
 
 	// Mount React component with ShadowWrapper for CSS isolation
-	mountFeature(
+	mountFeatureWithBoundary(
 		featureId,
 		container,
 		<ShadowWrapper>
 			<FavoriteSubforumButton subforum={subforumInfo} size={18} />
-		</ShadowWrapper>
+		</ShadowWrapper>,
+		'Subforo Favorito Página'
 	)
 }
 
@@ -322,7 +324,7 @@ export function injectFavoriteSubforumsSidebar(): void {
 	const currentSlug = getCurrentSubforumSlug()
 
 	// Mount React component
-	mountFeature(SIDEBAR_FEATURE_ID, container, <FavoriteSubforumsSidebar currentSlug={currentSlug ?? undefined} />)
+	mountFeatureWithBoundary(SIDEBAR_FEATURE_ID, container, <FavoriteSubforumsSidebar currentSlug={currentSlug ?? undefined} />, 'Sidebar Subforos Favoritos')
 }
 
 /**

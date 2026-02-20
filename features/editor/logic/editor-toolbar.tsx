@@ -16,7 +16,7 @@ import { DraftManager } from '@/features/drafts/components/draft-manager'
 import {
 	isAlreadyInjected,
 	markAsInjected,
-	mountFeature,
+	mountFeatureWithBoundary,
 	isFeatureMounted,
 } from '@/lib/content-modules/utils/react-helpers'
 import { DistributedEditorToolbar } from '../components/distributed-editor-toolbar'
@@ -195,7 +195,7 @@ export async function injectDraftAutosave(): Promise<void> {
 			parent.appendChild(host)
 
 			const featureId = `${FEATURE_IDS.DRAFT_MANAGER_PREFIX}${++draftCounter}`
-			mountFeature(featureId, host, createElement(DraftManager, { textarea: textarea as HTMLTextAreaElement }))
+			mountFeatureWithBoundary(featureId, host, createElement(DraftManager, { textarea: textarea as HTMLTextAreaElement }), 'Gestor de Borradores')
 		}
 	})
 }
@@ -263,13 +263,14 @@ export function injectEditorToolbar(): void {
 
 		const featureId = `${FEATURE_IDS.TOOLBAR_PREFIX}${toolbarCounter}`
 		if (!isFeatureMounted(featureId)) {
-			mountFeature(
+			mountFeatureWithBoundary(
 				featureId,
 				stateHost,
 				createElement(DistributedEditorToolbar, {
 					textarea,
 					toolbarContainer: container as HTMLElement,
-				})
+				}),
+				'Barra de Editor'
 			)
 		}
 	})
@@ -428,13 +429,14 @@ export function injectEditorToolbar(): void {
 
 		const featureId = `${FEATURE_IDS.TOOLBAR_FALLBACK_PREFIX}${++toolbarCounter}`
 		if (!isFeatureMounted(featureId)) {
-			mountFeature(
+			mountFeatureWithBoundary(
 				featureId,
 				host,
 				createElement(DistributedEditorToolbar, {
 					textarea: textarea as HTMLTextAreaElement,
 					toolbarContainer: container,
-				})
+				}),
+				'Barra de Editor'
 			)
 		}
 	})

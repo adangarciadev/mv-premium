@@ -8,7 +8,7 @@
  * TanStack Table in the main content script bundle.
  */
 
-import { mountFeature, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
 import { createElement } from 'react'
 import { FEATURE_IDS } from '@/constants'
 import { DOM_MARKERS } from '@/constants/dom-markers'
@@ -132,7 +132,7 @@ async function showSavedThreadsView(): Promise<void> {
 	// 4. Mount Component
 	if (!isFeatureMounted(SAVED_FEATURE_ID) && container) {
 		const { SavedThreadsTable } = await import('../components/saved-threads-table')
-		mountFeature(SAVED_FEATURE_ID, container, createElement(SavedThreadsTable))
+		mountFeatureWithBoundary(SAVED_FEATURE_ID, container, createElement(SavedThreadsTable), 'Hilos Guardados')
 	}
 }
 
@@ -169,7 +169,7 @@ async function showPinnedPostsView(): Promise<void> {
 	// 4. Mount Component
 	if (!isFeatureMounted(PINNED_FEATURE_ID) && container) {
 		const { WikiPostsTable } = await import('../components/wiki-posts-table')
-		mountFeature(PINNED_FEATURE_ID, container, createElement(WikiPostsTable))
+		mountFeatureWithBoundary(PINNED_FEATURE_ID, container, createElement(WikiPostsTable), 'Posts Fijados')
 	}
 }
 

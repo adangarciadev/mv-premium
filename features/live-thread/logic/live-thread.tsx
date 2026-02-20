@@ -10,7 +10,7 @@
  */
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { mountFeature, unmountFeature, isFeatureMounted, updateFeature } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, unmountFeature, isFeatureMounted, updateFeature } from '@/lib/content-modules/utils/react-helpers'
 import { getStatusActionsRow } from '@/lib/content-modules/utils/extra-actions-row'
 import { isThreadPage, getThreadIdFromUrl } from '@/lib/content-modules/utils/page-detection'
 import { applyStoredTheme } from '@/lib/theme-sync'
@@ -200,7 +200,7 @@ async function startLiveMode(): Promise<void> {
 	await initializeLiveThreadDelay(isLiveThreadDelayEnabled)
 
 	// Mount React header
-	mountFeature(HEADER_FEATURE_ID, appContainer, <LiveHeader onStop={stopLiveMode} />)
+	mountFeatureWithBoundary(HEADER_FEATURE_ID, appContainer, <LiveHeader onStop={stopLiveMode} />, 'Live Thread Header')
 
 	setIsLiveActive(true)
 
@@ -312,7 +312,7 @@ export async function injectLiveThreadButton(): Promise<void> {
 	setupModeExclusionListeners()
 
 	// Mount button
-	mountFeature(BUTTON_FEATURE_ID, container, getButtonElement())
+	mountFeatureWithBoundary(BUTTON_FEATURE_ID, container, getButtonElement(), 'Botón Live Thread')
 }
 
 export function cleanupLiveThreadButton(): void {

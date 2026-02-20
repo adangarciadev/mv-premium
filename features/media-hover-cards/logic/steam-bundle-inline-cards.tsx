@@ -8,7 +8,7 @@
  */
 import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { DOM_MARKERS, FEATURE_IDS, MV_SELECTORS } from '@/constants'
-import { mountFeature, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import { extractSteamBundleId, isSteamBundleUrl } from '@/services/api/steam'
 import { SteamBundleInlineCard } from '../components/steam-bundle-inline-card'
 
@@ -67,12 +67,13 @@ function mountInlineCard(link: HTMLAnchorElement, bundleId: number): void {
 
 	mountedFeatureIds.add(featureId)
 
-	mountFeature(
+	mountFeatureWithBoundary(
 		featureId,
 		container,
 		<ShadowWrapper>
 			<SteamBundleInlineCard bundleId={bundleId} url={link.href} />
-		</ShadowWrapper>
+		</ShadowWrapper>,
+		'Tarjeta Bundle Steam'
 	)
 }
 

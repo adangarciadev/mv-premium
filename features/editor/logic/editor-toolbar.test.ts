@@ -8,6 +8,7 @@ vi.mock('@/lib/content-modules/utils/react-helpers', () => ({
 		injectedNodes.add(el)
 	},
 	mountFeature: vi.fn(),
+	mountFeatureWithBoundary: vi.fn(),
 	isFeatureMounted: vi.fn(() => false),
 }))
 

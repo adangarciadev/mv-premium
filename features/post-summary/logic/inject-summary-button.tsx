@@ -8,7 +8,7 @@ import { MV_SELECTORS, FEATURE_IDS, DOM_MARKERS } from '@/constants'
 import {
 	isAlreadyInjected,
 	markAsInjected,
-	mountFeature,
+	mountFeatureWithBoundary,
 	unmountFeature,
 } from '@/lib/content-modules/utils/react-helpers'
 import { PostSummaryDialog } from '../components/post-summary-dialog'
@@ -66,10 +66,11 @@ function createSummaryButton(postEl: HTMLElement, postNum: number): HTMLLIElemen
 			}
 		}
 
-		mountFeature(
+		mountFeatureWithBoundary(
 			featureId,
 			container,
-			<PostSummaryDialog postElement={postEl} onClose={handleClose} />
+			<PostSummaryDialog postElement={postEl} onClose={handleClose} />,
+			'Resumen de Post'
 		)
 
 		activePopoverId = featureId

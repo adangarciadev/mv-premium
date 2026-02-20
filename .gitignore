@@ -21,6 +21,7 @@ web-ext.config.ts
 .claude/
 .agent/
 LOCAL_GIT_WORKFLOW.md
+auditoria-critica.md
 
 # Editor directories and files
 .vscode/*
