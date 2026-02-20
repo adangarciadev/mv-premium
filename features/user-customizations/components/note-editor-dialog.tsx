@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { mountFeature, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 
 interface NoteEditorDialogProps {
 	username: string
@@ -140,7 +140,7 @@ export function openNoteDialog(username: string, currentNote: string, avatarUrl:
 		}
 
 		const update = (isOpen: boolean) => {
-			mountFeature(
+			mountFeatureWithBoundary(
 				featureId,
 				container,
 				createElement(NoteEditorDialog, {
@@ -153,7 +153,8 @@ export function openNoteDialog(username: string, currentNote: string, avatarUrl:
 					},
 					onSave: note => handleClose(true, note),
 					onCancel: () => handleClose(false, null),
-				})
+				}),
+				'Editor de Nota'
 			)
 		}
 

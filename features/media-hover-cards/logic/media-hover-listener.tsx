@@ -4,7 +4,7 @@
  * Desktop-only implementation as requested.
  * Detects mouseover on TMDB/IMDb links and mounts floating card.
  */
-import { mountFeature, unmountFeature, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, unmountFeature, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
 import { isSupportedUrl } from '@/services/media/unified-resolver'
 import { FEATURE_IDS } from '@/constants/feature-ids'
 import { DesktopCard } from '../components/media-hover-card-desktop'
@@ -58,7 +58,7 @@ function showDesktopCard(link: HTMLAnchorElement) {
 	cardContainer.id = 'mvp-media-hover-card-container'
 	document.body.appendChild(cardContainer)
 
-	mountFeature(
+	mountFeatureWithBoundary(
 		FEATURE_IDS.MEDIA_HOVER_CARD,
 		cardContainer,
 		<DesktopCard
@@ -72,7 +72,8 @@ function showDesktopCard(link: HTMLAnchorElement) {
 				isMouseOverCard = false
 				hideCard()
 			}}
-		/>
+		/>,
+		'Tarjeta Hover Media'
 	)
 }
 

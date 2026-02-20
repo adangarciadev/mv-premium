@@ -6,7 +6,7 @@
  */
 
 import { FEATURE_IDS } from '@/constants/feature-ids'
-import { mountFeature, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { DelayControl } from '../components/delay-control'
 import { isFeatureEnabled, FeatureFlag } from '@/lib/feature-flags'
@@ -57,11 +57,12 @@ function createContainer(): HTMLDivElement {
 }
 
 function mountControl(container: HTMLElement): void {
-	mountFeature(
+	mountFeatureWithBoundary(
 		FEATURE_IDS.NATIVE_LIVE_DELAY_CONTROL,
 		container,
 		<ShadowWrapper className="relative z-50">
 			<DelayControl />
-		</ShadowWrapper>
+		</ShadowWrapper>,
+		'Control de Delay LIVE'
 	)
 }

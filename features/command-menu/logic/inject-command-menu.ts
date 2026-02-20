@@ -35,7 +35,7 @@ async function loadCommandMenu(): Promise<void> {
 
 	loadPromise = (async () => {
 		// Dynamic imports - these chunks are NOT loaded until this function is called
-		const [{ CommandMenu }, { ShadowWrapper }, { mountFeature }] = await Promise.all([
+		const [{ CommandMenu }, { ShadowWrapper }, { mountFeatureWithBoundary }] = await Promise.all([
 			import('../components/command-menu'),
 			import('@/components/shadow-wrapper'),
 			import('@/lib/content-modules/utils/react-helpers'),
@@ -54,7 +54,7 @@ async function loadCommandMenu(): Promise<void> {
 		const container = document.getElementById(CONTAINER_ID)!
 
 		// Mount the component using createElement (no JSX needed)
-		mountFeature(FEATURE_ID, container, createElement(ShadowWrapper, null, createElement(CommandMenu)))
+		mountFeatureWithBoundary(FEATURE_ID, container, createElement(ShadowWrapper, null, createElement(CommandMenu)), 'Menú de Comandos')
 
 		commandMenuLoaded = true
 	})()

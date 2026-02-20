@@ -1,4 +1,4 @@
-import { mountFeature, unmountFeature, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, unmountFeature, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
 import { getMainActionsRow } from '@/lib/content-modules/utils/extra-actions-row'
 import { isThreadPage } from '@/features/gallery/lib/thread-scraper'
 import { SaveThreadButton } from '../components/save-thread-button'
@@ -41,7 +41,7 @@ export function injectSaveThreadButton(): void {
 		// If content is already present in the first container, avoid reinjecting.
 		if (firstContainer.childElementCount > 0) return
 
-		mountFeature(FEATURE_ID, firstContainer, <SaveThreadButton />)
+		mountFeatureWithBoundary(FEATURE_ID, firstContainer, <SaveThreadButton />, 'Guardar Hilo')
 		return
 	}
 
@@ -58,7 +58,7 @@ export function injectSaveThreadButton(): void {
 	mainActions.insertAdjacentElement('afterbegin', container)
 
 	// Mount React component (Directly in Light DOM for native styling)
-	mountFeature(FEATURE_ID, container, <SaveThreadButton />)
+	mountFeatureWithBoundary(FEATURE_ID, container, <SaveThreadButton />, 'Guardar Hilo')
 }
 
 /**

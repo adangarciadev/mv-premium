@@ -8,7 +8,7 @@
  * jszip and other heavy dependencies in the main content script.
  */
 import { getThreadMedia, isThreadPage, type ThreadMedia } from '../lib/thread-scraper'
-import { mountFeature, unmountFeature, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
+import { mountFeatureWithBoundary, unmountFeature, isFeatureMounted } from '@/lib/content-modules/utils/react-helpers'
 import {
 	createThreadActionButton,
 	type ThreadActionButtonResult,
@@ -120,10 +120,11 @@ async function openGallery(): Promise<void> {
 	const { GalleryCarousel } = await import('../components/gallery-carousel')
 
 	// Mount using Root Manager for proper lifecycle management
-	mountFeature(
+	mountFeatureWithBoundary(
 		CAROUSEL_FEATURE_ID,
 		galleryRoot,
-		<GalleryCarousel media={currentMedia} isOpen={true} onClose={closeGallery} />
+		<GalleryCarousel media={currentMedia} isOpen={true} onClose={closeGallery} />,
+		'Galería'
 	)
 }
 
