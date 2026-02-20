@@ -44,10 +44,10 @@ export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: A
 		// 1. Commit the change
 		onChange(localValue)
 		setHasChanges(false)
-		
+
 		// 2. Immediate verification flow
 		setVerifyState('loading')
-		
+
 		if (onVerify) {
 			try {
 				const isValid = await onVerify(localValue)
@@ -97,7 +97,7 @@ export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: A
 					)}
 				/>
 			</div>
-			
+
 			{/* Visibility toggle */}
 			<Button
 				variant="ghost"
@@ -105,6 +105,7 @@ export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: A
 				onClick={() => setShowKey(!showKey)}
 				className="h-9 w-9"
 				title={showKey ? 'Ocultar' : 'Mostrar'}
+				aria-label={showKey ? 'Ocultar clave API' : 'Mostrar clave API'}
 			>
 				{showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
 			</Button>
@@ -118,6 +119,7 @@ export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: A
 						onClick={handleSave}
 						className="h-9 w-9 shrink-0"
 						title="Guardar y verificar"
+						aria-label="Guardar y verificar clave API"
 						disabled={verifyState === 'loading'}
 					>
 						{verifyState === 'loading' ? (
@@ -133,6 +135,7 @@ export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: A
 							onClick={handleCancel}
 							className="h-9 w-9"
 							title="Cancelar"
+							aria-label="Cancelar cambios"
 							disabled={verifyState === 'loading'}
 						>
 							<X className="h-4 w-4" />
@@ -158,13 +161,14 @@ export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: A
 									<Play className="h-4 w-4" />
 								)}
 							</div>
-							
+
 							<Button
 								variant="ghost"
 								size="icon"
 								onClick={handleClear}
 								className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
 								title="Eliminar API Key"
+								aria-label="Eliminar clave API"
 							>
 								<X className="h-4 w-4" />
 							</Button>
@@ -175,4 +179,3 @@ export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: A
 		</div>
 	)
 }
-

@@ -59,27 +59,12 @@ function getDashboardIconHTML(iconType: DashboardIcon): string {
 		case 'logo':
 		default:
 			const iconUrl = browser.runtime.getURL('/icon/48.png')
-			return `<img src="${iconUrl}" class="mv-dashboard-logo" style="width: 20px; height: 20px; vertical-align: middle; transition: all 0.2s ease-in-out; filter: drop-shadow(0 0 0 rgba(255,165,0,0));" />`
+			return `<img src="${iconUrl}" class="mv-dashboard-logo" style="width: 20px; height: 20px; vertical-align: middle; transition: all 0.2s ease-in-out;" />`
 	}
 }
 
-/** Unified badge styles */
-const BADGE_STYLES = `
-	position: absolute;
-	top: -4px;
-	right: -6px;
-	padding: 2px 5px;
-	background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
-	border-radius: 4px;
-	font-size: 8px;
-	font-weight: 700;
-	color: #000;
-	text-transform: uppercase;
-	letter-spacing: 0.3px;
-	box-shadow: 0 2px 4px rgba(245, 158, 11, 0.4);
-	animation: badgePulse 2s ease-in-out infinite;
-	pointer-events: none;
-`
+/** CSS class defined in app.css */
+const BADGE_CLASS = 'mvp-whats-new-badge'
 
 /**
  * Checks for user authentication by detecting the existence of the navbar user menu.
@@ -142,7 +127,7 @@ export async function injectDashboardButton(): Promise<void> {
 	button.innerHTML = `
 		${iconHTML}
 		<span class="title">Dashboard</span>
-		${hasUnseen ? `<span id="${BADGE_ID}" style="${BADGE_STYLES}">NEW</span>` : ''}
+		${hasUnseen ? `<span id="${BADGE_ID}" class="${BADGE_CLASS}">NEW</span>` : ''}
 	`
 
 	// Open options page on click (via typed messaging)
@@ -213,8 +198,8 @@ async function updateBadge(): Promise<void> {
 		if (button) {
 			const badgeEl = document.createElement('span')
 			badgeEl.id = BADGE_ID
+			badgeEl.className = BADGE_CLASS
 			badgeEl.textContent = 'NEW'
-			badgeEl.style.cssText = BADGE_STYLES
 			button.appendChild(badgeEl)
 		}
 	} else if (!hasUnseen && badge) {
