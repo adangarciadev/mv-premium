@@ -390,7 +390,6 @@ export function DraftsList({ isOpen, onClose, onRestore }: DraftsListProps) {
 														draft={draft}
 														isSelected={selectedDraft?.id === draft.id}
 														onSelect={setSelectedDraft}
-														onDelete={d => handleDeleteRequest(d.id)}
 														formatRelativeTime={formatRelativeTime}
 													/>
 												))}
