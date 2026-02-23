@@ -35,3 +35,11 @@ describe('parseBBCode [c] inline code support', () => {
 		expect(html).not.toContain('class="emoji"')
 	})
 })
+
+describe('parseBBCode quote support', () => {
+	it('renders [quote=]...[/quote] as a regular quote when author is empty', async () => {
+		const html = await parseBBCode('Antes\n\n[quote=]Texto citado[/quote]')
+		expect(html).toContain('<blockquote class="quote"><p>Texto citado</p></blockquote>')
+		expect(html).not.toContain('[quote=]')
+	})
+})
