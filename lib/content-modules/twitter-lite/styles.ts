@@ -352,12 +352,70 @@ export const TWITTER_LITE_CSS = `
     padding-left: 0;
 }
 
-/* Date at bottom style — always left-aligned, below media */
+/* Info row: date (left) + metrics (right) */
+.mvp-twitter-lite-info-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+    margin-bottom: 2px;
+}
+
 .mvp-twitter-lite-bottom-date {
     font-size: 15px;
     color: #8b98a5;
-    margin-top: 8px;
-    margin-bottom: 2px;
+    white-space: nowrap;
+}
+
+.mvp-twitter-lite-metrics {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    line-height: 1;
+    margin-left: auto;
+}
+
+.mvp-twitter-lite-metric {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    color: #8b98a5;
+}
+
+.mvp-twitter-lite-metric-icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.mvp-twitter-lite-metric-icon svg {
+    display: block;
+}
+
+.mvp-twitter-lite-metric-value {
+    color: #e7e9ea;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+/* Metric-specific icon colors */
+.mvp-twitter-lite-metric--like .mvp-twitter-lite-metric-icon {
+    color: #f91880;
+}
+
+.mvp-twitter-lite-metric--retweet .mvp-twitter-lite-metric-icon {
+    color: #00ba7c;
+}
+
+.mvp-twitter-lite-metric--reply .mvp-twitter-lite-metric-icon {
+    color: #1d9bf0;
+}
+
+.mvp-twitter-lite-metric--quote .mvp-twitter-lite-metric-icon {
+    color: #1d9bf0;
 }
 
 /* Avatar representation (dot or image placeholder) */

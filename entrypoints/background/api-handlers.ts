@@ -213,6 +213,40 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null
 }
 
+function asNonNegativeInteger(value: unknown): number | undefined {
+	if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+		return Math.trunc(value)
+	}
+
+	if (typeof value === 'string') {
+		const trimmed = value.trim()
+		if (!trimmed) return undefined
+		const parsed = Number(trimmed)
+		if (Number.isFinite(parsed) && parsed >= 0) {
+			return Math.trunc(parsed)
+		}
+	}
+
+	return undefined
+}
+
+function readTweetCount(payload: Record<string, unknown>, ...keys: string[]): number | undefined {
+	for (const key of keys) {
+		const count = asNonNegativeInteger(payload[key])
+		if (typeof count === 'number') return count
+	}
+
+	const legacy = isRecord(payload.legacy) ? payload.legacy : null
+	if (!legacy) return undefined
+
+	for (const key of keys) {
+		const count = asNonNegativeInteger(legacy[key])
+		if (typeof count === 'number') return count
+	}
+
+	return undefined
+}
+
 async function fetchRecordWithTimeout(url: string, init?: RequestInit): Promise<Record<string, unknown> | null> {
 	const controller = new AbortController()
 	const timeoutId = setTimeout(() => controller.abort(), TWITTER_FETCH_TIMEOUT_MS)
@@ -282,6 +316,10 @@ function extractTweetLiteDataFromSyndication(payload: Record<string, unknown>, f
 	const displayName = asTrimmedString(user?.name) || (username ? `@${username}` : 'Tweet')
 	const isVerified = Boolean(user?.verified === true || user?.is_blue_verified === true)
 	const createdAt = formatTweetDateLabel(asTrimmedString(payload.created_at))
+	const replyCount = readTweetCount(payload, 'reply_count', 'replyCount', 'conversation_count', 'conversationCount')
+	const retweetCount = readTweetCount(payload, 'retweet_count', 'retweetCount')
+	const quoteCount = readTweetCount(payload, 'quote_count', 'quoteCount')
+	const likeCount = readTweetCount(payload, 'favorite_count', 'like_count', 'favoriteCount', 'likeCount')
 
 	const photosRaw = payload.photos
 	const photos = Array.isArray(photosRaw) ? photosRaw : []
@@ -378,6 +416,10 @@ function extractTweetLiteDataFromSyndication(payload: Record<string, unknown>, f
 		isVerified,
 		verifiedType,
 		createdAt,
+		replyCount,
+		retweetCount,
+		quoteCount,
+		likeCount,
 		authorAvatarUrl,
 	}
 }
@@ -593,6 +635,10 @@ function enrichWithSyndicationData(
 	tweetData.verifiedType = syndicationData.verifiedType
 	tweetData.createdAt = syndicationData.createdAt
 	tweetData.authorAvatarUrl = syndicationData.authorAvatarUrl
+	tweetData.replyCount = syndicationData.replyCount
+	tweetData.retweetCount = syndicationData.retweetCount
+	tweetData.quoteCount = syndicationData.quoteCount
+	tweetData.likeCount = syndicationData.likeCount
 
 	if (syndicationData.mediaUrls && syndicationData.mediaUrls.length > 0) {
 		tweetData.mediaUrls = syndicationData.mediaUrls
