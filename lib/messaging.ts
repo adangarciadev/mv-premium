@@ -54,6 +54,10 @@ export interface TweetLiteData {
 	thumbnailUrl?: string
 	isVerified?: boolean
 	createdAt?: string
+	replyCount?: number
+	retweetCount?: number
+	quoteCount?: number
+	likeCount?: number
 	replyTo?: {
 		username: string
 		displayName: string

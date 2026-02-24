@@ -390,6 +390,18 @@ async function fetchTwitterLiteData(tweetUrl: string): Promise<TwitterLiteCardDa
 			isVerified: result.data.isVerified === true,
             verifiedType: typeof result.data.verifiedType === 'string' ? result.data.verifiedType : undefined,
 			createdAt: typeof result.data.createdAt === 'string' ? result.data.createdAt.trim() || undefined : undefined,
+			replyCount: typeof result.data.replyCount === 'number' && Number.isFinite(result.data.replyCount)
+				? Math.max(0, Math.trunc(result.data.replyCount))
+				: undefined,
+			retweetCount: typeof result.data.retweetCount === 'number' && Number.isFinite(result.data.retweetCount)
+				? Math.max(0, Math.trunc(result.data.retweetCount))
+				: undefined,
+			quoteCount: typeof result.data.quoteCount === 'number' && Number.isFinite(result.data.quoteCount)
+				? Math.max(0, Math.trunc(result.data.quoteCount))
+				: undefined,
+			likeCount: typeof result.data.likeCount === 'number' && Number.isFinite(result.data.likeCount)
+				? Math.max(0, Math.trunc(result.data.likeCount))
+				: undefined,
             authorAvatarUrl: typeof result.data.authorAvatarUrl === 'string' ? result.data.authorAvatarUrl.trim() || undefined : undefined,
 			// Media: pass through image URLs and video info
 			mediaUrls: Array.isArray(result.data.mediaUrls) && result.data.mediaUrls.length > 0 ? result.data.mediaUrls : undefined,

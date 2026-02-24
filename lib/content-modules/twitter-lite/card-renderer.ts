@@ -10,6 +10,15 @@ const LINK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
 
 const CHECK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
 
+// Metric icons (Twitter-style)
+const REPLY_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M1.751 10c0-4.42 3.584-8 8.005-8h4.366c4.49 0 8.129 3.64 8.129 8.13 0 2.96-1.607 5.68-4.196 7.11l-8.054 4.46v-3.69h-.067c-4.49.1-8.183-3.51-8.183-8.01zm8.005-6c-3.317 0-6.005 2.69-6.005 6 0 3.37 2.77 6.08 6.138 6.01l.351-.01h1.761v2.3l5.087-2.81c1.951-1.08 3.163-3.13 3.163-5.36 0-3.39-2.744-6.13-6.129-6.13H9.756z"/></svg>`
+
+const RETWEET_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"/></svg>`
+
+const HEART_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M20.884 13.19c-1.351 2.48-4.001 5.12-8.379 7.67l-.503.3-.504-.3c-4.379-2.55-7.029-5.19-8.382-7.67-1.36-2.5-1.41-4.86-.514-6.67.887-1.79 2.647-2.91 4.601-3.01 1.651-.09 3.368.56 4.798 2.01 1.429-1.45 3.146-2.1 4.796-2.01 1.954.1 3.714 1.22 4.601 3.01.896 1.81.846 4.17-.514 6.67z"/></svg>`
+
+const QUOTE_ICON_SVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M4 4l16 0c1.1 0 2 .9 2 2l0 10c0 1.1-.9 2-2 2l-2 0 0 3-4-3-10 0c-1.1 0-2-.9-2-2L2 6c0-1.1.9-2 2-2z"/></svg>`
+
 function isSafeImageUrl(url: string): boolean {
 	try {
 		const parsed = new URL(url)
@@ -17,6 +26,10 @@ function isSafeImageUrl(url: string): boolean {
 	} catch {
 		return false
 	}
+}
+
+function formatMetricCount(value: number): string {
+    return value.toLocaleString('es-ES');
 }
 
 export function injectTwitterLiteStyles(): void {
@@ -412,12 +425,49 @@ export function createTwitterLiteCard(data: TwitterLiteCardData, loading = false
         wrapper.appendChild(quoteCard);
     }
 
-    // Date at bottom — always below media, left-aligned
-    if (data.createdAt) {
-        const dateContainer = document.createElement('div');
-        dateContainer.className = 'mvp-twitter-lite-bottom-date';
-        dateContainer.textContent = data.createdAt;
-        wrapper.appendChild(dateContainer);
+    // Date + metrics row (date left, metrics right)
+    const metrics: Array<{ label: string; value: number; icon: string; type: string }> = [];
+    if (typeof data.replyCount === 'number') metrics.push({ label: 'Respuestas', value: data.replyCount, icon: REPLY_ICON_SVG, type: 'reply' });
+    if (typeof data.retweetCount === 'number') metrics.push({ label: 'Retweets', value: data.retweetCount, icon: RETWEET_ICON_SVG, type: 'retweet' });
+    if (typeof data.quoteCount === 'number') metrics.push({ label: 'Citas', value: data.quoteCount, icon: QUOTE_ICON_SVG, type: 'quote' });
+    if (typeof data.likeCount === 'number') metrics.push({ label: 'Me gusta', value: data.likeCount, icon: HEART_ICON_SVG, type: 'like' });
+
+    if (data.createdAt || metrics.length > 0) {
+        const infoRow = document.createElement('div');
+        infoRow.className = 'mvp-twitter-lite-info-row';
+
+        if (data.createdAt) {
+            const dateEl = document.createElement('span');
+            dateEl.className = 'mvp-twitter-lite-bottom-date';
+            dateEl.textContent = data.createdAt;
+            infoRow.appendChild(dateEl);
+        }
+
+        if (metrics.length > 0) {
+            const metricsGroup = document.createElement('span');
+            metricsGroup.className = 'mvp-twitter-lite-metrics';
+
+            for (const metric of metrics) {
+                const metricItem = document.createElement('span');
+                metricItem.className = `mvp-twitter-lite-metric mvp-twitter-lite-metric--${metric.type}`;
+                metricItem.title = metric.label;
+
+                const iconEl = document.createElement('span');
+                iconEl.className = 'mvp-twitter-lite-metric-icon';
+                iconEl.innerHTML = metric.icon;
+
+                const metricValue = document.createElement('span');
+                metricValue.className = 'mvp-twitter-lite-metric-value';
+                metricValue.textContent = formatMetricCount(metric.value);
+
+                metricItem.append(iconEl, metricValue);
+                metricsGroup.appendChild(metricItem);
+            }
+
+            infoRow.appendChild(metricsGroup);
+        }
+
+        wrapper.appendChild(infoRow);
     }
 
     // Footer actions
