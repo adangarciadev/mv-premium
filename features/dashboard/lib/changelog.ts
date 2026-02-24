@@ -21,6 +21,65 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.4.1',
+		date: '2026-02-24',
+		title: 'Twitter Lite y Estabilidad',
+		summary:
+			'Embeds ligeros de Twitter/X con métricas de engagement, error boundaries en todas las funcionalidades, mejoras de accesibilidad y correcciones varias.',
+		changes: [
+			// NEW FEATURES
+			{
+				type: 'feature',
+				description:
+					'Embeds ligeros de Twitter/X: Los enlaces a tweets se renderizan como tarjetas compactas con avatar, texto, media e interacciones sin cargar el widget oficial.',
+				category: 'Multimedia',
+			},
+			{
+				type: 'feature',
+				description:
+					'Métricas de engagement en Twitter Lite: Las tarjetas muestran likes, respuestas y retweets con iconos estilo Twitter y colores distintivos.',
+				category: 'Multimedia',
+			},
+
+			// IMPROVEMENTS
+			{
+				type: 'improvement',
+				description:
+					'Mayor estabilidad: Si una funcionalidad falla, se captura y registra sin afectar al resto de la extensión.',
+				category: 'Estabilidad',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Accesibilidad mejorada: Atributos aria en componentes del dashboard, toast al copiar resumen de hilo, y colores de esqueleto adaptados al tema.',
+				category: 'Accesibilidad',
+			},
+
+			// FIXES
+			{
+				type: 'fix',
+				description: 'Corregido el renderizado de citas [quote=] en el dashboard y la vista previa en vivo.',
+				category: 'Editor',
+			},
+			{
+				type: 'fix',
+				description: 'El video flotante de YouTube se mantiene visible en el viewport tras hacer zoom en posts centrados.',
+				category: 'Multimedia',
+			},
+			{
+				type: 'fix',
+				description:
+					'Los botones de ocultar y guardar hilo ahora aparecen correctamente en nuevos mensajes del spy, y los hilos ocultos ya no reaparecen al recibir actividad.',
+				category: 'Navegación',
+			},
+			{
+				type: 'fix',
+				description: 'El contador de caracteres ya no aparece al escribir mensajes privados.',
+				category: 'Editor',
+			},
+		],
+	},
+	{
 		version: '1.4.0',
 		date: '2026-02-16',
 		title: 'Tema de Mediavida y Homepage Rediseñada',
