@@ -1,6 +1,12 @@
 import type { TwitterLiteCardData } from './types'
 import { TWITTER_LITE_CSS, TWITTER_LITE_STYLE_ID } from './styles'
 
+const TWITTER_LITE_THEME_LIGHT_CLASS = 'mvp-twitter-lite-theme-light'
+const TWITTER_LITE_THEME_DARK_CLASS = 'mvp-twitter-lite-theme-dark'
+const THEME_CONTEXT_SELECTORS = '.post, .rep, .post-contents, .post-body, .cuerpo'
+const TWITTER_LITE_MIN_ICON_CONTRAST = 2.4
+const TWITTER_LITE_MIN_TEXT_CONTRAST = 4.5
+
 // Icons (Lucide)
 const X_LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`
 
@@ -40,6 +46,183 @@ export function injectTwitterLiteStyles(): void {
 		document.head.appendChild(style);
 	}
 	style.textContent = TWITTER_LITE_CSS;
+}
+
+export function syncTwitterLiteCardTheme(card: HTMLElement): void {
+	const theme = detectTwitterLiteTheme(card)
+	card.classList.remove(TWITTER_LITE_THEME_LIGHT_CLASS, TWITTER_LITE_THEME_DARK_CLASS)
+	if (theme === 'light') card.classList.add(TWITTER_LITE_THEME_LIGHT_CLASS)
+	if (theme === 'dark') card.classList.add(TWITTER_LITE_THEME_DARK_CLASS)
+	applyTwitterLiteContrastOverrides(card)
+}
+
+type RgbaColor = { r: number; g: number; b: number; a: number }
+
+function detectTwitterLiteTheme(card: HTMLElement): 'light' | 'dark' | null {
+	const context = card.closest<HTMLElement>(THEME_CONTEXT_SELECTORS) ?? card.parentElement
+	const bg = findFirstOpaqueBackground(context)
+	if (bg) return getPerceivedLuminance(bg) < 0.5 ? 'dark' : 'light'
+
+	const color = findFirstTextColor(context)
+	if (color) return getPerceivedLuminance(color) > 0.6 ? 'dark' : 'light'
+
+	return null
+}
+
+function findFirstOpaqueBackground(start: HTMLElement | null): RgbaColor | null {
+	let el: HTMLElement | null = start
+	while (el) {
+		const parsed = parseCssColor(getComputedStyle(el).backgroundColor)
+		if (parsed && parsed.a > 0.01) return parsed
+		el = el.parentElement
+	}
+
+	const bodyColor = parseCssColor(getComputedStyle(document.body).backgroundColor)
+	if (bodyColor && bodyColor.a > 0.01) return bodyColor
+	return null
+}
+
+function findFirstTextColor(start: HTMLElement | null): RgbaColor | null {
+	let el: HTMLElement | null = start
+	while (el) {
+		const parsed = parseCssColor(getComputedStyle(el).color)
+		if (parsed) return parsed
+		el = el.parentElement
+	}
+	return parseCssColor(getComputedStyle(document.body).color)
+}
+
+function parseCssColor(value: string): RgbaColor | null {
+	const match = value.match(/rgba?\(([^)]+)\)/i)
+	if (!match) return null
+
+	const parts = match[1].split(',').map(part => part.trim())
+	if (parts.length < 3) return null
+
+	const r = Number.parseFloat(parts[0])
+	const g = Number.parseFloat(parts[1])
+	const b = Number.parseFloat(parts[2])
+	const a = parts[3] !== undefined ? Number.parseFloat(parts[3]) : 1
+
+	if ([r, g, b, a].some(n => Number.isNaN(n))) return null
+	return { r, g, b, a }
+}
+
+function getPerceivedLuminance({ r, g, b }: Pick<RgbaColor, 'r' | 'g' | 'b'>): number {
+	// Standard sRGB relative luminance approximation (0..1)
+	return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+}
+
+function applyTwitterLiteContrastOverrides(card: HTMLElement): void {
+	const background = parseCssColor(getComputedStyle(card).backgroundColor)
+	if (!background || background.a <= 0.01) return
+
+	const darkPrimary = hexToColor('#0f1419')
+	const darkSecondary = hexToColor('#536471')
+	const lightPrimary = hexToColor('#e7e9ea')
+	const lightSecondary = hexToColor('#8b98a5')
+
+	const darkPrimaryContrast = getContrastRatio(background, darkPrimary)
+	const lightPrimaryContrast = getContrastRatio(background, lightPrimary)
+
+	const useLightText = lightPrimaryContrast > darkPrimaryContrast
+	const primary = useLightText ? lightPrimary : darkPrimary
+	const secondary = useLightText ? lightSecondary : darkSecondary
+
+	const ensuredPrimary = ensureContrast(primary, background, TWITTER_LITE_MIN_TEXT_CONTRAST)
+	const ensuredSecondary = ensureContrast(secondary, background, 3.2)
+
+	card.style.setProperty('--twl-text', formatRgb(ensuredPrimary))
+	card.style.setProperty('--twl-text-secondary', formatRgb(ensuredSecondary))
+	card.style.setProperty('--twl-metric-value-color', formatRgb(ensuredPrimary))
+
+	const brandColors = {
+		'--twl-metric-like-icon': '#f91880',
+		'--twl-metric-retweet-icon': '#00ba7c',
+		'--twl-metric-reply-icon': '#1d9bf0',
+		'--twl-metric-quote-icon': '#1d9bf0',
+	} as const
+
+	for (const [cssVar, hex] of Object.entries(brandColors)) {
+		const base = hexToColor(hex)
+		const adjusted = ensureContrast(base, background, TWITTER_LITE_MIN_ICON_CONTRAST, ensuredPrimary)
+		card.style.setProperty(cssVar, formatRgb(adjusted))
+	}
+}
+
+function ensureContrast(
+	foreground: Pick<RgbaColor, 'r' | 'g' | 'b'>,
+	background: Pick<RgbaColor, 'r' | 'g' | 'b'>,
+	minRatio: number,
+	fallbackTarget?: Pick<RgbaColor, 'r' | 'g' | 'b'>
+): Pick<RgbaColor, 'r' | 'g' | 'b'> {
+	if (getContrastRatio(background, foreground) >= minRatio) return foreground
+
+	const target = fallbackTarget ?? (getPerceivedLuminance(background) < 0.5 ? hexToColor('#f8fafc') : hexToColor('#111827'))
+	let best = foreground
+
+	for (let i = 1; i <= 12; i++) {
+		const t = i / 12
+		const candidate = blendColors(foreground, target, t)
+		best = candidate
+		if (getContrastRatio(background, candidate) >= minRatio) {
+			return candidate
+		}
+	}
+
+	return best
+}
+
+function blendColors(
+	a: Pick<RgbaColor, 'r' | 'g' | 'b'>,
+	b: Pick<RgbaColor, 'r' | 'g' | 'b'>,
+	t: number
+): Pick<RgbaColor, 'r' | 'g' | 'b'> {
+	return {
+		r: Math.round(a.r + (b.r - a.r) * t),
+		g: Math.round(a.g + (b.g - a.g) * t),
+		b: Math.round(a.b + (b.b - a.b) * t),
+	}
+}
+
+function hexToColor(hex: string): Pick<RgbaColor, 'r' | 'g' | 'b'> {
+	const normalized = hex.replace('#', '')
+	const value = normalized.length === 3
+		? normalized.split('').map(ch => ch + ch).join('')
+		: normalized
+
+	return {
+		r: Number.parseInt(value.slice(0, 2), 16),
+		g: Number.parseInt(value.slice(2, 4), 16),
+		b: Number.parseInt(value.slice(4, 6), 16),
+	}
+}
+
+function formatRgb({ r, g, b }: Pick<RgbaColor, 'r' | 'g' | 'b'>): string {
+	return `rgb(${r}, ${g}, ${b})`
+}
+
+function getContrastRatio(
+	background: Pick<RgbaColor, 'r' | 'g' | 'b'>,
+	foreground: Pick<RgbaColor, 'r' | 'g' | 'b'>
+): number {
+	const l1 = getRelativeLuminance(background)
+	const l2 = getRelativeLuminance(foreground)
+	const lighter = Math.max(l1, l2)
+	const darker = Math.min(l1, l2)
+	return (lighter + 0.05) / (darker + 0.05)
+}
+
+function getRelativeLuminance({ r, g, b }: Pick<RgbaColor, 'r' | 'g' | 'b'>): number {
+	const toLinear = (channel: number): number => {
+		const c = channel / 255
+		return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+	}
+
+	const rl = toLinear(r)
+	const gl = toLinear(g)
+	const bl = toLinear(b)
+	return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl
 }
 
 /**

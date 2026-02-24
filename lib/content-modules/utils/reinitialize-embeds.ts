@@ -21,7 +21,7 @@
 
 import { logger } from '@/lib/logger'
 import { sendMessage } from '@/lib/messaging'
-import { createTwitterLiteCard, injectTwitterLiteStyles } from '../twitter-lite/card-renderer'
+import { createTwitterLiteCard, injectTwitterLiteStyles, syncTwitterLiteCardTheme } from '../twitter-lite/card-renderer'
 import type { TwitterLiteCardData } from '../twitter-lite/types'
 import { normalizeTweetUrl, TWITTER_LITE_ALLOW_PARAM, TWITTER_LITE_ALLOW_VALUE } from '../twitter-lite/utils'
 
@@ -497,7 +497,9 @@ async function replaceTwitterEmbedWithLiteCard(
 
 	embedContainer.setAttribute(TWITTER_LITE_LOADING_ATTR, 'true')
 	embedContainer.innerHTML = ''
-	embedContainer.appendChild(createTwitterLiteCard({ ...fallbackData, text: '' }, true))
+	const loadingCard = createTwitterLiteCard({ ...fallbackData, text: '' }, true)
+	embedContainer.appendChild(loadingCard)
+	syncTwitterLiteCardTheme(loadingCard)
 
 	let data: TwitterLiteCardData | null = null
 	if (allowNetworkFetch) {
@@ -511,6 +513,7 @@ async function replaceTwitterEmbedWithLiteCard(
 		canExpandTweet,
 	})
 	embedContainer.appendChild(card)
+	syncTwitterLiteCardTheme(card)
 
 	if (canExpandTweet && embedSrc) {
 		const mediaButton = card.querySelector<HTMLButtonElement>('.mvp-twitter-lite-media-btn')

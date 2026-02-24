@@ -2,15 +2,29 @@ export const TWITTER_LITE_STYLE_ID = 'mvp-twitter-lite-styles'
 
 export const TWITTER_LITE_CSS = `
 .mvp-twitter-lite-card {
+    --twl-bg: #15202b;
+    --twl-bg-hover: #1a2d3d;
+    --twl-border: #38444d;
+    --twl-text: #e7e9ea;
+    --twl-text-secondary: #8b98a5;
+    --twl-metric-value-color: var(--twl-text);
+    --twl-metric-like-icon: #f91880;
+    --twl-metric-retweet-icon: #00ba7c;
+    --twl-metric-reply-icon: #1d9bf0;
+    --twl-metric-quote-icon: #1d9bf0;
+    --twl-img-bg: #000;
+    --twl-hover-overlay: rgba(255, 255, 255, 0.06);
+    --twl-hover-overlay-subtle: rgba(255, 255, 255, 0.03);
+
     display: block;
     width: min(100%, 550px);
     max-width: 550px;
     box-sizing: border-box;
     padding: 12px 16px;
     border-radius: 12px;
-    border: 1px solid #38444d;
-    background: #15202b;
-    color: #e7e9ea;
+    border: 1px solid var(--twl-border);
+    background: var(--twl-bg);
+    color: var(--twl-text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     font-size: 15px;
     line-height: 1.5;
@@ -21,8 +35,42 @@ export const TWITTER_LITE_CSS = `
     cursor: pointer;
 }
 
+:root:not(.dark) .mvp-twitter-lite-card {
+    --twl-bg: #ffffff;
+    --twl-bg-hover: #f7f9f9;
+    --twl-border: #cfd9de;
+    --twl-text: #0f1419;
+    --twl-text-secondary: #536471;
+    --twl-img-bg: #f5f5f5;
+    --twl-hover-overlay: rgba(0, 0, 0, 0.03);
+    --twl-hover-overlay-subtle: rgba(0, 0, 0, 0.03);
+}
+
+/* Explicit runtime theme classes (computed from surrounding MV post colors). */
+:root .mvp-twitter-lite-card.mvp-twitter-lite-theme-light {
+    --twl-bg: #ffffff;
+    --twl-bg-hover: #f7f9f9;
+    --twl-border: #cfd9de;
+    --twl-text: #0f1419;
+    --twl-text-secondary: #536471;
+    --twl-img-bg: #f5f5f5;
+    --twl-hover-overlay: rgba(0, 0, 0, 0.03);
+    --twl-hover-overlay-subtle: rgba(0, 0, 0, 0.03);
+}
+
+:root .mvp-twitter-lite-card.mvp-twitter-lite-theme-dark {
+    --twl-bg: #15202b;
+    --twl-bg-hover: #1a2d3d;
+    --twl-border: #38444d;
+    --twl-text: #e7e9ea;
+    --twl-text-secondary: #8b98a5;
+    --twl-img-bg: #000;
+    --twl-hover-overlay: rgba(255, 255, 255, 0.06);
+    --twl-hover-overlay-subtle: rgba(255, 255, 255, 0.03);
+}
+
 .mvp-twitter-lite-card:hover {
-    background: #1a2d3d;
+    background: var(--twl-bg-hover);
 }
 
 .mvp-twitter-lite-header {
@@ -41,7 +89,7 @@ export const TWITTER_LITE_CSS = `
     overflow: hidden;
     line-height: 1.3;
     /* Height roughly matches 40px avatar: 2 lines * ~18px + gaps */
-    height: 40px; 
+    height: 40px;
     justify-content: center; /* Vertically center nicely against avatar */
 }
 
@@ -65,7 +113,7 @@ export const TWITTER_LITE_CSS = `
 
 .mvp-twitter-lite-display-name {
     font-weight: 700;
-    color: #e7e9ea;
+    color: var(--twl-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -80,22 +128,22 @@ export const TWITTER_LITE_CSS = `
 
 /* Handle is on its own line now, remove left margin */
 .mvp-twitter-lite-username {
-    color: #8b98a5;
+    color: var(--twl-text-secondary);
     font-size: 14px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-left: 0; 
+    margin-left: 0;
 }
 
 .mvp-twitter-lite-separator-dot {
-    color: #8b98a5;
+    color: var(--twl-text-secondary);
     font-size: 14px;
     margin: 0 4px;
 }
 
 .mvp-twitter-lite-date {
-    color: #8b98a5;
+    color: var(--twl-text-secondary);
     font-size: 15px;
     white-space: nowrap;
 }
@@ -117,7 +165,7 @@ export const TWITTER_LITE_CSS = `
     gap: 2px;
     width: 100%;
     border-radius: 12px;
-    border: 1px solid #38444d;
+    border: 1px solid var(--twl-border);
     margin-top: 10px;
     overflow: hidden;
     position: relative;
@@ -180,7 +228,7 @@ export const TWITTER_LITE_CSS = `
 /* Single image: show fully, don't crop */
 .mvp-twitter-lite-media-preview[data-count="1"] .mvp-twitter-lite-media-item img {
     object-fit: contain;
-    background: #000;
+    background: var(--twl-img-bg);
 }
 
 /* Video thumbnail: play button overlay */
@@ -208,7 +256,7 @@ export const TWITTER_LITE_CSS = `
     justify-content: space-between;
     margin-top: 10px;
     padding-top: 10px;
-    border-top: 1px solid #38444d;
+    border-top: 1px solid var(--twl-border);
 }
 
 .mvp-twitter-lite-actions {
@@ -220,7 +268,7 @@ export const TWITTER_LITE_CSS = `
     display: flex;
     align-items: center;
     gap: 6px;
-    color: #8b98a5;
+    color: var(--twl-text-secondary);
     font-size: 13px;
     font-weight: 500;
     text-decoration: none;
@@ -260,7 +308,7 @@ export const TWITTER_LITE_CSS = `
     font-size: 12px;
     color: var(--main-link, #1d9bf0);
     background: transparent;
-    border: 1px solid #38444d;
+    border: 1px solid var(--twl-border);
     padding: 5px 12px;
     border-radius: 999px;
     cursor: pointer;
@@ -268,7 +316,7 @@ export const TWITTER_LITE_CSS = `
 }
 
 .mvp-twitter-lite-show-original-btn:hover {
-    background: rgba(255, 255, 255, 0.06);
+    background: var(--twl-hover-overlay);
     border-color: var(--main-link, #1d9bf0);
 }
 
@@ -277,7 +325,7 @@ export const TWITTER_LITE_CSS = `
     position: absolute;
     top: 12px;
     right: 12px;
-    color: #e7e9ea;
+    color: var(--twl-text);
     opacity: 0.35;
     transition: all 0.2s;
     pointer-events: none;
@@ -319,7 +367,7 @@ export const TWITTER_LITE_CSS = `
     top: 44px;  /* Start just below top avatar */
     bottom: -4px; /* Extend into the next item's area exactly to its avatar top */
     width: 2px;
-    background-color: #38444d;
+    background-color: var(--twl-border);
     z-index: 1;
     display: none;
     pointer-events: none;
@@ -341,7 +389,7 @@ export const TWITTER_LITE_CSS = `
     line-height: 1.5;
     white-space: pre-wrap;
     word-break: break-word;
-    color: #e7e9ea;
+    color: var(--twl-text);
     display: block;
     clear: both;
 }
@@ -364,7 +412,7 @@ export const TWITTER_LITE_CSS = `
 
 .mvp-twitter-lite-bottom-date {
     font-size: 15px;
-    color: #8b98a5;
+    color: var(--twl-text-secondary);
     white-space: nowrap;
 }
 
@@ -382,7 +430,7 @@ export const TWITTER_LITE_CSS = `
     align-items: center;
     gap: 5px;
     white-space: nowrap;
-    color: #8b98a5;
+    color: var(--twl-text-secondary);
 }
 
 .mvp-twitter-lite-metric-icon {
@@ -396,26 +444,26 @@ export const TWITTER_LITE_CSS = `
 }
 
 .mvp-twitter-lite-metric-value {
-    color: #e7e9ea;
+    color: var(--twl-metric-value-color, var(--twl-text));
     font-weight: 700;
     font-size: 13px;
 }
 
 /* Metric-specific icon colors */
 .mvp-twitter-lite-metric--like .mvp-twitter-lite-metric-icon {
-    color: #f91880;
+    color: var(--twl-metric-like-icon);
 }
 
 .mvp-twitter-lite-metric--retweet .mvp-twitter-lite-metric-icon {
-    color: #00ba7c;
+    color: var(--twl-metric-retweet-icon);
 }
 
 .mvp-twitter-lite-metric--reply .mvp-twitter-lite-metric-icon {
-    color: #1d9bf0;
+    color: var(--twl-metric-reply-icon);
 }
 
 .mvp-twitter-lite-metric--quote .mvp-twitter-lite-metric-icon {
-    color: #1d9bf0;
+    color: var(--twl-metric-quote-icon);
 }
 
 /* Avatar representation (dot or image placeholder) */
@@ -426,8 +474,8 @@ export const TWITTER_LITE_CSS = `
     width: 40px; /* Larger avatar as requested */
     height: 40px;
     border-radius: 50%;
-    background-color: #8b98a5;
-    border: 2px solid #15202b; /* Border to cut line if needed, mainly aesthetic */
+    background-color: var(--twl-text-secondary);
+    border: 2px solid var(--twl-bg); /* Border to cut line if needed, mainly aesthetic */
     z-index: 2;
     background-size: cover;
     background-position: center;
@@ -451,7 +499,7 @@ export const TWITTER_LITE_CSS = `
 
 .mvp-twitter-lite-thread-item:not(.current) .mvp-twitter-lite-content {
     font-size: 14px;
-    color: #8b98a5;
+    color: var(--twl-text-secondary);
     margin-top: 2px;
     margin-bottom: 8px;
 }
@@ -459,7 +507,7 @@ export const TWITTER_LITE_CSS = `
 /* Main/Current tweet specific styles */
 .mvp-twitter-lite-thread-item.current .mvp-twitter-lite-thread-avatar-dot {
     /* If image present, border color ensures separation from dark bg */
-    border-color: #15202b;
+    border-color: var(--twl-bg);
     width: 40px;
     height: 40px;
     left: 4px;
@@ -486,7 +534,7 @@ export const TWITTER_LITE_CSS = `
 .mvp-twitter-lite-reply-context {
     font-size: 13px;
     margin-top: 4px;
-    color: #8b98a5;
+    color: var(--twl-text-secondary);
 }
 
 .mvp-twitter-lite-reply-context a {
@@ -497,7 +545,7 @@ export const TWITTER_LITE_CSS = `
 
 /* --- QUOTED TWEET CARD --- */
 .mvp-twitter-lite-quote-card {
-    border: 1px solid #38444d;
+    border: 1px solid var(--twl-border);
     border-radius: 12px;
     padding: 10px 12px;
     margin-top: 10px;
@@ -507,7 +555,7 @@ export const TWITTER_LITE_CSS = `
 }
 
 .mvp-twitter-lite-quote-card:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--twl-hover-overlay-subtle);
 }
 
 .mvp-twitter-lite-quote-header {
@@ -526,7 +574,7 @@ export const TWITTER_LITE_CSS = `
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    background-color: #8b98a5;
+    background-color: var(--twl-text-secondary);
     background-size: cover;
     background-position: center;
     flex-shrink: 0;
@@ -553,7 +601,7 @@ export const TWITTER_LITE_CSS = `
 .mvp-twitter-lite-quote-text {
     font-size: 14px;
     line-height: 1.4;
-    color: #e7e9ea;
+    color: var(--twl-text);
     white-space: pre-wrap;
     word-break: break-word;
 }
@@ -577,7 +625,7 @@ export const TWITTER_LITE_CSS = `
     width: 100%;
     height: auto;
     object-fit: contain;
-    background: #000;
+    background: var(--twl-img-bg);
 }
 
 /* Skeleton loader */
@@ -593,7 +641,7 @@ export const TWITTER_LITE_CSS = `
 
 .mvp-twitter-lite-skeleton-line {
     height: 14px;
-    background-color: #38444d;
+    background-color: var(--twl-border);
     border-radius: 4px;
     margin-bottom: 8px;
 }
