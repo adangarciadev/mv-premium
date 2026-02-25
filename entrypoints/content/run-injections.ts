@@ -272,8 +272,26 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 			const { replaceTwitterEmbedsWithLite, startTwitterLiteEmbedGuard } = await import(
 				'@/lib/content-modules/utils/reinitialize-embeds'
 			)
-			startTwitterLiteEmbedGuard()
-			replaceTwitterEmbedsWithLite(document)
+			const initTwitterLiteEmbeds = () => {
+				startTwitterLiteEmbedGuard()
+				replaceTwitterEmbedsWithLite(document)
+			}
+
+			const isFirefox = /firefox/i.test(globalThis.navigator?.userAgent || '')
+			if (isFirefox && document.readyState !== 'complete') {
+				logger.debug('Delaying Twitter Lite embed init until window.load in Firefox')
+				window.addEventListener(
+					'load',
+					() => {
+						window.setTimeout(initTwitterLiteEmbeds, 150)
+					},
+					{ once: true }
+				)
+			} else if (isFirefox) {
+				window.setTimeout(initTwitterLiteEmbeds, 150)
+			} else {
+				initTwitterLiteEmbeds()
+			}
 		} else {
 			const { stopTwitterLiteEmbedGuard } = await import('@/lib/content-modules/utils/reinitialize-embeds')
 			stopTwitterLiteEmbedGuard()
