@@ -77,6 +77,40 @@ export function buildMetaSummaryPromptGroq(pageCount: number): string {
 // =============================================================================
 
 /**
+ * Light format suggestions rotated per username via deterministic hash.
+ * These are SUGGESTIONS, not mandates — the model has creative freedom.
+ * Kept abstract (no copyable phrases) to prevent the model from cloning them.
+ */
+const TAGLINE_HINTS = [
+	'Prueba con una metáfora o comparación.',
+	'Prueba con un contraste entre dos facetas opuestas suyas.',
+	'Prueba con una frase que podría ser el lema de su vida forera.',
+	'Prueba con algo que el propio usuario diría.',
+	'Prueba con un cargo o título inventado.',
+] as const
+
+const VERDICT_HINTS = [
+	'Prueba con una sentencia tajante sobre lo que haría o dejaría de hacer.',
+	'Prueba con una frase que diría sobre él un rival del foro.',
+	'Prueba con un escenario hipotético absurdo.',
+	'Prueba con un epitafio de foro breve.',
+	'Prueba con una comparación inesperada.',
+] as const
+
+function usernameHash(username: string, seed = 0): number {
+	let h = seed
+	for (let i = 0; i < username.length; i++) h = (h * 31 + username.charCodeAt(i)) | 0
+	return Math.abs(h)
+}
+
+function getHints(username: string) {
+	return {
+		tagline: TAGLINE_HINTS[usernameHash(username, 0) % TAGLINE_HINTS.length],
+		verdict: VERDICT_HINTS[usernameHash(username, 13) % VERDICT_HINTS.length],
+	}
+}
+
+/**
  * Builds a user analysis prompt for Gemini.
  * Produces a personality-driven profile of a single user's participation in the thread.
  */
@@ -84,55 +118,54 @@ export function buildUserAnalysisPromptGemini(username: string, pageCount: numbe
 	const maxTopics = pageCount <= 3 ? 4 : pageCount <= 7 ? 5 : pageCount <= 15 ? 6 : 7
 	const maxInteractions = pageCount <= 3 ? 3 : pageCount <= 7 ? 4 : 5
 	const maxHighlights = pageCount <= 3 ? 2 : 3
+	const hints = getHints(username)
 
 	return `${PROMPT_MARKERS.USER_ANALYSIS}
-Eres un analista de foros. Te paso TODOS los mensajes de "${username}" en un hilo de Mediavida.
-Tu trabajo es hacer un análisis de perfil de ESTE USUARIO en este hilo concreto y devolver un objeto JSON válido.
+Eres un analista de foros con mucha personalidad. Te paso TODOS los mensajes de "${username}" en un hilo de Mediavida.
+Tu trabajo: hacer un retrato ÚNICO y memorable de ESTE USUARIO. No un informe genérico. Un perfil con personalidad que haga que quien lo lea diga "es clavado".
 
 FORMATO DE SALIDA (JSON estrictamente válido):
 {
   "username": "${username}",
-  "tagline": "Frase corta y memorable (máx 10-15 palabras) que defina al usuario como un apodo o título informal. Con humor, ingenio o ácido si encaja. Ej: 'El fiscal del hilo con hemeroteca y cero paciencia' o 'La navaja escéptica que te revisa cada dato'.",
-  "profile": "2-3 frases naturales describiendo quién es este usuario en el hilo: su rol, qué tipo de forero es y qué aporta. Escríbelo como si un forero describiera a otro, no como informe formal.",
+  "tagline": "Frase corta y memorable (máx 10-15 palabras) que SOLO pueda aplicarse a ESTE usuario. ${hints.tagline}",
+  "profile": "2-3 frases naturales describiendo quién es ESTE usuario y QUÉ LO DIFERENCIA de cualquier otro del hilo. Escríbelo como si alguien lo describiera en una quedada. Busca sus manías, contradicciones y forma de entrar en debates. APERTURA: NO uses la palabra 'forero' ni 'forera' en la primera frase. Arranca con una acción, una escena o una contradicción suya.",
   "topics": [
     "Tema o posición recurrente muy concreto 1",
     "Tema o posición recurrente muy concreto 2",
     "... (hasta ${maxTopics} temas)"
   ],
   "interactions": [
-    "Descripción de un patrón de interacción con otro usuario concreto (con @nick, sobre qué, cómo)",
+    "Patrón de interacción con otro usuario concreto (con @nick, sobre qué, cómo, con qué resultado)",
     "... (hasta ${maxInteractions} patrones)"
   ],
-  "style": "Descripción del tono y forma de comunicarse en 1-2 frases: ¿usa humor?, ¿es directo?, ¿irónico?, ¿agresivo?, ¿reflexivo?, ¿usa memes?",
+  "style": "Descripción VÍVIDA de cómo se comunica ESTE usuario. ¿Qué lo hace reconocible al leerlo? Busca su vocabulario propio, sus muletillas, su forma de construir argumentos o soltar sentencias. PROHIBIDO empezar con 'Directo', 'Su comunicación es...' o 'Su prosa...'. PROHIBIDO usar: 'bilis', 'pluma', 'sentencias lapidarias', 'autopsia', 'navaja suiza'.",
   "highlights": [
-    "Post o momento concreto especialmente destacado con #N del post si lo conoces (menciona el contenido clave)",
+    "Post o momento concreto con #N del post (prioriza los más votados [👍N], pero incluye también alguno polémico o donde rompa su propio patrón habitual)",
     "... (hasta ${maxHighlights} momentos)"
   ],
-  "verdict": "Una frase final coloquial y directa que define a este usuario en este hilo. Debe sonar a foro, con personalidad. Ej: 'El típico forero que te desmonta una idea en dos líneas y luego remata con una pulla.'"
+  "verdict": "Frase final BREVE (1-2 frases máximo) con personalidad. ${hints.verdict} Que sea memorable y solo aplique a ESTE forero."
 }
 
-REGLAS ESTRICTAS:
-- Devuelve SOLO el JSON. Sin bloques de código markdown.
-- El JSON debe ser válido.
-- Todos los posts que te paso son de "${username}". Analiza SU personalidad y comportamiento.
-- Los marcadores [→ responde al #N] indican que ese post es una respuesta a otro mensaje. Úsalos para entender con quién interactúa y sobre qué temas.
-- Los bloques {responde: #N} y {menciona: @nick} son pistas extraídas automáticamente. Úsalas como evidencia adicional de interacción (sin sobreinterpretar).
-- El texto entre [CITA_INICIO] y [CITA_FIN] es una cita de otros usuarios. NO lo atribuyas como opinión de "${username}" salvo que él lo reafirme explícitamente fuera de la cita.
-- Si hay blockquotes en los posts, son citas de otros usuarios que "${username}" está respondiendo. Úsalos para entender el contexto de sus respuestas. Si el blockquote incluye el nombre del usuario citado, ÚSALO para las interacciones.
-- Los posts con [👍N] tienen N votos de la comunidad. Son los más valorados. Priorízalos en "highlights".
-- "tagline": frase CORTA (máx 10-15 palabras). Debe capturar la esencia del usuario con gracia. No repitas el verdict. Piensa en un "título de personaje". Puede ser ácida, graciosa o ingeniosa según encaje con el usuario.
-- "profile": 2-3 frases naturales. NO escribas "El usuario X...". Di cosas como "Forero combativo que..." o "Voz moderada del hilo que..." o "El típico fan que...". Que suene humano.
-- "topics": temas MUY CONCRETOS de sus posts. Si habla de licencias, di "crítica al cambio de licencia por impacto en proyectos comunitarios". NO digas "habla de tecnología" o "comenta sobre el tema".
-- "interactions": describe PATRONES reales mencionando los NICKS CONCRETOS de los usuarios con los que interactúa. Usa @nick (ej: "Entra en bucle con @Pepito cada vez que se discuten fuentes", "Le tira pullas constantes a @Juanito por su postura pro-X"). Si detectas el nick en blockquotes o por contexto, inclúyelo. Si no puedes identificar un nick concreto, describe el tipo de usuario ("usuarios pro-X", "los más alarmistas del hilo").
-- Si no hay evidencia suficiente de interacciones concretas (citas, [→ responde al #N], @menciones o contexto claro), devuelve "interactions": [] y NO inventes nicks ni dinámicas.
-- "style": sé específico y honesto. "Directo y sin filtros, usa la ironía pero raramente se calienta" es mejor que "amigable y participativo".
-- "highlights": menciona el CONTENIDO CONCRETO del post. Incluye el número de post #N cuando lo conozcas (ej: "En el #547, desmonta con datos de Eurostat..."). Prioriza los más votados [👍N]. No digas solo "tuvo un momento memorable".
-- "verdict": debe sonar a foro, no a informe. Coloquial, directa, con personalidad. Que quien lea lo reconozca.
-- NO DUPLIQUES información entre bloques: "topics" = ideas/posiciones recurrentes, "interactions" = dinámica con personas/grupos, "highlights" = momentos concretos. Cada bloque debe aportar algo distinto.
-- Detecta ironía/sarcasmo y descríbela como tal, no la proceses como opinión literal.
-- No confundas apodos/rangos/títulos visuales junto al nick con el nombre del usuario: usa solo el nick real.
-- Responde en español.
-- IMPORTANTE: El JSON final debe ser válido y contener toda la información solicitada.`
+PERSONALIDAD:
+- Tu objetivo es encontrar lo que hace ÚNICO a "${username}". No a un forero genérico.
+- SÉ VALIENTE y honesto. Si es un troll, dilo. Si es el más pesado del hilo, también. Si tiene contradicciones, señálalas con gracia.
+- VARÍA el vocabulario y la estructura entre campos. Si usas una metáfora en el tagline, no repitas el mismo recurso en el verdict. Si describes su estilo con una imagen, que el profile use otra distinta.
+- El "verdict" debe ser BREVE y contundente (1-2 frases MÁXIMO, no un párrafo). Si supera 2 frases, RECÓRTALO.
+${pageCount > 3 ? `- EVOLUCIÓN: Si "${username}" cambió de opinión o de tono entre las primeras y últimas páginas, menciónalo.\n` : ''}
+CONTENIDO:
+- Devuelve SOLO el JSON. Sin bloques de código markdown. El JSON debe ser válido.
+- Todos los posts son de "${username}". Analiza SU personalidad.
+- [→ responde al #N] = respuesta a otro. Úsalo para entender interacciones.
+- {responde: #N} y {menciona: @nick} = pistas de interacción automáticas.
+- [CITA_INICIO]...[CITA_FIN] = cita de otros. NO la atribuyas a "${username}" salvo que la reafirme.
+- Blockquotes = lo que otros le dijeron. Si incluyen el nick, úsalo en interactions.
+- [👍N] = votos. Prioriza los más votados en highlights.
+- "topics": temas MUY CONCRETOS. NO digas "habla de tecnología".
+- "interactions": NICKS CONCRETOS con @nick. Si no hay evidencia, devuelve [] y NO inventes.
+- "highlights": contenido CONCRETO con #N. Busca variedad: un post votado y uno inesperado.
+- NO DUPLIQUES entre campos. Detecta ironía/sarcasmo.
+- No confundas apodos/rangos/títulos visuales con el nick real.
+- Responde en español.`
 }
 
 /**
@@ -143,50 +176,37 @@ export function buildUserAnalysisPromptGroq(username: string, pageCount: number)
 	const maxTopics = pageCount <= 3 ? 4 : pageCount <= 7 ? 5 : 6
 	const maxInteractions = pageCount <= 3 ? 3 : 4
 	const maxHighlights = pageCount <= 3 ? 2 : 3
+	const hints = getHints(username)
 
 	return `${PROMPT_MARKERS.USER_ANALYSIS}
-Analiza todos los posts de "${username}" en un hilo de Mediavida y devuelve SOLO JSON válido.
+Analiza todos los posts de "${username}" en un hilo de Mediavida. Haz un retrato ÚNICO y memorable, no un informe genérico. Devuelve SOLO JSON válido.
 
 SALIDA:
 {
   "username": "${username}",
-  "tagline": "Frase corta memorable (máx 10-15 palabras) como apodo/título informal. Con humor o ácido si encaja.",
-  "profile": "2-3 frases directas y naturales describiendo quién es este forero en el hilo. Como si un forero lo describiera a otro, no formal.",
-  "topics": [
-    "Tema o posición concreta y específica 1",
-    "... hasta ${maxTopics}"
-  ],
-  "interactions": [
-    "Patrón de interacción con @nick concreto (con quién, sobre qué, cómo)",
-    "... hasta ${maxInteractions}"
-  ],
-  "style": "Tono y estilo comunicativo en 1-2 frases específicas.",
-  "highlights": [
-    "Momento o post concreto destacado con #N del post si lo conoces (prioriza los más votados [👍N])",
-    "... hasta ${maxHighlights}"
-  ],
-  "verdict": "Frase coloquial con personalidad que define a este usuario en este hilo. Que suene a foro."
+  "tagline": "Frase corta memorable (máx 10-15 palabras) que SOLO aplique a ESTE usuario. ${hints.tagline}",
+  "profile": "2-3 frases describiendo qué hace DIFERENTE a este usuario. Como si alguien lo describiera en una quedada. Busca sus manías, contradicciones, forma de debatir. NO uses 'forero/a' en la primera frase. Arranca con acción, escena o contradicción.",
+  "topics": ["Tema concreto 1", "... hasta ${maxTopics}"],
+  "interactions": ["Patrón con @nick concreto (quién, qué, cómo)", "... hasta ${maxInteractions}"],
+  "style": "Descripción VÍVIDA de cómo se comunica. ¿Qué lo hace reconocible? Vocabulario propio, muletillas, forma de argumentar. NO empezar con 'Directo', 'Su comunicación es...' ni 'Su prosa...'. NO usar: 'bilis', 'pluma', 'sentencias lapidarias', 'autopsia'.",
+  "highlights": ["Momento concreto con #N. Votados y polémicos.", "... hasta ${maxHighlights}"],
+  "verdict": "Frase final BREVE (1-2 frases). ${hints.verdict} Que sea memorable."
 }
 
-REGLAS CRÍTICAS:
+PERSONALIDAD:
+- Busca lo ÚNICO de "${username}". Sé valiente y honesto. Sin perfiles tibios.
+- VARÍA vocabulario y estructura entre campos. No repitas el mismo recurso literario.
+- "verdict" debe ser BREVE y contundente (1-2 frases MÁXIMO, no un párrafo). Si supera 2 frases, RECÓRTALO.
+${pageCount > 3 ? `- EVOLUCIÓN: Si cambió de opinión o tono entre páginas, menciónalo.\n` : ''}
+CONTENIDO:
 - SOLO JSON. Empieza con { y termina con }. Sin markdown.
-- Todos los posts son de "${username}". Analiza SU personalidad y comportamiento.
-- [→ responde al #N] = respuesta a otro usuario. Úsalo para detectar patrones de interacción.
-- {responde: #N} y {menciona: @nick} = pistas extraídas automáticamente. Úsalas como evidencia adicional de interacción (sin sobreinterpretar).
-- [CITA_INICIO] ... [CITA_FIN] = cita de otros usuarios. NO atribuyas ese contenido a "${username}" salvo confirmación explícita fuera de la cita.
-- Blockquotes = lo que otros le dijeron. Úsalos para contexto. Si incluyen el nick del citado, úsalo en interactions.
-- [👍N] = posts más valorados. Priorízalos en highlights.
-- "tagline": CORTA (máx 10-15 palabras). Título de personaje. No repitas el verdict.
-- "profile": natural, como forero describiendo a otro. No empieces con "El usuario...".
-- "topics": concretos y específicos. No genéricos.
-- "interactions": menciona NICKS CONCRETOS con @nick cuando los detectes. Si no puedes identificar un nick, describe el tipo de usuario.
-- Si no hay evidencia suficiente de interacciones concretas (citas, [→ responde al #N], @menciones o contexto claro), devuelve "interactions": [] y NO inventes nicks ni dinámicas.
-- "highlights": incluye #N del post cuando lo conozcas. Menciona el contenido concreto.
-- "style": específico y honesto sobre su tono real.
-- "verdict": coloquial, con personalidad, que suene a foro.
-- NO DUPLIQUES: topics = ideas recurrentes, interactions = dinámicas con usuarios/grupos, highlights = momentos concretos.
-- Detecta ironía/sarcasmo. No la proceses como opinión literal.
-- Responde en español.`
+- Todos los posts son de "${username}". [→ responde al #N] = respuesta a otro.
+- {responde: #N} y {menciona: @nick} = pistas de interacción.
+- [CITA_INICIO]...[CITA_FIN] = cita de otros. NO atribuyas a "${username}".
+- [👍N] = votos. Prioriza en highlights.
+- "topics": concretos. "interactions": @nick concretos. Si no hay evidencia, []. NO inventes.
+- "highlights": contenido concreto con #N. Variedad: votados e inesperados.
+- NO DUPLIQUES entre campos. Detecta ironía/sarcasmo. En español.`
 }
 
 // =============================================================================

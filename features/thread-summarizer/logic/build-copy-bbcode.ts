@@ -41,11 +41,13 @@ export function buildUserAnalysisBBCode(analysis: UserAnalysis, variant: 'single
 		...analysis.topics.map(t => `[*] ${markdownToBBCode(t)}`),
 		'[/list]',
 		'',
-		'[bar]INTERACCIONES[/bar]',
-		'[list]',
-		...analysis.interactions.map(i => `[*] ${markdownToBBCode(i)}`),
-		'[/list]',
-		'',
+		...(analysis.interactions.length > 0 ? [
+			'[bar]INTERACCIONES[/bar]',
+			'[list]',
+			...analysis.interactions.map(i => `[*] ${markdownToBBCode(i)}`),
+			'[/list]',
+			'',
+		] : []),
 		`[b]✍️ ESTILO:[/b] ${markdownToBBCode(analysis.style)}`,
 		'',
 		...(analysis.highlights.length > 0 ? [
