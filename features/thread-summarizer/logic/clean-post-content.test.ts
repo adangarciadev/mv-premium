@@ -189,4 +189,35 @@ describe('cleanPostContent', () => {
 			expect(result).toContain('Contenido real del post')
 		})
 	})
+
+	describe('userAnalysisMode', () => {
+		it('should preserve quoted text wrapped in explicit markers', () => {
+			const el = createEl('<blockquote>Texto citado</blockquote>Respuesta propia')
+			const result = cleanPostContent(el, { userAnalysisMode: true })
+			expect(result).toContain('[CITA_INICIO]')
+			expect(result).toContain('Texto citado')
+			expect(result).toContain('[CITA_FIN]')
+			expect(result).toContain('Respuesta propia')
+		})
+
+		it('should convert quote links to reply markers', () => {
+			const el = createEl('<div class="cita"><a class="quote" rel="123">#123</a> @Pepe dijo</div>Respuesta')
+			const result = cleanPostContent(el, { userAnalysisMode: true })
+			expect(result).toContain('[→ responde al #123]')
+		})
+
+		it('should extract quoted post number from href formats', () => {
+			const el = createEl('<div class="cita"><a class="quote" href="#post-456">cita</a></div>Respuesta')
+			const result = cleanPostContent(el, { userAnalysisMode: true })
+			expect(result).toContain('[→ responde al #456]')
+		})
+
+		it('should not generate invalid reply markers when quote link has no numeric reference', () => {
+			const el = createEl('<div class="cita"><a class="quote" href="/foro/hilo">cita</a></div>Respuesta')
+			const result = cleanPostContent(el, { userAnalysisMode: true })
+			expect(result).not.toContain('#undefined')
+			expect(result).not.toContain('[→ responde al #]')
+			expect(result).toContain('Respuesta')
+		})
+	})
 })

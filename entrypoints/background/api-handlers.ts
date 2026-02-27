@@ -6,7 +6,12 @@
 import { browser } from 'wxt/browser'
 import { logger } from '@/lib/logger'
 import { fetchSteamBundleDetails, fetchSteamGameDetails } from '@/services/api/steam'
-import { onMessage, type TweetLiteData, type TweetLiteResult } from '@/lib/messaging'
+import {
+	onMessage,
+	type ThreadPageHtmlFetchResult,
+	type TweetLiteData,
+	type TweetLiteResult,
+} from '@/lib/messaging'
 import { API_URLS } from '@/constants'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import { normalizeTweetUrl as normalizeTweetUrlBase } from '@/lib/content-modules/twitter-lite/utils'
@@ -23,6 +28,7 @@ const GIPHY_PAGE_SIZE = 18
 const TWITTER_OEMBED_URL = 'https://publish.twitter.com/oembed'
 const TWITTER_SYNDICATION_URL = 'https://cdn.syndication.twimg.com/tweet-result'
 const TWITTER_FETCH_TIMEOUT_MS = 3500
+const MEDIAVIDA_THREAD_HOSTS = new Set(['www.mediavida.com', 'mediavida.com'])
 
 interface GiphyApiResponse {
 	data: Array<{
@@ -245,6 +251,17 @@ function readTweetCount(payload: Record<string, unknown>, ...keys: string[]): nu
 	}
 
 	return undefined
+}
+
+function isAllowedMediavidaThreadUrl(rawUrl: string): boolean {
+	try {
+		const url = new URL(rawUrl)
+		if (url.protocol !== 'https:' && url.protocol !== 'http:') return false
+		if (!MEDIAVIDA_THREAD_HOSTS.has(url.hostname.toLowerCase())) return false
+		return url.pathname.startsWith('/foro/')
+	} catch {
+		return false
+	}
 }
 
 async function fetchRecordWithTimeout(url: string, init?: RequestInit): Promise<Record<string, unknown> | null> {
@@ -619,6 +636,51 @@ export function setupGiphyHandlers(): void {
 }
 
 /**
+ * Fetch Mediavida thread page HTML in background context (typed RPC).
+ * Used by thread summarizer multi-page fetching to keep network out of content scripts.
+ */
+export function setupMediavidaThreadFetchHandler(): void {
+	onMessage('fetchThreadPageHtml', async ({ data }): Promise<ThreadPageHtmlFetchResult> => {
+		const rawUrl = data?.url?.trim()
+		if (!rawUrl) {
+			return { success: false, error: 'URL vacía' }
+		}
+		if (!isAllowedMediavidaThreadUrl(rawUrl)) {
+			return { success: false, error: 'URL no permitida' }
+		}
+
+		try {
+			const response = await fetch(rawUrl, {
+				credentials: 'include',
+				headers: { Accept: 'text/html' },
+			})
+
+			if (!response.ok) {
+				return {
+					success: false,
+					error: `HTTP ${response.status}`,
+					status: response.status,
+					finalUrl: response.url || rawUrl,
+				}
+			}
+
+			return {
+				success: true,
+				html: await response.text(),
+				finalUrl: response.url || rawUrl,
+			}
+		} catch (error) {
+			logger.warn('Mediavida thread page fetch failed:', error)
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'Fetch failed',
+				finalUrl: rawUrl,
+			}
+		}
+	})
+}
+
+/**
  * Merges syndication metadata (avatar, verified, media, quoted tweet) into the base oEmbed data.
  */
 function enrichWithSyndicationData(
@@ -828,6 +890,7 @@ export function setupTwitterLiteHandler(): void {
  */
 export function setupApiHandlers(): void {
 	setupOptionsHandler()
+	setupMediavidaThreadFetchHandler()
 	setupSteamHandler()
 	setupTmdbKeyCheckHandler()
 	setupTmdbRequestHandler()

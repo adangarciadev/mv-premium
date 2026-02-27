@@ -9,6 +9,7 @@
 import { onMessage } from '@/lib/messaging'
 import { logger } from '@/lib/logger'
 import type { GeminiAPIResponse, GeminiRequestBody, GeminiResponsePart } from '@/types'
+import { PROMPT_MARKERS } from '@/features/thread-summarizer/logic/prompt-builder'
 
 function sleep(ms: number): Promise<void> {
 	return new Promise(resolve => setTimeout(resolve, ms))
@@ -41,7 +42,7 @@ function trimThreadPromptForGroq(content: string): string {
 	if (content.length <= GROQ_THREAD_PROMPT_MAX_CHARS) return content
 
 	const suffix = '\n[...contenido truncado por límite TPM de Groq]'
-	const markers = ['RESUMENES PARCIALES:', 'POSTS:']
+	const markers = [PROMPT_MARKERS.META_SUMMARY, 'POSTS:', 'POSTS DE ']
 
 	for (const marker of markers) {
 		const markerIndex = content.indexOf(marker)
@@ -60,6 +61,15 @@ function trimThreadPromptForGroq(content: string): string {
 	}
 
 	return content.slice(0, GROQ_THREAD_PROMPT_MAX_CHARS - suffix.length) + suffix
+}
+
+function isHeavyForumPrompt(content: string): boolean {
+	if (content.includes(PROMPT_MARKERS.THREAD_SUMMARY)) return true
+	if (content.includes(PROMPT_MARKERS.META_SUMMARY)) return true
+	if (content.includes(PROMPT_MARKERS.USER_ANALYSIS)) return true
+	// Fallback: detect post blocks (batch prompts always include this)
+	if (content.includes('POSTS:')) return true
+	return false
 }
 
 async function waitForGroqSlot(): Promise<void> {
@@ -179,6 +189,9 @@ const GEMINI_FALLBACK_MODELS = [
 	'gemini-2.5-flash-lite',
 ] as const
 
+const GEMINI_FETCH_TIMEOUT_MS = 75_000
+const GEMINI_MAX_TOTAL_RETRY_WINDOW_MS = 95_000
+
 // =============================================================================
 // Gemini Handler
 // =============================================================================
@@ -213,17 +226,35 @@ export function setupGeminiHandler(): void {
 		// Retry logic with model fallback
 		const maxAttemptsPerModel = 2
 		let attempts = 0
+		let sawTimeout = false
+		const startedAt = Date.now()
 
 		while (currentModelIndex < modelsToTry.length) {
+			const elapsedMs = Date.now() - startedAt
+			const remainingWindowMs = GEMINI_MAX_TOTAL_RETRY_WINDOW_MS - elapsedMs
+
+			if (remainingWindowMs <= 0) {
+				return {
+					success: false,
+					error: sawTimeout
+						? 'La petición a Gemini tardó demasiado. Intenta de nuevo, reduce el rango o usa otro modelo.'
+						: 'Se agotó el tiempo máximo de reintentos en Gemini. Intenta de nuevo.',
+				}
+			}
+
 			const currentModel = modelsToTry[currentModelIndex]
 			const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`
 
 			try {
-				const response = await fetch(url, {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(body),
-				})
+				const response = await fetchWithTimeout(
+					url,
+					{
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(body),
+					},
+					Math.min(GEMINI_FETCH_TIMEOUT_MS, remainingWindowMs)
+				)
 
 				if (response.ok) {
 					const data: GeminiAPIResponse = await response.json()
@@ -266,6 +297,18 @@ export function setupGeminiHandler(): void {
 					error: errorData.error?.message || `Error ${response.status}`,
 				}
 			} catch (e) {
+				if (e instanceof Error && e.name === 'AbortError') {
+					sawTimeout = true
+					logger.warn(`Gemini request timeout on ${currentModel}. Trying next model...`)
+					currentModelIndex++
+					attempts = 0
+					if (currentModelIndex < modelsToTry.length) continue
+					return {
+						success: false,
+						error: 'La petición a Gemini tardó demasiado. Intenta de nuevo, reduce el rango o usa otro modelo.',
+					}
+				}
+
 				attempts++
 				if (attempts >= maxAttemptsPerModel) {
 					currentModelIndex++
@@ -322,12 +365,7 @@ export function setupGroqHandler(): void {
 
 		for (let i = 0; i < messages.length; i++) {
 			const msg = messages[i]
-			if (
-				msg.role === 'user' &&
-				(msg.content.includes('TITULO DEL HILO') ||
-					msg.content.includes('POSTS:') ||
-					msg.content.includes('RESUMENES PARCIALES:'))
-			) {
+			if (msg.role === 'user' && isHeavyForumPrompt(msg.content)) {
 				messages[i] = {
 					...msg,
 					content: trimThreadPromptForGroq(msg.content),
@@ -339,15 +377,18 @@ export function setupGroqHandler(): void {
 		const maxAttempts = 3
 		const inputChars = messages.reduce((acc, msg) => acc + msg.content.length, 0)
 		const isMetaSummary = messages.some(msg => msg.role === 'user' && msg.content.includes('RESUMENES PARCIALES'))
-		const isThreadSummary = messages.some(msg => msg.role === 'user' && msg.content.includes('TITULO DEL HILO'))
-		let maxTokens = isThreadSummary ? (isMetaSummary ? 1100 : 1024) : 1800
-		const temperature = isThreadSummary ? 0.65 : 0.6
+		const isClassicThreadSummary = messages.some(
+			msg => msg.role === 'user' && msg.content.includes('TITULO DEL HILO')
+		)
+		const isHeavyForumRequest = messages.some(msg => msg.role === 'user' && isHeavyForumPrompt(msg.content))
+		let maxTokens = isHeavyForumRequest ? (isMetaSummary ? 1100 : 1024) : 1800
+		const temperature = isClassicThreadSummary ? 0.65 : 0.6
 
 		// Inject system message for thread summaries to reinforce critical instructions
-		if (isThreadSummary) {
+		if (isClassicThreadSummary) {
 			messages.unshift({
 				role: 'system',
-					content: [
+				content: [
 						'Eres un analista de foros experto. Devuelves SOLO JSON válido sin markdown.',
 						'REGLAS CRITICAS:',
 						'- NIVEL DE DETALLE: cada "contribution" debe tener 2-3 frases breves y cada punto clave 1-3 frases breves, sin párrafos largos.',
@@ -401,7 +442,7 @@ export function setupGroqHandler(): void {
 						| { total_tokens?: number; prompt_tokens?: number; completion_tokens?: number }
 						| undefined
 
-					const nextGapMs = computeGroqPacingMs(inputChars, isThreadSummary, usage)
+					const nextGapMs = computeGroqPacingMs(inputChars, isHeavyForumRequest, usage)
 					setGroqNextAllowedDelay(nextGapMs)
 
 					return {

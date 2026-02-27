@@ -22,6 +22,30 @@ const AVATAR_PARTIAL_MATCH_MIN_LENGTH = 4
 export const SUMMARY_JSON_STRUCTURE =
 	'{"topic":"string","keyPoints":["string"],"participants":[{"name":"string","contribution":"string"}],"status":"string"}'
 
+/** Structure hint used by the AI repair prompt for user analysis JSON. */
+export const USER_ANALYSIS_JSON_STRUCTURE =
+	'{"username":"string","tagline":"string","profile":"string","topics":["string"],"interactions":["string"],"style":"string","highlights":["string"],"verdict":"string"}'
+
+export interface GenerateWithRetryRetryEvent {
+	/** 1-based index of the failed attempt */
+	failedAttempt: number
+	/** 1-based index of the next attempt that will run after the delay */
+	nextAttempt: number
+	/** Total attempts allowed in this helper */
+	maxAttempts: number
+	delayMs: number
+	error: unknown
+}
+
+export interface GenerateWithRetryOptions {
+	onRetry?: (event: GenerateWithRetryRetryEvent) => void
+}
+
+export interface ParseJsonFallbackOptions {
+	onRepairStart?: (info: { label: string; reason: string }) => void
+	repairRetryOptions?: GenerateWithRetryOptions
+}
+
 // =============================================================================
 // SLEEP
 // =============================================================================
@@ -53,7 +77,8 @@ export function isRateLimitError(error: unknown): boolean {
  */
 export async function generateWithRetry(
 	aiService: { generate: (prompt: string) => Promise<string> },
-	prompt: string
+	prompt: string,
+	options?: GenerateWithRetryOptions
 ): Promise<string> {
 	for (let attempt = 0; attempt <= RETRY_MAX_ATTEMPTS; attempt++) {
 		try {
@@ -65,6 +90,13 @@ export async function generateWithRetry(
 			}
 
 			const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt)
+			options?.onRetry?.({
+				failedAttempt: attempt + 1,
+				nextAttempt: attempt + 2,
+				maxAttempts: RETRY_MAX_ATTEMPTS + 1,
+				delayMs: delay,
+				error,
+			})
 			logger.warn(
 				`Rate limit (429) en intento ${attempt + 1}/${RETRY_MAX_ATTEMPTS + 1}. Reintentando en ${delay}ms...`
 			)
@@ -141,14 +173,18 @@ export async function parseJsonWithAIFallback<T>(
 	rawResponse: string,
 	aiService: { generate: (prompt: string) => Promise<string> },
 	label: string,
-	structureHint: string = SUMMARY_JSON_STRUCTURE
+	structureHint: string = SUMMARY_JSON_STRUCTURE,
+	options?: ParseJsonFallbackOptions
 ): Promise<T> {
+	let repairReason = 'Respuesta no parseable como JSON'
 	try {
 		return parseAIJsonResponse<T>(rawResponse)
 	} catch (error) {
-		const reason = error instanceof Error ? error.message : String(error)
-		logger.warn(`JSON inválido en ${label}. Intentando autocorrección con IA.`, reason)
+		repairReason = error instanceof Error ? error.message : String(error)
+		logger.warn(`JSON inválido en ${label}. Intentando autocorrección con IA.`, repairReason)
 	}
+
+	options?.onRepairStart?.({ label, reason: repairReason })
 
 	const repairPrompt = `Devuelve SOLO JSON válido (sin markdown) corrigiendo comas, comillas y texto extra.
 No inventes datos.
@@ -157,6 +193,6 @@ ${structureHint}
 Contenido:
 ${rawResponse}`
 
-	const repaired = await generateWithRetry(aiService, repairPrompt)
+	const repaired = await generateWithRetry(aiService, repairPrompt, options?.repairRetryOptions)
 	return parseAIJsonResponse<T>(repaired)
 }
