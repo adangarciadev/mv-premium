@@ -305,9 +305,9 @@ export function normalizeUserAnalysisPayload(parsed: UserAnalysisPayload): UserA
 		tagline: normalizeText(parsed.tagline),
 		profile: normalizeText(parsed.profile),
 		topics: normalizeStringList(parsed.topics),
-		interactions: normalizeStringList(parsed.interactions),
+		interactions: normalizeStringList(parsed.interactions, { normalizePostReferences: true }),
 		style: normalizeText(parsed.style),
-		highlights: normalizeStringList(parsed.highlights),
+		highlights: normalizeStringList(parsed.highlights, { normalizePostReferences: true }),
 		verdict: normalizeText(parsed.verdict),
 	}
 }
@@ -318,15 +318,26 @@ export function normalizeText(value: unknown): string {
 	return value.replace(/\s+/g, ' ').trim()
 }
 
+function normalizePostReferences(text: string): string {
+	// Keep @nick mentions intact, but normalize accidental numeric refs (@123 -> #123).
+	return text.replace(/(^|[^a-zA-Z0-9_])@(\d+)\b/g, '$1#$2')
+}
+
 /** @internal Exported for testing. */
-export function normalizeStringList(value: unknown): string[] {
+export function normalizeStringList(
+	value: unknown,
+	options: { normalizePostReferences?: boolean } = {}
+): string[] {
 	if (!Array.isArray(value)) return []
 
 	const normalized: string[] = []
 	const seen = new Set<string>()
 
 	for (const item of value) {
-		const clean = normalizeText(item)
+		let clean = normalizeText(item)
+		if (options.normalizePostReferences) {
+			clean = normalizePostReferences(clean)
+		}
 		if (!clean) continue
 		const dedupeKey = clean.toLowerCase()
 		if (seen.has(dedupeKey)) continue

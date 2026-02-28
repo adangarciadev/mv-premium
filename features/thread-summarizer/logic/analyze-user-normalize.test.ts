@@ -101,4 +101,21 @@ describe('normalizeUserAnalysisPayload', () => {
 		expect(result.highlights).toEqual([])
 		expect(result.verdict).toBe('')
 	})
+
+	it('normalizes accidental numeric @refs to #refs in interactions/highlights', () => {
+		const raw = {
+			tagline: 'tag',
+			profile: 'profile',
+			topics: ['topic'],
+			interactions: ['@377: Le responde en seco', '#377: Le responde en seco', 'Debate con @Pepe en #779'],
+			style: 'style',
+			highlights: ['@921 [👍1]: Momento irónico', '#921 [👍1]: Momento irónico'],
+			verdict: 'verdict',
+		}
+
+		const result = normalizeUserAnalysisPayload(raw)
+
+		expect(result.interactions).toEqual(['#377: Le responde en seco', 'Debate con @Pepe en #779'])
+		expect(result.highlights).toEqual(['#921 [👍1]: Momento irónico'])
+	})
 })

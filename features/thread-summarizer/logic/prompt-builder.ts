@@ -135,7 +135,7 @@ FORMATO DE SALIDA (JSON estrictamente válido):
     "... (hasta ${maxTopics} temas)"
   ],
   "interactions": [
-    "Patrón de interacción con otro usuario concreto (con @nick, sobre qué, cómo, con qué resultado)",
+    "Patrón de interacción con otro usuario concreto (incluye #N del comentario cuando cites un post; usa @nick solo para usuarios, sobre qué, cómo, con qué resultado)",
     "... (hasta ${maxInteractions} patrones)"
   ],
   "style": "Descripción VÍVIDA de cómo se comunica ESTE usuario. ¿Qué lo hace reconocible al leerlo? Busca su vocabulario propio, sus muletillas, su forma de construir argumentos o soltar sentencias. PROHIBIDO empezar con 'Directo', 'Su comunicación es...' o 'Su prosa...'. PROHIBIDO usar: 'bilis', 'pluma', 'sentencias lapidarias', 'autopsia', 'navaja suiza'.",
@@ -161,7 +161,7 @@ CONTENIDO:
 - Blockquotes = lo que otros le dijeron. Si incluyen el nick, úsalo en interactions.
 - [👍N] = votos. Prioriza los más votados en highlights.
 - "topics": temas MUY CONCRETOS. NO digas "habla de tecnología".
-- "interactions": NICKS CONCRETOS con @nick. Si no hay evidencia, devuelve [] y NO inventes.
+- "interactions": cuando cites comentarios usa #N (nunca @N). Usa @nick solo para usuarios concretos. Si no hay evidencia, devuelve [] y NO inventes.
 - "highlights": contenido CONCRETO con #N. Busca variedad: un post votado y uno inesperado.
 - NO DUPLIQUES entre campos. Detecta ironía/sarcasmo.
 - No confundas apodos/rangos/títulos visuales con el nick real.
@@ -187,7 +187,7 @@ SALIDA:
   "tagline": "Frase corta memorable (máx 10-15 palabras) que SOLO aplique a ESTE usuario. ${hints.tagline}",
   "profile": "2-3 frases describiendo qué hace DIFERENTE a este usuario. Como si alguien lo describiera en una quedada. Busca sus manías, contradicciones, forma de debatir. NO uses 'forero/a' en la primera frase. Arranca con acción, escena o contradicción.",
   "topics": ["Tema concreto 1", "... hasta ${maxTopics}"],
-  "interactions": ["Patrón con @nick concreto (quién, qué, cómo)", "... hasta ${maxInteractions}"],
+  "interactions": ["Patrón concreto (si citas comentario, usa #N; @nick solo para usuarios)", "... hasta ${maxInteractions}"],
   "style": "Descripción VÍVIDA de cómo se comunica. ¿Qué lo hace reconocible? Vocabulario propio, muletillas, forma de argumentar. NO empezar con 'Directo', 'Su comunicación es...' ni 'Su prosa...'. NO usar: 'bilis', 'pluma', 'sentencias lapidarias', 'autopsia'.",
   "highlights": ["Momento concreto con #N. Votados y polémicos.", "... hasta ${maxHighlights}"],
   "verdict": "Frase final BREVE (1-2 frases). ${hints.verdict} Que sea memorable."
@@ -204,7 +204,7 @@ CONTENIDO:
 - {responde: #N} y {menciona: @nick} = pistas de interacción.
 - [CITA_INICIO]...[CITA_FIN] = cita de otros. NO atribuyas a "${username}".
 - [👍N] = votos. Prioriza en highlights.
-- "topics": concretos. "interactions": @nick concretos. Si no hay evidencia, []. NO inventes.
+- "topics": concretos. "interactions": si citas comentario usa #N (nunca @N), y @nick solo para usuarios. Si no hay evidencia, []. NO inventes.
 - "highlights": contenido concreto con #N. Variedad: votados e inesperados.
 - NO DUPLIQUES entre campos. Detecta ironía/sarcasmo. En español.`
 }
