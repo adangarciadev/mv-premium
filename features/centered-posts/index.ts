@@ -476,6 +476,11 @@ function generateStyles(sticky: boolean, position: ControlBarPosition): string {
 			cursor: pointer !important;
 		}
 
+		/* Keep native user hover cards above centered controls (sticky top/side modes). */
+		body.${ACTIVE_BODY_CLASS} .f-card {
+			z-index: 130 !important;
+		}
+
 		${
 			position === 'side'
 				? `
