@@ -26,6 +26,11 @@ describe('normalizeText', () => {
 	it('preserves single-spaced text', () => {
 		expect(normalizeText('already clean')).toBe('already clean')
 	})
+
+	it('capitalizes first letter when requested', () => {
+		expect(normalizeText('  estilo muy directo ', { capitalizeLeadingLetter: true })).toBe('Estilo muy directo')
+		expect(normalizeText('#168 [👍3] critica dura', { capitalizeLeadingLetter: true })).toBe('#168 [👍3] Critica dura')
+	})
 })
 
 describe('normalizeStringList', () => {
@@ -55,6 +60,16 @@ describe('normalizeStringList', () => {
 	it('preserves order of first occurrence', () => {
 		expect(normalizeStringList(['beta', 'alpha', 'Beta', 'gamma'])).toEqual(['beta', 'alpha', 'gamma'])
 	})
+
+	it('can normalize numeric post refs and capitalize list items', () => {
+		const list = ['@377: respuesta corta', 'debate con @Pepe en #779', '#377: Respuesta corta']
+		expect(
+			normalizeStringList(list, {
+				normalizePostReferences: true,
+				capitalizeLeadingLetter: true,
+			})
+		).toEqual(['#377: Respuesta corta', 'Debate con @Pepe en #779'])
+	})
 })
 
 describe('normalizeUserAnalysisPayload', () => {
@@ -73,11 +88,11 @@ describe('normalizeUserAnalysisPayload', () => {
 
 		expect(result.tagline).toBe('The troll')
 		expect(result.profile).toBe('A very active user')
-		expect(result.topics).toEqual(['topic A', 'topic B'])
-		expect(result.interactions).toEqual(['interacts with @Pepe'])
-		expect(result.style).toBe('direct and sharp')
-		expect(result.highlights).toEqual(['highlight 1', 'highlight 2'])
-		expect(result.verdict).toBe('final verdict')
+		expect(result.topics).toEqual(['Topic A', 'Topic B'])
+		expect(result.interactions).toEqual(['Interacts with @Pepe'])
+		expect(result.style).toBe('Direct and sharp')
+		expect(result.highlights).toEqual(['Highlight 1', 'Highlight 2'])
+		expect(result.verdict).toBe('Final verdict')
 	})
 
 	it('handles missing or invalid fields gracefully', () => {

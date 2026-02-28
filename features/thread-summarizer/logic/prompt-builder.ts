@@ -163,6 +163,7 @@ CONTENIDO:
 - "topics": temas MUY CONCRETOS. NO digas "habla de tecnología".
 - "interactions": cuando cites comentarios usa #N (nunca @N). Usa @nick solo para usuarios concretos. Si no hay evidencia, devuelve [] y NO inventes.
 - "highlights": contenido CONCRETO con #N. Busca variedad: un post votado y uno inesperado.
+- NO inventes acusaciones políticas o de propaganda no explícitas en los posts. Si es inferencia, usa tono prudente ("sugiere", "ironiza", "parece").
 - NO DUPLIQUES entre campos. Detecta ironía/sarcasmo.
 - No confundas apodos/rangos/títulos visuales con el nick real.
 - Responde en español.`
@@ -186,9 +187,9 @@ SALIDA:
   "username": "${username}",
   "tagline": "Frase corta memorable (máx 10-15 palabras) que SOLO aplique a ESTE usuario. ${hints.tagline}",
   "profile": "2-3 frases describiendo qué hace DIFERENTE a este usuario. Como si alguien lo describiera en una quedada. Busca sus manías, contradicciones, forma de debatir. NO uses 'forero/a' en la primera frase. Arranca con acción, escena o contradicción.",
-  "topics": ["Tema concreto 1", "... hasta ${maxTopics}"],
+  "topics": ["Tema concreto en formato frase (4-12 palabras, empieza con mayúscula)", "... hasta ${maxTopics}"],
   "interactions": ["Patrón concreto (si citas comentario, usa #N; @nick solo para usuarios)", "... hasta ${maxInteractions}"],
-  "style": "Descripción VÍVIDA de cómo se comunica. ¿Qué lo hace reconocible? Vocabulario propio, muletillas, forma de argumentar. NO empezar con 'Directo', 'Su comunicación es...' ni 'Su prosa...'. NO usar: 'bilis', 'pluma', 'sentencias lapidarias', 'autopsia'.",
+  "style": "Descripción VÍVIDA de cómo se comunica (mínimo 25 palabras). ¿Qué lo hace reconocible? Vocabulario propio, muletillas, forma de argumentar. NO empezar con 'Directo', 'Su comunicación es...' ni 'Su prosa...'. NO usar: 'bilis', 'pluma', 'sentencias lapidarias', 'autopsia'.",
   "highlights": ["Momento concreto con #N. Votados y polémicos.", "... hasta ${maxHighlights}"],
   "verdict": "Frase final BREVE (1-2 frases). ${hints.verdict} Que sea memorable."
 }
@@ -196,6 +197,7 @@ SALIDA:
 PERSONALIDAD:
 - Busca lo ÚNICO de "${username}". Sé valiente y honesto. Sin perfiles tibios.
 - VARÍA vocabulario y estructura entre campos. No repitas el mismo recurso literario.
+- Nada de respuestas telegráficas: evita listas de 2-3 palabras sin contexto.
 - "verdict" debe ser BREVE y contundente (1-2 frases MÁXIMO, no un párrafo). Si supera 2 frases, RECÓRTALO.
 ${pageCount > 3 ? `- EVOLUCIÓN: Si cambió de opinión o tono entre páginas, menciónalo.\n` : ''}
 CONTENIDO:
@@ -206,6 +208,8 @@ CONTENIDO:
 - [👍N] = votos. Prioriza en highlights.
 - "topics": concretos. "interactions": si citas comentario usa #N (nunca @N), y @nick solo para usuarios. Si no hay evidencia, []. NO inventes.
 - "highlights": contenido concreto con #N. Variedad: votados e inesperados.
+- Capitalización: empieza tagline, profile, style, verdict y cada item de lista con mayúscula inicial.
+- NO inventes acusaciones políticas o de propaganda no explícitas en los posts. Si es inferencia, usa tono prudente ("sugiere", "ironiza", "parece").
 - NO DUPLIQUES entre campos. Detecta ironía/sarcasmo. En español.`
 }
 
