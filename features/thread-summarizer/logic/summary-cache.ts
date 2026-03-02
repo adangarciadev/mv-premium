@@ -7,6 +7,7 @@
 
 import type { ThreadSummary } from './summarize'
 import type { MultiPageSummary } from './summarize-multi-page'
+import type { UserAnalysis } from './analyze-user'
 
 // =============================================================================
 // CONSTANTS
@@ -30,6 +31,7 @@ interface CacheEntry<T> {
 
 const singlePageCache = new Map<string, CacheEntry<ThreadSummary>>()
 const multiPageCache = new Map<string, CacheEntry<MultiPageSummary>>()
+const userAnalysisCache = new Map<string, CacheEntry<UserAnalysis>>()
 
 function buildSingleKey(pageNumber: number): string {
 	return `${window.location.pathname}:single:${pageNumber}`
@@ -39,8 +41,20 @@ function buildMultiKey(fromPage: number, toPage: number): string {
 	return `${window.location.pathname}:multi:${fromPage}-${toPage}`
 }
 
+function buildUserAnalysisSingleKey(username: string, pageNumber: number): string {
+	return `${window.location.pathname}:user:${normalizeUsernameKey(username)}:single:${pageNumber}`
+}
+
+function buildUserAnalysisMultiKey(username: string, fromPage: number, toPage: number): string {
+	return `${window.location.pathname}:user:${normalizeUsernameKey(username)}:multi:${fromPage}-${toPage}`
+}
+
 function isExpired(entry: CacheEntry<unknown>): boolean {
 	return Date.now() - entry.timestamp > CACHE_TTL_MS
+}
+
+function normalizeUsernameKey(username: string): string {
+	return username.trim().toLowerCase()
 }
 
 // =============================================================================
@@ -89,6 +103,56 @@ export function setCachedMultiSummary(fromPage: number, toPage: number, summary:
 
 export function getCachedMultiAge(fromPage: number, toPage: number): number | null {
 	const entry = multiPageCache.get(buildMultiKey(fromPage, toPage))
+	if (!entry || isExpired(entry)) return null
+	return Date.now() - entry.timestamp
+}
+
+// =============================================================================
+// USER ANALYSIS CACHE
+// =============================================================================
+
+export function getCachedUserAnalysis(username: string, pageNumber: number): UserAnalysis | null {
+	const key = buildUserAnalysisSingleKey(username, pageNumber)
+	const entry = userAnalysisCache.get(key)
+	if (!entry || isExpired(entry)) {
+		if (entry) userAnalysisCache.delete(key)
+		return null
+	}
+	return entry.data
+}
+
+export function setCachedUserAnalysis(username: string, pageNumber: number, analysis: UserAnalysis): void {
+	if (analysis.error) return
+	const key = buildUserAnalysisSingleKey(username, pageNumber)
+	userAnalysisCache.set(key, { data: analysis, timestamp: Date.now() })
+}
+
+export function getCachedUserAnalysisAge(username: string, pageNumber: number): number | null {
+	const key = buildUserAnalysisSingleKey(username, pageNumber)
+	const entry = userAnalysisCache.get(key)
+	if (!entry || isExpired(entry)) return null
+	return Date.now() - entry.timestamp
+}
+
+export function getCachedUserAnalysisMulti(username: string, fromPage: number, toPage: number): UserAnalysis | null {
+	const key = buildUserAnalysisMultiKey(username, fromPage, toPage)
+	const entry = userAnalysisCache.get(key)
+	if (!entry || isExpired(entry)) {
+		if (entry) userAnalysisCache.delete(key)
+		return null
+	}
+	return entry.data
+}
+
+export function setCachedUserAnalysisMulti(username: string, fromPage: number, toPage: number, analysis: UserAnalysis): void {
+	if (analysis.error) return
+	const key = buildUserAnalysisMultiKey(username, fromPage, toPage)
+	userAnalysisCache.set(key, { data: analysis, timestamp: Date.now() })
+}
+
+export function getCachedUserAnalysisMultiAge(username: string, fromPage: number, toPage: number): number | null {
+	const key = buildUserAnalysisMultiKey(username, fromPage, toPage)
+	const entry = userAnalysisCache.get(key)
 	if (!entry || isExpired(entry)) return null
 	return Date.now() - entry.timestamp
 }

@@ -5,7 +5,7 @@
  * a multi-page thread summary with progress feedback.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
 import Bot from 'lucide-react/dist/esm/icons/bot'
@@ -13,11 +13,14 @@ import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
 import Layers from 'lucide-react/dist/esm/icons/layers'
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
 import History from 'lucide-react/dist/esm/icons/history'
+import UserSearch from 'lucide-react/dist/esm/icons/user-search'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { sendMessage } from '@/lib/messaging'
 import { summarizeMultiplePages, type MultiPageSummary } from '../logic/summarize-multi-page'
+import { analyzeUserMultiplePages, type UserAnalysis } from '../logic/analyze-user'
+import { getActiveUserFilter } from '../logic/extract-posts'
 import {
 	MAX_MULTI_PAGES_GEMINI,
 	MAX_MULTI_PAGES_GROQ,
@@ -26,10 +29,14 @@ import {
 	getCurrentPage,
 	type MultiPageProgress,
 } from '../logic/fetch-pages'
-import { getCachedMultiSummary, setCachedMultiSummary, getCachedMultiAge, formatCacheAge } from '../logic/summary-cache'
+import {
+	getCachedMultiSummary, setCachedMultiSummary, getCachedMultiAge,
+	getCachedUserAnalysisMulti, setCachedUserAnalysisMulti, getCachedUserAnalysisMultiAge,
+	formatCacheAge,
+} from '../logic/summary-cache'
 import { getLastModelUsed } from '@/services/ai/gemini-service'
 import { useAIModelLabel } from '@/hooks/use-ai-model-label'
-import { markdownToBBCode } from '../logic/render-inline-markdown'
+import { buildUserAnalysisBBCode, buildMultiSummaryBBCode } from '../logic/build-copy-bbcode'
 import { useSettingsStore } from '@/store/settings-store'
 import { toast } from '@/lib/lazy-toast'
 import {
@@ -39,6 +46,7 @@ import {
 	SummaryModalHeader,
 	SummaryErrorState,
 	SummaryResultSection,
+	UserAnalysisResultSection,
 	SummaryMetadata,
 	SummaryModalFooter,
 	APIConsoleLinks,
@@ -61,8 +69,12 @@ interface MultiPageSummaryModalProps {
 // =============================================================================
 
 export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModalProps) {
+	const activeUserFilter = useMemo(() => getActiveUserFilter(), [])
+	const isUserAnalysisMode = !!activeUserFilter
+
 	const [step, setStep] = useState<ModalStep>('config')
 	const [summary, setSummary] = useState<MultiPageSummary | null>(null)
+	const [userAnalysis, setUserAnalysis] = useState<UserAnalysis | null>(null)
 	const [progress, setProgress] = useState<MultiPageProgress | null>(null)
 	const [actualModel, setActualModel] = useState<string | null>(null)
 	const [startedAtMs, setStartedAtMs] = useState<number | null>(null)
@@ -87,6 +99,7 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 		if (isOpen) {
 			setStep('config')
 			setSummary(null)
+			setUserAnalysis(null)
 			setProgress(null)
 			setActualModel(null)
 			setStartedAtMs(null)
@@ -100,31 +113,16 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 	const isValidRange = fromPage >= 1 && toPage >= fromPage && toPage <= totalPages && pageCount <= providerMaxPages
 
 	const buildCopyText = useCallback(() => {
+		if (isUserAnalysisMode && userAnalysis) {
+			return buildUserAnalysisBBCode(userAnalysis, 'multi')
+		}
 		if (!summary) return null
-		return [
-			`[center][b]✨ Resumen del Hilo (Págs. ${summary.pageRange})[/b][/center]`,
-			'',
-			`[b]🤖 TEMA:[/b] ${markdownToBBCode(summary.topic)}`,
-			'',
-			'[bar]PUNTOS CLAVE[/bar]',
-			'[list]',
-			...summary.keyPoints.map(p => `[*] ${markdownToBBCode(p)}`),
-			'[/list]',
-			'',
-			'[bar]PARTICIPANTES DESTACADOS[/bar]',
-			'[list]',
-			...summary.participants.map(p => `[*] [b]${p.name}[/b]: ${markdownToBBCode(p.contribution)}`),
-			'[/list]',
-			'',
-			`[quote][b]📝 ESTADO DEL DEBATE:[/b] [i]"${markdownToBBCode(summary.status)}"[/i][/quote]`,
-			'',
-			`📊 [b]${summary.totalPostsAnalyzed}[/b] posts · [b]${summary.pagesAnalyzed}[/b] páginas · [b]${summary.totalUniqueAuthors}[/b] autores`,
-			'',
-			'[i]Generado con Resumidor IA de Mediavida Premium[/i]',
-		].join('\n')
-	}, [summary])
+		return buildMultiSummaryBBCode(summary)
+	}, [isUserAnalysisMode, userAnalysis, summary])
 
-	const { copied, handleCopy } = useSummaryClipboard(buildCopyText)
+	const { copied, handleCopy } = useSummaryClipboard(buildCopyText, {
+		successMessage: isUserAnalysisMode ? 'Análisis copiado al portapapeles' : 'Resumen copiado al portapapeles',
+	})
 
 	const handleStartSummary = useCallback(async () => {
 		if (!isValidRange || pageCount < 2) return
@@ -136,34 +134,51 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 		setStartedAtMs(startedAt)
 		setElapsedSeconds(0)
 
-		const result = await summarizeMultiplePages(fromPage, toPage, p => setProgress(p))
-		const usedModel = getLastModelUsed()
-		const timedResult: MultiPageSummary = {
-			...result,
-			generationMs: Date.now() - startedAt,
-			modelUsed: usedModel || undefined,
+		if (isUserAnalysisMode && activeUserFilter) {
+			const result = await analyzeUserMultiplePages(activeUserFilter, fromPage, toPage, p => setProgress(p))
+			const usedModel = getLastModelUsed()
+			const timed: UserAnalysis = { ...result, generationMs: Date.now() - startedAt, modelUsed: usedModel || undefined }
+			if (!timed.error) setCachedUserAnalysisMulti(activeUserFilter, fromPage, toPage, timed)
+			setActualModel(usedModel)
+			setUserAnalysis(timed)
+		} else {
+			const result = await summarizeMultiplePages(fromPage, toPage, p => setProgress(p))
+			const usedModel = getLastModelUsed()
+			const timedResult: MultiPageSummary = {
+				...result,
+				generationMs: Date.now() - startedAt,
+				modelUsed: usedModel || undefined,
+			}
+			if (!timedResult.error) setCachedMultiSummary(fromPage, toPage, timedResult)
+			setActualModel(usedModel)
+			setSummary(timedResult)
 		}
 
-		if (!timedResult.error) {
-			setCachedMultiSummary(fromPage, toPage, timedResult)
-		}
-
-		setActualModel(usedModel)
-		setSummary(timedResult)
 		setStep('result')
 		setStartedAtMs(null)
-	}, [fromPage, toPage, isValidRange, pageCount, setElapsedSeconds])
+	}, [isUserAnalysisMode, activeUserFilter, fromPage, toPage, isValidRange, pageCount, setElapsedSeconds])
 
 	const handleLoadCached = useCallback(() => {
-		const cached = getCachedMultiSummary(fromPage, toPage)
-		if (cached) {
-			setActualModel(cached.modelUsed || null)
-			setSummary(cached)
-			setStep('result')
-			setStartedAtMs(null)
-			setElapsedSeconds(0)
+		if (isUserAnalysisMode && activeUserFilter) {
+			const cached = getCachedUserAnalysisMulti(activeUserFilter, fromPage, toPage)
+			if (cached) {
+				setActualModel(cached.modelUsed || null)
+				setUserAnalysis(cached)
+				setStep('result')
+				setStartedAtMs(null)
+				setElapsedSeconds(0)
+			}
+		} else {
+			const cached = getCachedMultiSummary(fromPage, toPage)
+			if (cached) {
+				setActualModel(cached.modelUsed || null)
+				setSummary(cached)
+				setStep('result')
+				setStartedAtMs(null)
+				setElapsedSeconds(0)
+			}
 		}
-	}, [fromPage, toPage, setElapsedSeconds])
+	}, [isUserAnalysisMode, activeUserFilter, fromPage, toPage, setElapsedSeconds])
 
 	useEffect(() => {
 		if (isOpen && !hasProviderKey) {
@@ -185,12 +200,25 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 		}
 	}
 
-	const isAINotConfigured = summary?.error?.includes('IA no configurada')
+	const currentError = isUserAnalysisMode ? userAnalysis?.error : summary?.error
+	const isAINotConfigured = currentError?.includes('IA no configurada')
 	const badgeTitle = providerFallbackMessage
 		? providerFallbackMessage
 		: isModelFallback
 			? `Modelo configurado: ${configuredModel}`
 			: undefined
+
+	const hasResult = isUserAnalysisMode ? !!userAnalysis && !userAnalysis.error : !!summary && !summary.error
+	const cachedAge = isUserAnalysisMode && activeUserFilter
+		? getCachedUserAnalysisMultiAge(activeUserFilter, fromPage, toPage)
+		: getCachedMultiAge(fromPage, toPage)
+
+	const modalTitle = isUserAnalysisMode && activeUserFilter
+		? `Análisis de ${activeUserFilter}`
+		: 'Resumen Multi-Página'
+	const modalIcon = isUserAnalysisMode
+		? <UserSearch className="w-5 h-5 text-primary" />
+		: <Layers className="w-5 h-5 text-primary" />
 
 	if (!isOpen) return null
 
@@ -202,8 +230,8 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 			>
 				<div className="bg-card border border-border rounded-lg shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
 					<SummaryModalHeader
-						icon={<Layers className="w-5 h-5 text-primary" />}
-						title="Resumen Multi-Página"
+						icon={modalIcon}
+						title={modalTitle}
 						modelLabel={modelLabel}
 						isModelFallback={isModelFallback}
 						isProviderFallback={isProviderFallback}
@@ -228,19 +256,29 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 								isValidRange={isValidRange}
 								aiProvider={aiProvider}
 								providerMaxPages={providerMaxPages}
+								isUserAnalysisMode={isUserAnalysisMode}
+								activeUserFilter={activeUserFilter}
 								onFromPageChange={setFromPage}
 								onToPageChange={setToPage}
 								onStart={handleStartSummary}
 								onLoadCached={handleLoadCached}
-								cachedAge={getCachedMultiAge(fromPage, toPage)}
+								cachedAge={cachedAge}
 							/>
 						)}
 
-						{step === 'loading' && <LoadingStep progress={progress} pageCount={pageCount} elapsedSeconds={elapsedSeconds} />}
+						{step === 'loading' && (
+							<LoadingStep
+								progress={progress}
+								pageCount={pageCount}
+								elapsedSeconds={elapsedSeconds}
+								isUserAnalysisMode={isUserAnalysisMode}
+								activeUserFilter={activeUserFilter}
+							/>
+						)}
 
-						{step === 'result' && summary?.error && (
+						{step === 'result' && currentError && (
 							<SummaryErrorState
-								error={summary.error}
+								error={currentError}
 								isAINotConfigured={!!isAINotConfigured}
 								onOpenSettings={openAISettings}
 								extraAction={
@@ -252,7 +290,37 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 							/>
 						)}
 
-						{step === 'result' && summary && !summary.error && (
+						{step === 'result' && isUserAnalysisMode && userAnalysis && !userAnalysis.error && (
+							<>
+								<UserAnalysisResultSection
+									analysis={userAnalysis}
+									beforeContent={
+										userAnalysis.fetchErrors && userAnalysis.fetchErrors.length > 0 ? (
+											<div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md p-2.5">
+												<AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+												<p className="text-xs text-amber-600 dark:text-amber-400">
+													No se pudieron descargar las páginas: {userAnalysis.fetchErrors.join(', ')}
+												</p>
+											</div>
+										) : undefined
+									}
+								/>
+								<SummaryMetadata
+									items={[
+										{ icon: <Layers className="w-3.5 h-3.5" />, label: `Págs. ${userAnalysis.pageRange}` },
+										{ icon: MetadataIcons.page, label: `${userAnalysis.pagesAnalyzed} páginas` },
+										{ icon: MetadataIcons.posts, label: `${userAnalysis.postsAnalyzed} posts` },
+										...(userAnalysis.modelUsed ? [{ icon: MetadataIcons.model, label: userAnalysis.modelUsed }] : []),
+										...(typeof userAnalysis.generationMs === 'number'
+											? [{ icon: MetadataIcons.time, label: formatDuration(userAnalysis.generationMs) }]
+											: []),
+									]}
+								/>
+								<APIConsoleLinks />
+							</>
+						)}
+
+						{step === 'result' && !isUserAnalysisMode && summary && !summary.error && (
 							<>
 								<SummaryResultSection
 									topic={summary.topic}
@@ -276,9 +344,7 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 										{ icon: MetadataIcons.page, label: `${summary.pagesAnalyzed} páginas` },
 										{ icon: MetadataIcons.posts, label: `${summary.totalPostsAnalyzed} posts` },
 										{ icon: MetadataIcons.authors, label: `${summary.totalUniqueAuthors} autores` },
-										...(summary.modelUsed
-											? [{ icon: MetadataIcons.model, label: summary.modelUsed }]
-											: []),
+										...(summary.modelUsed ? [{ icon: MetadataIcons.model, label: summary.modelUsed }] : []),
 										...(typeof summary.generationMs === 'number'
 											? [{ icon: MetadataIcons.time, label: formatDuration(summary.generationMs) }]
 											: []),
@@ -289,7 +355,7 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 						)}
 					</div>
 
-					{step === 'result' && summary && !summary.error && (
+					{step === 'result' && hasResult && (
 						<SummaryModalFooter
 							onRegenerate={handleStartSummary}
 							onCopy={handleCopy}
@@ -327,6 +393,8 @@ function ConfigStep({
 	isValidRange,
 	aiProvider,
 	providerMaxPages,
+	isUserAnalysisMode,
+	activeUserFilter,
 	onFromPageChange,
 	onToPageChange,
 	onStart,
@@ -341,6 +409,8 @@ function ConfigStep({
 	isValidRange: boolean
 	aiProvider: 'gemini' | 'groq'
 	providerMaxPages: number
+	isUserAnalysisMode: boolean
+	activeUserFilter: string | null
 	onFromPageChange: (v: number) => void
 	onToPageChange: (v: number) => void
 	onStart: () => void
@@ -380,12 +450,19 @@ function ConfigStep({
 			{/* Info */}
 			<div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
 				<div className="flex items-start gap-2">
-					<Bot className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+					{isUserAnalysisMode
+						? <UserSearch className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+						: <Bot className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+					}
 					<div>
-						<p className="text-sm font-medium text-foreground">Resumen de múltiples páginas</p>
+						<p className="text-sm font-medium text-foreground">
+							{isUserAnalysisMode && activeUserFilter
+								? `Análisis de ${activeUserFilter} — múltiples páginas`
+								: 'Resumen de múltiples páginas'}
+						</p>
 						<p className="text-xs text-muted-foreground mt-1">
-							Selecciona el rango de páginas a resumir. El hilo tiene <strong>{totalPages}</strong>{' '}
-							{totalPages === 1 ? 'página' : 'páginas'}.
+							Selecciona el rango de páginas a {isUserAnalysisMode ? 'analizar' : 'resumir'}. El hilo tiene{' '}
+							<strong>{totalPages}</strong> {totalPages === 1 ? 'página' : 'páginas'}.
 							{totalPages > providerMaxPages && (
 								<span className="text-amber-500"> (máximo {providerMaxPages} páginas con el proveedor actual)</span>
 							)}
@@ -407,13 +484,17 @@ function ConfigStep({
 						<p className="text-sm font-medium text-foreground">
 							Límites por proveedor (actual: {isGroq ? 'Groq / Kimi' : 'Gemini'})
 						</p>
-						<p className="text-xs text-muted-foreground">
-							Groq / Kimi: <strong>2-{MAX_MULTI_PAGES_GROQ}</strong> páginas por límites de tokens por minuto
-							(TPM) y rate limit.
-						</p>
-						<p className="text-xs text-muted-foreground">
-							Gemini: <strong>2-{MAX_MULTI_PAGES_GEMINI}</strong> páginas por resumen, mejor tolerancia en hilos largos.
-						</p>
+							<p className="text-xs text-muted-foreground">
+								Groq / Kimi: <strong>2-{MAX_MULTI_PAGES_GROQ}</strong> páginas por límites de tokens por minuto
+								(TPM) y rate limit.
+							</p>
+							<p className="text-xs text-muted-foreground">
+								Nota: <strong>{MAX_MULTI_PAGES_GROQ}</strong> páginas es el tope del selector, pero en hilos densos (muchos
+								posts, citas largas o spoilers) Groq puede dar rate limit antes.
+							</p>
+							<p className="text-xs text-muted-foreground">
+								Gemini: <strong>2-{MAX_MULTI_PAGES_GEMINI}</strong> páginas por resumen, mejor tolerancia en hilos largos.
+							</p>
 						<p className="text-xs text-muted-foreground">
 							Si necesitas más rango, cambia el proveedor desde Ajustes de IA.
 						</p>
@@ -495,10 +576,15 @@ function ConfigStep({
 
 			{pageCount === 1 && isValidRange && (
 				<div className="flex items-start gap-2 bg-primary/5 border border-primary/20 rounded-md p-2.5">
-					<Bot className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+					{isUserAnalysisMode
+						? <UserSearch className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+						: <Bot className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+					}
 					<p className="text-xs text-muted-foreground">
-						Para resumir una sola página, usa el botón <strong>Resumir</strong> del hilo. Este modo está pensado para
-						rangos de 2 o más páginas.
+						{isUserAnalysisMode
+							? <>Para analizar una sola página, usa el botón <strong>Analizar</strong> del hilo. Este modo está pensado para rangos de 2 o más páginas.</>
+							: <>Para resumir una sola página, usa el botón <strong>Resumir</strong> del hilo. Este modo está pensado para rangos de 2 o más páginas.</>
+						}
 					</p>
 				</div>
 			)}
@@ -521,7 +607,9 @@ function ConfigStep({
 				>
 					<History className="w-4 h-4 text-primary flex-shrink-0" />
 					<div className="flex-1 min-w-0">
-						<p className="text-sm font-medium text-foreground">Ver último resumen</p>
+						<p className="text-sm font-medium text-foreground">
+							{isUserAnalysisMode ? 'Ver último análisis' : 'Ver último resumen'}
+						</p>
 						<p className="text-xs text-muted-foreground">
 							Generado {formatCacheAge(cachedAge)} · Págs. {fromPage}-{toPage}
 						</p>
@@ -532,10 +620,17 @@ function ConfigStep({
 
 			{/* Start button */}
 			<Button onClick={onStart} disabled={!isValidRange || pageCount < 2} className="w-full gap-2" size="lg">
-				<Layers className="w-4 h-4" />
+				{isUserAnalysisMode
+					? <UserSearch className="w-4 h-4" />
+					: <Layers className="w-4 h-4" />
+				}
 				{cachedAge !== null && pageCount >= 2
-					? 'Regenerar resumen'
-					: `Resumir ${pageCount} ${pageCount === 1 ? 'página' : 'páginas'}`}
+					? (isUserAnalysisMode ? 'Regenerar análisis' : 'Regenerar resumen')
+					: (isUserAnalysisMode
+						? `Analizar ${pageCount} ${pageCount === 1 ? 'página' : 'páginas'}`
+						: `Resumir ${pageCount} ${pageCount === 1 ? 'página' : 'páginas'}`
+					)
+				}
 			</Button>
 		</div>
 	)
@@ -545,13 +640,18 @@ function LoadingStep({
 	progress,
 	pageCount,
 	elapsedSeconds,
+	isUserAnalysisMode,
+	activeUserFilter,
 }: {
 	progress: MultiPageProgress | null
 	pageCount: number
 	elapsedSeconds: number
+	isUserAnalysisMode: boolean
+	activeUserFilter: string | null
 }) {
 	const getProgressText = () => {
 		if (!progress) return 'Preparando...'
+		if (progress.message) return progress.message
 
 		if (progress.phase === 'fetching') {
 			return `Descargando páginas... (${progress.current}/${progress.total})`
@@ -597,7 +697,12 @@ function LoadingStep({
 
 			<div className="text-center space-y-2">
 				<p className="text-sm font-medium text-foreground">{getProgressText()}</p>
-				<p className="text-xs text-muted-foreground">Resumiendo {pageCount} páginas · Esto puede tardar</p>
+				<p className="text-xs text-muted-foreground">
+						{isUserAnalysisMode && activeUserFilter
+							? `Analizando a ${activeUserFilter} · Esto puede tardar`
+							: `Resumiendo ${pageCount} páginas · Esto puede tardar`
+						}
+					</p>
 				<p className="text-xs text-muted-foreground/80">Tiempo transcurrido: {elapsedSeconds}s</p>
 			</div>
 

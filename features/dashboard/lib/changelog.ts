@@ -21,6 +21,44 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.5.0',
+		date: '2026-03-02',
+		title: 'Análisis de Usuarios por IA',
+		summary:
+			'Nuevo modo de análisis por usuario con IA, tarjetas de Twitter adaptadas al tema claro nativo y correcciones de estabilidad.',
+		changes: [
+			// NEW FEATURES
+			{
+				type: 'feature',
+				description:
+					'Análisis de usuarios por IA: Filtra un hilo por usuario y pulsa los botones de análisis (una página o varias) para obtener un análisis detallado de su participación, tono, argumentos y postura.',
+				category: 'Inteligencia Artificial',
+			},
+
+			// IMPROVEMENTS
+			{
+				type: 'improvement',
+				description:
+					'Las tarjetas de Twitter Lite ahora se muestran en modo claro cuando Mediavida usa el tema claro nativo, con mejor contraste en las métricas de engagement.',
+				category: 'Multimedia',
+			},
+
+			// FIXES
+			{
+				type: 'fix',
+				description:
+					'Corregido un problema en Firefox donde tener Twitter Lite activo impedía dar manitas y pulsar el botón de marcadores.',
+				category: 'Multimedia',
+			},
+			{
+				type: 'fix',
+				description:
+					'La tarjeta de usuario (hover card) ya no queda oculta detrás de la barra de control en el modo de posts centrados.',
+				category: 'Diseño',
+			},
+		],
+	},
+	{
 		version: '1.4.1',
 		date: '2026-02-24',
 		title: 'Twitter Lite y Estabilidad',

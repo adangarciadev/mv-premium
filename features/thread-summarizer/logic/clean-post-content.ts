@@ -11,6 +11,13 @@ export interface CleanPostContentOptions {
 	keepSpoilers?: boolean
 	/** Remove code blocks (pre, code). Default: false */
 	removeCodeBlocks?: boolean
+	/**
+	 * User analysis mode: optimizes content for single-user profile analysis.
+	 * - Keeps blockquotes (they show what others said to the user)
+	 * - Converts #N quote links to descriptive text "[→ responde al #N]"
+	 * - Keeps spoiler content (implied)
+	 */
+	userAnalysisMode?: boolean
 }
 
 /**
@@ -67,6 +74,9 @@ const MEDIA_URL_PATTERNS = [
 	/^https?:\/\/(?:www\.)?clips\.twitch\.tv\/[^\s]+$/i,
 ]
 
+const QUOTE_MARKER_OPEN = '[CITA_INICIO]'
+const QUOTE_MARKER_CLOSE = '[CITA_FIN]'
+
 /**
  * Cleans post content by removing noise elements and normalizing whitespace.
  *
@@ -75,27 +85,50 @@ const MEDIA_URL_PATTERNS = [
  * With `removeCodeBlocks: true`: also removes pre/code elements.
  */
 export function cleanPostContent(contentEl: Element, options: CleanPostContentOptions = {}): string {
-	const { keepSpoilers = false, removeCodeBlocks = false } = options
+	const { keepSpoilers = false, removeCodeBlocks = false, userAnalysisMode = false } = options
 
 	const clone = contentEl.cloneNode(true) as HTMLElement
 
-	const selectors = [...BASE_SELECTORS]
+	if (userAnalysisMode) {
+		// User analysis mode: keep blockquotes (they show context of replies) but
+		// convert #N quote links to descriptive text so the AI understands reply context.
+		clone.querySelectorAll<HTMLAnchorElement>('a.quote[rel], a.quote[href]').forEach(quoteLink => {
+			const postNum = getQuoteLinkPostNumber(quoteLink)
+			if (!postNum) return
+			const span = (clone.ownerDocument || document).createElement('span')
+			span.textContent = `[→ responde al #${postNum}]`
+			quoteLink.parentNode?.replaceChild(span, quoteLink)
+		})
 
-	if (keepSpoilers) {
-		// Only remove the trigger link, keep spoiler content
-		selectors.push(...SPOILER_TRIGGER_SELECTORS)
-		// Also remove .quote (used in summarize-post but not in thread summarizer)
-		selectors.push('.quote')
+		// Wrap quoted blocks with explicit markers so the AI can distinguish
+		// quoted text from the user's own words after textContent flattening.
+		markQuotedBlocks(clone)
+
+		// Remove everything from BASE_SELECTORS EXCEPT generic blockquote and .cita
+		// (we keep those to preserve quoted context from [quote=user] BBCode)
+		const analysisSelectors = BASE_SELECTORS.filter(s => s !== 'blockquote' && s !== '.cita')
+		analysisSelectors.push(...SPOILER_TRIGGER_SELECTORS)
+		if (removeCodeBlocks) analysisSelectors.push(...CODE_SELECTORS)
+		clone.querySelectorAll(analysisSelectors.join(', ')).forEach(el => el.remove())
 	} else {
-		// Remove all spoiler elements
-		selectors.push(...SPOILER_SELECTORS)
-	}
+		const selectors = [...BASE_SELECTORS]
 
-	if (removeCodeBlocks) {
-		selectors.push(...CODE_SELECTORS)
-	}
+		if (keepSpoilers) {
+			// Only remove the trigger link, keep spoiler content
+			selectors.push(...SPOILER_TRIGGER_SELECTORS)
+			// Also remove .quote (used in summarize-post but not in thread summarizer)
+			selectors.push('.quote')
+		} else {
+			// Remove all spoiler elements
+			selectors.push(...SPOILER_SELECTORS)
+		}
 
-	clone.querySelectorAll(selectors.join(', ')).forEach(el => el.remove())
+		if (removeCodeBlocks) {
+			selectors.push(...CODE_SELECTORS)
+		}
+
+		clone.querySelectorAll(selectors.join(', ')).forEach(el => el.remove())
+	}
 
 	// Remove bare media links that come from embed-only posts.
 	clone.querySelectorAll<HTMLAnchorElement>('a[href]').forEach(anchor => {
@@ -114,6 +147,38 @@ export function cleanPostContent(contentEl: Element, options: CleanPostContentOp
 
 	const normalized = (clone.textContent || '').replace(/\s+/g, ' ').trim()
 	return hasMeaningfulNonUrlText(normalized) ? normalized : ''
+}
+
+function markQuotedBlocks(root: HTMLElement): void {
+	const quoteSelector = 'blockquote, .cita'
+	const quoteBlocks = Array.from(root.querySelectorAll<HTMLElement>(quoteSelector)).filter(
+		el => !el.parentElement?.closest(quoteSelector)
+	)
+
+	for (const quoteEl of quoteBlocks) {
+		const doc = quoteEl.ownerDocument || root.ownerDocument || document
+		quoteEl.insertBefore(doc.createTextNode(`${QUOTE_MARKER_OPEN} `), quoteEl.firstChild)
+		quoteEl.appendChild(doc.createTextNode(` ${QUOTE_MARKER_CLOSE}`))
+	}
+}
+
+function getQuoteLinkPostNumber(link: HTMLAnchorElement): string | null {
+	const rel = (link.getAttribute('rel') || '').trim()
+	if (/^\d+$/.test(rel)) return rel
+
+	const text = (link.textContent || '').trim()
+	const textMatch = text.match(/#(\d+)/) || text.match(/\b(\d+)\b/)
+	if (textMatch) return textMatch[1]
+
+	const href = (link.getAttribute('href') || '').trim()
+	if (!href) return null
+
+	const hrefMatch =
+		href.match(/#(?:post-)?(\d+)/i) ||
+		href.match(/[?&](?:post|quote|reply|id)=(\d+)/i) ||
+		href.match(/\/post\/(\d+)\b/i)
+
+	return hrefMatch?.[1] ?? null
 }
 
 function isMediaOnlyUrl(url: string): boolean {

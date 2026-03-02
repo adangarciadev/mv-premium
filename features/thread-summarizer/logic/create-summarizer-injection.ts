@@ -26,6 +26,8 @@ interface SummarizerInjectionConfig {
 		tooltip: string
 		ariaLabel: string
 	}
+	/** Called at injection time to override button text based on current page context (e.g. user filter active) */
+	getDynamicButton?: () => Partial<{ text: string; tooltip: string; ariaLabel: string }>
 }
 
 interface SummarizerInjection {
@@ -34,7 +36,7 @@ interface SummarizerInjection {
 }
 
 export function createSummarizerInjection(config: SummarizerInjectionConfig): SummarizerInjection {
-	const { buttonId, modalFeatureId, modalContainerId, ModalComponent, button } = config
+	const { buttonId, modalFeatureId, modalContainerId, ModalComponent, button, getDynamicButton } = config
 	let buttonResult: ThreadActionButtonResult | null = null
 
 	function ModalWrapper({ onClose }: { onClose: () => void }) {
@@ -69,12 +71,14 @@ export function createSummarizerInjection(config: SummarizerInjectionConfig): Su
 		if (isThreadActionButtonInjected(buttonId)) return
 		if (!isThreadPage()) return
 
+		const finalButton = { ...button, ...getDynamicButton?.() }
+
 		buttonResult = createThreadActionButton({
 			id: buttonId,
-			icon: button.icon,
-			text: button.text,
-			tooltip: button.tooltip,
-			ariaLabel: button.ariaLabel,
+			icon: finalButton.icon,
+			text: finalButton.text,
+			tooltip: finalButton.tooltip,
+			ariaLabel: finalButton.ariaLabel,
 			onClick: () => openModal(),
 		})
 	}

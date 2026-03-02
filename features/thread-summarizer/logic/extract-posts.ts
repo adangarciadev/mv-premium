@@ -8,7 +8,7 @@
 
 import { MV_SELECTORS } from '@/constants'
 import { logger } from '@/lib/logger'
-import { cleanPostContent } from './clean-post-content'
+import { parsePostElement } from './parse-post-element'
 
 // =============================================================================
 // CONSTANTS
@@ -38,6 +38,27 @@ export interface ExtractedPost {
 // MAIN EXTRACTION
 // =============================================================================
 
+// =============================================================================
+// USER FILTER DETECTION
+// =============================================================================
+
+/**
+ * Detects the active user filter (e.g. ?u=Morkar in the URL).
+ * Reads from the DOM banner first (#user-filter element), falls back to URL param.
+ * Returns the filtered username, or null if no filter is active.
+ */
+export function getActiveUserFilter(): string | null {
+	// The DOM banner <strong id="user-filter">Morkar</strong> is most reliable
+	const el = document.getElementById('user-filter')
+	if (el?.textContent?.trim()) return el.textContent.trim()
+	// URL fallback: ?u=Morkar
+	return new URLSearchParams(window.location.search).get('u')
+}
+
+// =============================================================================
+// MAIN EXTRACTION
+// =============================================================================
+
 /**
  * Scrapes and extracts all posts from the current page.
  * Applies token-aware truncation to ensure compatibility with AI context limits.
@@ -52,7 +73,7 @@ export function extractAllPagePosts(): ExtractedPost[] {
 
 	postElements.forEach(postEl => {
 		try {
-			const post = extractSinglePost(postEl)
+			const post = parsePostElement(postEl)
 			if (post && post.content.length > 3) {
 				posts.push(post)
 			}
@@ -69,79 +90,32 @@ export function extractAllPagePosts(): ExtractedPost[] {
 }
 
 /**
- * Extracts metadata and sanitized content from a single post DOM element.
- * @param postEl - The post element to extract
+ * Extracts posts optimized for user analysis mode.
+ * Preserves blockquotes (quoted context) and converts #N quote links to
+ * descriptive "[→ responde al #N]" markers so the AI understands reply patterns.
  */
-function extractSinglePost(postEl: HTMLElement): ExtractedPost | null {
-	// 1. Post number
-	const numAttr = postEl.getAttribute('data-num') || postEl.id?.replace('post-', '')
-	const number = parseInt(numAttr || '0', 10)
+export function extractUserAnalysisPosts(): ExtractedPost[] {
+	const posts: ExtractedPost[] = []
 
-	// 2. Author (from post header, not from quotes)
-	const author = extractAuthorName(postEl)
-	if (!author) return null
+	const postElements = document.querySelectorAll<HTMLElement>(
+		`${MV_SELECTORS.THREAD.POST}, ${MV_SELECTORS.THREAD.POST_DIV}`
+	)
 
-	// 3. Avatar
-	const avatarEl = postEl.querySelector(MV_SELECTORS.THREAD.POST_AVATAR_IMG)
+	postElements.forEach(postEl => {
+		try {
+			const post = parsePostElement(postEl, { userAnalysisMode: true })
+			if (post && post.content.length > 3) {
+				posts.push(post)
+			}
+		} catch (e) {
+			logger.warn('Error extracting post for user analysis:', e)
+		}
+	})
 
-	let rawAvatar = avatarEl?.getAttribute('data-src') || avatarEl?.getAttribute('src')
-	let avatarUrl: string | undefined
-
-	if (rawAvatar) {
-		if (rawAvatar.startsWith('//')) rawAvatar = 'https:' + rawAvatar
-		else if (rawAvatar.startsWith('/')) rawAvatar = 'https://www.mediavida.com' + rawAvatar
-		else if (!rawAvatar.startsWith('http')) rawAvatar = 'https://www.mediavida.com/img/users/avatar/' + rawAvatar
-
-		avatarUrl = rawAvatar
-	}
-
-	// 4. Content (cleaned)
-	const contentEl =
-		postEl.querySelector(MV_SELECTORS.THREAD.POST_CONTENTS) ||
-		postEl.querySelector(MV_SELECTORS.THREAD.POST_BODY_ALL)
-	if (!contentEl) return null
-
-	// Keep spoiler content for thread summaries; remove only spoiler trigger links.
-	const content = cleanPostContent(contentEl, { keepSpoilers: true })
-	if (!content) return null
-
-	// 5. Timestamp
-	const timeEl = postEl.querySelector(`${MV_SELECTORS.THREAD.POST_TIME}, ${MV_SELECTORS.THREAD.POST_TIME_ALT}`)
-	const timestamp = timeEl?.getAttribute('datetime') || timeEl?.textContent?.trim()
-
-	// 6. Votes (manitas / thumbs up)
-	const votesEl = postEl.querySelector(MV_SELECTORS.THREAD.POST_LIKE_COUNT)
-	const votes = votesEl?.textContent?.trim() ? parseInt(votesEl.textContent.trim(), 10) : 0
-
-	return {
-		number,
-		author,
-		content,
-		timestamp,
-		charCount: content.length,
-		avatarUrl,
-		votes: votes || undefined,
-	}
+	posts.sort((a, b) => a.number - b.number)
+	return applySmartTruncation(posts)
 }
 
-function extractAuthorName(postEl: HTMLElement): string {
-	const dataAuthor = postEl.getAttribute('data-autor')?.replace(/\s+/g, ' ').trim()
-	if (dataAuthor) return dataAuthor
-
-	// Prefer direct author link text to avoid picking aliases/titles near the nick.
-	const authorLink =
-		postEl.querySelector<HTMLAnchorElement>(MV_SELECTORS.THREAD.POST_AUTHOR_LINK) ||
-		postEl.querySelector<HTMLAnchorElement>('.post-header .autor a, .post-meta .autor a')
-
-	if (authorLink?.textContent) {
-		const text = authorLink.textContent.replace(/\s+/g, ' ').trim()
-		if (text) return text
-	}
-
-	const authorEl = postEl.querySelector(MV_SELECTORS.THREAD.POST_AUTHOR_ALL)
-	const fallback = authorEl?.textContent?.replace(/\s+/g, ' ').trim()
-	return fallback || ''
-}
 
 
 // =============================================================================
@@ -250,9 +224,34 @@ export function getUniqueAuthors(posts: ExtractedPost[]): number {
 export function formatPostsForPrompt(posts: ExtractedPost[]): string {
 	return posts
 		.map(p => {
-			const authorLabel = p.number === 1 ? `${p.author} (OP)` : p.author
 			const votesLabel = p.votes ? ` [👍${p.votes}]` : ''
-			return `#${p.number} ${authorLabel}${votesLabel}: ${p.content}`
+			return `#${p.number} ${p.author}${votesLabel}: ${p.content}`
 		})
 		.join('\n\n')
+}
+
+/**
+ * Format posts for user analysis prompts, adding lightweight interaction hints
+ * extracted from cleaned content (reply markers + @mentions).
+ */
+export function formatPostsForUserAnalysisPrompt(posts: ExtractedPost[]): string {
+	return posts
+		.map(p => {
+			const votesLabel = p.votes ? ` [👍${p.votes}]` : ''
+			const hints = buildUserAnalysisHints(p.content)
+			const hintsLabel = hints ? ` ${hints}` : ''
+			return `#${p.number} ${p.author}${votesLabel}${hintsLabel}: ${p.content}`
+		})
+		.join('\n\n')
+}
+
+function buildUserAnalysisHints(content: string): string {
+	const replyRefs = Array.from(new Set(Array.from(content.matchAll(/\[→ responde al #(\d+)\]/g)).map(m => `#${m[1]}`)))
+	const mentions = Array.from(new Set(Array.from(content.matchAll(/(?:^|[\s([\]"'])@([A-Za-z0-9_-]{2,32})/g)).map(m => `@${m[1]}`)))
+
+	const parts: string[] = []
+	if (replyRefs.length > 0) parts.push(`{responde: ${replyRefs.join(', ')}}`)
+	if (mentions.length > 0) parts.push(`{menciona: ${mentions.slice(0, 6).join(', ')}}`)
+
+	return parts.join(' ')
 }

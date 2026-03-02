@@ -7,6 +7,21 @@
  * Four prompt variants: batch / meta  ×  gemini / groq
  */
 
+/**
+ * Markers embedded in prompts so the background AI handler can detect heavy
+ * forum prompts (thread summaries, user analysis) and apply TPM pacing/trimming.
+ *
+ * Shared between prompt-builder.ts (emitter) and ai-handlers.ts (detector).
+ */
+export const PROMPT_MARKERS = {
+	/** Present in all thread summary prompts (batch + meta). */
+	THREAD_SUMMARY: 'TITULO DEL HILO:',
+	/** Present in meta-summary prompts (partial summaries). */
+	META_SUMMARY: 'RESUMENES PARCIALES:',
+	/** Present in all user analysis prompts. */
+	USER_ANALYSIS: '[MVP:USER_ANALYSIS]',
+} as const
+
 type Provider = 'gemini' | 'groq'
 type PromptType = 'batch' | 'meta'
 
@@ -58,6 +73,147 @@ export function buildMetaSummaryPromptGroq(pageCount: number): string {
 }
 
 // =============================================================================
+// USER ANALYSIS PROMPTS
+// =============================================================================
+
+/**
+ * Light format suggestions rotated per username via deterministic hash.
+ * These are SUGGESTIONS, not mandates — the model has creative freedom.
+ * Kept abstract (no copyable phrases) to prevent the model from cloning them.
+ */
+const TAGLINE_HINTS = [
+	'Prueba con una metáfora o comparación.',
+	'Prueba con un contraste entre dos facetas opuestas suyas.',
+	'Prueba con una frase que podría ser el lema de su vida forera.',
+	'Prueba con algo que el propio usuario diría.',
+	'Prueba con un cargo o título inventado.',
+] as const
+
+const VERDICT_HINTS = [
+	'Prueba con una sentencia tajante sobre lo que haría o dejaría de hacer.',
+	'Prueba con una frase que diría sobre él un rival del foro.',
+	'Prueba con un escenario hipotético absurdo.',
+	'Prueba con un epitafio de foro breve.',
+	'Prueba con una comparación inesperada.',
+] as const
+
+function usernameHash(username: string, seed = 0): number {
+	let h = seed
+	for (let i = 0; i < username.length; i++) h = (h * 31 + username.charCodeAt(i)) | 0
+	return Math.abs(h)
+}
+
+function getHints(username: string) {
+	return {
+		tagline: TAGLINE_HINTS[usernameHash(username, 0) % TAGLINE_HINTS.length],
+		verdict: VERDICT_HINTS[usernameHash(username, 13) % VERDICT_HINTS.length],
+	}
+}
+
+/**
+ * Builds a user analysis prompt for Gemini.
+ * Produces a personality-driven profile of a single user's participation in the thread.
+ */
+export function buildUserAnalysisPromptGemini(username: string, pageCount: number): string {
+	const maxTopics = pageCount <= 3 ? 4 : pageCount <= 7 ? 5 : pageCount <= 15 ? 6 : 7
+	const maxInteractions = pageCount <= 3 ? 3 : pageCount <= 7 ? 4 : 5
+	const maxHighlights = pageCount <= 3 ? 2 : 3
+	const hints = getHints(username)
+
+	return `${PROMPT_MARKERS.USER_ANALYSIS}
+Eres un analista de foros con mucha personalidad. Te paso TODOS los mensajes de "${username}" en un hilo de Mediavida.
+Tu trabajo: hacer un retrato ÚNICO y memorable de ESTE USUARIO. No un informe genérico. Un perfil con personalidad que haga que quien lo lea diga "es clavado".
+
+FORMATO DE SALIDA (JSON estrictamente válido):
+{
+  "username": "${username}",
+  "tagline": "Frase corta y memorable (máx 10-15 palabras) que SOLO pueda aplicarse a ESTE usuario. ${hints.tagline}",
+  "profile": "2-3 frases naturales describiendo quién es ESTE usuario y QUÉ LO DIFERENCIA de cualquier otro del hilo. Escríbelo como si alguien lo describiera en una quedada. Busca sus manías, contradicciones y forma de entrar en debates. APERTURA: NO uses la palabra 'forero' ni 'forera' en la primera frase. Arranca con una acción, una escena o una contradicción suya.",
+  "topics": [
+    "Tema o posición recurrente muy concreto 1",
+    "Tema o posición recurrente muy concreto 2",
+    "... (hasta ${maxTopics} temas)"
+  ],
+  "interactions": [
+    "Patrón de interacción con otro usuario concreto (incluye #N del comentario cuando cites un post; usa @nick solo para usuarios, sobre qué, cómo, con qué resultado)",
+    "... (hasta ${maxInteractions} patrones)"
+  ],
+  "style": "Descripción VÍVIDA de cómo se comunica ESTE usuario. ¿Qué lo hace reconocible al leerlo? Busca su vocabulario propio, sus muletillas, su forma de construir argumentos o soltar sentencias. PROHIBIDO empezar con 'Directo', 'Su comunicación es...' o 'Su prosa...'. PROHIBIDO usar: 'bilis', 'pluma', 'sentencias lapidarias', 'autopsia', 'navaja suiza'.",
+  "highlights": [
+    "Post o momento concreto con #N del post (prioriza los más votados [👍N], pero incluye también alguno polémico o donde rompa su propio patrón habitual)",
+    "... (hasta ${maxHighlights} momentos)"
+  ],
+  "verdict": "Frase final BREVE (1-2 frases máximo) con personalidad. ${hints.verdict} Que sea memorable y solo aplique a ESTE forero."
+}
+
+PERSONALIDAD:
+- Tu objetivo es encontrar lo que hace ÚNICO a "${username}". No a un forero genérico.
+- SÉ VALIENTE y honesto. Si es un troll, dilo. Si es el más pesado del hilo, también. Si tiene contradicciones, señálalas con gracia.
+- VARÍA el vocabulario y la estructura entre campos. Si usas una metáfora en el tagline, no repitas el mismo recurso en el verdict. Si describes su estilo con una imagen, que el profile use otra distinta.
+- El "verdict" debe ser BREVE y contundente (1-2 frases MÁXIMO, no un párrafo). Si supera 2 frases, RECÓRTALO.
+${pageCount > 3 ? `- EVOLUCIÓN: Si "${username}" cambió de opinión o de tono entre las primeras y últimas páginas, menciónalo.\n` : ''}
+CONTENIDO:
+- Devuelve SOLO el JSON. Sin bloques de código markdown. El JSON debe ser válido.
+- Todos los posts son de "${username}". Analiza SU personalidad.
+- [→ responde al #N] = respuesta a otro. Úsalo para entender interacciones.
+- {responde: #N} y {menciona: @nick} = pistas de interacción automáticas.
+- [CITA_INICIO]...[CITA_FIN] = cita de otros. NO la atribuyas a "${username}" salvo que la reafirme.
+- Blockquotes = lo que otros le dijeron. Si incluyen el nick, úsalo en interactions.
+- [👍N] = votos. Prioriza los más votados en highlights.
+- "topics": temas MUY CONCRETOS. NO digas "habla de tecnología".
+- "interactions": cuando cites comentarios usa #N (nunca @N). Usa @nick solo para usuarios concretos. Si no hay evidencia, devuelve [] y NO inventes.
+- "highlights": contenido CONCRETO con #N. Busca variedad: un post votado y uno inesperado.
+- NO inventes acusaciones políticas o de propaganda no explícitas en los posts. Si es inferencia, usa tono prudente ("sugiere", "ironiza", "parece").
+- NO DUPLIQUES entre campos. Detecta ironía/sarcasmo.
+- No confundas apodos/rangos/títulos visuales con el nick real.
+- Responde en español.`
+}
+
+/**
+ * Builds a user analysis prompt for Groq.
+ * More compact version for TPM-constrained providers.
+ */
+export function buildUserAnalysisPromptGroq(username: string, pageCount: number): string {
+	const maxTopics = pageCount <= 3 ? 4 : pageCount <= 7 ? 5 : 6
+	const maxInteractions = pageCount <= 3 ? 3 : 4
+	const maxHighlights = pageCount <= 3 ? 2 : 3
+	const hints = getHints(username)
+
+	return `${PROMPT_MARKERS.USER_ANALYSIS}
+Analiza todos los posts de "${username}" en un hilo de Mediavida. Haz un retrato ÚNICO y memorable, no un informe genérico. Devuelve SOLO JSON válido.
+
+SALIDA:
+{
+  "username": "${username}",
+  "tagline": "Frase corta memorable (máx 10-15 palabras) que SOLO aplique a ESTE usuario. ${hints.tagline}",
+  "profile": "2-3 frases describiendo qué hace DIFERENTE a este usuario. Como si alguien lo describiera en una quedada. Busca sus manías, contradicciones, forma de debatir. NO uses 'forero/a' en la primera frase. Arranca con acción, escena o contradicción.",
+  "topics": ["Tema concreto en formato frase (4-12 palabras, empieza con mayúscula)", "... hasta ${maxTopics}"],
+  "interactions": ["Patrón concreto (si citas comentario, usa #N; @nick solo para usuarios)", "... hasta ${maxInteractions}"],
+  "style": "Descripción VÍVIDA de cómo se comunica (mínimo 25 palabras). ¿Qué lo hace reconocible? Vocabulario propio, muletillas, forma de argumentar. NO empezar con 'Directo', 'Su comunicación es...' ni 'Su prosa...'. NO usar: 'bilis', 'pluma', 'sentencias lapidarias', 'autopsia'.",
+  "highlights": ["Momento concreto con #N. Votados y polémicos.", "... hasta ${maxHighlights}"],
+  "verdict": "Frase final BREVE (1-2 frases). ${hints.verdict} Que sea memorable."
+}
+
+PERSONALIDAD:
+- Busca lo ÚNICO de "${username}". Sé valiente y honesto. Sin perfiles tibios.
+- VARÍA vocabulario y estructura entre campos. No repitas el mismo recurso literario.
+- Nada de respuestas telegráficas: evita listas de 2-3 palabras sin contexto.
+- "verdict" debe ser BREVE y contundente (1-2 frases MÁXIMO, no un párrafo). Si supera 2 frases, RECÓRTALO.
+${pageCount > 3 ? `- EVOLUCIÓN: Si cambió de opinión o tono entre páginas, menciónalo.\n` : ''}
+CONTENIDO:
+- SOLO JSON. Empieza con { y termina con }. Sin markdown.
+- Todos los posts son de "${username}". [→ responde al #N] = respuesta a otro.
+- {responde: #N} y {menciona: @nick} = pistas de interacción.
+- [CITA_INICIO]...[CITA_FIN] = cita de otros. NO atribuyas a "${username}".
+- [👍N] = votos. Prioriza en highlights.
+- "topics": concretos. "interactions": si citas comentario usa #N (nunca @N), y @nick solo para usuarios. Si no hay evidencia, []. NO inventes.
+- "highlights": contenido concreto con #N. Variedad: votados e inesperados.
+- Capitalización: empieza tagline, profile, style, verdict y cada item de lista con mayúscula inicial.
+- NO inventes acusaciones políticas o de propaganda no explícitas en los posts. Si es inferencia, usa tono prudente ("sugiere", "ironiza", "parece").
+- NO DUPLIQUES entre campos. Detecta ironía/sarcasmo. En español.`
+}
+
+// =============================================================================
 // GEMINI PROMPTS
 // =============================================================================
 
@@ -92,7 +248,7 @@ REGLAS ESTRICTAS:
 - Incluye hasta ${maxParticipants} participantes, priorizando los mas activos y relevantes.
 - Si hay autores suficientes, devuelve EXACTAMENTE ${maxParticipants} participantes. Solo devuelve menos si en los posts no hay suficientes autores unicos con contenido relevante.
 - AGRUPACIÓN: Si varios usuarios comparten exactamente la misma postura, agrúpalos en una sola entrada separando los nombres por comas (ej: "Pepito, Juanito").
-- OP: Si identificas al creador del hilo (OP), mantén la etiqueta (OP) junto a su nombre.
+- OP: Solo usa la etiqueta (OP) si aparece explícitamente en los posts de entrada. No la adivines por posición dentro del rango.
 - Los posts marcados con [👍N] tienen N votos de la comunidad. Los posts muy votados suelen contener opiniones o informacion especialmente relevante. Tenlos en cuenta para los puntos clave y participantes.
 - Usa las ESTADISTICAS DEL HILO como referencia objetiva para seleccionar participantes destacados, pero no te limites solo a los que mas postean: alguien con pocos posts pero muy votados puede ser mas relevante.
 - Escribe como alguien que ha leído el hilo completo: natural, claro y con matiz humano.
@@ -146,7 +302,7 @@ REGLAS ESTRICTAS:
 - Si un tema evoluciona entre secciones, describe la evolucion.
 - Los participantes deben ser los MAS destacados en todo el hilo (hasta ${maxParticipants}).
 - AGRUPACIÓN: Si varios usuarios comparten la misma postura, mantenlos agrupados (ej: "Pepito, Juanito").
-- OP: Mantén la etiqueta (OP) si aparece.
+- OP: Mantén la etiqueta (OP) solo si aparece explícitamente en los parciales/entrada. No la adivines.
 - Si hay autores suficientes, devuelve EXACTAMENTE ${maxParticipants} participantes. Solo devuelve menos si no hay suficientes autores unicos relevantes.
 - Usa las ESTADISTICAS DEL HILO como referencia objetiva. Alguien con pocos posts pero muy votados puede ser mas relevante que alguien que postea mucho sin impacto.
 - Escribe como alguien que ha leído el hilo completo: natural, claro y con matiz humano.
@@ -196,7 +352,7 @@ REGLAS CRITICAS (cumple TODAS):
 - DETALLE: Cada "contribution" en 2-3 frases breves (aprox. 20-55 palabras). Cada punto clave en 1-3 frases breves. Distribuye el espacio EQUITATIVAMENTE entre TODOS los participantes.
 - Cada "contribution" y cada punto clave DEBE terminar con punto (.).
 - AGRUPACIÓN: Si varios usuarios comparten la misma postura, AGRÚPALOS (ej: "Pepito, Juanito").
-- OP: Mantén la etiqueta (OP) si identificas al creador del hilo.
+- OP: Solo usa la etiqueta (OP) si aparece explícitamente en los posts de entrada. No la adivines por posición dentro del rango.
 - PROHIBIDO usar frases genéricas como "participó activamente en el debate", "aportando argumentos", "cabe destacar" o "en conclusión".
 - Si hay material suficiente, devuelve EXACTAMENTE ${maxKeyPoints} puntos clave y EXACTAMENTE ${maxParticipants} participantes. Solo devuelve menos si realmente no hay contenido o autores suficientes.
 - El "status" DEBE ser una frase descriptiva y original. Evita empezar siempre con "El debate..." o "El hilo...". Sé directo.
@@ -240,7 +396,7 @@ REGLAS CRITICAS (cumple TODAS):
 - DETALLE: Cada "contribution" en 2-3 frases breves (aprox. 20-55 palabras) y cada punto clave en 1-3 frases breves. Distribuye el espacio EQUITATIVAMENTE entre TODOS los participantes.
 - Cada "contribution" y cada punto clave DEBE terminar con punto (.).
 - AGRUPACIÓN: Si varios usuarios comparten la misma postura, AGRÚPALOS.
-- OP: Mantén la etiqueta (OP) si aparece.
+- OP: Mantén la etiqueta (OP) solo si aparece explícitamente en los parciales/entrada. No la adivines.
 - PROHIBIDO usar frases genéricas como "participó activamente", "cabe destacar" o "en resumen". Si no tienes información concreta, NO incluyas al usuario.
 - Si hay material suficiente, devuelve EXACTAMENTE ${maxKeyPoints} puntos clave y EXACTAMENTE ${maxParticipants} participantes. Solo devuelve menos si realmente faltan datos.
 - El "status" DEBE ser una frase ORIGINAL. Evita empezar siempre con "El debate..." o "El hilo...".

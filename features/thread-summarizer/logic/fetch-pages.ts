@@ -7,8 +7,9 @@
 
 import { MV_SELECTORS } from '@/constants'
 import { logger } from '@/lib/logger'
+import { sendMessage } from '@/lib/messaging'
 import type { ExtractedPost } from './extract-posts'
-import { cleanPostContent } from './clean-post-content'
+import { parsePostElement } from './parse-post-element'
 
 // =============================================================================
 // CONSTANTS
@@ -63,6 +64,8 @@ export interface MultiPageProgress {
 	phase: 'fetching' | 'summarizing'
 	current: number
 	total: number
+	/** Optional human-readable status detail for the current phase (retry, repair, etc.) */
+	message?: string
 	/** For map-reduce: which batch is being summarized */
 	batch?: number
 	totalBatches?: number
@@ -86,13 +89,17 @@ function getThreadBaseUrl(): string {
 
 /**
  * Builds the full URL for a specific page of the thread.
+ * Exported for unit tests (handles both normal and ?u=username pagination).
  */
-function buildPageUrl(baseUrl: string, pageNumber: number): string {
+export function buildPageUrl(baseUrl: string, pageNumber: number): string {
 	const params = new URLSearchParams(window.location.search)
 
 	let relativePath: string
 	if (params.has('u')) {
+		// In filtered threads, page 1 must NOT include `pagina`, otherwise opening the
+		// modal from `?u=Nick&pagina=N` will incorrectly fetch page N again.
 		if (pageNumber > 1) params.set('pagina', String(pageNumber))
+		else params.delete('pagina')
 		const queryString = params.toString()
 		relativePath = queryString ? `${baseUrl}?${queryString}` : baseUrl
 	} else {
@@ -111,7 +118,11 @@ export function getTotalPages(): number {
 	// Check pagination links (numbered <a> elements)
 	const paginationLinks = document.querySelectorAll<HTMLAnchorElement>(MV_SELECTORS.THREAD.PAGINATION_LINKS)
 	for (const link of paginationLinks) {
-		const match = link.href.match(/\/(\d+)$/)
+		// Standard format: /foro/category/thread-123/5
+		const pathMatch = link.href.match(/\/(\d+)$/)
+		// User filter format: ?u=Username&pagina=5
+		const queryMatch = link.href.match(/[?&]pagina=(\d+)/)
+		const match = pathMatch || queryMatch
 		if (match) {
 			const num = parseInt(match[1], 10)
 			if (num > maxPage) maxPage = num
@@ -135,6 +146,13 @@ export function getCurrentPage(): number {
 	const urlMatch = window.location.pathname.match(/\/(\d+)$/)
 	if (urlMatch) return parseInt(urlMatch[1], 10)
 
+	// User filter format: ?u=Username&pagina=5
+	const paginaParam = new URLSearchParams(window.location.search).get('pagina')
+	if (paginaParam) {
+		const num = parseInt(paginaParam, 10)
+		if (!isNaN(num)) return num
+	}
+
 	const activePage = document.querySelector(MV_SELECTORS.THREAD.PAGINATION_CURRENT)
 	if (activePage?.textContent) {
 		const num = parseInt(activePage.textContent.trim(), 10)
@@ -152,31 +170,27 @@ export function getCurrentPage(): number {
  * Fetches the HTML of a single thread page and parses it into a Document.
  */
 async function fetchPageDocument(url: string): Promise<Document> {
-	const response = await fetch(url, {
-		credentials: 'include',
-		headers: { Accept: 'text/html' },
-	})
-
-	if (!response.ok) {
-		throw new Error(`HTTP ${response.status}`)
+	const result = await sendMessage('fetchThreadPageHtml', { url })
+	if (!result?.success || !result.html) {
+		throw new Error(result?.error || 'Failed to fetch thread page HTML')
 	}
 
-	const html = await response.text()
+	const html = result.html
 	const parser = new DOMParser()
 	return parser.parseFromString(html, 'text/html')
 }
 
 /**
  * Extracts posts from a parsed Document (not the live DOM).
- * Adapted from extract-posts.ts for parsed HTML documents.
+ * Uses the shared parsePostElement for consistent extraction.
  */
-function extractPostsFromDocument(doc: Document): ExtractedPost[] {
+function extractPostsFromDocument(doc: Document, userAnalysisMode = false): ExtractedPost[] {
 	const posts: ExtractedPost[] = []
 	const postElements = doc.querySelectorAll<HTMLElement>(`${MV_SELECTORS.THREAD.POST}, ${MV_SELECTORS.THREAD.POST_DIV}`)
 
 	postElements.forEach(postEl => {
 		try {
-			const post = extractSinglePostFromElement(postEl)
+			const post = parsePostElement(postEl, { userAnalysisMode })
 			if (post && post.content.length > 3) {
 				posts.push(post)
 			}
@@ -187,66 +201,6 @@ function extractPostsFromDocument(doc: Document): ExtractedPost[] {
 
 	posts.sort((a, b) => a.number - b.number)
 	return truncatePosts(posts)
-}
-
-/**
- * Extracts data from a single post element.
- */
-function extractSinglePostFromElement(postEl: HTMLElement): ExtractedPost | null {
-	const numAttr = postEl.getAttribute('data-num') || postEl.id?.replace('post-', '')
-	const number = parseInt(numAttr || '0', 10)
-
-	const author = extractAuthorName(postEl)
-	if (!author) return null
-
-	// Avatar
-	const avatarEl = postEl.querySelector(MV_SELECTORS.THREAD.POST_AVATAR_IMG)
-	let rawAvatar = avatarEl?.getAttribute('data-src') || avatarEl?.getAttribute('src')
-	let avatarUrl: string | undefined
-
-	if (rawAvatar) {
-		if (rawAvatar.startsWith('//')) rawAvatar = 'https:' + rawAvatar
-		else if (rawAvatar.startsWith('/')) rawAvatar = 'https://www.mediavida.com' + rawAvatar
-		else if (!rawAvatar.startsWith('http')) rawAvatar = 'https://www.mediavida.com/img/users/avatar/' + rawAvatar
-		avatarUrl = rawAvatar
-	}
-
-	const contentEl =
-		postEl.querySelector(MV_SELECTORS.THREAD.POST_CONTENTS) ||
-		postEl.querySelector(MV_SELECTORS.THREAD.POST_BODY_ALL)
-	if (!contentEl) return null
-
-	// Keep spoiler content for thread summaries; remove only spoiler trigger links.
-	const content = cleanPostContent(contentEl, { keepSpoilers: true })
-	if (!content) return null
-
-	const timeEl = postEl.querySelector(`${MV_SELECTORS.THREAD.POST_TIME}, ${MV_SELECTORS.THREAD.POST_TIME_ALT}`)
-	const timestamp = timeEl?.getAttribute('datetime') || timeEl?.textContent?.trim()
-
-	// Votes (manitas / thumbs up)
-	const votesEl = postEl.querySelector(MV_SELECTORS.THREAD.POST_LIKE_COUNT)
-	const votes = votesEl?.textContent?.trim() ? parseInt(votesEl.textContent.trim(), 10) : 0
-
-	return { number, author, content, timestamp, charCount: content.length, avatarUrl, votes: votes || undefined }
-}
-
-function extractAuthorName(postEl: HTMLElement): string {
-	const dataAuthor = postEl.getAttribute('data-autor')?.replace(/\s+/g, ' ').trim()
-	if (dataAuthor) return dataAuthor
-
-	// Prefer direct author link text to avoid picking aliases/titles near the nick.
-	const authorLink =
-		postEl.querySelector<HTMLAnchorElement>(MV_SELECTORS.THREAD.POST_AUTHOR_LINK) ||
-		postEl.querySelector<HTMLAnchorElement>('.post-header .autor a, .post-meta .autor a')
-
-	if (authorLink?.textContent) {
-		const text = authorLink.textContent.replace(/\s+/g, ' ').trim()
-		if (text) return text
-	}
-
-	const authorEl = postEl.querySelector(MV_SELECTORS.THREAD.POST_AUTHOR_ALL)
-	const fallback = authorEl?.textContent?.replace(/\s+/g, ' ').trim()
-	return fallback || ''
 }
 
 
@@ -291,8 +245,10 @@ function getTitleFromDocument(doc: Document): string {
 export async function fetchMultiplePages(
 	fromPage: number,
 	toPage: number,
-	onProgress?: (progress: MultiPageProgress) => void
+	onProgress?: (progress: MultiPageProgress) => void,
+	options?: { userAnalysisMode?: boolean }
 ): Promise<MultiPageFetchResult> {
+	const userAnalysisMode = options?.userAnalysisMode ?? false
 	const baseUrl = getThreadBaseUrl()
 	const pageNumbers = Array.from({ length: toPage - fromPage + 1 }, (_, i) => fromPage + i)
 
@@ -316,7 +272,7 @@ export async function fetchMultiplePages(
 			batch.map(async pageNum => {
 				const url = buildPageUrl(baseUrl, pageNum)
 				const doc = await fetchPageDocument(url)
-				const posts = extractPostsFromDocument(doc)
+				const posts = extractPostsFromDocument(doc, userAnalysisMode)
 				const authors = [...new Set(posts.map(p => p.author.toLowerCase()))]
 
 				// Grab title from first successful fetch

@@ -94,6 +94,14 @@ export interface TweetLiteResult {
 	error?: string
 }
 
+export interface ThreadPageHtmlFetchResult {
+	success: boolean
+	html?: string
+	error?: string
+	status?: number
+	finalUrl?: string
+}
+
 // =============================================================================
 // Protocol Map - Define all RPC messages here
 // =============================================================================
@@ -123,6 +131,12 @@ interface ProtocolMap {
 	 * @param view - Optional view path (e.g., 'drafts', 'settings')
 	 */
 	openOptionsPage: (view?: string) => void
+
+	/**
+	 * Fetch raw HTML for a Mediavida thread page via background script.
+	 * Keeps thread-page network requests out of content scripts.
+	 */
+	fetchThreadPageHtml: (data: { url: string }) => ThreadPageHtmlFetchResult
 
 	/**
 	 * Fetch Steam game details (CORS proxy)

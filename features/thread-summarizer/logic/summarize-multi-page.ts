@@ -507,6 +507,8 @@ export async function summarizeMultiplePages(
 			userFriendlyError = 'Contenido demasiado largo para procesar. Intenta reducir el número de páginas.'
 		} else if (errorMessage.includes('500') || errorMessage.includes('503')) {
 			userFriendlyError = 'Error temporal del servidor. Inténtalo de nuevo.'
+		} else if (errorMessage.includes('tardó demasiado') || errorMessage.includes('tiempo máximo')) {
+			userFriendlyError = errorMessage
 		}
 
 		return createErrorSummary(fetchResult.threadTitle, fromPage, toPage, userFriendlyError)

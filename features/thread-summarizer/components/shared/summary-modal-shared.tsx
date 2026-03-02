@@ -18,10 +18,15 @@ import Settings from 'lucide-react/dist/esm/icons/settings'
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Clock3 from 'lucide-react/dist/esm/icons/clock-3'
+import MessagesSquare from 'lucide-react/dist/esm/icons/messages-square'
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
+import Star from 'lucide-react/dist/esm/icons/star'
+import Pencil from 'lucide-react/dist/esm/icons/pencil'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { renderInlineMarkdown } from '../../logic/render-inline-markdown'
 import { toast } from '@/lib/lazy-toast'
+import type { UserAnalysis } from '../../logic/analyze-user'
 
 // =============================================================================
 // UTILITIES
@@ -62,8 +67,12 @@ export function useSummaryTimer(isActive: boolean, startedAtMs: number | null) {
 /**
  * Manages clipboard copy state with auto-reset.
  */
-export function useSummaryClipboard(buildText: () => string | null) {
+export function useSummaryClipboard(
+	buildText: () => string | null,
+	options?: { successMessage?: string }
+) {
 	const [copied, setCopied] = useState(false)
+	const successMessage = options?.successMessage ?? 'Resumen copiado al portapapeles'
 
 	const handleCopy = useCallback(() => {
 		const text = buildText()
@@ -71,9 +80,9 @@ export function useSummaryClipboard(buildText: () => string | null) {
 			navigator.clipboard.writeText(text)
 			setCopied(true)
 			setTimeout(() => setCopied(false), 2000)
-			toast.success('Resumen copiado al portapapeles')
+			toast.success(successMessage)
 		}
-	}, [buildText])
+	}, [buildText, successMessage])
 
 	return { copied, setCopied, handleCopy }
 }
@@ -339,6 +348,133 @@ export function SummaryModalFooter({ onRegenerate, onCopy, onClose, copied, extr
 					Cerrar
 				</Button>
 			</div>
+		</div>
+	)
+}
+
+// =============================================================================
+// USER ANALYSIS RESULT SECTION
+// =============================================================================
+
+interface UserAnalysisResultSectionProps {
+	analysis: UserAnalysis
+	/** Content rendered before the profile (e.g. fetch errors warning) */
+	beforeContent?: ReactNode
+}
+
+export function UserAnalysisResultSection({ analysis, beforeContent }: UserAnalysisResultSectionProps) {
+	return (
+		<div className="space-y-5">
+			{beforeContent}
+
+			{/* Profile — who is this user */}
+			<div className="bg-primary/5 border border-primary/20 rounded-lg p-3">
+				<div className="flex items-center gap-3 mb-2">
+					{analysis.avatarUrl ? (
+						<img
+							src={analysis.avatarUrl}
+							alt={analysis.username}
+							className="w-10 h-10 rounded-md object-cover flex-shrink-0"
+						/>
+					) : (
+						<div className="w-10 h-10 rounded-md bg-secondary flex items-center justify-center font-bold text-sm text-secondary-foreground flex-shrink-0">
+							{analysis.username.substring(0, 2).toUpperCase()}
+						</div>
+					)}
+					<div>
+						<h3 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+							<Bot className="w-3.5 h-3.5" /> Perfil
+						</h3>
+						<p className="text-sm font-semibold text-foreground">{analysis.username}</p>
+						{analysis.tagline && (
+							<p className="text-xs text-muted-foreground italic mt-0.5">"{analysis.tagline}"</p>
+						)}
+					</div>
+				</div>
+				<p className="text-sm text-foreground/90 leading-relaxed">{renderInlineMarkdown(analysis.profile)}</p>
+			</div>
+
+			{/* Topics */}
+			{analysis.topics?.length > 0 && (
+				<div className="space-y-2">
+					<h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+						<MessageSquare className="w-3.5 h-3.5" /> Temas recurrentes
+					</h3>
+					<ul className="grid gap-2">
+						{analysis.topics.map((topic, i) => (
+							<li
+								key={i}
+								className="text-sm text-foreground/90 bg-muted/30 rounded-md p-2.5 flex gap-3 items-start border border-border/50"
+							>
+								<span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-primary mt-2" />
+								<span className="leading-relaxed">{renderInlineMarkdown(topic)}</span>
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+
+			{/* Interactions */}
+			{analysis.interactions?.length > 0 && (
+				<div className="space-y-2">
+					<h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+						<MessagesSquare className="w-3.5 h-3.5" /> Interacciones
+					</h3>
+					<ul className="grid gap-2">
+						{analysis.interactions.map((interaction, i) => (
+							<li
+								key={i}
+								className="text-sm text-foreground/90 bg-muted/30 rounded-md p-2.5 flex gap-3 items-start border border-border/50"
+							>
+								<span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-blue-400 mt-2" />
+								<span className="leading-relaxed">{renderInlineMarkdown(interaction)}</span>
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+
+			{/* Style */}
+			{analysis.style && (
+				<div className="space-y-1.5">
+					<h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+						<Pencil className="w-3.5 h-3.5" /> Estilo
+					</h3>
+					<p className="text-sm text-foreground/80 bg-muted/20 rounded-md p-2.5 border border-border/40 leading-relaxed">
+						{renderInlineMarkdown(analysis.style)}
+					</p>
+				</div>
+			)}
+
+			{/* Highlights */}
+			{analysis.highlights?.length > 0 && (
+				<div className="space-y-2">
+					<h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+						<Star className="w-3.5 h-3.5" /> Momentos destacados
+					</h3>
+					<ul className="grid gap-2">
+						{analysis.highlights.map((highlight, i) => (
+							<li
+								key={i}
+								className="text-sm text-foreground/90 bg-amber-500/5 border border-amber-500/20 rounded-md p-2.5 flex gap-3 items-start"
+							>
+								<Star className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+								<span className="leading-relaxed">{renderInlineMarkdown(highlight)}</span>
+							</li>
+						))}
+					</ul>
+				</div>
+			)}
+
+			{/* Verdict */}
+			{analysis.verdict && (
+				<div className="bg-muted/50 rounded-lg p-3 border-l-2 border-primary">
+					<h3 className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1.5">
+						<Sparkles className="w-3 h-3" /> Veredicto
+					</h3>
+					<p className="text-sm text-foreground/80 italic">"{renderInlineMarkdown(analysis.verdict)}"</p>
+				</div>
+			)}
 		</div>
 	)
 }
