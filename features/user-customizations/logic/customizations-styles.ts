@@ -122,6 +122,18 @@ const MUTED_USER_CSS = `
 `
 
 /**
+ * Fix tipsy tooltip z-index in Edge.
+ * Native MV has .f-card at z-index:21 and .tipsy at z-index:30, but Edge
+ * renders the tooltip behind the card due to stacking context differences
+ * with transform + opacity on .f-card.
+ */
+const TIPSY_FIX_CSS = `
+    .tipsy {
+      z-index: 100 !important;
+    }
+`
+
+/**
  * CSS for active button states in user card.
  */
 const BUTTON_STATE_CSS = `
@@ -150,6 +162,7 @@ function buildCustomizationsCSS(settings: GlobalRoleSettings): string {
     ${USER_NOTE_CSS}
     ${MUTED_USER_CSS}
     ${BUTTON_STATE_CSS}
+    ${TIPSY_FIX_CSS}
   `
 }
 
