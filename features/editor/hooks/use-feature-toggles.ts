@@ -10,13 +10,13 @@ interface FeatureToggles {
 	loading: boolean
 }
 
-export function useFeatureToggles(isPrivateMessage: boolean) {
+export function useFeatureToggles(isStandaloneEditor: boolean) {
 	// Initial state
 	const [toggles, setToggles] = useState<FeatureToggles>({
 		cinemaButtonEnabled: true,
 		gifPickerEnabled: true,
-		draftsButtonEnabled: !isPrivateMessage, // Optimize initial state
-		templateButtonEnabled: !isPrivateMessage,
+		draftsButtonEnabled: !isStandaloneEditor, // Optimize initial state
+		templateButtonEnabled: !isStandaloneEditor,
 		gameButtonEnabled: true,
 		loading: true,
 	})
@@ -31,8 +31,8 @@ export function useFeatureToggles(isPrivateMessage: boolean) {
 			setToggles({
 				cinemaButtonEnabled: settings.cinemaButtonEnabled ?? true,
 				gifPickerEnabled: settings.gifPickerEnabled ?? true,
-				draftsButtonEnabled: isPrivateMessage ? false : (settings.draftsButtonEnabled ?? true),
-				templateButtonEnabled: isPrivateMessage ? false : (settings.templateButtonEnabled ?? true),
+				draftsButtonEnabled: isStandaloneEditor ? false : (settings.draftsButtonEnabled ?? true),
+				templateButtonEnabled: isStandaloneEditor ? false : (settings.templateButtonEnabled ?? true),
 				gameButtonEnabled: settings.gameButtonEnabled ?? true,
 				loading: false,
 			})
@@ -42,7 +42,7 @@ export function useFeatureToggles(isPrivateMessage: boolean) {
 		return () => {
 			ignore = true
 		}
-	}, [isPrivateMessage])
+	}, [isStandaloneEditor])
 
 	return toggles
 }

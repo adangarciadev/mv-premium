@@ -29,6 +29,7 @@ export interface PageContext {
 
 // Only import truly lightweight utilities statically
 // Heavy features are loaded dynamically below
+import { MV_SELECTORS } from '@/constants'
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled, FeatureFlag } from '@/lib/feature-flags'
 import { useSettingsStore } from '@/store/settings-store'
@@ -191,7 +192,15 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	// EDITOR FEATURES - Only when editor exists on page
 	// These need to run on mutations too (for dynamically loaded editors)
 	// =========================================================================
-	const hasEditor = document.querySelector('textarea#cuerpo, textarea[name="cuerpo"], textarea[name="msg"], textarea.inline-edit')
+	const hasEditor = document.querySelector(
+		[
+			MV_SELECTORS.EDITOR.TEXTAREA,
+			MV_SELECTORS.EDITOR.TEXTAREA_NAME,
+			MV_SELECTORS.MESSAGES.TEXTAREA,
+			MV_SELECTORS.EDITOR.INLINE_EDIT,
+			MV_SELECTORS.PROFILE.SETTINGS_INFO_TEXTAREA,
+		].join(', ')
+	)
 	if (hasEditor) {
 		import('@/features/editor/logic/editor-toolbar').then(
 			({ injectEditorToolbar, injectDraftAutosave, injectCharacterCounter, injectPasteHandler }) => {
