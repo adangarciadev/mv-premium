@@ -84,17 +84,15 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 
 	// Page context
 	const isNewThread = useMemo(() => isNewThreadPage(), [])
-	const isPrivateMessage = useMemo(() => textarea.name === 'msg', [textarea])
-	const isInlineEdit = useMemo(() => textarea.classList.contains('inline-edit'), [textarea])
-	/** Standalone editor = no native toolbar (PMs, inline-edit quick edit) */
-	const isStandaloneEditor = isPrivateMessage || isInlineEdit
+	/** Standalone editor = injected fallback toolbar with no native Mediavida controls */
+	const isStandaloneEditor = useMemo(() => toolbarContainer.classList.contains('mvp-pm-toolbar'), [toolbarContainer])
 
 	// Local Live Preview state for isolation between multiple editors on same page
 	const [localPreviewVisible, setLocalPreviewVisible] = useState(false)
 	const isPreviewVisible = isStandaloneEditor ? localPreviewVisible : livePreview.isVisible
 	const onTogglePreview = isStandaloneEditor ? () => setLocalPreviewVisible(v => !v) : toggleLivePreview
 
-	// Feature toggles hook - treats all standalone editors (PMs, Inline-edit) same way for now
+	// Feature toggles hook - treats all fallback editors the same way
 	const featureToggles = useFeatureToggles(isStandaloneEditor)
 
 	// Custom hooks

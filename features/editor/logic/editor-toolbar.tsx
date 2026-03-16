@@ -34,27 +34,48 @@ const DRAFT_MARKER = DOM_MARKERS.EDITOR.DRAFT
 let toolbarCounter = 0
 let draftCounter = 0
 
+const ENHANCED_TEXTAREA_SELECTOR = [
+	MV_SELECTORS.EDITOR.TEXTAREA_ALL,
+	MV_SELECTORS.MESSAGES.TEXTAREA,
+	MV_SELECTORS.PROFILE.SETTINGS_INFO_TEXTAREA,
+].join(', ')
+
+const FALLBACK_TOOLBAR_TEXTAREA_SELECTOR = [
+	MV_SELECTORS.EDITOR.TEXTAREA,
+	MV_SELECTORS.EDITOR.TEXTAREA_NAME,
+	MV_SELECTORS.MESSAGES.TEXTAREA,
+	MV_SELECTORS.EDITOR.INLINE_EDIT,
+	MV_SELECTORS.PROFILE.SETTINGS_INFO_TEXTAREA,
+].join(', ')
+
+function isProfileInfoTextarea(textarea: HTMLTextAreaElement): boolean {
+	return textarea.matches(MV_SELECTORS.PROFILE.SETTINGS_INFO_TEXTAREA)
+}
+
+function enforceVerticalResize(textarea: HTMLTextAreaElement): void {
+	textarea.style.resize = 'vertical'
+}
+
 /**
  * Injects a live character counter into the bottom-right of textareas
  */
 export function injectCharacterCounter(): void {
-	const textareas = document.querySelectorAll(
-		`${MV_SELECTORS.EDITOR.TEXTAREA_ALL}, ${MV_SELECTORS.MESSAGES.TEXTAREA}`
-	)
+	const textareas = document.querySelectorAll(ENHANCED_TEXTAREA_SELECTOR)
 
 	textareas.forEach(textarea => {
 		const ta = textarea as HTMLTextAreaElement
 		const isPrivateMessageTextarea =
 			ta.matches(MV_SELECTORS.MESSAGES.TEXTAREA) || Boolean(ta.closest('.pm-compose, .pm-reply'))
+		const isProfileInfo = isProfileInfoTextarea(ta)
+
+		enforceVerticalResize(ta)
 
 		// PM compose/reply uses a submit button in the same wrapper; counter overlaps in these layouts.
-		// We explicitly disable it there.
-		if (isPrivateMessageTextarea) return
+		// Profile info also keeps a cleaner UI without the counter.
+		if (isPrivateMessageTextarea || isProfileInfo) return
 
 		if (isAlreadyInjected(textarea, COUNTER_MARKER)) return
 		markAsInjected(textarea, COUNTER_MARKER)
-
-		ta.style.resize = 'vertical'
 
 		const counter = document.createElement('div')
 		counter.className = 'mvp-char-counter'
@@ -124,9 +145,7 @@ function insertTagAtCursor(textarea: HTMLTextAreaElement, tag: string, content: 
  * - Media (YouTube, Instagram, Twitter, Amazon, Steam, etc.) → [media][/media]
  */
 export function injectPasteHandler(): void {
-	const textareas = document.querySelectorAll<HTMLTextAreaElement>(
-		`${MV_SELECTORS.EDITOR.TEXTAREA_ALL}, ${MV_SELECTORS.MESSAGES.TEXTAREA}`
-	)
+	const textareas = document.querySelectorAll<HTMLTextAreaElement>(ENHANCED_TEXTAREA_SELECTOR)
 
 	textareas.forEach(textarea => {
 		if (isAlreadyInjected(textarea, PASTE_MARKER)) return
@@ -275,13 +294,14 @@ export function injectEditorToolbar(): void {
 		}
 	})
 
-	// Fallback for standalone textareas (PMs, inline-edit quick edit)
+	// Fallback for standalone textareas without native Mediavida toolbar
 	const textareas = document.querySelectorAll(
-		`${MV_SELECTORS.EDITOR.TEXTAREA}, ${MV_SELECTORS.EDITOR.TEXTAREA_NAME}, ${MV_SELECTORS.MESSAGES.TEXTAREA}, ${MV_SELECTORS.EDITOR.INLINE_EDIT}`
+		FALLBACK_TOOLBAR_TEXTAREA_SELECTOR
 	)
 	textareas.forEach(textarea => {
 		if (isAlreadyInjected(textarea, TOOLBAR_MARKER)) return
 		markAsInjected(textarea, TOOLBAR_MARKER)
+		enforceVerticalResize(textarea as HTMLTextAreaElement)
 
 		// Inject styles
 		const styleId = 'mvp-pm-toolbar-styles'
@@ -293,7 +313,7 @@ export function injectEditorToolbar(): void {
 			document.head.appendChild(style)
 		}
 		style.textContent = `
-				/* PM Editor Toolbar Styles */
+				/* Standalone Editor Toolbar Styles */
 				.mvp-pm-toolbar {
 					display: flex !important;
 					flex-wrap: nowrap !important;

@@ -311,6 +311,8 @@ export const MV_SELECTORS = {
 		HERO_CONTROLS: '.hero-controls',
 		/** Settings link in hero */
 		SETTINGS_LINK: '.hero-controls a[href="/configuracion"]',
+		/** "Info" textarea inside profile configuration */
+		SETTINGS_INFO_TEXTAREA: '#general-form textarea[name="info"]',
 	},
 
 	// ============================================================================
