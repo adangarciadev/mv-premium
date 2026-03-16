@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload Chrome build artifacts
         if: matrix.target == 'chrome'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: extension-chrome
           path: .output/chrome-mv3
@@ -107,7 +107,7 @@ jobs:
 
       - name: Upload Firefox build artifacts
         if: matrix.target == 'firefox'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: extension-firefox
           path: .output/firefox-mv2
