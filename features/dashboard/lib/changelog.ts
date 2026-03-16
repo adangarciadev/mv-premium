@@ -21,6 +21,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.5.1',
+		date: '2026-03-16',
+		title: 'Editor en Perfil y Correcciones',
+		summary:
+			'La toolbar del editor ahora aparece en el campo de información del perfil, y corregido un problema visual con los tooltips de usuario.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Toolbar del editor en el perfil: El campo de información personal en la configuración ahora incluye la barra de herramientas del editor.',
+				category: 'Editor',
+			},
+			{
+				type: 'fix',
+				description:
+					'Corregido en Edge un problema donde los tooltips nativos de Mediavida quedaban ocultos detrás de la tarjeta de usuario.',
+				category: 'Diseño',
+			},
+		],
+	},
+	{
 		version: '1.5.0',
 		date: '2026-03-02',
 		title: 'Análisis de Usuarios por IA',
