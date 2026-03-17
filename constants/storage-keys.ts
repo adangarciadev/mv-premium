@@ -25,6 +25,7 @@ export const STORAGE_KEYS = {
 	IGDB_TOKEN_EXPIRY: 'mvp-igdb-token-expiry',
 	BOLD_COLOR: 'mvp-bold-color',
 	BOLD_COLOR_ENABLED: 'mvp-bold-color-enabled',
+	POST_FONT_SIZE: 'mvp-post-font-size',
 
 	// Features
 	MUTED_WORDS: 'mvp-muted-words',

@@ -13,6 +13,7 @@ import Moon from 'lucide-react/dist/esm/icons/moon'
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import Settings2 from 'lucide-react/dist/esm/icons/settings-2'
 import Type from 'lucide-react/dist/esm/icons/type'
+import ALargeSmall from 'lucide-react/dist/esm/icons/a-large-small'
 import MoreHorizontal from 'lucide-react/dist/esm/icons/more-horizontal'
 import Info from 'lucide-react/dist/esm/icons/info'
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
@@ -87,6 +88,7 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 	const customRadius = useThemeStore(state => state.customRadius)
 	const customFont = useThemeStore(state => state.customFont)
 	const applyFontGlobally = useThemeStore(state => state.applyFontGlobally)
+	const postFontSize = useThemeStore(state => state.postFontSize)
 	const savedPresets = useThemeStore(state => state.savedPresets)
 	const loadFromStorage = useThemeStore(state => state.loadFromStorage)
 	const setActivePreset = useThemeStore(state => state.setActivePreset)
@@ -94,6 +96,7 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 	const setCustomRadius = useThemeStore(state => state.setCustomRadius)
 	const setCustomFont = useThemeStore(state => state.setCustomFont)
 	const setApplyFontGlobally = useThemeStore(state => state.setApplyFontGlobally)
+	const setPostFontSize = useThemeStore(state => state.setPostFontSize)
 	const resetCustomColors = useThemeStore(state => state.resetCustomColors)
 	const generateRandom = useThemeStore(state => state.generateRandom)
 	const saveCurrentAsPreset = useThemeStore(state => state.saveCurrentAsPreset)
@@ -592,6 +595,48 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 											</div>
 										</>
 									)}
+								</div>
+
+								{/* Post Font Size */}
+								<div className="space-y-3 p-4 border rounded-lg">
+									<div className="flex items-center justify-between">
+										<Label className="text-sm font-medium flex items-center gap-2">
+											<ALargeSmall className="h-4 w-4" />
+											Tamaño de texto en posts
+										</Label>
+										<div className="flex items-center gap-2">
+											<span className="text-sm text-muted-foreground font-mono">{postFontSize}%</span>
+											{postFontSize !== 100 && (
+												<Button
+													variant="ghost"
+													size="sm"
+													className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+													onClick={() => setPostFontSize(100)}
+												>
+													Restablecer
+												</Button>
+											)}
+										</div>
+									</div>
+									<Slider
+										value={[postFontSize]}
+										onValueChange={([val]) => setPostFontSize(val)}
+										min={80}
+										max={150}
+										step={5}
+										className="py-1"
+									/>
+									<div className="flex justify-between text-xs text-muted-foreground">
+										<span>80%</span>
+										<span>100%</span>
+										<span>150%</span>
+									</div>
+									<p
+										className="text-muted-foreground p-3 bg-muted/50 rounded-md leading-relaxed"
+										style={{ fontSize: `${postFontSize}%` }}
+									>
+										Vista previa del tamaño de texto en los posts del foro.
+									</p>
 								</div>
 
 								<Separator />

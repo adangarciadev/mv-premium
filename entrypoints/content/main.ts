@@ -26,6 +26,7 @@ import {
 } from '@/lib/content-modules/utils/page-detection'
 import { runInjections, type PageContext } from './run-injections'
 import { applyBoldColor, watchBoldColor } from './init-bold-color'
+import { applyPostFontSize, watchPostFontSize } from './init-post-font-size'
 import { syncFidIcons } from '@/features/icons/icon-syncer'
 import { initUltrawide } from '@/features/ultrawide'
 import { initMvThemeListener } from '@/features/mv-theme/logic/mv-theme-injector'
@@ -164,6 +165,8 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	initThemes()
 	applyBoldColor()
 	watchBoldColor() // Enable live updates without page refresh
+	applyPostFontSize()
+	watchPostFontSize() // Enable live font size updates without page refresh
 
 	// Initialize global font listener (applies custom font to entire website if enabled)
 	initGlobalFontListener()

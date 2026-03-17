@@ -12,6 +12,7 @@ export const RUNTIME_CACHE_KEYS = {
 	CENTERED_POSTS: 'mvp-centered-posts-cache',
 	BOLD_COLOR_ENABLED: 'mvp-bold-color-enabled-cache',
 	BOLD_COLOR: 'mvp-bold-color-cache',
+	POST_FONT_SIZE: 'mvp-post-font-size-cache',
 	MV_THEME_ENABLED: 'mvp-mv-theme-enabled-cache',
 	MV_THEME_CSS: 'mvp-mv-theme-css-cache',
 } as const
