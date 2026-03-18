@@ -622,14 +622,14 @@ export function ThemeEditorSheet({ trigger, resolvedTheme, open, onOpenChange }:
 										value={[postFontSize]}
 										onValueChange={([val]) => setPostFontSize(val)}
 										min={80}
-										max={150}
+										max={200}
 										step={5}
 										className="py-1"
 									/>
 									<div className="flex justify-between text-xs text-muted-foreground">
 										<span>80%</span>
 										<span>100%</span>
-										<span>150%</span>
+										<span>200%</span>
 									</div>
 									<p
 										className="text-muted-foreground p-3 bg-muted/50 rounded-md leading-relaxed"

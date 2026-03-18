@@ -54,7 +54,7 @@ export const applyFontGloballyStorage = storage.defineItem<boolean>(
 	}
 )
 
-// Post font size storage (percentage: 80-150, default 100)
+// Post font size storage (percentage: 80-200, default 100)
 export const postFontSizeStorage = storage.defineItem<number>(
 	`local:${STORAGE_KEYS.POST_FONT_SIZE}`,
 	{
