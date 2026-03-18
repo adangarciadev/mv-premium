@@ -92,6 +92,13 @@ function applyUserBadge(linkElement: HTMLAnchorElement, customization: UserCusto
 
 /**
  * Handles ignored user logic (hide or mute).
+ *
+ * Reply thread context (.rep[data-num] inside .replies):
+ * When clicking "X respuestas", Mediavida inserts a <div class="replies"> container
+ * inside the parent post with .rep[data-num] elements for each reply.
+ * These .rep[data-num] ARE the correct container — we must NOT climb up to the parent
+ * .post[data-num] or we'd hide the entire parent post (from a non-ignored user).
+ * In reply threads, always force mute mode to preserve conversation context.
  */
 function handleIgnoredUser(linkElement: HTMLAnchorElement, username: string, customization: UserCustomization): void {
 	// Robust selector for Mediavida posts/replies
@@ -100,16 +107,25 @@ function handleIgnoredUser(linkElement: HTMLAnchorElement, username: string, cus
 	) as HTMLElement
 	if (!postContainer) return
 
-	// FIX: If we matched .rep (often .post-body), check if it is inside a .post
-	// This prevents double-muting since .closest() finds the innermost match first
-	if (postContainer.classList.contains('rep') && !postContainer.id.startsWith('post-')) {
+	// Check if this is a reply thread element (.rep[data-num] inside .replies)
+	// These are the inline reply previews loaded when clicking "X respuestas"
+	const isReplyThreadElement =
+		postContainer.classList.contains('rep') &&
+		postContainer.hasAttribute('data-num') &&
+		!postContainer.id.startsWith('post-')
+
+	// Only climb up from .rep to parent .post when it's NOT a reply thread element.
+	// .rep[data-num] inside .replies IS the correct container — climbing up would
+	// incorrectly target the parent post from a different (non-ignored) user.
+	if (postContainer.classList.contains('rep') && !postContainer.id.startsWith('post-') && !isReplyThreadElement) {
 		const parentPost = postContainer.closest(`${MV_SELECTORS.THREAD.POST}, ${MV_SELECTORS.THREAD.POST_DIV}`)
 		if (parentPost) {
 			postContainer = parentPost as HTMLElement
 		}
 	}
 
-	const ignoreType = customization.ignoreType || 'hide'
+	// In reply thread views, always use mute mode to preserve conversation context
+	const ignoreType = isReplyThreadElement ? 'mute' : (customization.ignoreType || 'hide')
 
 	if (ignoreType === 'hide') {
 		applyHideToPost(postContainer)
