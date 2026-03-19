@@ -100,6 +100,7 @@ export interface Settings {
 	variablesSidebarExpandedGroups: string[]
 
 	// Layout
+	hideHeaderEnabled: boolean
 	ultrawideMode: UltrawideMode
 	centeredPostsEnabled: boolean
 	centeredControlsSticky: boolean

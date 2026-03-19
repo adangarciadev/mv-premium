@@ -1,6 +1,7 @@
 /**
  * Content Tab Content - Bold color + page width settings + dashboard icon
  */
+import PanelTopClose from 'lucide-react/dist/esm/icons/panel-top-close'
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square'
 import Settings2 from 'lucide-react/dist/esm/icons/settings-2'
@@ -33,6 +34,7 @@ export function ContentTabContent() {
 		boldColor,
 		boldColorEnabled,
 		twitterLiteEmbedsEnabled,
+		hideHeaderEnabled,
 		setBoldColor,
 		setBoldColorEnabled,
 		dashboardIcon,
@@ -107,6 +109,23 @@ export function ContentTabContent() {
 						))}
 					</SelectContent>
 				</Select>
+			</SettingRow>
+
+			<Separator />
+
+			{/* Hide Header */}
+			<SettingRow
+				icon={<PanelTopClose className="h-4 w-4" />}
+				label="Ocultar cabecera"
+				description="Oculta el header/navbar superior de Mediavida para ganar espacio vertical. También disponible como atajo de teclado."
+			>
+				<Switch
+					checked={hideHeaderEnabled}
+					onCheckedChange={checked => {
+						setSetting('hideHeaderEnabled', checked)
+						toast.success(checked ? 'Cabecera oculta' : 'Cabecera visible')
+					}}
+				/>
 			</SettingRow>
 
 			<Separator />

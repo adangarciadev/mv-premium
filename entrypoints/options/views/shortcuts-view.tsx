@@ -14,8 +14,8 @@ import FileText from 'lucide-react/dist/esm/icons/file-text'
 import Layout from 'lucide-react/dist/esm/icons/layout'
 import SettingsIcon from 'lucide-react/dist/esm/icons/settings'
 import SunMoon from 'lucide-react/dist/esm/icons/sun-moon'
+import PanelTopClose from 'lucide-react/dist/esm/icons/panel-top-close'
 import { useSettingsStore } from '@/store/settings-store'
-import type { Settings } from '@/store/settings-types'
 import { cn } from '@/lib/utils'
 import { Kbd } from '@/components/ui/kbd'
 
@@ -36,6 +36,7 @@ const SHORTCUT_ACTIONS = [
 	{ id: 'templates', label: 'Mis Plantillas', icon: Layout, description: 'Ver lista de plantillas' },
 	{ id: 'panel', label: 'Panel de Control', icon: SettingsIcon, description: 'Abrir configuración de la extensión' },
 	{ id: 'theme-toggle', label: 'Alternar Tema', icon: SunMoon, description: 'Cambiar entre modo claro/oscuro' },
+	{ id: 'hide-header', label: 'Ocultar/Mostrar Cabecera', icon: PanelTopClose, description: 'Alternar visibilidad del header de Mediavida' },
 ]
 
 export function ShortcutsView() {

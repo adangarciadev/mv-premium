@@ -15,6 +15,7 @@ export const RUNTIME_CACHE_KEYS = {
 	POST_FONT_SIZE: 'mvp-post-font-size-cache',
 	MV_THEME_ENABLED: 'mvp-mv-theme-enabled-cache',
 	MV_THEME_CSS: 'mvp-mv-theme-css-cache',
+	HIDE_HEADER: 'mvp-hide-header-cache',
 } as const
 
 export const EARLY_STYLE_IDS = {
@@ -23,5 +24,6 @@ export const EARLY_STYLE_IDS = {
 	HIDDEN_THREADS: 'mvp-hidden-threads-early',
 	HIDDEN_THREADS_FALLBACK: 'mvp-hidden-threads-early-fallback',
 	MV_THEME: 'mvp-mv-theme-early',
+	HIDE_HEADER: 'mvp-hide-header-early',
 } as const
 

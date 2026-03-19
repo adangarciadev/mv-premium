@@ -71,6 +71,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	variablesSidebarExpandedGroups: [],
 
 	// Layout
+	hideHeaderEnabled: false,
 	ultrawideMode: 'off',
 	centeredPostsEnabled: false,
 	centeredControlsSticky: false,
