@@ -165,6 +165,17 @@ npm run test:coverage    # With coverage report
 npm run test:ui          # Interactive UI
 ```
 
+### Release and Automation Policy
+
+This repository uses a fully manual release process.
+
+- No GitHub Actions workflows are used.
+- No automated dependency update PRs are enabled.
+- Releases are created manually from tagged versions.
+- Builds are generated locally when needed.
+
+This keeps repository automation intentionally minimal and avoids unnecessary operational overhead.
+
 ### Project Structure
 
 ```
