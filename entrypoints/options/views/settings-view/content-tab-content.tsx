@@ -291,7 +291,6 @@ const MAX_TAB_TITLE_LENGTH = 40
 
 function TabTitleInput({ value, onConfirm }: { value: string; onConfirm: (val: string) => void }) {
 	const [draft, setDraft] = useState(value)
-	const hasChanged = draft !== value
 
 	const handleConfirm = () => {
 		const trimmed = draft.trim() || 'Documentación'
@@ -310,7 +309,7 @@ function TabTitleInput({ value, onConfirm }: { value: string; onConfirm: (val: s
 					type="text"
 					value={draft}
 					onChange={e => setDraft(e.target.value.slice(0, MAX_TAB_TITLE_LENGTH))}
-					onKeyDown={e => { if (e.key === 'Enter' && hasChanged) handleConfirm() }}
+					onKeyDown={e => { if (e.key === 'Enter') handleConfirm() }}
 					placeholder="Documentación"
 					maxLength={MAX_TAB_TITLE_LENGTH}
 					className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
@@ -318,8 +317,7 @@ function TabTitleInput({ value, onConfirm }: { value: string; onConfirm: (val: s
 				<button
 					type="button"
 					onClick={handleConfirm}
-					disabled={!hasChanged}
-					className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+					className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 					title="Confirmar título"
 				>
 					<Check className="h-4 w-4" />
