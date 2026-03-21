@@ -118,6 +118,7 @@ export const DOM_MARKERS = {
 		STATUS_ACTIONS: 'mvp-status-actions',
 		EXTRA_ACTIONS_SEPARATOR: 'mvp-extra-actions-separator',
 		HIDE_HEADER_STYLES: 'mvp-hide-header-styles',
+		WORK_MODE_STYLES: 'mvp-work-mode-styles',
 		ULTRAWIDE_STYLES: 'mvp-ultrawide-styles',
 		CENTERED_POSTS_STYLES: 'mvp-centered-posts-styles',
 		CENTERED_CONTROL_BAR: 'mvp-centered-control-bar',

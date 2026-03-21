@@ -15,6 +15,7 @@ import Layout from 'lucide-react/dist/esm/icons/layout'
 import SettingsIcon from 'lucide-react/dist/esm/icons/settings'
 import SunMoon from 'lucide-react/dist/esm/icons/sun-moon'
 import PanelTopClose from 'lucide-react/dist/esm/icons/panel-top-close'
+import Briefcase from 'lucide-react/dist/esm/icons/briefcase'
 import { useSettingsStore } from '@/store/settings-store'
 import { cn } from '@/lib/utils'
 import { Kbd } from '@/components/ui/kbd'
@@ -37,6 +38,7 @@ const SHORTCUT_ACTIONS = [
 	{ id: 'panel', label: 'Panel de Control', icon: SettingsIcon, description: 'Abrir configuración de la extensión' },
 	{ id: 'theme-toggle', label: 'Alternar Tema', icon: SunMoon, description: 'Cambiar entre modo claro/oscuro' },
 	{ id: 'hide-header', label: 'Ocultar/Mostrar Cabecera', icon: PanelTopClose, description: 'Alternar visibilidad del header de Mediavida' },
+	{ id: 'work-mode', label: 'Modo Trabajo', icon: Briefcase, description: 'Alternar modo trabajo para navegar discretamente' },
 ]
 
 export function ShortcutsView() {

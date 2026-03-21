@@ -29,6 +29,7 @@ import { applyBoldColor, watchBoldColor } from './init-bold-color'
 import { applyPostFontSize, watchPostFontSize } from './init-post-font-size'
 import { syncFidIcons } from '@/features/icons/icon-syncer'
 import { initHideHeader } from '@/features/hide-header'
+import { initWorkMode } from '@/features/work-mode'
 import { initUltrawide } from '@/features/ultrawide'
 import { initMvThemeListener } from '@/features/mv-theme/logic/mv-theme-injector'
 import { initCenteredPosts } from '@/features/centered-posts'
@@ -180,6 +181,9 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 
 	// Initialize hide header feature (hides top navbar if enabled)
 	await initHideHeader()
+
+	// Initialize work mode (hides visual content if enabled)
+	await initWorkMode()
 
 	// Initialize page width feature (applies max-width constraints if enabled)
 	await initUltrawide()

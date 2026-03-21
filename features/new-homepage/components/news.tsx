@@ -28,9 +28,18 @@ function NewsItem({
 	onHide,
 	onSave,
 	isSaved,
-}: HomepageNewsItem & { onHide?: (url: string) => void; onSave?: (url: string) => void; isSaved?: (url: string) => boolean }) {
+	wmHideImages,
+	wmHideForumIcons,
+}: HomepageNewsItem & {
+	onHide?: (url: string) => void
+	onSave?: (url: string) => void
+	isSaved?: (url: string) => boolean
+	wmHideImages?: boolean
+	wmHideForumIcons?: boolean
+}) {
 	const forumIconId = getSubforumIconId(forumSlug)
 	const threadIsSaved = isSaved?.(url) ?? false
+	const showThumbnail = thumbnail && !wmHideImages
 
 	return (
 		<a
@@ -41,7 +50,7 @@ function NewsItem({
 			<div
 				className="aspect-video w-full bg-cover bg-center transition-transform duration-500 group-hover:opacity-90 relative"
 				style={
-					thumbnail
+					showThumbnail
 						? { backgroundImage: `url(${thumbnail})` }
 						: { backgroundColor: 'var(--mv-bg-tertiary)' }
 				}
@@ -98,13 +107,15 @@ function NewsItem({
 			<div className="flex flex-1 flex-col justify-between bg-table-row p-3">
 				{/* Title & Icon */}
 				<div className="flex items-start gap-2">
-					<div className="shrink-0 pt-1">
-						{forumIconId ? (
-							<NativeFidIcon iconId={forumIconId} className="h-4 w-4 rounded-sm" />
-						) : (
-							<span className="inline-block h-4 w-4 rounded-sm bg-mv-bg-tertiary" />
-						)}
-					</div>
+					{!wmHideForumIcons && (
+						<div className="shrink-0 pt-1">
+							{forumIconId ? (
+								<NativeFidIcon iconId={forumIconId} className="h-4 w-4 rounded-sm" />
+							) : (
+								<span className="inline-block h-4 w-4 rounded-sm bg-mv-bg-tertiary" />
+							)}
+						</div>
+					)}
 					<div className="min-w-0 flex-1">
 						<h3
 							className="h-8 text-xs font-semibold leading-tight text-white/90 transition-colors group-hover:text-primary"
@@ -139,6 +150,8 @@ function NewsItemList({
 	onHide,
 	onSave,
 	isSaved,
+	wmHideImages,
+	wmHideForumIcons,
 }: {
 	threads?: HomepageNewsItem[]
 	loading: boolean
@@ -146,12 +159,14 @@ function NewsItemList({
 	onHide?: (url: string) => void
 	onSave?: (url: string) => void
 	isSaved?: (url: string) => boolean
+	wmHideImages?: boolean
+	wmHideForumIcons?: boolean
 }) {
 	if (loading && (!threads || threads.length === 0)) {
 		return <>{Array.from({ length: maxThreads }, (_, i) => <NewsItemSkeleton key={i} />)}</>
 	}
 
-	return <>{threads?.slice(0, maxThreads).map(thread => <NewsItem key={thread.url} {...thread} onHide={onHide} onSave={onSave} isSaved={isSaved} />)}</>
+	return <>{threads?.slice(0, maxThreads).map(thread => <NewsItem key={thread.url} {...thread} onHide={onHide} onSave={onSave} isSaved={isSaved} wmHideImages={wmHideImages} wmHideForumIcons={wmHideForumIcons} />)}</>
 }
 
 export const News = {

@@ -104,6 +104,12 @@ function executeAction(actionId: string) {
 				toggleHideHeader().catch(err => logger.error('Hide header toggle error:', err))
 			}).catch(err => logger.error('Hide header import error:', err))
 			break
+
+		case 'work-mode':
+			import('@/features/work-mode').then(({ toggleWorkMode }) => {
+				toggleWorkMode().catch(err => logger.error('Work mode toggle error:', err))
+			}).catch(err => logger.error('Work mode import error:', err))
+			break
 	}
 }
 

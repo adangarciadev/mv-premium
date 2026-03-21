@@ -16,6 +16,9 @@ export const RUNTIME_CACHE_KEYS = {
 	MV_THEME_ENABLED: 'mvp-mv-theme-enabled-cache',
 	MV_THEME_CSS: 'mvp-mv-theme-css-cache',
 	HIDE_HEADER: 'mvp-hide-header-cache',
+	WORK_MODE: 'mvp-work-mode-cache',
+	WORK_MODE_OPTIONS: 'mvp-work-mode-options-cache',
+	WORK_MODE_TAB_TITLE: 'mvp-work-mode-tab-title-cache',
 } as const
 
 export const EARLY_STYLE_IDS = {
@@ -25,5 +28,6 @@ export const EARLY_STYLE_IDS = {
 	HIDDEN_THREADS_FALLBACK: 'mvp-hidden-threads-early-fallback',
 	MV_THEME: 'mvp-mv-theme-early',
 	HIDE_HEADER: 'mvp-hide-header-early',
+	WORK_MODE: 'mvp-work-mode-early',
 } as const
 
