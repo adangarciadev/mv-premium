@@ -22,9 +22,15 @@ const OPTIONS_CACHE_KEY = RUNTIME_CACHE_KEYS.WORK_MODE_OPTIONS
 const TAB_TITLE_CACHE_KEY = RUNTIME_CACHE_KEYS.WORK_MODE_TAB_TITLE
 const SETTINGS_KEY = `local:${STORAGE_KEYS.SETTINGS}` as `local:${string}`
 
-/** Generic document favicon as SVG data URI */
+/** Generic document favicon as SVG data URI — light style to look natural in browser tabs */
 const NEUTRAL_FAVICON = 'data:image/svg+xml,' + encodeURIComponent(
-	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V5.414a1 1 0 0 0-.293-.707l-3.414-3.414A1 1 0 0 0 9.586 1H4zm1 4h3a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1zm0 3h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1zm0 3h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1 0-1z" fill="%234b9ce6"/></svg>'
+	'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">' +
+	'<path d="M4 1h5l4 4v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2z" fill="#fff" stroke="#4a90d9" stroke-width="1"/>' +
+	'<path d="M9 1v3a1 1 0 0 0 1 1h3" fill="none" stroke="#4a90d9" stroke-width="1"/>' +
+	'<line x1="5" y1="7.5" x2="11" y2="7.5" stroke="#8ab4f0" stroke-width="1" stroke-linecap="round"/>' +
+	'<line x1="5" y1="9.5" x2="10" y2="9.5" stroke="#8ab4f0" stroke-width="1" stroke-linecap="round"/>' +
+	'<line x1="5" y1="11.5" x2="8" y2="11.5" stroke="#8ab4f0" stroke-width="1" stroke-linecap="round"/>' +
+	'</svg>'
 )
 
 interface SettingsState {
@@ -232,6 +238,7 @@ function removeTabDisguise(): void {
 		document.title = originalTitle
 		originalTitle = null
 	}
+	// If originalTitle is null, the early injection script handles title restoration.
 
 	if (originalFaviconHref !== null) {
 		const faviconLink = getFaviconLink()

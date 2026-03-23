@@ -80,6 +80,11 @@ function getCachedTabTitle(): string {
 	}
 }
 
+/** Observer used by early tab disguise — kept as reference so it can be stopped from async verification */
+let earlyTitleObserver: MutationObserver | null = null
+/** Real page title captured from the parser's <title> element, before we override it */
+let earlyOriginalTitle: string | null = null
+
 /**
  * Apply tab title as early as possible via document.title setter.
  * At document_start the <title> element may not exist yet, so we also
@@ -90,19 +95,50 @@ function applyEarlyTabDisguise(tabTitle: string): void {
 	document.title = tabTitle
 
 	// Also override once <title> appears (the parser may reset it)
-	const observer = new MutationObserver(() => {
+	earlyTitleObserver = new MutationObserver(() => {
 		const titleEl = document.querySelector('title')
 		if (titleEl) {
-			observer.disconnect()
+			earlyTitleObserver?.disconnect()
+			earlyTitleObserver = null
+
+			// Save the real page title BEFORE we override it.
+			// At this point titleEl.textContent is still what the parser set.
+			if (earlyOriginalTitle === null && titleEl.textContent) {
+				earlyOriginalTitle = titleEl.textContent
+			}
+
 			if (document.title !== tabTitle) {
 				document.title = tabTitle
 			}
 		}
 	})
-	observer.observe(document.documentElement, { childList: true, subtree: true })
+	earlyTitleObserver.observe(document.documentElement, { childList: true, subtree: true })
 
 	// Safety: disconnect after 5s regardless
-	setTimeout(() => observer.disconnect(), 5000)
+	setTimeout(() => {
+		earlyTitleObserver?.disconnect()
+		earlyTitleObserver = null
+	}, 5000)
+}
+
+/**
+ * Undo the early tab disguise: restore the real page title.
+ * Called when async verification finds work mode is actually disabled.
+ */
+function undoEarlyTabDisguise(): void {
+	if (earlyTitleObserver) {
+		earlyTitleObserver.disconnect()
+		earlyTitleObserver = null
+	}
+
+	if (earlyOriginalTitle !== null) {
+		// We captured the real title before overriding — restore it
+		document.title = earlyOriginalTitle
+		earlyOriginalTitle = null
+	}
+	// If earlyOriginalTitle is null, <title> hasn't been parsed yet.
+	// The parser will set the correct title when it encounters <title>,
+	// and since the observer is now disconnected, it won't be overridden.
 }
 
 export default defineContentScript({
@@ -110,6 +146,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		let earlyDisguiseApplied = false
+
 		// STEP 1: Read from localStorage SYNCHRONOUSLY (instant, no flash)
 		try {
 			const cached = localStorage.getItem(CACHE_KEY)
@@ -120,6 +158,7 @@ export default defineContentScript({
 				// Apply tab disguise early
 				if (options.disguiseTab) {
 					applyEarlyTabDisguise(getCachedTabTitle())
+					earlyDisguiseApplied = true
 				}
 			}
 		} catch {
@@ -134,6 +173,7 @@ export default defineContentScript({
 				if (!raw) {
 					updateCache(false, DEFAULT_OPTIONS, DEFAULT_TAB_TITLE)
 					document.getElementById(STYLE_ID)?.remove()
+					if (earlyDisguiseApplied) undoEarlyTabDisguise()
 					return
 				}
 
@@ -150,10 +190,15 @@ export default defineContentScript({
 					}
 				} else {
 					document.getElementById(STYLE_ID)?.remove()
+					if (earlyDisguiseApplied) undoEarlyTabDisguise()
 				}
 			})
 			.catch(() => {
-				// Silent fail
+				// Extension context may be invalidated (extension removed/updated).
+				// Clean up stale cache so next page load won't apply the disguise.
+				updateCache(false, DEFAULT_OPTIONS, DEFAULT_TAB_TITLE)
+				document.getElementById(STYLE_ID)?.remove()
+				if (earlyDisguiseApplied) undoEarlyTabDisguise()
 			})
 	},
 })
