@@ -12,8 +12,13 @@ export const RUNTIME_CACHE_KEYS = {
 	CENTERED_POSTS: 'mvp-centered-posts-cache',
 	BOLD_COLOR_ENABLED: 'mvp-bold-color-enabled-cache',
 	BOLD_COLOR: 'mvp-bold-color-cache',
+	POST_FONT_SIZE: 'mvp-post-font-size-cache',
 	MV_THEME_ENABLED: 'mvp-mv-theme-enabled-cache',
 	MV_THEME_CSS: 'mvp-mv-theme-css-cache',
+	HIDE_HEADER: 'mvp-hide-header-cache',
+	WORK_MODE: 'mvp-work-mode-cache',
+	WORK_MODE_OPTIONS: 'mvp-work-mode-options-cache',
+	WORK_MODE_TAB_TITLE: 'mvp-work-mode-tab-title-cache',
 } as const
 
 export const EARLY_STYLE_IDS = {
@@ -22,5 +27,7 @@ export const EARLY_STYLE_IDS = {
 	HIDDEN_THREADS: 'mvp-hidden-threads-early',
 	HIDDEN_THREADS_FALLBACK: 'mvp-hidden-threads-early-fallback',
 	MV_THEME: 'mvp-mv-theme-early',
+	HIDE_HEADER: 'mvp-hide-header-early',
+	WORK_MODE: 'mvp-work-mode-early',
 } as const
 

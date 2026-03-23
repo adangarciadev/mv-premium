@@ -70,7 +70,21 @@ export const DEFAULT_SETTINGS: Settings = {
 	settingsActiveTab: 'integrations',
 	variablesSidebarExpandedGroups: [],
 
+	// Work Mode
+	workModeEnabled: false,
+	workModeOptions: {
+		hideAvatars: true,
+		hideImages: true,
+		hideVideos: true,
+		hideSocialEmbeds: true,
+		hideSteamCards: true,
+		hideForumIcons: true,
+		disguiseTab: true,
+	},
+	workModeTabTitle: 'Documentación',
+
 	// Layout
+	hideHeaderEnabled: false,
 	ultrawideMode: 'off',
 	centeredPostsEnabled: false,
 	centeredControlsSticky: false,

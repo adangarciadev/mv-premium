@@ -44,12 +44,14 @@ function ThreadItem({
 	isSaved,
 	compact,
 	showUnreadFallback,
+	wmHideForumIcons,
 }: HomepageThread & {
 	onHide?: (url: string) => void
 	onSave?: (url: string) => void
 	isSaved?: (url: string) => boolean
 	compact?: boolean
 	showUnreadFallback?: boolean
+	wmHideForumIcons?: boolean
 }) {
 	const totalResponsesAsInt = totalResponses ? abbrevNumberToInt(totalResponses) : 0
 	const forumIconId = getSubforumIconId(forumSlug)
@@ -61,13 +63,15 @@ function ThreadItem({
 	return (
 		<div className="group/thread flex justify-between bg-table-row text-[var(--table-row-foreground)] transition-colors hover:bg-table-row-hover!">
 			<div className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2">
-				<a href={`/foro/${forumSlug}`} title={`Ir a ${forumSlug}`} className="shrink-0 transition hover:opacity-80">
-					{forumIconId ? (
-						<NativeFidIcon iconId={forumIconId} className="rounded-sm" />
-					) : (
-						<span className="inline-block h-6 w-6 rounded-sm bg-mv-bg-tertiary" />
-					)}
-				</a>
+				{!wmHideForumIcons && (
+					<a href={`/foro/${forumSlug}`} title={`Ir a ${forumSlug}`} className="shrink-0 transition hover:opacity-80">
+						{forumIconId ? (
+							<NativeFidIcon iconId={forumIconId} className="rounded-sm" />
+						) : (
+							<span className="inline-block h-6 w-6 rounded-sm bg-mv-bg-tertiary" />
+						)}
+					</a>
+				)}
 				<a href={url} className="min-w-0 flex-1 truncate text-sm transition-colors hover:text-primary group-hover/thread:text-primary" title={title}>
 					{title}
 				</a>
@@ -173,6 +177,8 @@ function ThreadList({
 	isSaved,
 	compact,
 	showUnreadFallback,
+	wmHideImages,
+	wmHideForumIcons,
 }: {
 	threads?: HomepageItemBase[]
 	loading: boolean
@@ -182,6 +188,8 @@ function ThreadList({
 	isSaved?: (url: string) => boolean
 	compact?: boolean
 	showUnreadFallback?: boolean
+	wmHideImages?: boolean
+	wmHideForumIcons?: boolean
 }) {
 	// Track the first load to prevent animation on initial render
 	useRelativeTimeTick(5_000)
@@ -201,10 +209,10 @@ function ThreadList({
 		// Calculate distinct threads at the top that are different from the previous top
 		const currentTopUrsl = threads.slice(0, 5).map(t => t.url)
 		const previousTopUrls = previousThreadsRef.current.slice(0, 5).map(t => t.url)
-		
+
 		const newlyAppearedAtTop = new Set<string>()
-		
-		
+
+
 		// If the top thread URL is different, it's a candidate for animation
 		for (const url of currentTopUrsl) {
 			if (!previousTopUrls.includes(url)) {
@@ -220,10 +228,10 @@ function ThreadList({
 			previousThreadsRef.current = threads
 			return () => clearTimeout(timer)
 		}
-		
+
 		previousThreadsRef.current = threads
 	}, [threads, loading])
-	
+
 	if (loading) {
 		const skeletonCount = Math.min(maxThreads, 8)
 		return <>{Array.from({ length: skeletonCount }, (_, i) => <ThreadSkeleton key={i} />)}</>
@@ -245,6 +253,7 @@ function ThreadList({
 						isSaved={isSaved}
 						compact={compact}
 						showUnreadFallback={showUnreadFallback}
+						wmHideForumIcons={wmHideForumIcons}
 					/>
 				</div>
 			))}

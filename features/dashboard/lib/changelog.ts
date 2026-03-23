@@ -21,6 +21,42 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.6.0',
+		date: '2026-03-23',
+		title: 'Modo Trabajo y Personalización',
+		summary:
+			'Nuevo modo trabajo para navegar el foro discretamente, ocultar la cabecera de Mediavida, tamaño de fuente configurable en los posts y correcciones de estabilidad.',
+		changes: [
+			// NEW FEATURES
+			{
+				type: 'feature',
+				description:
+					'Modo Trabajo: Oculta avatares, imágenes, vídeos, embeds sociales, tarjetas de Steam e iconos de subforo para navegar el foro discretamente. Camufla la pestaña con título e icono neutros. Cada opción es configurable por separado.',
+				category: 'Privacidad',
+			},
+			{
+				type: 'feature',
+				description:
+					'Ocultar cabecera: Esconde la barra de navegación superior de Mediavida con un toggle en el dashboard o un atajo de teclado configurable. Se aplica al instante sin flash.',
+				category: 'Diseño',
+			},
+			{
+				type: 'feature',
+				description:
+					'Tamaño de fuente en posts: Ajusta el tamaño del texto de los posts entre 80% y 200% desde los ajustes.',
+				category: 'Accesibilidad',
+			},
+
+			// FIXES
+			{
+				type: 'fix',
+				description:
+					'Corregido un problema donde las respuestas de usuarios ignorados hacían desaparecer el post del usuario no ignorado al que respondían.',
+				category: 'Comunidad',
+			},
+		],
+	},
+	{
 		version: '1.5.1',
 		date: '2026-03-16',
 		title: 'Editor en Perfil y Correcciones',

@@ -33,6 +33,10 @@ const applyFontGloballyStorage = storage.defineItem<boolean>(`local:${STORAGE_KE
 	defaultValue: false,
 })
 
+const postFontSizeStorage = storage.defineItem<number>(`local:${STORAGE_KEYS.POST_FONT_SIZE}`, {
+	defaultValue: 100,
+})
+
 // ============================================================================
 // STORE INTERFACE
 // ============================================================================
@@ -46,6 +50,7 @@ interface ThemeStore {
 	customRadius?: string
 	customFont: string
 	applyFontGlobally: boolean
+	postFontSize: number
 	savedPresets: ThemePreset[]
 
 	// Computed
@@ -62,6 +67,7 @@ interface ThemeStore {
 	setCustomRadius: (radius: string) => void
 	setCustomFont: (font: string) => void
 	setApplyFontGlobally: (apply: boolean) => void
+	setPostFontSize: (size: number) => void
 	/**
 	 * Resets all color customizations to match the current preset's defaults.
 	 */
@@ -117,6 +123,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
 	customRadius: undefined,
 	customFont: '',
 	applyFontGlobally: false,
+	postFontSize: 100,
 	savedPresets: [],
 
 	// Computed: Get active preset
@@ -152,11 +159,12 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
 
 	// Load from storage
 	loadFromStorage: async () => {
-		const [state, saved, font, applyGlobally] = await Promise.all([
+		const [state, saved, font, applyGlobally, fontSize] = await Promise.all([
 			themeStateStorage.getValue(),
 			savedPresetsStorage.getValue(),
 			customFontStorage.getValue(),
 			applyFontGloballyStorage.getValue(),
+			postFontSizeStorage.getValue(),
 		])
 
 		set({
@@ -167,6 +175,7 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
 			customRadius: state.customRadius,
 			customFont: font,
 			applyFontGlobally: applyGlobally,
+			postFontSize: fontSize,
 			savedPresets: saved,
 		})
 	},
@@ -236,6 +245,12 @@ export const useThemeStore = create<ThemeStore>((set, get) => ({
 	setApplyFontGlobally: (apply: boolean) => {
 		set({ applyFontGlobally: apply })
 		applyFontGloballyStorage.setValue(apply)
+	},
+
+	// Set post font size (percentage)
+	setPostFontSize: (size: number) => {
+		set({ postFontSize: size })
+		postFontSizeStorage.setValue(size)
 	},
 
 	// Reset custom colors

@@ -148,6 +148,28 @@
 }
 
 /* ============================================================================
+   POST FONT SIZE SCALING
+   Activated via data-mvp-font-scaled attribute on <html> (set by init-post-font-size.ts)
+
+   Real MV DOM: .post-body > .post-contents > p (no .body wrapper)
+   ============================================================================ */
+
+html[data-mvp-font-scaled] .post-contents {
+	font-size: var(--mvp-post-font-size) !important;
+}
+
+/* Force text children to inherit the scaled size (overrides MV's explicit px values) */
+html[data-mvp-font-scaled] .post-contents p,
+html[data-mvp-font-scaled] .post-contents span:not(.sp):not(.ct):not(.spoiler),
+html[data-mvp-font-scaled] .post-contents li,
+html[data-mvp-font-scaled] .post-contents a:not(.autor),
+html[data-mvp-font-scaled] .post-contents blockquote,
+html[data-mvp-font-scaled] .post-contents td,
+html[data-mvp-font-scaled] .post-contents th {
+	font-size: inherit !important;
+}
+
+/* ============================================================================
    TABLE STYLING (THEME SUPPORT)
    Overrides Mediavida specific table classes (.agrup, .mv-table)
    ============================================================================ */

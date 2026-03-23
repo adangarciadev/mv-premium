@@ -98,6 +98,18 @@ function executeAction(actionId: string) {
 					.catch(err => logger.error('Theme toggle storage error:', err))
 			}).catch(err => logger.error('Theme toggle read error:', err))
 			break
+
+		case 'hide-header':
+			import('@/features/hide-header').then(({ toggleHideHeader }) => {
+				toggleHideHeader().catch(err => logger.error('Hide header toggle error:', err))
+			}).catch(err => logger.error('Hide header import error:', err))
+			break
+
+		case 'work-mode':
+			import('@/features/work-mode').then(({ toggleWorkMode }) => {
+				toggleWorkMode().catch(err => logger.error('Work mode toggle error:', err))
+			}).catch(err => logger.error('Work mode import error:', err))
+			break
 	}
 }
 

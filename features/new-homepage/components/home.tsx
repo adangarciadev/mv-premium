@@ -112,6 +112,10 @@ export function Home() {
 	const lastThreadActionToastRef = useRef<{ key: string; at: number } | null>(null)
 	const hideThreadEnabled = useSettingsStore(state => state.hideThreadEnabled)
 	const saveThreadEnabled = useSettingsStore(state => state.saveThreadEnabled)
+	const workModeEnabled = useSettingsStore(state => state.workModeEnabled)
+	const workModeOptions = useSettingsStore(state => state.workModeOptions)
+	const wmHideImages = workModeEnabled && workModeOptions.hideImages
+	const wmHideForumIcons = workModeEnabled && workModeOptions.hideForumIcons
 
 	const hiddenIds = useMemo(() => new Set(hiddenThreads.map(t => t.id)), [hiddenThreads])
 	const hiddenNumericIds = useMemo(() => buildHiddenNumericIds(hiddenIds), [hiddenIds])
@@ -419,6 +423,8 @@ export function Home() {
 							onHide={hideThreadEnabled ? handleHideThread : undefined}
 							onSave={saveThreadEnabled ? handleSaveThread : undefined}
 							isSaved={isThreadSavedInList}
+							wmHideImages={wmHideImages}
+							wmHideForumIcons={wmHideForumIcons}
 						/>
 					</News.Root>
 				</div>
@@ -428,7 +434,7 @@ export function Home() {
 				<div className="xl:col-span-2">
 					<div className="flex items-end justify-between">
 						<h2 className="text-lg font-semibold">Foro</h2>
-						{recentForums.length > 0 && (
+						{recentForums.length > 0 && !wmHideForumIcons && (
 							<div className="flex items-center gap-2" title="Últimos foros visitados">
 								<span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
 									<Clock3 className="h-3.5 w-3.5" />
@@ -457,6 +463,8 @@ export function Home() {
 							onHide={hideThreadEnabled ? handleHideThread : undefined}
 							onSave={saveThreadEnabled ? handleSaveThread : undefined}
 							isSaved={isThreadSavedInList}
+							wmHideImages={wmHideImages}
+							wmHideForumIcons={wmHideForumIcons}
 						/>
 					</Threads.Root>
 				</div>
@@ -478,6 +486,8 @@ export function Home() {
 							onHide={hideThreadEnabled ? handleHideThread : undefined}
 							onSave={saveThreadEnabled ? handleSaveThread : undefined}
 							isSaved={isThreadSavedInList}
+							wmHideImages={wmHideImages}
+							wmHideForumIcons={wmHideForumIcons}
 						/>
 					</Threads.Root>
 
@@ -495,6 +505,8 @@ export function Home() {
 							onHide={hideThreadEnabled ? handleHideThread : undefined}
 							onSave={saveThreadEnabled ? handleSaveThread : undefined}
 							isSaved={isThreadSavedInList}
+							wmHideImages={wmHideImages}
+							wmHideForumIcons={wmHideForumIcons}
 							compact
 						/>
 					</Threads.Root>

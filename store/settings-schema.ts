@@ -100,6 +100,7 @@ export const settingsSchema = z.object({
 	variablesSidebarExpandedGroups: z.array(z.string()).default([]),
 
 	// Layout
+	hideHeaderEnabled: z.boolean().default(false),
 	ultrawideMode: ultrawideSchema.default('off'),
 	centeredPostsEnabled: z.boolean().default(false),
 	centeredControlsSticky: z.boolean().default(false),

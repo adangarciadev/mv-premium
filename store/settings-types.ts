@@ -37,6 +37,17 @@ export type DashboardIcon = 'logo' | 'user-shield' | 'dashboard' | 'rocket' | 'g
 /** Centered posts control bar position */
 export type CenteredControlsPosition = 'top' | 'side'
 
+/** Work mode sub-options */
+export interface WorkModeOptions {
+	hideAvatars: boolean
+	hideImages: boolean
+	hideVideos: boolean
+	hideSocialEmbeds: boolean
+	hideSteamCards: boolean
+	hideForumIcons: boolean
+	disguiseTab: boolean
+}
+
 /** Full settings object type */
 export interface Settings {
 	// Theme & Appearance
@@ -99,7 +110,13 @@ export interface Settings {
 	settingsActiveTab: string
 	variablesSidebarExpandedGroups: string[]
 
+	// Work Mode
+	workModeEnabled: boolean
+	workModeOptions: WorkModeOptions
+	workModeTabTitle: string
+
 	// Layout
+	hideHeaderEnabled: boolean
 	ultrawideMode: UltrawideMode
 	centeredPostsEnabled: boolean
 	centeredControlsSticky: boolean
