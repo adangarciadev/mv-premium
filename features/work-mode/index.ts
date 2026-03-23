@@ -156,7 +156,8 @@ export function buildWorkModeCSS(options: WorkModeOptions): string {
 
 	if (options.hideSteamCards) {
 		rules.push(`
-			/* Work Mode: Hide Steam cards */
+			/* Work Mode: Hide Steam cards (native embeds + extension bundle cards) */
+			[data-s9e-mediaembed="steamstore"],
 			[data-mvp-steam-bundle-card],
 			.steam-embed-placeholder {
 				display: none !important;
