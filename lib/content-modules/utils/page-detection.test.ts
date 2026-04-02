@@ -47,6 +47,10 @@ describe('page-detection', () => {
 			setPath('/foro/dev/p3')
 			expect(getCenteredPostsPageKind()).toBe('listing')
 			expect(isCenteredPostsSupportedPage()).toBe(true)
+
+			setPath('/foro/ia')
+			expect(getCenteredPostsPageKind()).toBe('listing')
+			expect(isCenteredPostsSupportedPage()).toBe(true)
 		})
 
 		it('keeps unsupported pages disabled', () => {

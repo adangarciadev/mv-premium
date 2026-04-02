@@ -57,9 +57,10 @@ export const SUBFORUMS_JUEGOS: SubforumInfo[] = [
 
 export const SUBFORUMS_TECNOLOGIA: SubforumInfo[] = [
 	{ slug: 'dev', name: 'Desarrollo y diseño', iconId: 9 },
-	{ slug: 'gamedev', name: 'Desarrollo de juegos', iconId: 143 },
+	{ slug: 'ia', name: 'Inteligencia Artificial', iconId: 169 },
 	{ slug: 'electronica-telefonia', name: 'Electrónica y telefonía', iconId: 83 },
 	{ slug: 'hard-soft', name: 'Hardware y software', iconId: 3 },
+	{ slug: 'gamedev', name: 'Desarrollo de juegos', iconId: 143 },
 ];
 
 export const SUBFORUMS_COMUNIDAD: SubforumInfo[] = [
