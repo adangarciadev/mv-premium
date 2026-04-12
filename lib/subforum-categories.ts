@@ -524,6 +524,16 @@ export const SUBFORUM_CATEGORIES: SubforumCategories = {
 		{ value: '301', label: 'Se busca' },
 	],
 
+	ia: [
+		{ value: '89', label: 'Audio' },
+		{ value: '84', label: 'Código' },
+		{ value: '408', label: 'Creaciones' },
+		{ value: '407', label: 'Imagen' },
+		{ value: '406', label: 'Modelos' },
+		{ value: '409', label: 'Otros' },
+		{ value: '90', label: 'Vídeo' },
+	],
+
 	gamedev: [
 		{ value: '306', label: '2D' },
 		{ value: '307', label: '3D' },

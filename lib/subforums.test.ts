@@ -62,6 +62,7 @@ describe('subforums', () => {
 			expect(slugs).toContain('off-topic')
 			expect(slugs).toContain('juegos')
 			expect(slugs).toContain('dev')
+			expect(slugs).toContain('ia')
 			expect(slugs).toContain('mediavida')
 		})
 	})
@@ -111,6 +112,7 @@ describe('subforums', () => {
 			expect(getSubforumName('off-topic')).toBe('Off-topic')
 			expect(getSubforumName('juegos')).toBe('Juegos')
 			expect(getSubforumName('dev')).toBe('Desarrollo y diseño')
+			expect(getSubforumName('ia')).toBe('Inteligencia Artificial')
 		})
 
 		it('should handle case-insensitive lookup', () => {

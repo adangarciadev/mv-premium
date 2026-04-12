@@ -96,7 +96,6 @@ interface SummaryModalHeaderProps {
 	title: string
 	modelLabel: string
 	isModelFallback: boolean
-	isProviderFallback: boolean
 	badgeTitle?: string
 	onClose?: () => void
 }
@@ -106,7 +105,6 @@ export function SummaryModalHeader({
 	title,
 	modelLabel,
 	isModelFallback,
-	isProviderFallback,
 	badgeTitle,
 	onClose,
 }: SummaryModalHeaderProps) {
@@ -118,7 +116,7 @@ export function SummaryModalHeader({
 				<span
 					className={cn(
 						'text-[10px] px-1.5 py-0.5 rounded font-medium',
-						isProviderFallback || isModelFallback
+						isModelFallback
 							? 'text-amber-600 bg-amber-500/10'
 							: 'text-muted-foreground bg-muted'
 					)}
@@ -167,7 +165,7 @@ export function SummaryErrorState({ error, isAINotConfigured, onOpenSettings, ex
 					{isAINotConfigured ? 'IA no configurada' : 'Error'}
 				</p>
 				<p className="text-xs text-muted-foreground">
-					{isAINotConfigured ? 'Necesitas una API Key de Gemini o Groq para usar esta función.' : error}
+					{isAINotConfigured ? 'Necesitas una API Key de Gemini para usar esta función.' : error}
 				</p>
 				{isAINotConfigured ? (
 					<Button size="sm" onClick={onOpenSettings} className="mt-3 gap-2">
@@ -299,15 +297,6 @@ export function APIConsoleLinks() {
 			>
 				<ExternalLink className="w-3 h-3" />
 				Gemini: Consulta tu uso en AI Studio
-			</a>
-			<a
-				href="https://console.groq.com/"
-				target="_blank"
-				rel="noopener noreferrer"
-				className="flex items-center gap-1.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-			>
-				<ExternalLink className="w-3 h-3" />
-				Groq: Consulta tu uso en Groq Console
 			</a>
 		</div>
 	)

@@ -13,6 +13,7 @@ import {
 import { mountFeatureWithBoundary, isFeatureMounted, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { MV_SELECTORS, FEATURE_IDS, Z_INDEXES, DOM_MARKERS } from '@/constants'
+import { VALID_SUBFORUM_SLUGS } from '@/lib/subforums'
 
 const INJECTED_MARKER = DOM_MARKERS.INJECTION.FAVORITE_SUBFORUM
 const BUTTON_CONTAINER_CLASS = DOM_MARKERS.CLASSES.FAVORITE_SUBFORUM_BTN_CONTAINER
@@ -26,57 +27,6 @@ function isForumListPage(): boolean {
 	const path = window.location.pathname
 	return path === '/foro' || path === '/foro/'
 }
-
-/**
- * Whitelist of valid subforum slugs from Mediavida
- * These are the ONLY pages where the favorite subforum button should appear
- * Extracted from actual /foro page HTML
- */
-const VALID_SUBFORUM_SLUGS = new Set([
-	// General
-	'off-topic',
-	'feda',
-	'club-hucha',
-	'politica',
-	'streamers',
-	'criptomonedas',
-	'compra-venta',
-	'estudios-trabajo',
-	'ciencia',
-	'musica',
-	'cine',
-	'tv',
-	'libros-comics',
-	'anime-manga',
-	'deportes',
-	'motor',
-	'fitness',
-	'cocina',
-	'mascotas',
-	'viajes',
-	// Juegos
-	'juegos',
-	'mmo',
-	'juegos-lucha',
-	'juegos-movil',
-	'juegos-mesa-rol',
-	'mafia',
-	'intercambios',
-	'counterstrike',
-	'diablo',
-	'lol',
-	'poe',
-	'pokemon',
-	'valorant',
-	'wow',
-	// Tecnología
-	'dev',
-	'gamedev',
-	'electronica-telefonia',
-	'hard-soft',
-	// Comunidad
-	'mediavida',
-])
 
 /**
  * Verifies that an element is inside the sidebar and NOT in the main content area.

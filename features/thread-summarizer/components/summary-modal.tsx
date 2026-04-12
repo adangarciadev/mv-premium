@@ -6,7 +6,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
-import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
 import Bot from 'lucide-react/dist/esm/icons/bot'
 import UserSearch from 'lucide-react/dist/esm/icons/user-search'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
@@ -53,12 +52,8 @@ export function SummaryModal({ isOpen, onClose }: SummaryModalProps) {
 	const [isLoading, setIsLoading] = useState(true)
 	const [actualModel, setActualModel] = useState<string | null>(null)
 	const [startedAtMs, setStartedAtMs] = useState<number | null>(null)
-	const aiProvider = useSettingsStore(s => s.aiProvider)
-	const hasProviderKey = useSettingsStore(s =>
-		s.aiProvider === 'gemini' ? s.geminiApiKey.trim().length > 0 : s.groqApiKey.trim().length > 0
-	)
-	const { modelLabel, isModelFallback, configuredModel, isProviderFallback, providerFallbackMessage } =
-		useAIModelLabel(actualModel)
+	const hasGeminiKey = useSettingsStore(s => s.geminiApiKey.trim().length > 0)
+	const { modelLabel, isModelFallback, configuredModel } = useAIModelLabel(actualModel)
 
 	const { elapsedSeconds, setElapsedSeconds } = useSummaryTimer(isLoading, startedAtMs)
 
@@ -141,13 +136,11 @@ export function SummaryModal({ isOpen, onClose }: SummaryModalProps) {
 	}, [isOpen, generate, isUserAnalysisMode, activeUserFilter, setCopied, setElapsedSeconds])
 
 	useEffect(() => {
-		if (isOpen && !hasProviderKey) {
-			toast.error(
-				`No hay API Key configurada para ${aiProvider === 'gemini' ? 'Gemini' : 'Groq'}. Cerrando.`
-			)
+		if (isOpen && !hasGeminiKey) {
+			toast.error('No hay API Key configurada para Gemini. Cerrando.')
 			onClose()
 		}
-	}, [isOpen, hasProviderKey, aiProvider, onClose])
+	}, [isOpen, hasGeminiKey, onClose])
 
 	const openAISettings = () => {
 		sendMessage('openOptionsPage', 'settings?tab=ai')
@@ -160,11 +153,7 @@ export function SummaryModal({ isOpen, onClose }: SummaryModalProps) {
 
 	const currentError = isUserAnalysisMode ? userAnalysis?.error : summary?.error
 	const isAINotConfigured = currentError?.includes('IA no configurada')
-	const badgeTitle = providerFallbackMessage
-		? providerFallbackMessage
-		: isModelFallback
-			? `Modelo configurado: ${configuredModel}`
-			: undefined
+	const badgeTitle = isModelFallback ? `Modelo configurado: ${configuredModel}` : undefined
 
 	const hasResult = isUserAnalysisMode ? !!userAnalysis && !userAnalysis.error : !!summary && !summary.error
 
@@ -196,18 +185,11 @@ export function SummaryModal({ isOpen, onClose }: SummaryModalProps) {
 						title={modalTitle}
 						modelLabel={modelLabel}
 						isModelFallback={isModelFallback}
-						isProviderFallback={isProviderFallback}
 						badgeTitle={badgeTitle}
 						onClose={onClose}
 					/>
 
 					<div className="flex-1 overflow-y-auto p-4" aria-live="polite" aria-busy={isLoading}>
-						{providerFallbackMessage && (
-							<div className="mb-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md p-2.5">
-								<AlertCircle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-								<p className="text-xs text-amber-700 dark:text-amber-400">{providerFallbackMessage}</p>
-							</div>
-						)}
 						{isLoading ? (
 							<div className="flex flex-col items-center justify-center py-12 gap-4">
 								<Loader2 className="w-10 h-10 animate-spin text-primary" />

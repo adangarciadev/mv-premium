@@ -59,7 +59,7 @@ export type { ThemeColors, ThemePreset, CustomThemeState, ThemeExport } from './
 
 export { CSS_VAR_MAP, COLOR_GROUPS, COLOR_LABELS } from './theme'
 
-// AI Types (Gemini & Groq API)
+// AI Types (Gemini API)
 export type {
 	AIService,
 	AIModel,
@@ -72,12 +72,6 @@ export type {
 	GeminiAPIResponse,
 	GeminiRequestBody,
 	GeminiGenerationResult,
-
-	// Groq API
-	GroqModel,
-	GroqAPIResponse,
-	GroqChoice,
-	GroqUsage,
 } from './ai'
 
 // Template Types

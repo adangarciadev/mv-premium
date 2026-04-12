@@ -10,6 +10,7 @@ import {
 	PopoverTrigger,
 } from "@/components/ui/popover"
 import { getCategoriesForSubforum } from "@/lib/subforum-categories"
+import { getSubforumName } from "@/lib/subforums"
 
 interface CategorySelectorProps {
 	subforum: string
@@ -44,6 +45,7 @@ export function CategorySelector({ subforum, value, onValueChange, className, au
 
 	const categories = getCategoriesForSubforum(subforum)
 	const selectedCategory = categories.find((c) => c.value === value)
+	const subforumName = getSubforumName(subforum)
 	
 	if (categories.length === 0) {
 		return null
@@ -71,7 +73,7 @@ export function CategorySelector({ subforum, value, onValueChange, className, au
 			</PopoverTrigger>
 			<PopoverContent className="w-[240px] p-2" align="start">
 				<div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 px-2 py-1.5 mb-1">
-					Categorías de {subforum.replace(/-/g, ' ')}
+					Categorías de {subforumName || subforum.replace(/-/g, ' ')}
 				</div>
 				<div className="max-h-[280px] overflow-y-auto pr-1 custom-scroll">
 					<div className="space-y-0.5 pr-2">

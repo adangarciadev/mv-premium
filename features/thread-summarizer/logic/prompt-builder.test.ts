@@ -4,8 +4,6 @@ import {
 	buildSummaryPrompt,
 	buildSingleBatchPromptGemini,
 	buildMetaSummaryPromptGemini,
-	buildSingleBatchPromptGroq,
-	buildMetaSummaryPromptGroq,
 } from './prompt-builder'
 
 describe('prompt-builder', () => {
@@ -28,7 +26,7 @@ describe('prompt-builder', () => {
 
 	describe('buildSummaryPrompt', () => {
 		it('should produce a Gemini batch prompt with JSON format and full rules', () => {
-			const prompt = buildSummaryPrompt({ provider: 'gemini', type: 'batch', pageCount: 5 })
+			const prompt = buildSummaryPrompt({ type: 'batch', pageCount: 5 })
 			expect(prompt).toContain('analista de foros')
 			expect(prompt).toContain('MULTIPLES PAGINAS')
 			expect(prompt).toContain('"topic"')
@@ -46,7 +44,7 @@ describe('prompt-builder', () => {
 		})
 
 		it('should produce a Gemini meta prompt', () => {
-			const prompt = buildSummaryPrompt({ provider: 'gemini', type: 'meta', pageCount: 10 })
+			const prompt = buildSummaryPrompt({ type: 'meta', pageCount: 10 })
 			expect(prompt).toContain('RESUMENES PARCIALES')
 			expect(prompt).toContain('UN UNICO RESUMEN GLOBAL')
 			expect(prompt).toContain('9 puntos clave')
@@ -55,31 +53,9 @@ describe('prompt-builder', () => {
 			expect(prompt).toContain('REGLAS ESTRICTAS')
 		})
 
-		it('should produce a Groq batch prompt with detailed rules', () => {
-			const prompt = buildSummaryPrompt({ provider: 'groq', type: 'batch', pageCount: 5 })
-			expect(prompt).toContain('Analiza varias páginas de un hilo de Mediavida')
-			expect(prompt).toContain('SALIDA:')
-			expect(prompt).toContain('REGLAS CRITICAS')
-			expect(prompt).toContain('DETALLE:')
-			expect(prompt).toContain('Detecta ironía/sarcasmo')
-			expect(prompt).toContain('PROHIBIDO usar frases genéricas')
-			expect(prompt).toContain('Responde 100% en español')
-			expect(prompt).toContain('EXACTAMENTE 8')
-		})
-
-		it('should produce a Groq meta prompt', () => {
-			const prompt = buildSummaryPrompt({ provider: 'groq', type: 'meta', pageCount: 10 })
-			expect(prompt).toContain('resúmenes parciales')
-			expect(prompt).toContain('UN ÚNICO resumen global')
-			expect(prompt).toContain('DETALLE:')
-			expect(prompt).toContain('irónicos/sarcásticos')
-			expect(prompt).toContain('Responde 100% en español')
-			expect(prompt).toContain('EXACTAMENTE 10')
-		})
-
 		it('should scale limits based on page count', () => {
-			const small = buildSummaryPrompt({ provider: 'gemini', type: 'batch', pageCount: 2 })
-			const large = buildSummaryPrompt({ provider: 'gemini', type: 'batch', pageCount: 30 })
+			const small = buildSummaryPrompt({ type: 'batch', pageCount: 2 })
+			const large = buildSummaryPrompt({ type: 'batch', pageCount: 30 })
 			expect(small).toContain('5 puntos clave')
 			expect(large).toContain('15 puntos clave')
 		})
@@ -88,16 +64,10 @@ describe('prompt-builder', () => {
 	describe('convenience wrappers', () => {
 		it('should match buildSummaryPrompt output', () => {
 			expect(buildSingleBatchPromptGemini(5)).toBe(
-				buildSummaryPrompt({ provider: 'gemini', type: 'batch', pageCount: 5 })
+				buildSummaryPrompt({ type: 'batch', pageCount: 5 })
 			)
 			expect(buildMetaSummaryPromptGemini(5)).toBe(
-				buildSummaryPrompt({ provider: 'gemini', type: 'meta', pageCount: 5 })
-			)
-			expect(buildSingleBatchPromptGroq(5)).toBe(
-				buildSummaryPrompt({ provider: 'groq', type: 'batch', pageCount: 5 })
-			)
-			expect(buildMetaSummaryPromptGroq(5)).toBe(
-				buildSummaryPrompt({ provider: 'groq', type: 'meta', pageCount: 5 })
+				buildSummaryPrompt({ type: 'meta', pageCount: 5 })
 			)
 		})
 	})

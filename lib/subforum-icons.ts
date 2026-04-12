@@ -64,6 +64,7 @@ export const SUBFORUM_STYLES: Record<string, SubforumStyle> = {
 
 	// Technology
 	dev: { icon: 'lucide:code-2', ...COLORS.blue },
+	ia: { icon: 'lucide:cpu', ...COLORS.indigo },
 	gamedev: { icon: 'lucide:cpu', ...COLORS.purple },
 	'electronica-telefonia': { icon: 'lucide:smartphone', ...COLORS.cyan },
 	'hard-soft': { icon: 'lucide:monitor', ...COLORS.indigo },
@@ -140,7 +141,7 @@ export const SUBFORUM_GROUPS: SubforumGroup[] = [
 	},
 	{
 		name: 'Tecnología',
-		slugs: ['dev', 'gamedev', 'electronica-telefonia', 'hard-soft'],
+		slugs: ['dev', 'ia', 'electronica-telefonia', 'hard-soft', 'gamedev'],
 	},
 	{
 		name: 'Comunidad',

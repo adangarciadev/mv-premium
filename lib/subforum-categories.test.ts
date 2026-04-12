@@ -15,6 +15,7 @@ describe('subforum-categories', () => {
 			expect(SUBFORUM_CATEGORIES).toHaveProperty('off-topic')
 			expect(SUBFORUM_CATEGORIES).toHaveProperty('feda')
 			expect(SUBFORUM_CATEGORIES).toHaveProperty('politica')
+			expect(SUBFORUM_CATEGORIES).toHaveProperty('ia')
 		})
 
 		it('should have valid category structure for each subforum', () => {
@@ -63,6 +64,18 @@ describe('subforum-categories', () => {
 			const labels = politica.map(c => c.label)
 			expect(labels).toContain('Nacional')
 			expect(labels).toContain('Internacional')
+		})
+	})
+
+	describe('ia categories', () => {
+		it('should contain expected categories', () => {
+			const ia = SUBFORUM_CATEGORIES.ia
+			expect(ia).toBeDefined()
+
+			const labels = ia.map(c => c.label)
+			expect(labels).toContain('Código')
+			expect(labels).toContain('Modelos')
+			expect(labels).toContain('Imagen')
 		})
 	})
 

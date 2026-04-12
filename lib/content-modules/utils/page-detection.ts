@@ -2,59 +2,9 @@
  * Page detection utilities for Mediavida
  */
 
-export type CenteredPostsPageKind = 'thread' | 'listing' | 'unsupported'
+import { VALID_SUBFORUM_SLUGS } from '@/lib/subforums'
 
-/**
- * Whitelist of valid subforum slugs from Mediavida
- * These are the ONLY paths that should be considered subforum main pages
- * Extracted from actual /foro page HTML
- * Excludes: spy, top (not real subforums)
- */
-const VALID_SUBFORUM_SLUGS = new Set([
-	// General
-	'off-topic',
-	'feda',
-	'club-hucha',
-	'politica',
-	'streamers',
-	'criptomonedas',
-	'compra-venta',
-	'estudios-trabajo',
-	'ciencia',
-	'musica',
-	'cine',
-	'tv',
-	'libros-comics',
-	'anime-manga',
-	'deportes',
-	'motor',
-	'fitness',
-	'cocina',
-	'mascotas',
-	'viajes',
-	// Juegos
-	'juegos',
-	'mmo',
-	'juegos-lucha',
-	'juegos-movil',
-	'juegos-mesa-rol',
-	'mafia',
-	'intercambios',
-	'counterstrike',
-	'diablo',
-	'lol',
-	'poe',
-	'pokemon',
-	'valorant',
-	'wow',
-	// Tecnología
-	'dev',
-	'gamedev',
-	'electronica-telefonia',
-	'hard-soft',
-	// Comunidad
-	'mediavida',
-])
+export type CenteredPostsPageKind = 'thread' | 'listing' | 'unsupported'
 
 const FORUM_GLOBAL_VIEWS = ['/foro/spy', '/foro/new', '/foro/unread', '/foro/top', '/foro/featured'] as const
 

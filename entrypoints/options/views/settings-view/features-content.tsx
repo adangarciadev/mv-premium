@@ -226,7 +226,7 @@ export function FeaturesContent() {
 					<span>
 						Permite resúmenes de 1 página con el botón de resumir o hasta 30 páginas con el botón de Resumir+.{' '}
 						<span className="text-destructive font-bold block mt-1">
-							⚠️ Requiere configurar una API Key de Gemini o Groq
+							⚠️ Requiere configurar una API Key de Gemini
 						</span>
 					</span>
 				}
@@ -244,7 +244,7 @@ export function FeaturesContent() {
 					<span>
 						Permite resumir posts individuales muy largos con un solo clic.{' '}
 						<span className="text-destructive font-bold block mt-1">
-							⚠️ Requiere configurar una API Key de Gemini o Groq
+							⚠️ Requiere configurar una API Key de Gemini
 						</span>
 					</span>
 				}

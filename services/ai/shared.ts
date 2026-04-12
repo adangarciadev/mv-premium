@@ -1,6 +1,6 @@
 /**
  * Shared AI Utilities
- * Common functions used by both Gemini and Groq services.
+ * Common functions used by AI services.
  */
 
 import type { ChatMessage } from '@/types/ai'

@@ -47,10 +47,7 @@ export const selectImgbbApiKey = (state: SettingsStoreState) => state.imgbbApiKe
 export const selectTmdbApiKey = (state: SettingsStoreState) => state.tmdbApiKey
 export const selectGiphyApiKey = (state: SettingsStoreState) => state.giphyApiKey
 export const selectGeminiApiKey = (state: SettingsStoreState) => state.geminiApiKey
-export const selectGroqApiKey = (state: SettingsStoreState) => state.groqApiKey
 export const selectAIModel = (state: SettingsStoreState) => state.aiModel
-export const selectGroqModel = (state: SettingsStoreState) => state.groqModel
-export const selectAIProvider = (state: SettingsStoreState) => state.aiProvider
 
 // =============================================================================
 // NAVIGATION SELECTORS
@@ -89,7 +86,6 @@ export const selectApiKeys = (state: SettingsStoreState) => ({
 	tmdb: state.tmdbApiKey,
 	giphy: state.giphyApiKey,
 	gemini: state.geminiApiKey,
-	groq: state.groqApiKey,
 })
 
 // =============================================================================

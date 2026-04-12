@@ -48,10 +48,7 @@ interface SettingsActions {
 
 	// AI Settings
 	setGeminiApiKey: (key: string) => void
-	setGroqApiKey: (key: string) => void
 	setAIModel: (model: Settings['aiModel']) => void
-	setGroqModel: (model: Settings['groqModel']) => void
-	setAIProvider: (provider: Settings['aiProvider']) => void
 
 	// Sync
 	setSyncEnabled: (enabled: boolean) => void
@@ -175,10 +172,7 @@ export const useSettingsStore = create<SettingsState>()(
 
 			// AI Settings
 			setGeminiApiKey: key => set({ geminiApiKey: key }),
-			setGroqApiKey: key => set({ groqApiKey: key }),
 			setAIModel: model => set({ aiModel: model }),
-			setGroqModel: model => set({ groqModel: model }),
-			setAIProvider: provider => set({ aiProvider: provider }),
 
 			// Sync
 			setSyncEnabled: enabled => set({ syncEnabled: enabled }),

@@ -1,5 +1,5 @@
 /**
- * AI Service Types - Gemini & Groq APIs
+ * AI Service Types - Gemini API
  * Simplified for text generation (summaries, rewrites, etc.)
  */
 
@@ -22,9 +22,6 @@ export interface AIService {
 
 	/** Get the display name of the service */
 	getName(): string
-
-	/** Get the provider type */
-	getProvider(): 'gemini' | 'groq'
 }
 
 
@@ -37,22 +34,15 @@ export type GeminiModel =
 	| 'gemini-2.5-flash' // Stable option
 	| 'gemini-2.5-flash-lite' // Lite version
 
-/**
- * Available Groq models (free tier)
- */
-export type GroqModel = 'moonshotai/kimi-k2-instruct'
-
 /** Combined AI model type for settings */
-export type AIModel = GeminiModel | GroqModel
+export type AIModel = GeminiModel
 
 /**
  * AI Service configuration stored in settings
  */
 export interface AIConfig {
 	geminiApiKey: string
-	groqApiKey: string
 	aiModel: GeminiModel
-	groqModel: GroqModel
 }
 
 // =============================================================================
@@ -136,37 +126,4 @@ export interface GeminiGenerationResult {
 	success: boolean
 	text?: string
 	error?: string
-}
-
-// =============================================================================
-// GROQ API RESPONSE TYPES (OpenAI Compatible)
-// =============================================================================
-
-export interface GroqUsage {
-	prompt_tokens: number
-	completion_tokens: number
-	total_tokens: number
-}
-
-export interface GroqChoice {
-	index: number
-	message: {
-		role: string
-		content: string
-	}
-	finish_reason: string
-}
-
-export interface GroqAPIResponse {
-	id: string
-	object: string
-	created: number
-	model: string
-	choices: GroqChoice[]
-	usage?: GroqUsage
-	error?: {
-		message: string
-		type: string
-		code: string
-	}
 }
