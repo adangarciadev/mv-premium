@@ -21,6 +21,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.6.1',
+		date: '2026-04-12',
+		title: 'Subforo de IA y Gemini',
+		summary:
+			'Soporte para el nuevo subforo de Inteligencia Artificial y simplificación de la integración de IA para usar Gemini como único proveedor.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Nuevo subforo de Inteligencia Artificial: La extensión reconoce el subforo de IA en categorías, iconos, favoritos y detección de páginas.',
+				category: 'Comunidad',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Gemini como único proveedor de IA: Eliminada la integración de Groq/Kimi de ajustes, permisos, privacidad y flujos de resumen.',
+				category: 'Inteligencia Artificial',
+			},
+		],
+	},
+	{
 		version: '1.6.0',
 		date: '2026-03-23',
 		title: 'Modo Trabajo y Personalización',
