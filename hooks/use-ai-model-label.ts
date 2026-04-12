@@ -7,7 +7,6 @@
 
 import { useSettingsStore } from '@/store/settings-store'
 import { getAvailableModels } from '@/services/ai/gemini-service'
-import { getAvailableGroqModels } from '@/services/ai/groq-service'
 
 interface AIModelLabelResult {
 	/** The model ID to display (actual if available, otherwise configured) */
@@ -16,16 +15,8 @@ interface AIModelLabelResult {
 	modelLabel: string
 	/** True if the actual model differs from the configured one (rate-limit fallback) */
 	isModelFallback: boolean
-	/** The model ID selected for the effective provider */
+	/** The model ID selected in settings */
 	configuredModel: string
-	/** Provider selected in settings */
-	configuredProvider: 'gemini' | 'groq'
-	/** Provider that will be used (no cross-provider fallback) */
-	effectiveProvider: 'gemini' | 'groq'
-	/** Kept for UI compatibility; always false because provider auto-switch is disabled */
-	isProviderFallback: boolean
-	/** Kept for UI compatibility; always null */
-	providerFallbackMessage: string | null
 }
 
 /**
@@ -35,35 +26,19 @@ interface AIModelLabelResult {
  *                       or null if not yet known / still loading.
  */
 export function useAIModelLabel(actualModel: string | null): AIModelLabelResult {
-	const aiProvider = useSettingsStore(s => s.aiProvider)
 	const aiModel = useSettingsStore(s => s.aiModel)
-	const groqModel = useSettingsStore(s => s.groqModel)
-	const effectiveProvider = aiProvider
-
-	const configuredModel = effectiveProvider === 'groq' ? groqModel : aiModel
+	const configuredModel = aiModel
 	const displayModel = actualModel || configuredModel
 
-	const modelLabel = (() => {
-		if (effectiveProvider === 'groq') {
-			const models = getAvailableGroqModels()
-			return models.find(m => m.value === displayModel)?.label || displayModel
-		}
-		const models = getAvailableModels()
-		return models.find(m => m.value === displayModel)?.label || displayModel
-	})()
+	const models = getAvailableModels()
+	const modelLabel = models.find(m => m.value === displayModel)?.label || displayModel
 
 	const isModelFallback = !!actualModel && actualModel !== configuredModel
-	const isProviderFallback = false
-	const providerFallbackMessage = null
 
 	return {
 		displayModel,
 		modelLabel,
 		isModelFallback,
 		configuredModel,
-		configuredProvider: aiProvider,
-		effectiveProvider,
-		isProviderFallback,
-		providerFallbackMessage,
 	}
 }

@@ -27,10 +27,6 @@ class GeminiService implements AIService {
 		return this.model
 	}
 
-	getProvider() {
-		return 'gemini' as const
-	}
-
 	async isAvailable() {
 		return !!this.apiKey
 	}
@@ -69,20 +65,10 @@ class GeminiService implements AIService {
 
 /**
  * Factory function to get the configured AI service instance.
- * Uses the aiProvider setting and only returns that provider.
- * No cross-provider fallback is performed.
  */
 export async function getAIService(): Promise<AIService | null> {
 	const settings = await getSettings()
-	const { geminiApiKey, groqApiKey, aiModel = 'gemini-3-flash-preview', aiProvider = 'gemini' } = settings
-
-	if (aiProvider === 'groq') {
-		if (groqApiKey) {
-			const { getGroqService } = await import('./groq-service')
-			return getGroqService()
-		}
-		return null
-	}
+	const { geminiApiKey, aiModel = 'gemini-3-flash-preview' } = settings
 
 	if (geminiApiKey) {
 		return new GeminiService(geminiApiKey, aiModel)

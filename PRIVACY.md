@@ -16,11 +16,11 @@ MV Premium trata datos en dos grupos:
 - Configuración de la extensión (tema, toggles, atajos, etc.).
 - Contenido creado por el usuario dentro de la extensión (por ejemplo, borradores, plantillas, hilos guardados, posts anclados, palabras silenciadas y personalizaciones).
 - Datos de uso local opcionales para estadísticas/heatmap (por ejemplo, acciones de crear/editar/publicar, título/subforo/URL cuando aplica).
-- Claves API configuradas por el usuario para integraciones opcionales (por ejemplo: Gemini, Groq, ImgBB).
+- Claves API configuradas por el usuario para integraciones opcionales (por ejemplo: Gemini, ImgBB).
 
 2. **Datos enviados a servicios de terceros solo cuando usas funciones concretas**:
 - **Subida de imágenes**: si usas esa función, se envía la imagen (base64/archivo) a ImgBB o freeimage.host.
-- **Funciones de IA**: si usas resúmenes u otras funciones IA, se envía el prompt/contenido que tú dispares a Gemini (Google) o Groq.
+- **Funciones de IA**: si usas resúmenes u otras funciones IA, se envía el prompt/contenido que tú dispares a Gemini (Google).
 - **Búsqueda/consulta de contenido multimedia**: consultas de GIFs, cine/series, juegos o tweets ligeros pueden enviar términos, URLs o parámetros técnicos a GIPHY, TMDB, Steam, IGDB/Twitch y endpoints públicos de X/Twitter.
 
 ## 3. Finalidad del tratamiento
@@ -44,7 +44,7 @@ MV Premium **no vende datos**.
 
 Los datos solo se comparten con terceros cuando es necesario para la función solicitada por el usuario, por ejemplo:
 - ImgBB / freeimage.host (subida de imágenes)
-- Google Gemini / Groq (generación IA)
+- Google Gemini (generación IA)
 - GIPHY, TMDB, Steam, IGDB/Twitch, X/Twitter (consultas de contenido)
 
 Cada proveedor externo aplica sus propias condiciones y política de privacidad sobre los datos que recibe.
@@ -104,11 +104,11 @@ MV Premium processes data in two groups:
 - Extension settings (theme, toggles, shortcuts, etc.).
 - User-created content inside the extension (for example: drafts, templates, saved threads, pinned posts, muted words, and customizations).
 - Optional local usage data for stats/heatmap (for example: create/edit/publish actions, title/subforum/URL when applicable).
-- API keys configured by the user for optional integrations (for example: Gemini, Groq, ImgBB).
+- API keys configured by the user for optional integrations (for example: Gemini, ImgBB).
 
 2. **Data sent to third-party services only when you use specific features**:
 - **Image upload**: if you use this feature, the image (base64/file) is sent to ImgBB or freeimage.host.
-- **AI features**: if you use summaries or other AI features, prompted content is sent to Gemini (Google) or Groq.
+- **AI features**: if you use summaries or other AI features, prompted content is sent to Gemini (Google).
 - **Multimedia/content queries**: GIF, movies/TV, games, or lightweight tweet features may send queries, URLs, or technical parameters to GIPHY, TMDB, Steam, IGDB/Twitch, and public X/Twitter endpoints.
 
 ## 3. Purpose of processing
@@ -132,7 +132,7 @@ MV Premium **does not sell data**.
 
 Data is only shared with third parties when needed for a user-requested feature, for example:
 - ImgBB / freeimage.host (image upload)
-- Google Gemini / Groq (AI generation)
+- Google Gemini (AI generation)
 - GIPHY, TMDB, Steam, IGDB/Twitch, X/Twitter (content queries)
 
 Each third-party provider applies its own terms and privacy policy to the data it receives.

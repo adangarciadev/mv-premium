@@ -294,9 +294,9 @@ export const CHANGELOG: ChangelogEntry[] = [
 	{
 		version: '1.3.0',
 		date: '2026-02-09',
-		title: 'IA Multiprovider y Media Templates',
+		title: 'IA y Media Templates',
 		summary:
-			'Nuevo modo de Posts Centrados, integración con IGDB, sistema de Media Templates, soporte para Groq como proveedor de IA y resúmenes de hilo multi-página.',
+			'Nuevo modo de Posts Centrados, integración con IGDB, sistema de Media Templates y resúmenes de hilo multi-página.',
 		changes: [
 			// NEW FEATURES
 			{
@@ -316,11 +316,6 @@ export const CHANGELOG: ChangelogEntry[] = [
 				description:
 					'Sistema de Media Templates: Motor de plantillas completo para crear templates personalizados de medios (juegos, películas, series).',
 				category: 'Productividad',
-			},
-			{
-				type: 'feature',
-				description: 'Soporte para Groq (Kimi K2): Nuevo proveedor de IA alternativo a Gemini, totalmente gratuito.',
-				category: 'Inteligencia Artificial',
 			},
 			{
 				type: 'feature',

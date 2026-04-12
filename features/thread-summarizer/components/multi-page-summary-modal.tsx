@@ -23,8 +23,7 @@ import { analyzeUserMultiplePages, type UserAnalysis } from '../logic/analyze-us
 import { getActiveUserFilter } from '../logic/extract-posts'
 import {
 	MAX_MULTI_PAGES_GEMINI,
-	MAX_MULTI_PAGES_GROQ,
-	getProviderMultiPageLimit,
+	getMultiPageLimit,
 	getTotalPages,
 	getCurrentPage,
 	type MultiPageProgress,
@@ -78,13 +77,9 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 	const [progress, setProgress] = useState<MultiPageProgress | null>(null)
 	const [actualModel, setActualModel] = useState<string | null>(null)
 	const [startedAtMs, setStartedAtMs] = useState<number | null>(null)
-	const { modelLabel, isModelFallback, configuredModel, isProviderFallback, providerFallbackMessage } =
-		useAIModelLabel(actualModel)
-	const aiProvider = useSettingsStore(s => s.aiProvider)
-	const hasProviderKey = useSettingsStore(s =>
-		s.aiProvider === 'gemini' ? s.geminiApiKey.trim().length > 0 : s.groqApiKey.trim().length > 0
-	)
-	const providerMaxPages = getProviderMultiPageLimit(aiProvider)
+	const { modelLabel, isModelFallback, configuredModel } = useAIModelLabel(actualModel)
+	const hasGeminiKey = useSettingsStore(s => s.geminiApiKey.trim().length > 0)
+	const maxPages = getMultiPageLimit()
 
 	const { elapsedSeconds, setElapsedSeconds } = useSummaryTimer(step === 'loading', startedAtMs)
 
@@ -107,10 +102,10 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 			setFromPage(1)
 			setToPage(Math.min(totalPages, 5))
 		}
-	}, [isOpen, totalPages, providerMaxPages, setElapsedSeconds])
+	}, [isOpen, totalPages, maxPages, setElapsedSeconds])
 
 	const pageCount = Math.max(1, toPage - fromPage + 1)
-	const isValidRange = fromPage >= 1 && toPage >= fromPage && toPage <= totalPages && pageCount <= providerMaxPages
+	const isValidRange = fromPage >= 1 && toPage >= fromPage && toPage <= totalPages && pageCount <= maxPages
 
 	const buildCopyText = useCallback(() => {
 		if (isUserAnalysisMode && userAnalysis) {
@@ -181,13 +176,11 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 	}, [isUserAnalysisMode, activeUserFilter, fromPage, toPage, setElapsedSeconds])
 
 	useEffect(() => {
-		if (isOpen && !hasProviderKey) {
-			toast.error(
-				`No hay API Key configurada para ${aiProvider === 'gemini' ? 'Gemini' : 'Groq'}. Cerrando resumen multi-página.`
-			)
+		if (isOpen && !hasGeminiKey) {
+			toast.error('No hay API Key configurada para Gemini. Cerrando resumen multi-página.')
 			onClose()
 		}
-	}, [isOpen, hasProviderKey, aiProvider, onClose])
+	}, [isOpen, hasGeminiKey, onClose])
 
 	const openAISettings = () => {
 		sendMessage('openOptionsPage', 'settings?tab=ai')
@@ -202,11 +195,7 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 
 	const currentError = isUserAnalysisMode ? userAnalysis?.error : summary?.error
 	const isAINotConfigured = currentError?.includes('IA no configurada')
-	const badgeTitle = providerFallbackMessage
-		? providerFallbackMessage
-		: isModelFallback
-			? `Modelo configurado: ${configuredModel}`
-			: undefined
+	const badgeTitle = isModelFallback ? `Modelo configurado: ${configuredModel}` : undefined
 
 	const hasResult = isUserAnalysisMode ? !!userAnalysis && !userAnalysis.error : !!summary && !summary.error
 	const cachedAge = isUserAnalysisMode && activeUserFilter
@@ -234,18 +223,11 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 						title={modalTitle}
 						modelLabel={modelLabel}
 						isModelFallback={isModelFallback}
-						isProviderFallback={isProviderFallback}
 						badgeTitle={badgeTitle}
 						onClose={step !== 'loading' ? onClose : undefined}
 					/>
 
 					<div className="flex-1 overflow-y-auto p-4">
-						{providerFallbackMessage && (
-							<div className="mb-3 flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-md p-2.5">
-								<AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-								<p className="text-xs text-amber-700 dark:text-amber-400">{providerFallbackMessage}</p>
-							</div>
-						)}
 						{step === 'config' && (
 							<ConfigStep
 								fromPage={fromPage}
@@ -254,8 +236,7 @@ export function MultiPageSummaryModal({ isOpen, onClose }: MultiPageSummaryModal
 								currentPage={currentPage}
 								pageCount={pageCount}
 								isValidRange={isValidRange}
-								aiProvider={aiProvider}
-								providerMaxPages={providerMaxPages}
+								maxPages={maxPages}
 								isUserAnalysisMode={isUserAnalysisMode}
 								activeUserFilter={activeUserFilter}
 								onFromPageChange={setFromPage}
@@ -391,8 +372,7 @@ function ConfigStep({
 	currentPage,
 	pageCount,
 	isValidRange,
-	aiProvider,
-	providerMaxPages,
+	maxPages,
 	isUserAnalysisMode,
 	activeUserFilter,
 	onFromPageChange,
@@ -407,8 +387,7 @@ function ConfigStep({
 	currentPage: number
 	pageCount: number
 	isValidRange: boolean
-	aiProvider: 'gemini' | 'groq'
-	providerMaxPages: number
+	maxPages: number
 	isUserAnalysisMode: boolean
 	activeUserFilter: string | null
 	onFromPageChange: (v: number) => void
@@ -417,30 +396,28 @@ function ConfigStep({
 	onLoadCached: () => void
 	cachedAge: number | null
 }) {
-	const isGroq = aiProvider === 'groq'
-
 	const presets = [
-		{ label: 'Todo el hilo', from: 1, to: totalPages, show: totalPages <= providerMaxPages },
+		{ label: 'Todo el hilo', from: 1, to: totalPages, show: totalPages <= maxPages },
 		{ label: 'Primeras 5', from: 1, to: Math.min(5, totalPages), show: totalPages >= 3 },
-		{ label: 'Primeras 10', from: 1, to: Math.min(10, totalPages), show: totalPages >= 6 && providerMaxPages >= 10 },
-		{ label: 'Primeras 20', from: 1, to: Math.min(20, totalPages), show: totalPages >= 15 && providerMaxPages >= 20 },
+		{ label: 'Primeras 10', from: 1, to: Math.min(10, totalPages), show: totalPages >= 6 && maxPages >= 10 },
+		{ label: 'Primeras 20', from: 1, to: Math.min(20, totalPages), show: totalPages >= 15 && maxPages >= 20 },
 		{ label: 'Últimas 5', from: Math.max(1, totalPages - 4), to: totalPages, show: totalPages >= 3 },
 		{
 			label: 'Últimas 10',
 			from: Math.max(1, totalPages - 9),
 			to: totalPages,
-			show: totalPages >= 6 && providerMaxPages >= 10,
+			show: totalPages >= 6 && maxPages >= 10,
 		},
 		{
 			label: 'Últimas 20',
 			from: Math.max(1, totalPages - 19),
 			to: totalPages,
-			show: totalPages >= 15 && providerMaxPages >= 20,
+			show: totalPages >= 15 && maxPages >= 20,
 		},
 		{
 			label: `Desde actual (${currentPage})`,
 			from: currentPage,
-			to: Math.min(currentPage + providerMaxPages - 1, totalPages),
+			to: Math.min(currentPage + maxPages - 1, totalPages),
 			show: currentPage > 1 && currentPage < totalPages,
 		},
 	].filter(p => p.show)
@@ -463,40 +440,24 @@ function ConfigStep({
 						<p className="text-xs text-muted-foreground mt-1">
 							Selecciona el rango de páginas a {isUserAnalysisMode ? 'analizar' : 'resumir'}. El hilo tiene{' '}
 							<strong>{totalPages}</strong> {totalPages === 1 ? 'página' : 'páginas'}.
-							{totalPages > providerMaxPages && (
-								<span className="text-amber-500"> (máximo {providerMaxPages} páginas con el proveedor actual)</span>
+							{totalPages > maxPages && (
+								<span className="text-amber-500"> (máximo {maxPages} páginas)</span>
 							)}
 						</p>
 					</div>
 				</div>
 			</div>
 
-			{/* Provider limits */}
-			<div
-				className={cn(
-					'rounded-lg p-3 border',
-					isGroq ? 'bg-amber-500/10 border-amber-500/30' : 'bg-blue-500/10 border-blue-500/30'
-				)}
-			>
+			{/* Range limits */}
+			<div className="rounded-lg p-3 border bg-blue-500/10 border-blue-500/30">
 				<div className="flex items-start gap-2">
-					<AlertTriangle className={cn('w-4 h-4 mt-0.5 flex-shrink-0', isGroq ? 'text-amber-500' : 'text-blue-500')} />
+					<AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0 text-blue-500" />
 					<div className="space-y-1">
 						<p className="text-sm font-medium text-foreground">
-							Límites por proveedor (actual: {isGroq ? 'Groq / Kimi' : 'Gemini'})
+							Límite de resumen con Gemini
 						</p>
-							<p className="text-xs text-muted-foreground">
-								Groq / Kimi: <strong>2-{MAX_MULTI_PAGES_GROQ}</strong> páginas por límites de tokens por minuto
-								(TPM) y rate limit.
-							</p>
-							<p className="text-xs text-muted-foreground">
-								Nota: <strong>{MAX_MULTI_PAGES_GROQ}</strong> páginas es el tope del selector, pero en hilos densos (muchos
-								posts, citas largas o spoilers) Groq puede dar rate limit antes.
-							</p>
-							<p className="text-xs text-muted-foreground">
-								Gemini: <strong>2-{MAX_MULTI_PAGES_GEMINI}</strong> páginas por resumen, mejor tolerancia en hilos largos.
-							</p>
 						<p className="text-xs text-muted-foreground">
-							Si necesitas más rango, cambia el proveedor desde Ajustes de IA.
+							Puedes resumir entre <strong>2-{MAX_MULTI_PAGES_GEMINI}</strong> páginas por petición.
 						</p>
 					</div>
 				</div>
@@ -594,7 +555,7 @@ function ConfigStep({
 					<AlertCircle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
 					<p className="text-xs text-destructive">
 						Rango no válido. Asegúrate de que las páginas están entre 1 y {totalPages}
-						{pageCount > providerMaxPages ? ` y no superas ${providerMaxPages} páginas con ${isGroq ? 'Groq / Kimi' : 'Gemini'}.` : '.'}
+						{pageCount > maxPages ? ` y no superas ${maxPages} páginas.` : '.'}
 					</p>
 				</div>
 			)}

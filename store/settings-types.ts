@@ -19,14 +19,8 @@ export type ThemeMode = 'light' | 'dark' | 'system'
 /** AI Model options - Gemini */
 export type GeminiModel = 'gemini-3-flash-preview' | 'gemini-2.5-flash' | 'gemini-2.5-flash-lite'
 
-/** AI Model options - Groq */
-export type GroqModel = 'llama-3.3-70b-versatile' | 'moonshotai/kimi-k2-instruct'
-
-/** AI Provider options */
-export type AIProvider = 'gemini' | 'groq'
-
 /** Combined AI model type */
-export type AIModel = GeminiModel | GroqModel
+export type AIModel = GeminiModel
 
 /** Ultrawide mode levels */
 export type UltrawideMode = 'off' | 'wide' | 'extra-wide' | 'full'
@@ -64,10 +58,7 @@ export interface Settings {
 
 	// AI Settings
 	geminiApiKey: string
-	groqApiKey: string
 	aiModel: GeminiModel
-	groqModel: GroqModel
-	aiProvider: AIProvider
 
 	// Sync
 	syncEnabled: boolean

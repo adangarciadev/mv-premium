@@ -1,7 +1,7 @@
 /**
  * Post Summarization Logic
  *
- * Uses AI (Gemini or Groq) to summarize individual post content.
+ * Uses Gemini to summarize individual post content.
  */
 
 import { getAIService } from '@/services/ai/gemini-service'

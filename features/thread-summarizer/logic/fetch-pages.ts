@@ -18,15 +18,12 @@ import { parsePostElement } from './parse-post-element'
 /** Max pages for multi-page summary using Gemini */
 export const MAX_MULTI_PAGES_GEMINI = 30
 
-/** Max pages for multi-page summary using Groq (Kimi) */
-export const MAX_MULTI_PAGES_GROQ = 10
-
-/** Absolute max across providers (used as generic hard cap/fallback) */
+/** Absolute max for multi-page summary */
 export const MAX_MULTI_PAGES = MAX_MULTI_PAGES_GEMINI
 
-/** Per-provider limit helper for multi-page summary */
-export function getProviderMultiPageLimit(provider: 'gemini' | 'groq'): number {
-	return provider === 'groq' ? MAX_MULTI_PAGES_GROQ : MAX_MULTI_PAGES_GEMINI
+/** Limit helper for multi-page summary */
+export function getMultiPageLimit(): number {
+	return MAX_MULTI_PAGES_GEMINI
 }
 
 /** Max chars per post (slightly tighter for multi-page to save tokens) */

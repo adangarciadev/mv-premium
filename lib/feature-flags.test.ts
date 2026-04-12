@@ -11,7 +11,6 @@ const mockState = {
 	liveThreadEnabled: true,
 	mutedWordsEnabled: false,
 	geminiApiKey: '',
-	groqApiKey: '',
 	tmdbApiKey: 'test-api-key',
 	// Premium features default to true to match test expectations
 	mediaHoverCardsEnabled: true,
@@ -172,7 +171,6 @@ describe('feature-flags', () => {
 
 		it('indicates missing API key as reason', () => {
 			mockState.geminiApiKey = ''
-			mockState.groqApiKey = ''
 			mockState.threadSummarizerEnabled = true
 			const disabled = getDisabledFeatures()
 

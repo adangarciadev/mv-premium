@@ -113,7 +113,7 @@ describe('parseAIJsonResponse', () => {
 		expect(result.status).toBe('Debate activo')
 	})
 
-	it('should handle the specific Kimi error pattern (missing comma in keyPoints array)', () => {
+	it('should handle missing commas in keyPoints arrays', () => {
 		// Simulates the actual error: long keyPoints entries without commas
 		const malformed = `{
   "topic": "Análisis de la última actualización del juego",
@@ -139,8 +139,8 @@ describe('parseAIJsonResponse', () => {
 		expect(result.participants).toHaveLength(2)
 	})
 
-	it('should handle literal newlines inside string values (Kimi/Groq real-world bug)', () => {
-		// Real pattern from Kimi: string values contain literal \n that break JSON
+	it('should handle literal newlines inside string values', () => {
+		// Real-world malformed responses can contain literal \n that break JSON
 		const malformed = `{
   "topic": "Elecciones autonómicas en Aragón con victoria del PP",
   "keyPoints": [
@@ -178,7 +178,7 @@ describe('parseAIJsonResponse', () => {
 	})
 
 	it('should handle same-line missing commas between array elements (no newline)', () => {
-		// Kimi sometimes puts elements on the same line without commas
+		// Some model responses put elements on the same line without commas
 		const malformed = '{"items": ["first element" "second element" "third"]}'
 		const result = parseAIJsonResponse<{ items: string[] }>(malformed)
 		expect(result.items).toHaveLength(3)
@@ -214,7 +214,7 @@ describe('parseAIJsonResponse', () => {
 		expect(result.status).toBe('Debate activo')
 	})
 
-	it('should handle the real Kimi Aragon elections pattern', () => {
+	it('should handle a real malformed Aragon elections pattern', () => {
 		// Based on the actual error: long topic, complex content with commas in strings
 		const malformed = `{
   "topic": "Análisis de las elecciones autonómicas en Aragón donde el PP logra 28 escaños tras 20 años sin ganar, Vox entra por primera vez en el gobierno con 7 escaños, el PSOE cae a su peor resultado histórico (23-18 escaños), Podemos desaparece del parlamento y Sumar apenas mantiene 1 escaño."

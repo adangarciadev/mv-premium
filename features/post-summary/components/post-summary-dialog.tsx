@@ -29,13 +29,8 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 	const [isAIConfigError, setIsAIConfigError] = useState(false)
 	const [copied, setCopied] = useState(false)
 	const [actualModel, setActualModel] = useState<string | null>(null)
-	const { modelLabel, isModelFallback, configuredModel, isProviderFallback, providerFallbackMessage } =
-		useAIModelLabel(actualModel)
-	const badgeTitle = providerFallbackMessage
-		? providerFallbackMessage
-		: isModelFallback
-			? `Modelo configurado: ${configuredModel}`
-			: undefined
+	const { modelLabel, isModelFallback, configuredModel } = useAIModelLabel(actualModel)
+	const badgeTitle = isModelFallback ? `Modelo configurado: ${configuredModel}` : undefined
 
 	useEffect(() => {
 		// Prevent body scroll
@@ -75,7 +70,7 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 				setState('error')
 				setContent({
 					summary: isConfigError
-						? 'Necesitas una API Key de Gemini o Groq para usar esta función.'
+						? 'Necesitas una API Key de Gemini para usar esta función.'
 						: 'No se pudo generar el resumen. Por favor, inténtalo de nuevo.',
 					tone: 'Error',
 				})
@@ -128,10 +123,10 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 									{state === 'success' && (
 										<span
 											className={cn(
-												"text-[10px] px-1.5 py-0.5 rounded font-medium",
-												isProviderFallback || isModelFallback
-													? "text-amber-600 bg-amber-500/10"
-													: "text-muted-foreground bg-muted"
+												'text-[10px] px-1.5 py-0.5 rounded font-medium',
+												isModelFallback
+													? 'text-amber-600 bg-amber-500/10'
+													: 'text-muted-foreground bg-muted'
 											)}
 											title={badgeTitle}
 										>
@@ -148,11 +143,6 @@ export function PostSummaryDialog({ postElement, onClose }: PostSummaryDialogPro
 
 					{/* Content */}
 					<div className="p-6 overflow-y-auto" aria-live="polite" aria-busy={state === 'loading'}>
-						{providerFallbackMessage && state !== 'loading' && (
-							<div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-md">
-								<p className="text-xs text-amber-700 dark:text-amber-400">{providerFallbackMessage}</p>
-							</div>
-						)}
 						{state === 'loading' ? (
 							<div className="flex flex-col items-center justify-center py-8 gap-4 text-center">
 								<Loader2 className="w-10 h-10 animate-spin text-primary" />

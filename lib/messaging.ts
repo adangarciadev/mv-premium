@@ -37,14 +37,6 @@ export interface GeminiResult {
 	modelUsed?: string
 }
 
-export interface GroqResult {
-	success: boolean
-	text?: string
-	error?: string
-	/** The actual model that processed the request (may differ from requested due to fallback) */
-	modelUsed?: string
-}
-
 export interface TweetLiteData {
 	username: string
 	displayName: string
@@ -204,17 +196,6 @@ interface ProtocolMap {
 		history?: ChatMessage[]
 		prompt?: string
 	}) => GeminiResult
-
-	/**
-	 * Generate text with Groq API via background script
-	 * Supports full chat history (OpenAI-compatible format)
-	 */
-	generateGroq: (data: {
-		apiKey: string
-		model: string
-		history?: ChatMessage[]
-		prompt?: string
-	}) => GroqResult
 
 	/**
 	 * Syntax highlight code using PrismJS in background script

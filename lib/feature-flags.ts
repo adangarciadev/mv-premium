@@ -91,14 +91,14 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 		settingsKey: 'postSummaryEnabled',
 		customCheck: () => {
 			const state = useSettingsStore.getState()
-			return !!(state.geminiApiKey || state.groqApiKey)
+			return !!state.geminiApiKey
 		},
 	},
 	[FeatureFlag.ThreadSummarizer]: {
 		settingsKey: 'threadSummarizerEnabled',
 		customCheck: () => {
 			const state = useSettingsStore.getState()
-			return !!(state.geminiApiKey || state.groqApiKey)
+			return !!state.geminiApiKey
 		},
 	},
 	[FeatureFlag.CinemaCards]: { settingsKey: 'cinemaButtonEnabled', requiresApiKey: 'tmdbApiKey' },
