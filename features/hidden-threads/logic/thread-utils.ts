@@ -2,6 +2,8 @@ import { extractThreadNumericId, slugToName, slugToTitle } from '@/lib/url-helpe
 
 const THREAD_PATH_REGEX = /^\/foro\/[^/]+\/[^/]+-\d+/
 const MV_BASE_URL = 'https://www.mediavida.com'
+const THREAD_CREATOR_LINK_SELECTOR =
+	'td.col-av a[href^="/id/"], td.col-av-m a[href^="/id/"], td[class*="col-av"] a[href^="/id/"], td.autor-avatar a[href^="/id/"]'
 
 export interface HiddenThreadMetadata {
 	id: string
@@ -77,6 +79,33 @@ export function extractThreadPathFromRow(row: Element): string | null {
 	if (!threadLink) return null
 
 	return normalizeThreadPath(threadLink.getAttribute('href') || threadLink.href)
+}
+
+/**
+ * Extracts the thread creator username from a forum list row.
+ *
+ * Standard Mediavida subforum rows render the creator avatar as the first
+ * profile link inside the `td.col-av` cell, followed by the last commenter.
+ */
+export function extractThreadCreatorUsernameFromRow(row: Element): string | null {
+	const profileLinks = Array.from(row.querySelectorAll<HTMLAnchorElement>('a[href^="/id/"]'))
+	const creatorLinkByHint = profileLinks.find(link => {
+		const hint = (link.getAttribute('title') || link.getAttribute('original-title') || '').toLowerCase()
+		return hint.includes('creó el tema')
+	})
+
+	const creatorLink =
+		creatorLinkByHint ||
+		row.querySelector<HTMLAnchorElement>(THREAD_CREATOR_LINK_SELECTOR) ||
+		profileLinks.find(link => !link.closest('.last-av'))
+	if (!creatorLink) return null
+
+	const href = creatorLink.getAttribute('href') || creatorLink.href
+	const match = href.match(/\/id\/([^/?#]+)/i)
+	if (!match?.[1]) return null
+
+	const username = decodeURIComponent(match[1]).trim()
+	return username || null
 }
 
 /**

@@ -77,6 +77,7 @@ export const settingsSchema = z.object({
 	mediaHoverCardsEnabled: z.boolean().default(true),
 	steamBundleInlineCardsEnabled: z.boolean().default(true),
 	twitterLiteEmbedsEnabled: z.boolean().default(false),
+	hideIgnoredUserThreadsEnabled: z.boolean().default(true),
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: z.boolean().default(false),

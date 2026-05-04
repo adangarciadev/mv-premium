@@ -42,6 +42,7 @@ export function FeaturesContent() {
 		postSummaryEnabled,
 		saveThreadEnabled,
 		hideThreadEnabled,
+		hideIgnoredUserThreadsEnabled,
 	} = useSettingsStore()
 
 	const reloadMediavidaTabs = async () => {
@@ -74,7 +75,8 @@ export function FeaturesContent() {
 				| 'threadSummarizerEnabled'
 				| 'postSummaryEnabled'
 				| 'saveThreadEnabled'
-				| 'hideThreadEnabled',
+				| 'hideThreadEnabled'
+				| 'hideIgnoredUserThreadsEnabled',
 			requiresReload: boolean = false
 		) =>
 		async (val: boolean) => {
@@ -266,6 +268,17 @@ export function FeaturesContent() {
 				description="Muestra botones para ocultar hilos en listados. La opción de ocultar con click derecho siempre está activa."
 			>
 				<Switch checked={hideThreadEnabled} onCheckedChange={withToastAndReload('hideThreadEnabled', true)} />
+			</SettingRow>
+
+			<SettingRow
+				icon={<EyeOff className="h-4 w-4" />}
+				label="Ocultar Hilos de Ignorados"
+				description="Oculta automáticamente hilos creados por usuarios ignorados en modo ocultar solo en los listados clásicos de subforos, porque ahí Mediavida sí muestra quién creó el hilo. No se aplica en Spy ni en la home premium, ya que en esos listados ese dato no aparece."
+			>
+				<Switch
+					checked={hideIgnoredUserThreadsEnabled}
+					onCheckedChange={withToastAndReload('hideIgnoredUserThreadsEnabled', true)}
+				/>
 			</SettingRow>
 		</SettingsSection>
 	)

@@ -38,6 +38,16 @@ export interface UserCustomizationsData {
 	globalSettings: GlobalRoleSettings
 }
 
+function isIgnoredWithHide(customization: UserCustomization | undefined): boolean {
+	return Boolean(customization?.isIgnored && (customization.ignoreType || 'hide') === 'hide')
+}
+
+export function extractIgnoredHiddenUsernames(data: UserCustomizationsData): string[] {
+	return Object.entries(data.users)
+		.filter(([, customization]) => isIgnoredWithHide(customization))
+		.map(([username]) => username)
+}
+
 // ============================================================================
 // DEFAULT VALUES
 // ============================================================================
@@ -81,6 +91,15 @@ export async function getUserCustomizations(): Promise<UserCustomizationsData> {
 		logger.error('Error reading user customizations storage:', error)
 		return DEFAULT_DATA
 	}
+}
+
+/**
+ * Returns usernames that are ignored in hide mode.
+ * These users can be reused by other features, such as filtering thread lists.
+ */
+export async function getIgnoredHiddenUsernames(): Promise<string[]> {
+	const data = await getUserCustomizations()
+	return extractIgnoredHiddenUsernames(data)
 }
 
 /**

@@ -19,16 +19,19 @@ describe('new-homepage data parsers', () => {
 		const doc = parse(`
 			<table id="temas">
 				<tr>
-					<td><a href="/foro/cine">cine</a></td>
 					<td>
-						<a class="hb" href="/foro/cine/hilo-123">Hilo de prueba</a>
-						<a class="unseen-num" href="/foro/cine/hilo-123/2#55">4</a>
-						<span class="thread-live"></span>
+						<div class="thread">
+							<a class="hb" href="/foro/cine/hilo-123">Hilo de prueba</a>
+							<a class="unseen-num" href="/foro/cine/hilo-123/2#55">4</a>
+							<span class="thread-live"></span>
+						</div>
 					</td>
 					<td><span class="num reply">1.2k</span></td>
-					<td></td>
-					<td></td>
-					<td>2m</td>
+					<td class="col-av col-av-m ddtc">
+						<a class="tooltip-left" href="/id/Channie"><img alt="Channie" src="/avatar.jpg"></a>
+						<a class="tooltip-left" href="/id/Styles"><img alt="Styles" src="/avatar2.jpg"></a>
+					</td>
+					<td class="last-av"><span class="rd">2m</span></td>
 				</tr>
 			</table>
 		`)
@@ -75,8 +78,10 @@ describe('new-homepage data parsers', () => {
 				<div class="news-item">
 					<a class="news-media" href="/foro/tv/noticia-1"> 255 </a>
 					<img data-src="https://img.test/news.jpg" />
-					<div class="news-info"><h4>Noticia de prueba</h4></div>
-					<div class="news-meta">autor - 1h</div>
+					<div class="news-info">
+						<h4>Noticia de prueba</h4>
+						<div class="news-meta"><span class="author">autor</span> - 1h</div>
+					</div>
 				</div>
 			</div>
 		`)

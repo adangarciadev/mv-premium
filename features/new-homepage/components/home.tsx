@@ -130,8 +130,7 @@ export function Home() {
 
 	const filteredUserLastPosts = useMemo(() => {
 		return userLastPosts.filter(
-			thread =>
-				(thread.responsesSinceLastVisit ?? 0) > 0 && !isThreadUrlHidden(thread.url, hiddenIds, hiddenNumericIds)
+			thread => (thread.responsesSinceLastVisit ?? 0) > 0 && !isThreadUrlHidden(thread.url, hiddenIds, hiddenNumericIds)
 		)
 	}, [userLastPosts, hiddenIds, hiddenNumericIds])
 

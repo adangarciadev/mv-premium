@@ -4,8 +4,18 @@ import { extractThreadNumericId } from '@/lib/url-helpers'
 import { useSettingsStore } from '@/store/settings-store'
 import { getSavedThreads, toggleSaveThreadFromUrl, watchSavedThreads } from '@/features/saved-threads/logic/storage'
 import { showSavedThreadToggledToast, showSaveThreadErrorToast } from '@/features/saved-threads/logic/save-toast'
+import {
+	extractIgnoredHiddenUsernames,
+	getIgnoredHiddenUsernames,
+	watchUserCustomizations,
+} from '@/features/user-customizations/storage'
 import { getHiddenThreads, hideThreadFromUrl, watchHiddenThreads } from './storage'
-import { buildHiddenNumericIds, extractThreadPathFromRow, normalizeThreadPath } from './thread-utils'
+import {
+	buildHiddenNumericIds,
+	extractThreadCreatorUsernameFromRow,
+	extractThreadPathFromRow,
+	normalizeThreadPath,
+} from './thread-utils'
 
 const HIDDEN_THREAD_CLASS = DOM_MARKERS.CLASSES.HIDDEN_THREAD
 const HIDDEN_THREAD_STYLE_ID = DOM_MARKERS.IDS.HIDDEN_THREADS_STYLES
@@ -28,10 +38,14 @@ const THREAD_ID_ATTR = 'data-thread-id'
 
 let hiddenThreadIds = new Set<string>()
 let hiddenNumericIds = new Set<number>()
+let ignoredHiddenUsernames = new Set<string>()
+let ignoredAuthorThreadIds = new Set<string>()
+let ignoredAuthorNumericIds = new Set<number>()
 let initialized = false
 let initializationPromise: Promise<void> | null = null
 let unwatchHiddenThreads: (() => void) | null = null
 let unwatchSavedThreads: (() => void) | null = null
+let unwatchUserCustomizations: (() => void) | null = null
 let delegationSetup = false
 let savedThreadIds = new Set<string>()
 let forumListObserver: MutationObserver | null = null
@@ -43,6 +57,14 @@ function areHideThreadControlsEnabled(): boolean {
 
 function areSaveThreadControlsEnabled(): boolean {
 	return useSettingsStore.getState().saveThreadEnabled !== false
+}
+
+function areIgnoredAuthorThreadsHidden(): boolean {
+	return useSettingsStore.getState().hideIgnoredUserThreadsEnabled !== false
+}
+
+function normalizeUsername(username: string): string {
+	return username.trim().toLowerCase()
 }
 
 function updateHiddenThreadsCache(): void {
@@ -197,6 +219,13 @@ function isRowHidden(threadPath: string): boolean {
 
 	const numericId = extractThreadNumericId(threadPath)
 	return numericId !== null && hiddenNumericIds.has(numericId)
+}
+
+function isIgnoredAuthorThread(threadPath: string): boolean {
+	if (ignoredAuthorThreadIds.has(threadPath)) return true
+
+	const numericId = extractThreadNumericId(threadPath)
+	return numericId !== null && ignoredAuthorNumericIds.has(numericId)
 }
 
 // ============================================================================
@@ -489,10 +518,23 @@ function setupHideButtonDelegation(): void {
 function updateRowsVisibility(): void {
 	ensureHiddenThreadStyles()
 	injectHideButtons()
+	ignoredAuthorThreadIds = new Set<string>()
 
 	document.querySelectorAll<HTMLTableRowElement>(THREAD_ROWS_SELECTOR).forEach(row => {
 		const threadPath = extractThreadPathFromRow(row)
-		const shouldHide = threadPath ? isRowHidden(threadPath) : false
+		const threadCreator = extractThreadCreatorUsernameFromRow(row)
+
+		const shouldHideByIgnoredAuthor =
+			Boolean(threadPath) &&
+			Boolean(threadCreator) &&
+			areIgnoredAuthorThreadsHidden() &&
+			ignoredHiddenUsernames.has(normalizeUsername(threadCreator))
+
+		if (threadPath && shouldHideByIgnoredAuthor) {
+			ignoredAuthorThreadIds.add(threadPath)
+		}
+
+		const shouldHide = threadPath ? isRowHidden(threadPath) || shouldHideByIgnoredAuthor : false
 
 		if (shouldHide) {
 			row.classList.add(HIDDEN_THREAD_CLASS)
@@ -501,6 +543,7 @@ function updateRowsVisibility(): void {
 
 		row.classList.remove(HIDDEN_THREAD_CLASS)
 	})
+	ignoredAuthorNumericIds = buildHiddenNumericIds(ignoredAuthorThreadIds)
 
 	// Also filter sidebar featured/news items (present on some subforum pages)
 	document.querySelectorAll<HTMLAnchorElement>(SIDEBAR_FEATURED_LINK_SELECTOR).forEach(link => {
@@ -508,7 +551,7 @@ function updateRowsVisibility(): void {
 		const li = link.closest('li')
 		if (!li || !threadPath) return
 
-		if (isRowHidden(threadPath)) {
+		if (isRowHidden(threadPath) || isIgnoredAuthorThread(threadPath)) {
 			li.classList.add(HIDDEN_THREAD_CLASS)
 		} else {
 			li.classList.remove(HIDDEN_THREAD_CLASS)
@@ -546,6 +589,8 @@ export async function initHiddenThreadsFiltering(): Promise<void> {
 			setupHideButtonDelegation()
 			const savedThreads = await getSavedThreads()
 			savedThreadIds = new Set(savedThreads.map(thread => thread.id))
+			const ignoredHiddenUsers = await getIgnoredHiddenUsernames()
+			ignoredHiddenUsernames = new Set(ignoredHiddenUsers.map(normalizeUsername))
 
 			if (!unwatchHiddenThreads) {
 				unwatchHiddenThreads = watchHiddenThreads(nextThreads => {
@@ -560,6 +605,13 @@ export async function initHiddenThreadsFiltering(): Promise<void> {
 				unwatchSavedThreads = watchSavedThreads(nextThreads => {
 					savedThreadIds = new Set(nextThreads.map(thread => thread.id))
 					updateAllSaveButtonsState()
+				})
+			}
+
+			if (!unwatchUserCustomizations) {
+				unwatchUserCustomizations = watchUserCustomizations(nextData => {
+					ignoredHiddenUsernames = new Set(extractIgnoredHiddenUsernames(nextData).map(normalizeUsername))
+					updateRowsVisibility()
 				})
 			}
 

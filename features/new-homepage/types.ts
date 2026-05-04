@@ -29,5 +29,4 @@ export interface HomepageNewsItem extends HomepageItemBase {
 	createdAt?: string
 	/** Abbreviated string like "1.2k" or "350" */
 	totalResponses?: string
-	author?: string
 }

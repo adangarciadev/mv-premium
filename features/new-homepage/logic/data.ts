@@ -67,15 +67,15 @@ export function parseThreadTable(doc: Document): HomepageThread[] {
 
 	doc.querySelectorAll('#temas tr').forEach(row => {
 		const cells = row.querySelectorAll('td')
-		const forumSlug = getForumSlugFromUrl(cells.item(0)?.querySelector('a')?.getAttribute('href'))
-		const titleLink = cells.item(1)?.querySelector<HTMLAnchorElement>('.hb, .h')
+		const titleLink = row.querySelector<HTMLAnchorElement>('.thread .hb, .thread .h, .hb, .h')
 		const title = titleLink?.textContent?.trim()
 		const url = titleLink?.getAttribute('href')
-		const urlSinceLastVisit = cells.item(1)?.querySelector<HTMLAnchorElement>('.unseen-num')?.getAttribute('href')
-		const responsesSinceLastVisit = parseIntSafe(cells.item(1)?.querySelector('.unseen-num')?.textContent)
-		const totalResponses = cells.item(2)?.querySelector('.num.reply')?.textContent?.trim()
-		const lastActivityAt = cells.item(5)?.textContent?.trim()
-		const hasLive = Boolean(cells.item(1)?.querySelector('.thread-live'))
+		const forumSlug = getForumSlugFromUrl(cells.item(0)?.querySelector('a')?.getAttribute('href')) ?? getForumSlugFromUrl(url)
+		const urlSinceLastVisit = row.querySelector<HTMLAnchorElement>('.unseen-num')?.getAttribute('href')
+		const responsesSinceLastVisit = parseIntSafe(row.querySelector('.unseen-num')?.textContent)
+		const totalResponses = row.querySelector('.num.reply')?.textContent?.trim()
+		const lastActivityAt = row.querySelector('td.last-av .rd')?.textContent?.trim() || cells.item(cells.length - 1)?.textContent?.trim()
+		const hasLive = Boolean(row.querySelector('.thread-live'))
 
 		if (!forumSlug || !title || !url || !totalResponses || !lastActivityAt) {
 			return
@@ -135,7 +135,6 @@ export function parseNewsList(doc: Document): HomepageNewsItem[] {
 		const thumbnail = imageEl?.getAttribute('data-src') ?? imageEl?.getAttribute('src')
 		const totalResponses = item.querySelector('.news-media')?.textContent?.trim()
 		const createdAt = item.querySelector('.news-meta')?.textContent?.split(' - ')[1]?.trim()
-		const author = item.querySelector('.news-info .news-meta .author')?.textContent?.trim()
 
 		if (!url || !title || !forumSlug || !thumbnail || !totalResponses) {
 			return
@@ -148,7 +147,6 @@ export function parseNewsList(doc: Document): HomepageNewsItem[] {
 			thumbnail,
 			totalResponses,
 			createdAt,
-			author,
 		})
 	})
 

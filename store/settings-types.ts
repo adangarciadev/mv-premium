@@ -89,6 +89,7 @@ export interface Settings {
 	postSummaryEnabled: boolean
 	saveThreadEnabled: boolean
 	hideThreadEnabled: boolean
+	hideIgnoredUserThreadsEnabled: boolean
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: boolean

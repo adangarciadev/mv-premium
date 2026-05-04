@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { extractThreadPathFromRow, normalizeThreadPath, parseHiddenThreadFromUrl } from './thread-utils'
+import {
+	extractThreadCreatorUsernameFromRow,
+	extractThreadPathFromRow,
+	normalizeThreadPath,
+	parseHiddenThreadFromUrl,
+} from './thread-utils'
 
 describe('hidden-threads thread-utils', () => {
 	describe('normalizeThreadPath', () => {
@@ -101,6 +106,97 @@ describe('hidden-threads thread-utils', () => {
 
 			const row = document.querySelector('tbody#temas tr')!
 			expect(extractThreadPathFromRow(row)).toBeNull()
+		})
+	})
+
+	describe('extractThreadCreatorUsernameFromRow', () => {
+		it('extracts the creator from standard subforum rows', () => {
+			document.body.innerHTML = `
+				<table>
+					<tbody id="temas">
+						<tr>
+							<td class="col-th">
+								<div class="thread">
+									<a href="/foro/deportes/thread-oficial-123">Thread oficial</a>
+								</div>
+							</td>
+							<td class="col-av col-av-m ddtc">
+								<a class="tooltip-left" title="JMBaDBoY creó el tema - 3h" href="/id/JMBaDBoY">
+									<img alt="JMBaDBoY" src="/avatar.jpg">
+								</a>
+								<a class="tooltip-left" style="margin-left: 5px" title="Styles hizo el último comentario" href="/id/Styles">
+									<img alt="Styles" src="/avatar2.jpg">
+								</a>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			`
+
+			const row = document.querySelector('tbody#temas tr')!
+			expect(extractThreadCreatorUsernameFromRow(row)).toBe('JMBaDBoY')
+		})
+
+		it('extracts the creator when op is also the last commenter', () => {
+			document.body.innerHTML = `
+				<table>
+					<tbody id="temas">
+						<tr>
+							<td class="col-th">
+								<div class="thread">
+									<a href="/foro/deportes/nba-playoffs-2026-734396">NBA Playoffs 2026</a>
+								</div>
+							</td>
+							<td class="col-av col-av-m ddtc">
+								<a class="tooltip-left op" title="Rudeboyx creó el tema - 16d  - y ha hecho el último comentario" href="/id/Rudeboyx">
+									<img alt="Rudeboyx" src="/avatar.jpg">
+								</a>
+								&nbsp;
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			`
+
+			const row = document.querySelector('tbody#temas tr')!
+			expect(extractThreadCreatorUsernameFromRow(row)).toBe('Rudeboyx')
+		})
+
+		it('returns null when the row has no creator cell', () => {
+			document.body.innerHTML = `
+				<table>
+					<tbody id="temas">
+						<tr>
+							<td class="col-th">
+								<div class="thread">
+									<a href="/foro/deportes/thread-oficial-123">Thread oficial</a>
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			`
+
+			const row = document.querySelector('tbody#temas tr')!
+			expect(extractThreadCreatorUsernameFromRow(row)).toBeNull()
+		})
+
+		it('prefers the link explicitly marked as creator by title/original-title', () => {
+			document.body.innerHTML = `
+				<table>
+					<tbody id="temas">
+						<tr>
+							<td class="bautor">
+								<a href="/id/LastPoster" title="LastPoster hizo el último comentario">LastPoster</a>
+								<a href="/id/TopicOwner" original-title="TopicOwner creó el tema - 1d">TopicOwner</a>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			`
+
+			const row = document.querySelector('tbody#temas tr')!
+			expect(extractThreadCreatorUsernameFromRow(row)).toBe('TopicOwner')
 		})
 	})
 })
