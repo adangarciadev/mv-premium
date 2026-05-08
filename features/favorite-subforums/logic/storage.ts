@@ -7,19 +7,13 @@ import { storage } from '#imports'
 import { STORAGE_KEYS } from '@/constants'
 import { notifyFavoriteSubforumsChanged } from './listeners'
 import { ALL_SUBFORUMS } from '@/lib/subforums'
+import type { FavoriteSubforum } from '@/types/storage'
 
 // ============================================================================
 // TYPES
 // ============================================================================
 
-export interface FavoriteSubforum {
-	id: string // Unique identifier (slug from URL, e.g., "off-topic")
-	name: string // Display name (e.g., "OFF-Topic")
-	url: string // Full URL path (e.g., "/foro/off-topic")
-	iconClass?: string // Forum icon CSS class (e.g., "fid fid-6")
-	description?: string // Forum description
-	addedAt: number // Timestamp when added to favorites
-}
+export type { FavoriteSubforum } from '@/types/storage'
 
 // ============================================================================
 // STORAGE ITEM DEFINITION

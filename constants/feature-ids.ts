@@ -26,6 +26,7 @@ export const FEATURE_IDS = {
 	INFINITE_SCROLL_BUTTON: 'mvp-infinite-scroll-button',
 	MEDIA_HOVER_CARD: 'mvp-media-hover-card',
 	NATIVE_LIVE_DELAY_CONTROL: 'mvp-native-live-delay-control',
+	HIDDEN_SUBFORUM_BLOCKER: 'mvp-hidden-subforum-blocker',
 
 	// Dynamic Feature Prefixes (used with ID/Counter)
 	FAVORITE_SUBFORUM_BTN_PREFIX: 'mvp-favorite-subforum-btn-',

@@ -43,9 +43,11 @@ import { onMessage } from '@/lib/messaging'
 import { toast } from '@/lib/lazy-toast'
 import { logger } from '@/lib/logger'
 import { RUNTIME_CACHE_KEYS, TOAST_IDS, TOAST_TIMINGS } from '@/constants'
+import { showEarlyHiddenSubforumBlocker } from '@/features/hidden-subforums/logic/early-guard'
 
 export async function runContentMain(ctx: unknown): Promise<void> {
 	const pathname = window.location.pathname
+	showEarlyHiddenSubforumBlocker(pathname)
 	const isHomepage = pathname === '/' || pathname === '' || /^\/p\d+$/.test(pathname)
 	const earlyHomepageModulePromise = (() => {
 		if (!isHomepage) return null

@@ -179,6 +179,18 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		}
 	}
 
+	const isAnyUserProfilePage = /^\/id\/[^/]+(?:\/.*)?$/.test(window.location.pathname)
+	const shouldInitHiddenSubforums =
+		pageContext?.isForumRelated || pageContext?.isProfileSubpage || pageContext?.isBookmarks || isAnyUserProfilePage
+	if (shouldInitHiddenSubforums) {
+		const { initHiddenSubforums } = await import('@/features/hidden-subforums')
+		const { isPageBlocked } = await initHiddenSubforums()
+
+		if (isPageBlocked) {
+			return
+		}
+	}
+
 	// =========================================================================
 	// HOMEPAGE
 	// =========================================================================

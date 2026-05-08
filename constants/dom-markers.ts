@@ -56,6 +56,7 @@ export const DOM_MARKERS = {
 		USER_BADGE: 'mvp-user-badge',
 		USER_CARD_ACTIONS: 'mvp-user-actions',
 		BTN_ACTIVE: 'mvp-btn-active',
+		HIDDEN_SUBFORUM: 'mvp-hidden-subforum',
 		// Muted Words
 		MUTED_CONTAINER: 'mvp-muted-container',
 		MUTED_QUOTE: 'mvp-muted-quote',
@@ -95,6 +96,7 @@ export const DOM_MARKERS = {
 		// Feature events
 		PIN_CHANGED: 'mvp-pin-changed',
 		FAVORITE_SUBFORUMS_CHANGED: 'mvp-favorite-subforums-changed',
+		HIDDEN_SUBFORUMS_CHANGED: 'mvp-hidden-subforums-changed',
 	},
 
 	// DOM IDs
@@ -137,6 +139,8 @@ export const DOM_MARKERS = {
 		NEW_THREAD_DROPDOWN: 'mvp-new-thread-dropdown',
 		WHATS_NEW_BADGE: 'mvp-whats-new-badge',
 		HIDDEN_THREADS_STYLES: 'mvp-hidden-threads-styles',
+		HIDDEN_SUBFORUM_STYLES: 'mvp-hidden-subforum-styles',
+		HIDDEN_SUBFORUM_BLOCKER: 'mvp-hidden-subforum-blocker',
 		// Gallery
 		GALLERY_BTN: 'mvp-gallery-btn',
 		GALLERY_TRIGGER: 'mvp-gallery-trigger',
@@ -195,6 +199,7 @@ export const DOM_MARKERS = {
 		PINNED_PREFIX: 'mvp-pinned-',
 		PINNED_META_PREFIX: 'mvp-pinned-meta-',
 		FAVORITE_SUBFORUMS: 'mvp-favorite-subforums',
+		HIDDEN_SUBFORUMS: 'mvp-hidden-subforums',
 	},
 
 	// ====== DEPRECATED (keeping for backwards compat, migrate to DATA_ATTRS) ======

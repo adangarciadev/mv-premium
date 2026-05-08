@@ -7,6 +7,7 @@ import { getFavorites, getForumLastThreads, getLastNews, getUserLastPosts, getUs
 import { getLatestVisitedForums } from '../lib/visited-forums'
 import { getHiddenThreads, hideThreadFromUrl, watchHiddenThreads, type HiddenThread } from '@/features/hidden-threads/logic/storage'
 import { buildHiddenNumericIds, isThreadUrlHidden, normalizeThreadPath } from '@/features/hidden-threads/logic/thread-utils'
+import { getHiddenSubforums, watchHiddenSubforums, type HiddenSubforum } from '@/features/hidden-subforums/logic/storage'
 import { getSavedThreads, toggleSaveThreadFromUrl, watchSavedThreads } from '@/features/saved-threads/logic/storage'
 import { getSubforumIconId } from '@/lib/subforums'
 import { slugToName } from '@/lib/url-helpers'
@@ -90,6 +91,7 @@ export function Home() {
 
 	const [username] = useState<string | undefined>(() => getUsername())
 	const [hiddenThreads, setHiddenThreads] = useState<HiddenThread[]>([])
+	const [hiddenSubforums, setHiddenSubforums] = useState<HiddenSubforum[]>([])
 	const [lastVisitedForums, setLastVisitedForums] = useState<string[]>([])
 	const [savedThreadIds, setSavedThreadIds] = useState<Set<string>>(new Set())
 
@@ -119,30 +121,41 @@ export function Home() {
 
 	const hiddenIds = useMemo(() => new Set(hiddenThreads.map(t => t.id)), [hiddenThreads])
 	const hiddenNumericIds = useMemo(() => buildHiddenNumericIds(hiddenIds), [hiddenIds])
+	const hiddenSubforumIds = useMemo(() => new Set(hiddenSubforums.map(subforum => subforum.id)), [hiddenSubforums])
 
 	const filteredNews = useMemo(() => {
-		return newsView.items.filter(item => !isThreadUrlHidden(item.url, hiddenIds, hiddenNumericIds))
-	}, [newsView.items, hiddenIds, hiddenNumericIds])
+		return newsView.items.filter(
+			item => !hiddenSubforumIds.has(item.forumSlug) && !isThreadUrlHidden(item.url, hiddenIds, hiddenNumericIds)
+		)
+	}, [newsView.items, hiddenSubforumIds, hiddenIds, hiddenNumericIds])
 
 	const filteredLastThreads = useMemo(() => {
-		return lastThreads.filter(thread => !isThreadUrlHidden(thread.url, hiddenIds, hiddenNumericIds))
-	}, [lastThreads, hiddenIds, hiddenNumericIds])
+		return lastThreads.filter(
+			thread => !hiddenSubforumIds.has(thread.forumSlug) && !isThreadUrlHidden(thread.url, hiddenIds, hiddenNumericIds)
+		)
+	}, [lastThreads, hiddenSubforumIds, hiddenIds, hiddenNumericIds])
 
 	const filteredUserLastPosts = useMemo(() => {
 		return userLastPosts.filter(
-			thread => (thread.responsesSinceLastVisit ?? 0) > 0 && !isThreadUrlHidden(thread.url, hiddenIds, hiddenNumericIds)
+			thread =>
+				(thread.responsesSinceLastVisit ?? 0) > 0 &&
+				!hiddenSubforumIds.has(thread.forumSlug) &&
+				!isThreadUrlHidden(thread.url, hiddenIds, hiddenNumericIds)
 		)
-	}, [userLastPosts, hiddenIds, hiddenNumericIds])
+	}, [userLastPosts, hiddenSubforumIds, hiddenIds, hiddenNumericIds])
 
 	const filteredFavorites = useMemo(() => {
-		return favorites.filter(thread => !isThreadUrlHidden(thread.url, hiddenIds, hiddenNumericIds))
-	}, [favorites, hiddenIds, hiddenNumericIds])
+		return favorites.filter(
+			thread => !hiddenSubforumIds.has(thread.forumSlug) && !isThreadUrlHidden(thread.url, hiddenIds, hiddenNumericIds)
+		)
+	}, [favorites, hiddenSubforumIds, hiddenIds, hiddenNumericIds])
 	const isThreadSavedInList = (url: string): boolean => {
 		const threadId = normalizeThreadPath(url)
 		return threadId ? savedThreadIds.has(threadId) : false
 	}
 	const recentForums = useMemo(() => {
 		return lastVisitedForums
+			.filter(forumSlug => !hiddenSubforumIds.has(forumSlug))
 			.map(forumSlug => ({
 				forumSlug,
 				forumName: slugToName(forumSlug),
@@ -158,7 +171,7 @@ export function Home() {
 				} => item.iconId !== null && item.iconId !== undefined
 			)
 			.slice(0, 8)
-	}, [lastVisitedForums])
+	}, [lastVisitedForums, hiddenSubforumIds])
 
 	useLayoutEffect(() => {
 		document.dispatchEvent(new CustomEvent(NEW_HOMEPAGE_READY_EVENT))
@@ -171,6 +184,14 @@ export function Home() {
 			if (mounted) setHiddenThreads(threads)
 		})
 		return watchHiddenThreads(setHiddenThreads)
+	}, [])
+
+	useEffect(() => {
+		let mounted = true
+		getHiddenSubforums().then(subforums => {
+			if (mounted) setHiddenSubforums(subforums)
+		})
+		return watchHiddenSubforums(setHiddenSubforums)
 	}, [])
 
 	// Load saved threads

@@ -19,6 +19,7 @@ import Layout from 'lucide-react/dist/esm/icons/layout'
 import Palette from 'lucide-react/dist/esm/icons/palette'
 import { getDrafts, draftsStorage } from '@/features/drafts/storage'
 import { getHiddenThreads, watchHiddenThreads } from '@/features/hidden-threads/logic/storage'
+import { getHiddenSubforums, watchHiddenSubforums } from '@/features/hidden-subforums/logic/storage'
 import { useSettingsStore } from '@/store/settings-store'
 import { CommandMenu } from '@/features/command-menu/components/command-menu'
 import { CommandMenuTrigger } from '@/features/command-menu/components/command-menu-trigger'
@@ -52,6 +53,7 @@ interface SidebarCounts {
 	templates: number
 	muted: number
 	hidden: number
+	hiddenSubforums: number
 }
 
 const platformItems: NavItem[] = [
@@ -91,6 +93,12 @@ const platformItems: NavItem[] = [
 		badgeKey: 'hidden',
 	},
 	{
+		title: 'Subforos Ocultos',
+		path: '/hidden-subforums',
+		icon: EyeOff,
+		badgeKey: 'hiddenSubforums',
+	},
+	{
 		title: 'Usuarios',
 		path: '/users',
 		icon: Users,
@@ -127,6 +135,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		templates: 0,
 		muted: 0,
 		hidden: 0,
+		hiddenSubforums: 0,
 	})
 
 	// Keyboard shortcut for command menu (Ctrl+K / Cmd+K)
@@ -161,10 +170,16 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			setCounts(prev => ({ ...prev, hidden: hiddenThreads.length }))
 		}
 
+		const loadHiddenSubforums = async () => {
+			const hiddenSubforums = await getHiddenSubforums()
+			setCounts(prev => ({ ...prev, hiddenSubforums: hiddenSubforums.length }))
+		}
+
 		// Initial load
 		loadDrafts()
 		loadMuted()
 		void loadHidden()
+		void loadHiddenSubforums()
 
 		// Listeners
 		const unwatchDrafts = draftsStorage.watch(() => loadDrafts())
@@ -174,11 +189,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		const unwatchHidden = watchHiddenThreads(hiddenThreads => {
 			setCounts(prev => ({ ...prev, hidden: hiddenThreads.length }))
 		})
+		const unwatchHiddenSubforums = watchHiddenSubforums(hiddenSubforums => {
+			setCounts(prev => ({ ...prev, hiddenSubforums: hiddenSubforums.length }))
+		})
 
 		return () => {
 			unwatchDrafts()
 			unwatchSettings()
 			unwatchHidden()
+			unwatchHiddenSubforums()
 		}
 	}, [])
 

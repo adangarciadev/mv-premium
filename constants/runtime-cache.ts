@@ -8,6 +8,7 @@
 export const RUNTIME_CACHE_KEYS = {
 	NEW_HOMEPAGE_ENABLED: 'mvp-new-homepage-enabled-cache',
 	HIDDEN_THREADS: 'mvp-hidden-threads-cache',
+	HIDDEN_SUBFORUMS: 'mvp-hidden-subforums-cache',
 	ULTRAWIDE_MODE: 'mvp-ultrawide-mode-cache',
 	CENTERED_POSTS: 'mvp-centered-posts-cache',
 	BOLD_COLOR_ENABLED: 'mvp-bold-color-enabled-cache',
@@ -26,8 +27,8 @@ export const EARLY_STYLE_IDS = {
 	CENTERED_POSTS: 'mvp-centered-posts-early',
 	HIDDEN_THREADS: 'mvp-hidden-threads-early',
 	HIDDEN_THREADS_FALLBACK: 'mvp-hidden-threads-early-fallback',
+	HIDDEN_SUBFORUM: 'mvp-hidden-subforum-early',
 	MV_THEME: 'mvp-mv-theme-early',
 	HIDE_HEADER: 'mvp-hide-header-early',
 	WORK_MODE: 'mvp-work-mode-early',
 } as const
-

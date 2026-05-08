@@ -13,6 +13,8 @@ import {
 	updateThreadNotes,
 	type SavedThread,
 } from '../../logic/storage'
+import { getHiddenSubforums, watchHiddenSubforums } from '@/features/hidden-subforums/logic/storage'
+import { isSubforumUrlHidden } from '@/features/hidden-subforums/logic/url-utils'
 import { toast } from '@/lib/lazy-toast'
 import { getSubforumInfo, ITEMS_PER_PAGE } from './utils'
 import type { DateFilter, SubforumInfo } from './types'
@@ -65,6 +67,7 @@ export function useSavedThreadsTable(): UseSavedThreadsTableReturn {
 	const [searchQuery, setSearchQuery] = useState('')
 	const [subforumFilter, setSubforumFilter] = useState('all')
 	const [dateFilter, setDateFilter] = useState<DateFilter>('all')
+	const [hiddenSubforumIds, setHiddenSubforumIds] = useState<string[]>([])
 	const [sorting, setSorting] = useState<SortingState>([{ id: 'savedAt', desc: true }])
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
@@ -74,22 +77,28 @@ export function useSavedThreadsTable(): UseSavedThreadsTableReturn {
 	const [activeThreadId, setActiveThreadId] = useState<string | null>(null)
 
 	// Subforums for filter
+	const visibleThreads = useMemo(() => {
+		const hiddenSubforumsSet = new Set(hiddenSubforumIds)
+		return threads.filter(thread => !isSubforumUrlHidden(thread.subforumId, hiddenSubforumsSet))
+	}, [threads, hiddenSubforumIds])
+
 	const subforumsList = useMemo(() => {
-		const uniquePaths = new Set(threads.map(t => t.subforumId))
+		const uniquePaths = new Set(visibleThreads.map(t => t.subforumId))
 		return Array.from(uniquePaths)
 			.map(path => getSubforumInfo(path))
 			.sort((a, b) => a.name.localeCompare(b.name, 'es'))
-	}, [threads])
+	}, [visibleThreads])
 
 	// Load threads
 	useEffect(() => {
 		const load = async () => {
 			setIsLoading(true)
-			const data = await getSavedThreads()
+			const [data, hiddenSubforums] = await Promise.all([getSavedThreads(), getHiddenSubforums()])
 			setThreads(data)
+			setHiddenSubforumIds(hiddenSubforums.map(subforum => subforum.id))
 			setIsLoading(false)
 		}
-		load()
+		void load()
 
 		// Debounce storage change handler to prevent rapid re-renders during batch operations
 		let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -102,16 +111,20 @@ export function useSavedThreadsTable(): UseSavedThreadsTableReturn {
 		}
 
 		const unwatch = watchSavedThreads(debouncedReload)
+		const unwatchHiddenSubforums = watchHiddenSubforums(nextSubforums => {
+			setHiddenSubforumIds(nextSubforums.map(subforum => subforum.id))
+		})
 
 		return () => {
 			if (debounceTimer) clearTimeout(debounceTimer)
 			unwatch()
+			unwatchHiddenSubforums()
 		}
 	}, [])
 
 	// Filter data
 	const filteredData = useMemo(() => {
-		let result = threads
+		let result = visibleThreads
 
 		if (searchQuery) {
 			const q = searchQuery.toLowerCase()
@@ -135,7 +148,7 @@ export function useSavedThreadsTable(): UseSavedThreadsTableReturn {
 		}
 
 		return result
-	}, [threads, searchQuery, subforumFilter, dateFilter])
+	}, [visibleThreads, searchQuery, subforumFilter, dateFilter])
 
 	// Handlers
 	const handleOpenNoteEditor = useCallback((thread: SavedThread) => {
@@ -214,7 +227,7 @@ export function useSavedThreadsTable(): UseSavedThreadsTableReturn {
 
 	return {
 		// Data
-		threads,
+		threads: visibleThreads,
 		filteredData,
 		subforumsList,
 		isLoading,

@@ -3,12 +3,11 @@
  * Injects favorite star buttons into forum list and subforum pages
  * Also injects quick-access sidebar on subforum pages
  */
-import { FavoriteSubforumButton } from '../components/favorite-subforum-button'
+import { SubforumActionButtons } from '../components/subforum-action-buttons'
 import { FavoriteSubforumsSidebar } from '../components/favorite-subforums-sidebar'
 import {
 	extractSubforumInfo,
 	extractSubforumInfoFromPage,
-	isSubforumFavorite,
 } from '@/features/favorite-subforums/logic/storage'
 import { mountFeatureWithBoundary, isFeatureMounted, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
@@ -68,7 +67,7 @@ function injectOnForumListPage(): void {
 	// Find all forum links
 	const forumLinks = document.querySelectorAll<HTMLAnchorElement>(MV_SELECTORS.FORUM.FORUM_LINK)
 
-	forumLinks.forEach((link, index) => {
+	forumLinks.forEach(link => {
 		// Skip if already injected
 		if (link.hasAttribute(INJECTED_MARKER)) return
 
@@ -100,7 +99,7 @@ function injectOnForumListPage(): void {
 			featureId,
 			container,
 			<ShadowWrapper>
-				<FavoriteSubforumButton subforum={subforumInfo} size={18} />
+				<SubforumActionButtons subforum={subforumInfo} size={18} />
 			</ShadowWrapper>,
 			'Subforo Favorito'
 		)
@@ -154,7 +153,7 @@ function injectOnSubforumPage(): void {
 		featureId,
 		container,
 		<ShadowWrapper>
-			<FavoriteSubforumButton subforum={subforumInfo} size={18} />
+			<SubforumActionButtons subforum={subforumInfo} size={18} />
 		</ShadowWrapper>,
 		'Subforo Favorito Página'
 	)
@@ -178,7 +177,7 @@ export function injectFavoriteSubforumButtons(): void {
 export function cleanupFavoriteSubforumButtons(): void {
 	// Remove all mounted features
 	const containers = document.querySelectorAll(`.${BUTTON_CONTAINER_CLASS}`)
-	containers.forEach((container, index) => {
+	containers.forEach(container => {
 		const featureId = container.getAttribute('data-feature-id')
 		if (featureId) {
 			unmountFeature(featureId)

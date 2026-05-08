@@ -8,6 +8,8 @@ import { mountFeatureWithBoundary, isFeatureMounted, unmountFeature } from '@/li
 import { applyStoredTheme } from '@/lib/theme-sync'
 import { BookmarksManager } from '../components/bookmarks-manager'
 import { STORAGE_KEYS, FEATURE_IDS, DOM_MARKERS, MV_SELECTORS } from '@/constants'
+import { getHiddenSubforums } from '@/features/hidden-subforums/logic/storage'
+import { isSubforumUrlHidden } from '@/features/hidden-subforums/logic/url-utils'
 
 const INJECTED_MARKER = DOM_MARKERS.INJECTION.BOOKMARKS
 const FEATURE_ID = FEATURE_IDS.BOOKMARKS_MANAGER
@@ -104,16 +106,22 @@ export async function injectBookmarksUI(): Promise<void> {
 	const posts = container.querySelectorAll<HTMLElement>(MV_SELECTORS.BOOKMARKS.CARD)
 	if (posts.length === 0) return
 
+	const [initialViewMode, hiddenSubforums] = await Promise.all([viewModeStorage.getValue(), getHiddenSubforums()])
+	const hiddenSubforumIds = new Set(hiddenSubforums.map(subforum => subforum.id))
+
 	const bookmarks: BookmarkData[] = []
 	posts.forEach((post: HTMLElement) => {
+		const titleLink = post.querySelector<HTMLAnchorElement>(MV_SELECTORS.BOOKMARKS.TITLE_LINK)
+		const threadUrl = titleLink?.getAttribute('href') || titleLink?.href
+		if (threadUrl && isSubforumUrlHidden(threadUrl, hiddenSubforumIds)) {
+			return
+		}
+
 		const data = extractBookmarkData(post)
 		if (data) {
 			bookmarks.push(data)
 		}
 	})
-
-	// Get persisted view mode
-	const initialViewMode = await viewModeStorage.getValue()
 
 	// Hide native cards IMMEDIATELY if table mode is active (before React mounts)
 	// This prevents the flash of cards before the table view renders

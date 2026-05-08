@@ -134,6 +134,7 @@ export function parseNewsList(doc: Document): HomepageNewsItem[] {
 		const imageEl = item.querySelector<HTMLImageElement>('.news-media img, img')
 		const thumbnail = imageEl?.getAttribute('data-src') ?? imageEl?.getAttribute('src')
 		const totalResponses = item.querySelector('.news-media')?.textContent?.trim()
+		const author = item.querySelector('.news-meta .author')?.textContent?.trim()
 		const createdAt = item.querySelector('.news-meta')?.textContent?.split(' - ')[1]?.trim()
 
 		if (!url || !title || !forumSlug || !thumbnail || !totalResponses) {
@@ -147,6 +148,7 @@ export function parseNewsList(doc: Document): HomepageNewsItem[] {
 			thumbnail,
 			totalResponses,
 			createdAt,
+			author,
 		})
 	})
 

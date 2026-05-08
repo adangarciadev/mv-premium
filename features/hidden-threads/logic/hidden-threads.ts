@@ -523,12 +523,13 @@ function updateRowsVisibility(): void {
 	document.querySelectorAll<HTMLTableRowElement>(THREAD_ROWS_SELECTOR).forEach(row => {
 		const threadPath = extractThreadPathFromRow(row)
 		const threadCreator = extractThreadCreatorUsernameFromRow(row)
+		const normalizedThreadCreator = threadCreator ? normalizeUsername(threadCreator) : null
 
 		const shouldHideByIgnoredAuthor =
 			Boolean(threadPath) &&
-			Boolean(threadCreator) &&
+			Boolean(normalizedThreadCreator) &&
 			areIgnoredAuthorThreadsHidden() &&
-			ignoredHiddenUsernames.has(normalizeUsername(threadCreator))
+			(normalizedThreadCreator ? ignoredHiddenUsernames.has(normalizedThreadCreator) : false)
 
 		if (threadPath && shouldHideByIgnoredAuthor) {
 			ignoredAuthorThreadIds.add(threadPath)
