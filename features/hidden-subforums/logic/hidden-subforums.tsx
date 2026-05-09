@@ -6,6 +6,11 @@ import { getSubforumName } from '@/lib/subforums'
 import { toast } from '@/lib/lazy-toast'
 import { HiddenSubforumBlocker } from '../components/hidden-subforum-blocker'
 import { removeEarlyHiddenSubforumBlocker } from './early-guard'
+import {
+	FORUM_SELECT_LEFT_CLASS,
+	FORUM_SELECT_RIGHT_CLASS,
+	syncForumSelectColumnClasses,
+} from './forum-select-layout'
 import { getProfileActivityThreadLink, isUserProfileActivityPath } from './profile-utils'
 import { getHiddenSubforumMatch, isSubforumUrlHidden } from './url-utils'
 import { getHiddenSubforums, unhideSubforum, watchHiddenSubforums } from './storage'
@@ -35,6 +40,14 @@ function ensureHiddenSubforumStyles(): void {
 	style.textContent = `
 		.${HIDDEN_SUBFORUM_CLASS} {
 			display: none !important;
+		}
+		#forum-select > li.${FORUM_SELECT_LEFT_CLASS} > a {
+			padding-left: 20px;
+			padding-right: 10px;
+		}
+		#forum-select > li.${FORUM_SELECT_RIGHT_CLASS} > a {
+			padding-left: 10px;
+			padding-right: 20px;
 		}
 	`
 
@@ -88,6 +101,20 @@ function applySidebarLinkFilter(): void {
 
 		item.classList.toggle(HIDDEN_SUBFORUM_CLASS, isSubforumUrlHidden(link.href, hiddenSubforumIds))
 	})
+}
+
+function applyForumSelectDropdownFilter(): void {
+	const menu = document.getElementById('forum-select')
+	if (!menu) return
+
+	menu.querySelectorAll<HTMLLIElement>('li').forEach(item => {
+		const link = item.querySelector<HTMLAnchorElement>('a[href*="/foro/"]')
+		if (!link) return
+
+		item.classList.toggle(HIDDEN_SUBFORUM_CLASS, isSubforumUrlHidden(link.href, hiddenSubforumIds))
+	})
+
+	syncForumSelectColumnClasses(menu, HIDDEN_SUBFORUM_CLASS)
 }
 
 function findHideContainerForLink(link: HTMLAnchorElement): Element | null {
@@ -144,6 +171,7 @@ function applyHiddenSubforumsFilter(): void {
 	applyProfileActivityPostFilter()
 	applySidebarLinkFilter()
 	applyGenericHiddenLinkFilter()
+	applyForumSelectDropdownFilter()
 }
 
 function getOrCreateBlockerContainer(): HTMLElement {
