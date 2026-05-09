@@ -36,6 +36,12 @@ export const CHANGELOG: ChangelogEntry[] = [
 			{
 				type: 'feature',
 				description:
+					'Hilos de usuarios ignorados: Los hilos creados por usuarios que tienes ignorados de forma total dejan de mostrarse automáticamente en los listados de subforos donde Mediavida permite conocer el autor del hilo.',
+				category: 'Comunidad',
+			},
+			{
+				type: 'feature',
+				description:
 					'Buscador de ofertas en Juegos: Añadido un buscador en el subforo Juegos con resultados de IsThereAnyDeal, precios actuales, mínimos históricos, tiendas, descuentos y detalle por plataforma.',
 				category: 'Juegos',
 			},
