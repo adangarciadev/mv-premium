@@ -17,6 +17,7 @@ import Search from 'lucide-react/dist/esm/icons/search'
 import Gamepad2 from 'lucide-react/dist/esm/icons/gamepad-2'
 import Package from 'lucide-react/dist/esm/icons/package'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
+import Store from 'lucide-react/dist/esm/icons/store'
 import { browser } from 'wxt/browser'
 import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
@@ -37,6 +38,7 @@ export function FeaturesContent() {
 		templateButtonEnabled,
 		mediaHoverCardsEnabled,
 		steamBundleInlineCardsEnabled,
+		itadSubforumSearchEnabled,
 		pinnedPostsEnabled,
 		threadSummarizerEnabled,
 		postSummaryEnabled,
@@ -71,6 +73,7 @@ export function FeaturesContent() {
 				| 'templateButtonEnabled'
 				| 'mediaHoverCardsEnabled'
 				| 'steamBundleInlineCardsEnabled'
+				| 'itadSubforumSearchEnabled'
 				| 'pinnedPostsEnabled'
 				| 'threadSummarizerEnabled'
 				| 'postSummaryEnabled'
@@ -210,6 +213,30 @@ export function FeaturesContent() {
 				<Switch
 					checked={steamBundleInlineCardsEnabled}
 					onCheckedChange={withToastAndReload('steamBundleInlineCardsEnabled', true)}
+				/>
+			</SettingRow>
+
+			<SettingRow
+				icon={<Store className="h-4 w-4" />}
+				label="Buscador de ofertas en Juegos"
+				description={
+					<div className="space-y-2 pr-1">
+						<p className="m-0 leading-relaxed">
+							Muestra un buscador premium en el subforo Juegos para encontrar precios actuales, tiendas disponibles,
+							descuentos y mínimos históricos de videojuegos.
+						</p>
+						<div className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5">
+							<p className="m-0 text-[11px] leading-snug text-muted-foreground">
+								La información sale de IsThereAnyDeal: MV Premium consulta su API desde el background de la extensión,
+								combina resultados con precios para España y cachea temporalmente las respuestas para evitar peticiones innecesarias.
+							</p>
+						</div>
+					</div>
+				}
+			>
+				<Switch
+					checked={itadSubforumSearchEnabled}
+					onCheckedChange={withToastAndReload('itadSubforumSearchEnabled', true)}
 				/>
 			</SettingRow>
 

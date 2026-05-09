@@ -150,6 +150,7 @@ export const API_URLS = {
 	IMGBB: 'https://api.imgbb.com/1/upload',
 	FREEIMAGE: 'https://freeimage.host/api/1/upload',
 	GIPHY: 'https://api.giphy.com/v1/gifs',
+	ITAD: 'https://api.isthereanydeal.com',
 } as const
 
 /**

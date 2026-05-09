@@ -17,7 +17,7 @@ interface MediaSearchInputProps {
 export function MediaSearchInput({ ref, value, onChange, placeholder, isSearching, disabled }: MediaSearchInputProps) {
 	return (
 		<div className="relative mb-4">
-			<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+			<Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
 			<input
 				ref={ref}
 				type="text"
@@ -26,10 +26,10 @@ export function MediaSearchInput({ ref, value, onChange, placeholder, isSearchin
 				onKeyDown={e => e.stopPropagation()}
 				placeholder={placeholder}
 				disabled={disabled}
-				className="w-full h-10 pl-10 pr-10 bg-black/20 border border-border rounded-lg text-foreground text-[13px] outline-none focus:ring-1 focus:ring-ring focus:bg-black/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+				className="h-12 w-full rounded-lg border border-border bg-muted/25 pl-11 pr-11 text-[14px] text-foreground shadow-sm outline-none transition-[background-color,border-color,box-shadow] placeholder:text-muted-foreground focus:border-primary/60 focus:bg-background focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
 			/>
 			{isSearching && (
-				<Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary animate-spin" />
+				<Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
 			)}
 		</div>
 	)

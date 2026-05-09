@@ -50,6 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: true,
 	steamBundleInlineCardsEnabled: true,
+	itadSubforumSearchEnabled: true,
 	twitterLiteEmbedsEnabled: false,
 	pinnedPostsEnabled: true,
 	threadSummarizerEnabled: true,

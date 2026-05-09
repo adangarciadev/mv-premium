@@ -276,6 +276,15 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		injectFavoriteSubforumButtons()
 	}
 
+	if (
+		pageContext?.isSubforum &&
+		/^\/foro\/juegos\/?$/.test(window.location.pathname) &&
+		isFeatureEnabled(FeatureFlag.ItadSubforumSearch)
+	) {
+		const { injectItadSubforumSearch } = await import('@/features/itad-search')
+		injectItadSubforumSearch()
+	}
+
 	// Sidebar on subforum pages, global view pages (spy, new, unread, top, featured), and thread pages
 	if (pageContext?.isSubforum || pageContext?.isForumGlobalView || pageContext?.isThread) {
 		const { injectFavoriteSubforumsSidebar } = await import(

@@ -10,6 +10,9 @@ import Search from 'lucide-react/dist/esm/icons/search'
 import Gamepad2 from 'lucide-react/dist/esm/icons/gamepad-2'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
+import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import { generateGameTemplate, getIGDBImageUrl } from '@/services/api/igdb'
 import { browser } from 'wxt/browser'
 import type { IGDBGame } from '@/services/api/igdb'
@@ -17,6 +20,7 @@ import type { GameTemplateDataInput } from '@/types/templates'
 import { useGameSearch, useGameTemplateDataWithProgress, useIgdbCredentials } from '../hooks/use-igdb'
 import { useDebounce } from 'use-debounce'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Badge } from '@/components/ui/badge'
 import {
 	MediaDialogShell,
 	MediaSearchInput,
@@ -171,9 +175,9 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 		<MediaDialogShell
 			isOpen={isOpen}
 			onClose={handleClose}
-			icon={<Gamepad2 className="w-4 h-4 text-primary" />}
+			icon={<Gamepad2 className="h-4 w-4" />}
 			title={getDialogTitle()}
-			height={!hasCredentials && !isCheckingCredentials ? 'auto' : 580}
+			height={!hasCredentials && !isCheckingCredentials ? 'auto' : 620}
 			footer={
 				step === 'preview' && hasCredentials ? (
 					<MediaDialogActions
@@ -188,7 +192,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 		>
 			{/* Loading Credentials State */}
 			{isCheckingCredentials ? (
-				<div className="flex-1 h-full flex items-center justify-center">
+				<div className="flex h-full flex-1 items-center justify-center">
 					<Loader2 className="w-6 h-6 animate-spin text-primary" />
 				</div>
 			) : !hasCredentials ? (
@@ -208,6 +212,18 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 					{/* Search Step */}
 					{step === 'search' && (
 						<div className="flex min-h-full flex-col">
+							<div className="mb-4 rounded-lg border border-border bg-gradient-to-r from-primary/10 via-muted/15 to-background p-4">
+								<div className="flex items-center gap-3">
+									<div className="flex h-10 w-10 items-center justify-center rounded-lg border border-primary/20 bg-background text-primary shadow-sm">
+										<Sparkles className="h-4 w-4" />
+									</div>
+									<div className="min-w-0">
+										<p className="text-xs font-semibold uppercase text-primary">Plantillas IGDB</p>
+										<p className="truncate text-sm text-muted-foreground">Resultados enriquecidos para insertar fichas listas en el editor</p>
+									</div>
+								</div>
+							</div>
+
 							<MediaSearchInput
 								ref={searchInputRef}
 								value={searchQuery}
@@ -219,9 +235,13 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 							{error && <MediaSearchError error={error} />}
 
 							{searchResults.length > 0 && (
-								<div className="mb-4 rounded-lg bg-muted/15 p-1">
-									<ScrollArea className="h-[320px] pr-3">
-										<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
+								<div className="mb-4 overflow-hidden rounded-lg border border-border bg-muted/15">
+									<div className="flex items-center justify-between border-b border-border bg-background/70 px-3 py-2">
+										<span className="text-xs font-semibold uppercase text-muted-foreground">Resultados</span>
+										<Badge variant="secondary">{searchResults.length}</Badge>
+									</div>
+									<ScrollArea className="h-[330px] pr-3">
+										<div className="space-y-2 overflow-x-hidden p-2 pr-1">
 											{searchResults.map(game => {
 												const isRowLoading = isLoadingDetails && selectedGame?.id === game.id
 												const year = game.first_release_date
@@ -236,27 +256,27 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 															key={game.id}
 															onClick={() => dispatch({ type: 'SELECT_GAME', game })}
 															disabled={isLoadingDetails}
-																className="group w-full overflow-hidden text-left px-2 py-2.5 rounded-md hover:bg-muted focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-muted transition-colors disabled:cursor-wait disabled:opacity-70"
+																className="group w-full overflow-hidden rounded-lg border border-transparent bg-background/60 px-3 py-3 text-left shadow-sm transition-colors hover:border-primary/35 hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:cursor-wait disabled:opacity-70"
 															>
-															<div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
+															<div className="grid grid-cols-[3.25rem_minmax(0,1fr)_auto] items-center gap-3">
 															{game.cover?.image_id ? (
 																<img
 																	src={getIGDBImageUrl(game.cover.image_id, 'cover_small')}
 																	alt={game.name}
 																	referrerPolicy="no-referrer"
-																	className="w-10 h-14 rounded-md object-cover shrink-0 bg-muted"
+																	className="h-[72px] w-[52px] shrink-0 rounded-md border border-border bg-muted object-cover shadow-sm"
 																/>
 															) : (
-																	<div className="w-10 h-14 rounded-md bg-background border border-border/50 flex items-center justify-center shrink-0">
+																	<div className="flex h-[72px] w-[52px] shrink-0 items-center justify-center rounded-md border border-border bg-muted">
 																		<Gamepad2 className="w-4 h-4 text-muted-foreground" />
 																	</div>
 															)}
 																<div className="min-w-0 overflow-hidden">
-																	<div className="block max-w-full text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+																	<div className="block max-w-full truncate text-sm font-semibold text-foreground transition-colors group-hover:text-primary">
 																		{game.name}
 																	</div>
 																{isRowLoading ? (
-																	<div className="text-xs text-muted-foreground mt-0.5 truncate">
+																	<div className="mt-1 truncate text-xs text-muted-foreground">
 																		{loadingStep === 'igdb'
 																			? 'Obteniendo datos de IGDB...'
 																			: loadingStep === 'steam'
@@ -265,10 +285,11 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 																	</div>
 																) : (
 																		<div className="mt-1 flex items-center gap-1.5 min-w-0 overflow-hidden">
-																					<span className="inline-flex items-center rounded-sm bg-popover border border-border/60 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">
+																					<span className="inline-flex items-center gap-1 rounded-md border border-border bg-popover px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+																						<CalendarDays className="h-3 w-3" />
 																						{year}
 																					</span>
-																					<span className="inline-flex max-w-full min-w-0 items-center rounded-sm bg-background/85 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground truncate">
+																					<span className="inline-flex max-w-full min-w-0 items-center truncate rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
 																						{visiblePlatforms.length > 0 ? visiblePlatforms.join(', ') : 'Plataforma ?'}
 																						{extraPlatforms > 0 ? ` +${extraPlatforms}` : ''}
 																					</span>
@@ -278,6 +299,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 															{isRowLoading && (
 																<Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
 															)}
+															{!isRowLoading && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />}
 														</div>
 													</button>
 												)
@@ -302,7 +324,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 							)}
 
 							{/* IGDB Attribution */}
-							<div className="mt-auto mb-0 border-t border-border/70 pt-4 flex flex-col items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
+							<div className="mt-auto mb-0 flex flex-col items-center gap-1.5 border-t border-border/70 pt-4 opacity-60 transition-opacity hover:opacity-100">
 								<a href="https://www.igdb.com" target="_blank" rel="noopener noreferrer" className="block mb-1">
 									<span className="text-sm font-bold text-foreground">IGDB</span>
 								</a>
@@ -320,14 +342,14 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 							coverHeight={100}
 							previewInfo={
 								<>
-									<div className="font-semibold text-base mb-1.5 text-foreground truncate">
+									<div className="mb-1.5 truncate text-base font-semibold text-foreground">
 										{templateData.name}
 									</div>
-									<div className="text-xs text-muted-foreground mb-1 truncate">
+									<div className="mb-1 truncate text-xs text-muted-foreground">
 										{templateData.releaseDate ? new Date(templateData.releaseDate).getFullYear() : '—'} ·{' '}
 										{templateData.developers.join(', ') || 'Desarrollador desconocido'}
 									</div>
-									<div className="text-xs text-muted-foreground/80 truncate">
+									<div className="truncate text-xs text-muted-foreground/80">
 										{templateData.platforms.slice(0, 4).join(', ')}
 									</div>
 								</>

@@ -141,6 +141,7 @@ export const DOM_MARKERS = {
 		HIDDEN_THREADS_STYLES: 'mvp-hidden-threads-styles',
 		HIDDEN_SUBFORUM_STYLES: 'mvp-hidden-subforum-styles',
 		HIDDEN_SUBFORUM_BLOCKER: 'mvp-hidden-subforum-blocker',
+		ITAD_SUBFORUM_SEARCH: 'mvp-itad-subforum-search',
 		// Gallery
 		GALLERY_BTN: 'mvp-gallery-btn',
 		GALLERY_TRIGGER: 'mvp-gallery-trigger',

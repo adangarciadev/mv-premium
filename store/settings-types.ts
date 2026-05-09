@@ -83,6 +83,7 @@ export interface Settings {
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: boolean
 	steamBundleInlineCardsEnabled: boolean
+	itadSubforumSearchEnabled: boolean
 	twitterLiteEmbedsEnabled: boolean
 	pinnedPostsEnabled: boolean
 	threadSummarizerEnabled: boolean

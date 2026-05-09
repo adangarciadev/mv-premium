@@ -16,6 +16,9 @@ export default defineConfig({
 			'https://generativelanguage.googleapis.com/*',
 			'https://api.imgbb.com/*',
 			'https://freeimage.host/*',
+			'https://api.isthereanydeal.com/*',
+			'https://assets.isthereanydeal.com/*',
+			'https://dbxce1spal1df.cloudfront.net/*',
 			'https://publish.twitter.com/*',
 			'https://cdn.syndication.twimg.com/*',
 			'*://api.igdb.com/*',
@@ -41,7 +44,7 @@ export default defineConfig({
 		],
 		// --- CSP (hardened) ---
 		content_security_policy: {
-			extension_pages: `script-src 'self'; object-src 'self'; connect-src 'self' https://*.mediavida.com https://api.giphy.com https://generativelanguage.googleapis.com https://store.steampowered.com https://api.imgbb.com https://freeimage.host https://publish.twitter.com https://cdn.syndication.twimg.com https://api.themoviedb.org https://image.tmdb.org https://id.twitch.tv https://api.igdb.com ${
+			extension_pages: `script-src 'self'; object-src 'self'; connect-src 'self' https://*.mediavida.com https://api.giphy.com https://generativelanguage.googleapis.com https://store.steampowered.com https://api.imgbb.com https://freeimage.host https://api.isthereanydeal.com https://assets.isthereanydeal.com https://dbxce1spal1df.cloudfront.net https://publish.twitter.com https://cdn.syndication.twimg.com https://api.themoviedb.org https://image.tmdb.org https://id.twitch.tv https://api.igdb.com ${
 				process.env.NODE_ENV === 'development'
 					? 'ws://localhost:3000 http://localhost:3000 ws://localhost:3001 http://localhost:3001'
 					: ''

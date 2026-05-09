@@ -76,6 +76,10 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().hideIgnoredUserThreadsEnabled).toBe(true)
 		})
 
+		it('has ITAD subforum search enabled by default', () => {
+			expect(useSettingsStore.getState().itadSubforumSearchEnabled).toBe(true)
+		})
+
 		it('has centered controls position set to top by default', () => {
 			expect(useSettingsStore.getState().centeredControlsPosition).toBe('top')
 		})

@@ -76,6 +76,7 @@ export const settingsSchema = z.object({
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: z.boolean().default(true),
 	steamBundleInlineCardsEnabled: z.boolean().default(true),
+	itadSubforumSearchEnabled: z.boolean().default(true),
 	twitterLiteEmbedsEnabled: z.boolean().default(false),
 	hideIgnoredUserThreadsEnabled: z.boolean().default(true),
 
