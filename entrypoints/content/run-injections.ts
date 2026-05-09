@@ -179,6 +179,18 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		}
 	}
 
+	const isAnyUserProfilePage = /^\/id\/[^/]+(?:\/.*)?$/.test(window.location.pathname)
+	const shouldInitHiddenSubforums =
+		pageContext?.isForumRelated || pageContext?.isProfileSubpage || pageContext?.isBookmarks || isAnyUserProfilePage
+	if (shouldInitHiddenSubforums) {
+		const { initHiddenSubforums } = await import('@/features/hidden-subforums')
+		const { isPageBlocked } = await initHiddenSubforums()
+
+		if (isPageBlocked) {
+			return
+		}
+	}
+
 	// =========================================================================
 	// HOMEPAGE
 	// =========================================================================
@@ -262,6 +274,15 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 			'@/features/favorite-subforums/logic/favorite-subforum-inject'
 		)
 		injectFavoriteSubforumButtons()
+	}
+
+	if (
+		pageContext?.isSubforum &&
+		/^\/foro\/juegos\/?$/.test(window.location.pathname) &&
+		isFeatureEnabled(FeatureFlag.ItadSubforumSearch)
+	) {
+		const { injectItadSubforumSearch } = await import('@/features/itad-search')
+		injectItadSubforumSearch()
 	}
 
 	// Sidebar on subforum pages, global view pages (spy, new, unread, top, featured), and thread pages

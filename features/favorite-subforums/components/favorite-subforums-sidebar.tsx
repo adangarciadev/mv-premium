@@ -6,8 +6,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { logger } from '@/lib/logger'
 import { getFavoriteSubforums } from '@/features/favorite-subforums/logic/storage'
 import { subscribeFavoriteSubforumsChanges } from '@/features/favorite-subforums/logic/listeners'
+import { getHiddenSubforums } from '@/features/hidden-subforums/logic/storage'
+import { subscribeHiddenSubforumsChanges } from '@/features/hidden-subforums/logic/listeners'
 import { ALL_SUBFORUMS } from '@/lib/subforums'
-import { cn } from '@/lib/utils'
 import type { FavoriteSubforum } from '@/types/storage'
 
 interface FavoriteSubforumsSidebarProps {
@@ -49,9 +50,10 @@ export function FavoriteSubforumsSidebar({ currentSlug }: FavoriteSubforumsSideb
 
 	const fetchSubforums = useCallback(async () => {
 		try {
-			const data = await getFavoriteSubforums()
+			const [favoriteData, hiddenData] = await Promise.all([getFavoriteSubforums(), getHiddenSubforums()])
+			const hiddenIds = new Set(hiddenData.map(subforum => subforum.id))
 			// Keep insertion order (most recent last)
-			setSubforums(data)
+			setSubforums(favoriteData.filter(subforum => !hiddenIds.has(subforum.id)))
 		} catch (err) {
 			logger.error('Error fetching favorite subforums for sidebar:', err)
 		} finally {
@@ -64,9 +66,13 @@ export function FavoriteSubforumsSidebar({ currentSlug }: FavoriteSubforumsSideb
 
 		// Subscribe to changes using centralized listener system
 		// This handles both window events and storage.onChanged
-		const unsubscribe = subscribeFavoriteSubforumsChanges(() => void fetchSubforums())
+		const unsubscribeFavorites = subscribeFavoriteSubforumsChanges(() => void fetchSubforums())
+		const unsubscribeHidden = subscribeHiddenSubforumsChanges(() => void fetchSubforums())
 
-		return unsubscribe
+		return () => {
+			unsubscribeFavorites()
+			unsubscribeHidden()
+		}
 	}, [fetchSubforums])
 
 	// Don't render anything if loading or no favorites

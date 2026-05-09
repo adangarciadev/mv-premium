@@ -27,7 +27,7 @@ export interface HomepageFavorite extends HomepageItemBase {
 export interface HomepageNewsItem extends HomepageItemBase {
 	thumbnail?: string
 	createdAt?: string
+	author?: string
 	/** Abbreviated string like "1.2k" or "350" */
 	totalResponses?: string
-	author?: string
 }

@@ -21,6 +21,39 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.7.0',
+		date: '2026-05-09',
+		title: 'Subforos ocultos y ofertas de juegos',
+		summary:
+			'Nueva gestión para ocultar subforos completos y un buscador premium de ofertas en el subforo Juegos con precios de IsThereAnyDeal.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Ocultar subforos: Nuevo sistema para ocultar subforos desde la interfaz de Mediavida y gestionarlos cómodamente desde el dashboard.',
+				category: 'Comunidad',
+			},
+			{
+				type: 'feature',
+				description:
+					'Buscador de ofertas en Juegos: Añadido un buscador en el subforo Juegos con resultados de IsThereAnyDeal, precios actuales, mínimos históricos, tiendas, descuentos y detalle por plataforma.',
+				category: 'Juegos',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El buscador de ofertas puede activarse o desactivarse desde el dashboard y también mediante un atajo de teclado configurable.',
+				category: 'Ajustes',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Mejorado el diseño de los resultados y del modal de detalle de juegos para mostrar la información de precios con más claridad.',
+				category: 'Diseño',
+			},
+		],
+	},
+	{
 		version: '1.6.1',
 		date: '2026-04-12',
 		title: 'Subforo de IA y Gemini',

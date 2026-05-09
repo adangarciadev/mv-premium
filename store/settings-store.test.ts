@@ -72,6 +72,14 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().liveThreadDelayEnabled).toBe(true)
 		})
 
+		it('has ignored user thread filtering enabled by default', () => {
+			expect(useSettingsStore.getState().hideIgnoredUserThreadsEnabled).toBe(true)
+		})
+
+		it('has ITAD subforum search enabled by default', () => {
+			expect(useSettingsStore.getState().itadSubforumSearchEnabled).toBe(true)
+		})
+
 		it('has centered controls position set to top by default', () => {
 			expect(useSettingsStore.getState().centeredControlsPosition).toBe('top')
 		})
@@ -158,6 +166,13 @@ describe('settings-store', () => {
 				useSettingsStore.getState().setSetting('liveThreadEnabled', true)
 			})
 			expect(useSettingsStore.getState().liveThreadEnabled).toBe(true)
+		})
+
+		it('setSetting supports ignored user thread filtering toggle', () => {
+			act(() => {
+				useSettingsStore.getState().setSetting('hideIgnoredUserThreadsEnabled', false)
+			})
+			expect(useSettingsStore.getState().hideIgnoredUserThreadsEnabled).toBe(false)
 		})
 
 		it('setSetting supports centered controls position', () => {

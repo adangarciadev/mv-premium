@@ -35,6 +35,7 @@ import { UsersView } from './views/users-view'
 import { SettingsView } from './views/settings-view'
 import MutedPostsView from './views/muted-posts-view'
 import { HiddenThreadsView } from './views/hidden-threads-view'
+import { HiddenSubforumsView } from './views/hidden-subforums-view'
 import { WhatsNewView } from './views/whats-new-view'
 
 const MvThemeView = lazy(() =>
@@ -63,6 +64,7 @@ const routeLabels: Record<string, string> = {
 	'template-editor': 'Plantillas de Fichas',
 	'muted-posts': 'Palabras Silenciadas',
 	'hidden-threads': 'Hilos Ocultos',
+	'hidden-subforums': 'Subforos Ocultos',
 	favorites: 'Subforos Favoritos',
 	subforums: 'Subforos',
 	users: 'Usuarios',
@@ -268,6 +270,7 @@ export default function OptionsApp() {
 							{/* Others */}
 							<Route path="/muted-posts" element={<MutedPostsView />} />
 							<Route path="/hidden-threads" element={<HiddenThreadsView />} />
+							<Route path="/hidden-subforums" element={<HiddenSubforumsView />} />
 							<Route path="/users" element={<UsersView />} />
 							<Route path="/settings" element={<SettingsView />} />
 

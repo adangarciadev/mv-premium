@@ -11,8 +11,10 @@ interface MediaEmptyStateProps {
 
 export function MediaEmptyState({ icon, text }: MediaEmptyStateProps) {
 	return (
-		<div className="text-center py-10 px-5">
-			<div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-3">{icon}</div>
+		<div className="rounded-lg border border-dashed border-border bg-muted/15 px-5 py-10 text-center">
+			<div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-background shadow-sm">
+				{icon}
+			</div>
 			<p className="m-0 text-[13px] text-muted-foreground">{text}</p>
 		</div>
 	)
@@ -21,8 +23,8 @@ export function MediaEmptyState({ icon, text }: MediaEmptyStateProps) {
 /** Inline error banner for search errors */
 export function MediaSearchError({ error }: { error: string }) {
 	return (
-		<div className="flex items-center gap-2 p-2.5 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-[13px] mb-4">
-			<AlertCircle className="w-4 h-4 shrink-0" />
+		<div className="mb-4 flex items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-[13px] text-destructive">
+			<AlertCircle className="h-4 w-4 shrink-0" />
 			{error}
 		</div>
 	)

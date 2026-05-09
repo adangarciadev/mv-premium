@@ -12,6 +12,7 @@ import { getCurrentUsername, matchesQuery, getPageContext, navigateTo, openDashb
 import type { SavedThread } from '@/features/saved-threads/logic/storage'
 import type { Draft } from '@/features/drafts/storage'
 import type { FavoriteSubforum } from '@/features/favorite-subforums/logic/storage'
+import { isSubforumUrlHidden } from '@/features/hidden-subforums/logic/url-utils'
 import type { FilteredData, CommandAction } from '../types'
 
 // Icons for searchable actions
@@ -92,6 +93,7 @@ export function useCommandMenu({
 	const [templates, setTemplates] = useState<Draft[]>([])
 	const [drafts, setDrafts] = useState<Draft[]>([])
 	const [favorites, setFavorites] = useState<FavoriteSubforum[]>([])
+	const [hiddenSubforumIds, setHiddenSubforumIds] = useState<string[]>([])
 
 	// Page context
 	const pageContext = getPageContext()
@@ -132,28 +134,49 @@ export function useCommandMenu({
 
 	// Load data when menu opens
 	useEffect(() => {
-		if (open) {
-			setLoading(true)
+		if (!open) return
 
-			Promise.all([
-				import('@/features/saved-threads/logic/storage'),
-				import('@/features/drafts/storage'),
-				import('@/features/favorite-subforums/logic/storage'),
-			])
-				.then(async ([savedThreadsModule, draftsModule, favoritesModule]) => {
-					const [threads, tmpls, allDrafts, favs] = await Promise.all([
-						savedThreadsModule.getSavedThreads(),
-						draftsModule.getTemplates(),
-						draftsModule.getDrafts(),
-						favoritesModule.getFavoriteSubforums(),
-					])
+		let cancelled = false
+		let unsubscribeHiddenSubforums: (() => void) | null = null
 
-					setSavedThreads(threads)
-					setTemplates(tmpls)
-					setDrafts(allDrafts.filter(d => d.type === 'draft'))
-					setFavorites(favs)
+		setLoading(true)
+
+		Promise.all([
+			import('@/features/saved-threads/logic/storage'),
+			import('@/features/drafts/storage'),
+			import('@/features/favorite-subforums/logic/storage'),
+			import('@/features/hidden-subforums/logic/storage'),
+		])
+			.then(async ([savedThreadsModule, draftsModule, favoritesModule, hiddenSubforumsModule]) => {
+				const [threads, tmpls, allDrafts, favs, hiddenSubforums] = await Promise.all([
+					savedThreadsModule.getSavedThreads(),
+					draftsModule.getTemplates(),
+					draftsModule.getDrafts(),
+					favoritesModule.getFavoriteSubforums(),
+					hiddenSubforumsModule.getHiddenSubforums(),
+				])
+
+				if (cancelled) return
+
+				setSavedThreads(threads)
+				setTemplates(tmpls)
+				setDrafts(allDrafts.filter(d => d.type === 'draft'))
+				setFavorites(favs)
+				setHiddenSubforumIds(hiddenSubforums.map(subforum => subforum.id))
+
+				unsubscribeHiddenSubforums = hiddenSubforumsModule.watchHiddenSubforums(nextSubforums => {
+					setHiddenSubforumIds(nextSubforums.map(subforum => subforum.id))
 				})
-				.finally(() => setLoading(false))
+			})
+			.finally(() => {
+				if (!cancelled) {
+					setLoading(false)
+				}
+			})
+
+		return () => {
+			cancelled = true
+			unsubscribeHiddenSubforums?.()
 		}
 	}, [open])
 
@@ -212,6 +235,21 @@ export function useCommandMenu({
 
 	// Get shortcut for action
 	const getShortcut = useCallback((actionInfo: string) => shortcuts[actionInfo] || undefined, [shortcuts])
+
+	const visibleFavorites = useMemo(() => {
+		const hiddenSubforumsSet = new Set(hiddenSubforumIds)
+		return favorites.filter(favorite => !hiddenSubforumsSet.has(favorite.id))
+	}, [favorites, hiddenSubforumIds])
+
+	const visibleSavedThreads = useMemo(() => {
+		const hiddenSubforumsSet = new Set(hiddenSubforumIds)
+		return savedThreads.filter(thread => !isSubforumUrlHidden(thread.subforumId, hiddenSubforumsSet))
+	}, [savedThreads, hiddenSubforumIds])
+
+	const visibleSubforums = useMemo(() => {
+		const hiddenSubforumsSet = new Set(hiddenSubforumIds)
+		return ALL_SUBFORUMS.filter(subforum => !hiddenSubforumsSet.has(subforum.slug))
+	}, [hiddenSubforumIds])
 
 	// Searchable actions
 	const searchableActions = useMemo((): CommandAction[] => {
@@ -333,12 +371,12 @@ export function useCommandMenu({
 		const q = search.toLowerCase()
 
 		// Favorites & Subforums
-		const matchedFavorites = favorites.filter(f => matchesQuery(f.name, q))
-		const favIds = new Set(favorites.map(f => f.id))
-		const matchedSubforums = ALL_SUBFORUMS.filter(s => matchesQuery(s.name, q) && !favIds.has(s.slug)).slice(0, 10)
+		const matchedFavorites = visibleFavorites.filter(f => matchesQuery(f.name, q))
+		const favIds = new Set(visibleFavorites.map(f => f.id))
+		const matchedSubforums = visibleSubforums.filter(s => matchesQuery(s.name, q) && !favIds.has(s.slug)).slice(0, 10)
 
 		// Saved Threads
-		const matchedThreads = savedThreads.filter(t => matchesQuery(t.title, q)).slice(0, 5)
+		const matchedThreads = visibleSavedThreads.filter(t => matchesQuery(t.title, q)).slice(0, 5)
 
 		// Drafts & Templates
 		const matchedDrafts = drafts.filter(d => matchesQuery(d.title || '', q) || matchesQuery(d.content, q)).slice(0, 3)
@@ -355,7 +393,7 @@ export function useCommandMenu({
 			templates: matchedTemplates,
 			actions: matchedActions,
 		}
-	}, [search, favorites, savedThreads, drafts, templates, searchableActions])
+	}, [search, visibleFavorites, visibleSavedThreads, visibleSubforums, drafts, templates, searchableActions])
 
 	return {
 		open,
@@ -368,10 +406,10 @@ export function useCommandMenu({
 		contextLabel,
 		isDashboard,
 		isSearching,
-		savedThreads,
+		savedThreads: visibleSavedThreads,
 		drafts,
 		templates,
-		favorites,
+		favorites: visibleFavorites,
 		filteredData,
 		runCommand,
 		goTo,

@@ -83,12 +83,14 @@ export interface Settings {
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: boolean
 	steamBundleInlineCardsEnabled: boolean
+	itadSubforumSearchEnabled: boolean
 	twitterLiteEmbedsEnabled: boolean
 	pinnedPostsEnabled: boolean
 	threadSummarizerEnabled: boolean
 	postSummaryEnabled: boolean
 	saveThreadEnabled: boolean
 	hideThreadEnabled: boolean
+	hideIgnoredUserThreadsEnabled: boolean
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: boolean

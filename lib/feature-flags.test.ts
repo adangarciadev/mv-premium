@@ -15,6 +15,7 @@ const mockState = {
 	// Premium features default to true to match test expectations
 	mediaHoverCardsEnabled: true,
 	steamBundleInlineCardsEnabled: true,
+	itadSubforumSearchEnabled: true,
 	pinnedPostsEnabled: true,
 	saveThreadEnabled: true,
 	galleryButtonEnabled: true,
@@ -48,6 +49,7 @@ describe('feature-flags', () => {
 		// Reset premium defaults
 		mockState.mediaHoverCardsEnabled = true
 		mockState.steamBundleInlineCardsEnabled = true
+		mockState.itadSubforumSearchEnabled = true
 		mockState.pinnedPostsEnabled = true
 		mockState.saveThreadEnabled = true
 		mockState.galleryButtonEnabled = true
@@ -91,6 +93,11 @@ describe('feature-flags', () => {
 
 			it('returns true for SteamBundleInlineCards feature when enabled', () => {
 				expect(isFeatureEnabled(FeatureFlag.SteamBundleInlineCards)).toBe(true)
+			})
+
+			it('returns false for ItadSubforumSearch feature when disabled', () => {
+				mockState.itadSubforumSearchEnabled = false
+				expect(isFeatureEnabled(FeatureFlag.ItadSubforumSearch)).toBe(false)
 			})
 		})
 

@@ -40,6 +40,7 @@ const SHORTCUT_ACTIONS = [
 	{ id: 'templates', label: 'Plantillas', isMessage: true },
 	{ id: 'new-draft', label: 'Nuevo borrador', isMessage: true },
 	{ id: 'theme-toggle', label: 'Cambiar tema', isSpecial: true },
+	{ id: 'itad-search-toggle', label: 'Buscador de ofertas', isSpecial: true },
 ]
 
 describe('keyboard-shortcuts', () => {
@@ -65,6 +66,12 @@ describe('keyboard-shortcuts', () => {
 			expect(toolActions.length).toBeGreaterThan(0)
 			expect(toolActions.some(a => a.id === 'panel')).toBe(true)
 			expect(toolActions.some(a => a.id === 'drafts')).toBe(true)
+		})
+
+		it('should define ITAD search toggle shortcut', () => {
+			const action = SHORTCUT_ACTIONS.find(a => a.id === 'itad-search-toggle')
+			expect(action).toBeDefined()
+			expect(action?.isSpecial).toBe(true)
 		})
 
 		it('should have unique IDs', () => {

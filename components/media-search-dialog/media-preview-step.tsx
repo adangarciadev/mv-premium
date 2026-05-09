@@ -41,13 +41,13 @@ export function MediaPreviewStep({
 	return (
 		<div className="overflow-hidden">
 			{/* Media info header */}
-			<div className="flex items-start gap-3 mb-4 pb-4 border-b border-border overflow-hidden">
+			<div className="mb-4 flex items-start gap-3 overflow-hidden rounded-lg border border-border bg-muted/15 p-3">
 				{coverUrl && (
 					<img
 						src={coverUrl}
 						alt=""
 						referrerPolicy={referrerPolicy}
-						className="w-[70px] object-cover rounded-lg shrink-0 bg-muted"
+						className="w-[72px] shrink-0 rounded-md border border-border bg-muted object-cover shadow-sm"
 						style={{ height: `${coverHeight}px` }}
 					/>
 				)}
@@ -55,7 +55,7 @@ export function MediaPreviewStep({
 				<div className="flex gap-1.5 shrink-0">
 					<button
 						onClick={onCustomize}
-						className="h-7 px-2 text-xs bg-muted/30 border border-border rounded-md text-muted-foreground flex items-center justify-center gap-1.5 cursor-pointer hover:bg-muted/60 transition-colors"
+						className="flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 						title="Personalizar el formato de la plantilla"
 					>
 						<Brush className="w-3 h-3" />
@@ -63,7 +63,7 @@ export function MediaPreviewStep({
 					</button>
 					<button
 						onClick={onToggleEditing}
-						className="h-7 px-2 text-xs bg-muted/30 border border-border rounded-md text-muted-foreground flex items-center justify-center gap-1.5 cursor-pointer hover:bg-muted/60 transition-colors"
+						className="flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 					>
 						<Edit3 className="w-3 h-3" />
 						{isEditing ? 'Ver' : 'Editar'}
@@ -77,10 +77,10 @@ export function MediaPreviewStep({
 					value={template}
 					onChange={e => onTemplateChange(e.target.value)}
 					onKeyDown={e => e.stopPropagation()}
-					className="min-h-[180px] text-xs font-mono resize-y leading-relaxed !bg-card"
+					className="min-h-[190px] resize-y rounded-lg text-xs font-mono leading-relaxed !bg-card"
 				/>
 			) : (
-				<div className="bg-muted/30 border border-border rounded-lg p-3 text-xs font-mono whitespace-pre-wrap break-words max-h-[180px] overflow-y-auto overflow-x-hidden leading-relaxed text-foreground">
+				<div className="max-h-[190px] overflow-y-auto overflow-x-hidden rounded-lg border border-border bg-card p-3 text-xs font-mono leading-relaxed text-foreground shadow-inner whitespace-pre-wrap break-words">
 					{template}
 				</div>
 			)}

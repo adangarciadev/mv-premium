@@ -14,6 +14,7 @@
 import { defineExtensionMessaging } from '@webext-core/messaging'
 import type { SteamGameDetails, SteamBundleDetails } from '@/services/api/steam'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
+import type { ItadGamePriceOverview, ItadGamePrices, ItadGameSearchResult } from '@/services/api/itad'
 import type { ChatMessage } from '@/types/ai'
 
 // =============================================================================
@@ -218,6 +219,33 @@ interface ProtocolMap {
 	 * @returns JSON response from IGDB
 	 */
 	igdbRequest: (data: { endpoint: string; body: string }) => unknown
+
+	/**
+	 * Check if the IsThereAnyDeal public API key is configured.
+	 */
+	hasItadApiKey: () => boolean
+
+	/**
+	 * Search IsThereAnyDeal games by title via background script.
+	 */
+	itadSearchGames: (data: { query: string; results?: number }) => ItadGameSearchResult[]
+
+	/**
+	 * Fetch IsThereAnyDeal current best price and historical low snapshots.
+	 */
+	itadPriceOverview: (data: {
+		gameIds: string[]
+		country?: string
+	}) => Record<string, ItadGamePriceOverview>
+
+	/**
+	 * Fetch IsThereAnyDeal full current price rows across shops.
+	 */
+	itadGamePrices: (data: {
+		gameIds: string[]
+		country?: string
+		capacity?: number
+	}) => Record<string, ItadGamePrices>
 
 	/**
 	 * Fetch a lightweight tweet payload (username + text) via background script.

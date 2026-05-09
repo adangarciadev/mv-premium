@@ -50,12 +50,14 @@ export const DEFAULT_SETTINGS: Settings = {
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: true,
 	steamBundleInlineCardsEnabled: true,
+	itadSubforumSearchEnabled: true,
 	twitterLiteEmbedsEnabled: false,
 	pinnedPostsEnabled: true,
 	threadSummarizerEnabled: true,
 	postSummaryEnabled: true,
 	saveThreadEnabled: true,
 	hideThreadEnabled: true,
+	hideIgnoredUserThreadsEnabled: true,
 	// Feature Toggles - Users
 	mutedWordsEnabled: false,
 	mutedWords: [],

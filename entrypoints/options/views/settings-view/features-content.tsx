@@ -17,6 +17,7 @@ import Search from 'lucide-react/dist/esm/icons/search'
 import Gamepad2 from 'lucide-react/dist/esm/icons/gamepad-2'
 import Package from 'lucide-react/dist/esm/icons/package'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
+import Store from 'lucide-react/dist/esm/icons/store'
 import { browser } from 'wxt/browser'
 import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
@@ -37,11 +38,13 @@ export function FeaturesContent() {
 		templateButtonEnabled,
 		mediaHoverCardsEnabled,
 		steamBundleInlineCardsEnabled,
+		itadSubforumSearchEnabled,
 		pinnedPostsEnabled,
 		threadSummarizerEnabled,
 		postSummaryEnabled,
 		saveThreadEnabled,
 		hideThreadEnabled,
+		hideIgnoredUserThreadsEnabled,
 	} = useSettingsStore()
 
 	const reloadMediavidaTabs = async () => {
@@ -70,11 +73,13 @@ export function FeaturesContent() {
 				| 'templateButtonEnabled'
 				| 'mediaHoverCardsEnabled'
 				| 'steamBundleInlineCardsEnabled'
+				| 'itadSubforumSearchEnabled'
 				| 'pinnedPostsEnabled'
 				| 'threadSummarizerEnabled'
 				| 'postSummaryEnabled'
 				| 'saveThreadEnabled'
-				| 'hideThreadEnabled',
+				| 'hideThreadEnabled'
+				| 'hideIgnoredUserThreadsEnabled',
 			requiresReload: boolean = false
 		) =>
 		async (val: boolean) => {
@@ -212,6 +217,30 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				icon={<Store className="h-4 w-4" />}
+				label="Buscador de ofertas en Juegos"
+				description={
+					<div className="space-y-2 pr-1">
+						<p className="m-0 leading-relaxed">
+							Muestra un buscador premium en el subforo Juegos para encontrar precios actuales, tiendas disponibles,
+							descuentos y mínimos históricos de videojuegos.
+						</p>
+						<div className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5">
+							<p className="m-0 text-[11px] leading-snug text-muted-foreground">
+								La información sale de IsThereAnyDeal: MV Premium consulta su API desde el background de la extensión,
+								combina resultados con precios para España y cachea temporalmente las respuestas para evitar peticiones innecesarias.
+							</p>
+						</div>
+					</div>
+				}
+			>
+				<Switch
+					checked={itadSubforumSearchEnabled}
+					onCheckedChange={withToastAndReload('itadSubforumSearchEnabled', true)}
+				/>
+			</SettingRow>
+
+			<SettingRow
 				icon={<Pin className="h-4 w-4" />}
 				label="Posts Anclados"
 				description="Permite anclar posts importantes y verlos en un panel lateral."
@@ -266,6 +295,17 @@ export function FeaturesContent() {
 				description="Muestra botones para ocultar hilos en listados. La opción de ocultar con click derecho siempre está activa."
 			>
 				<Switch checked={hideThreadEnabled} onCheckedChange={withToastAndReload('hideThreadEnabled', true)} />
+			</SettingRow>
+
+			<SettingRow
+				icon={<EyeOff className="h-4 w-4" />}
+				label="Ocultar Hilos de Ignorados"
+				description="Oculta automáticamente hilos creados por usuarios ignorados en modo ocultar solo en los listados clásicos de subforos, porque ahí Mediavida sí muestra quién creó el hilo. No se aplica en Spy ni en la home premium, ya que en esos listados ese dato no aparece."
+			>
+				<Switch
+					checked={hideIgnoredUserThreadsEnabled}
+					onCheckedChange={withToastAndReload('hideIgnoredUserThreadsEnabled', true)}
+				/>
 			</SettingRow>
 		</SettingsSection>
 	)

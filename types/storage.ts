@@ -32,14 +32,22 @@ export interface ThreadPins {
 	posts: PinnedPost[]
 }
 
-// Favorite Subforums
-export interface FavoriteSubforum {
+export interface StoredSubforum {
 	id: string // Unique identifier (slug from URL, e.g., "off-topic")
 	name: string // Display name (e.g., "OFF-Topic")
 	url: string // Full URL path (e.g., "/foro/off-topic")
 	iconClass?: string // Forum icon CSS class (e.g., "fid fid-6")
 	description?: string // Forum description
+}
+
+// Favorite Subforums
+export interface FavoriteSubforum extends StoredSubforum {
 	addedAt: number // Timestamp when added to favorites
+}
+
+// Hidden Subforums
+export interface HiddenSubforum extends StoredSubforum {
+	hiddenAt: number // Timestamp when hidden
 }
 
 // Settings

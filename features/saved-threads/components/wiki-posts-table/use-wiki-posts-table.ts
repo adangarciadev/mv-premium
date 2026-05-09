@@ -15,6 +15,7 @@ import {
 import { storage } from '#imports'
 import { toast } from '@/lib/lazy-toast'
 import { STORAGE_KEYS } from '@/constants'
+import { getHiddenSubforums, watchHiddenSubforums } from '@/features/hidden-subforums/logic/storage'
 import { getSubforumInfo, ITEMS_PER_PAGE } from './utils'
 import type { FlatPinnedPost, SubforumOption, DateFilter } from './types'
 
@@ -61,15 +62,21 @@ export function useWikiPostsTable(): UseWikiPostsTableReturn {
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 	const [postToDelete, setPostToDelete] = useState<{ threadId: string; postNum: number } | null>(null)
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+	const [hiddenSubforumIds, setHiddenSubforumIds] = useState<string[]>([])
 
 	// Filters
 	const [subforumFilter, setSubforumFilter] = useState('all')
 	const [dateFilter, setDateFilter] = useState<DateFilter>('all')
 
+	const visibleThreadsWithPosts = useMemo(() => {
+		const hiddenSubforumsSet = new Set(hiddenSubforumIds)
+		return threadsWithPosts.filter(thread => !hiddenSubforumsSet.has(thread.subforum))
+	}, [threadsWithPosts, hiddenSubforumIds])
+
 	// Flatten posts for table
 	const flatPosts = useMemo<FlatPinnedPost[]>(() => {
 		const result: FlatPinnedPost[] = []
-		for (const thread of threadsWithPosts) {
+		for (const thread of visibleThreadsWithPosts) {
 			for (const post of thread.posts) {
 				result.push({
 					...post,
@@ -80,33 +87,40 @@ export function useWikiPostsTable(): UseWikiPostsTableReturn {
 			}
 		}
 		return result
-	}, [threadsWithPosts])
+	}, [visibleThreadsWithPosts])
 
 	// Subforums list for filter dropdown
 	const subforumsList = useMemo(() => {
-		const uniqueSubforums = new Set(threadsWithPosts.map(t => t.subforum).filter(Boolean))
+		const uniqueSubforums = new Set(visibleThreadsWithPosts.map(t => t.subforum).filter(Boolean))
 		return Array.from(uniqueSubforums)
 			.map(slug => ({
 				id: slug,
 				name: getSubforumInfo(slug).name,
 			}))
 			.sort((a, b) => a.name.localeCompare(b.name, 'es'))
-	}, [threadsWithPosts])
+	}, [visibleThreadsWithPosts])
 
 	// Load data
 	useEffect(() => {
 		const load = async () => {
 			setIsLoading(true)
-			const data = await getAllPinnedPosts()
+			const [data, hiddenSubforums] = await Promise.all([getAllPinnedPosts(), getHiddenSubforums()])
 			setThreadsWithPosts(data)
+			setHiddenSubforumIds(hiddenSubforums.map(subforum => subforum.id))
 			setIsLoading(false)
 		}
-		load()
+		void load()
 
 		const unwatch = storage.watch<unknown>(`local:${STORAGE_KEYS.PINNED_PREFIX}`, () => {
 			void load()
 		})
-		return unwatch
+		const unwatchHiddenSubforums = watchHiddenSubforums(nextSubforums => {
+			setHiddenSubforumIds(nextSubforums.map(subforum => subforum.id))
+		})
+		return () => {
+			unwatch()
+			unwatchHiddenSubforums()
+		}
 	}, [])
 
 	// Filtered posts

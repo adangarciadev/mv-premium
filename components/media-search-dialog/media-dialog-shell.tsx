@@ -23,7 +23,7 @@ export function MediaDialogShell({ isOpen, onClose, icon, title, height = 580, f
 		<Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
 			<DialogContent
 				showCloseButton={false}
-				className="p-0 gap-0 overflow-hidden flex flex-col bg-background border-border rounded-xl"
+				className="p-0 gap-0 overflow-hidden flex flex-col rounded-xl border-border bg-background shadow-2xl"
 				style={{
 					width: `${DIALOG_WIDTH}px`,
 					height: typeof height === 'number' ? `${height}px` : height,
@@ -33,14 +33,16 @@ export function MediaDialogShell({ isOpen, onClose, icon, title, height = 580, f
 					zIndex: 99999,
 				}}
 			>
-				<DialogHeader className="p-4 px-5 border-b border-border flex flex-row items-center justify-between shrink-0">
-					<DialogTitle className="flex items-center gap-2.5 text-[15px] font-semibold text-foreground">
-						<div className="p-1.5 rounded-lg bg-primary/15 flex items-center justify-center">{icon}</div>
-						{title}
+				<DialogHeader className="relative flex shrink-0 flex-row items-center justify-between overflow-hidden border-b border-border bg-gradient-to-r from-background via-muted/20 to-background px-5 py-4">
+					<DialogTitle className="flex min-w-0 items-center gap-3 text-[15px] font-semibold text-foreground">
+						<div className="flex h-9 w-9 items-center justify-center rounded-lg border border-primary/20 bg-primary/15 text-primary shadow-sm">
+							{icon}
+						</div>
+						<span className="truncate">{title}</span>
 					</DialogTitle>
 					<button
 						onClick={onClose}
-						className="flex items-center justify-center w-7 h-7 rounded-md bg-transparent text-muted-foreground border-none cursor-pointer transition-colors hover:bg-muted hover:text-foreground"
+						className="flex h-8 w-8 items-center justify-center rounded-md border border-transparent bg-transparent text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground"
 						title="Cerrar"
 					>
 						<X size={18} />

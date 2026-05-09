@@ -110,6 +110,12 @@ function executeAction(actionId: string) {
 				toggleWorkMode().catch(err => logger.error('Work mode toggle error:', err))
 			}).catch(err => logger.error('Work mode import error:', err))
 			break
+
+		case 'itad-search-toggle':
+			import('@/features/itad-search').then(({ toggleItadSubforumSearch }) => {
+				toggleItadSubforumSearch().catch(err => logger.error('ITAD search toggle error:', err))
+			}).catch(err => logger.error('ITAD search import error:', err))
+			break
 	}
 }
 

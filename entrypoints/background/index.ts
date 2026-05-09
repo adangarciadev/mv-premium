@@ -23,6 +23,7 @@ import { setupUploadHandlers } from './upload-handlers'
 import { setupApiHandlers } from './api-handlers'
 import { setupAiHandlers } from './ai-handlers'
 import { setupIgdbHandlers } from './igdb-handlers'
+import { setupItadHandlers } from './itad-handlers'
 import { highlightCode } from './prism-highlighter'
 import { setupTwitterLiteNetworkGuard } from './twitter-lite-network-guard'
 import { clearCache } from '@/services/media/cache'
@@ -85,6 +86,9 @@ export default defineBackground(() => {
 
 	// IGDB handlers (game database)
 	setupIgdbHandlers()
+
+	// IsThereAnyDeal handlers (game prices)
+	setupItadHandlers()
 
 	// Strict Twitter Lite network guard (blocks native Twitter embeds until explicit user action)
 	setupTwitterLiteNetworkGuard()

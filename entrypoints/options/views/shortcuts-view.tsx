@@ -16,6 +16,7 @@ import SettingsIcon from 'lucide-react/dist/esm/icons/settings'
 import SunMoon from 'lucide-react/dist/esm/icons/sun-moon'
 import PanelTopClose from 'lucide-react/dist/esm/icons/panel-top-close'
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase'
+import Store from 'lucide-react/dist/esm/icons/store'
 import { useSettingsStore } from '@/store/settings-store'
 import { cn } from '@/lib/utils'
 import { Kbd } from '@/components/ui/kbd'
@@ -39,6 +40,7 @@ const SHORTCUT_ACTIONS = [
 	{ id: 'theme-toggle', label: 'Alternar Tema', icon: SunMoon, description: 'Cambiar entre modo claro/oscuro' },
 	{ id: 'hide-header', label: 'Ocultar/Mostrar Cabecera', icon: PanelTopClose, description: 'Alternar visibilidad del header de Mediavida' },
 	{ id: 'work-mode', label: 'Modo Trabajo', icon: Briefcase, description: 'Alternar modo trabajo para navegar discretamente' },
+	{ id: 'itad-search-toggle', label: 'Buscador de Ofertas', icon: Store, description: 'Mostrar u ocultar el buscador de ofertas del subforo Juegos' },
 ]
 
 export function ShortcutsView() {
