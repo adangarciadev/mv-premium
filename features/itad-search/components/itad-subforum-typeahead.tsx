@@ -503,7 +503,10 @@ export function ItadSubforumTypeahead() {
 		const handlePointerDown = (event: PointerEvent) => {
 			const container = containerRef.current
 			if (!container) return
-			if (event.composedPath().includes(container)) return
+			const path = event.composedPath()
+			const root = container.getRootNode()
+			const shadowHost = root instanceof ShadowRoot ? root.host : null
+			if (path.includes(container) || (shadowHost && path.includes(shadowHost))) return
 			setDropdownOpen(false)
 		}
 
