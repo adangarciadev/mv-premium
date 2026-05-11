@@ -21,6 +21,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.7.1',
+		date: '2026-05-11',
+		title: 'Buscador de ofertas más pulido',
+		summary: 'Corrección de apertura del modal de juegos y pequeñas mejoras de interfaz en el buscador de ofertas.',
+		changes: [
+			{
+				type: 'fix',
+				description:
+					'Corregido un problema en producción donde seleccionar un juego podía cerrar el desplegable en lugar de abrir el modal de detalle.',
+				category: 'Juegos',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Mejorada la experiencia del buscador de ofertas con un modal más claro, botón para limpiar la búsqueda y estados de carga más estables.',
+				category: 'Diseño',
+			},
+		],
+	},
+	{
 		version: '1.7.0',
 		date: '2026-05-09',
 		title: 'Subforos ocultos y ofertas de juegos',
