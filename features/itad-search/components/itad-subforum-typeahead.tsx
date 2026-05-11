@@ -690,14 +690,14 @@ export function ItadSubforumTypeahead() {
 
 	return (
 		<section ref={containerRef} className="relative mb-3 overflow-visible rounded-lg border border-border bg-card text-card-foreground shadow-sm">
-			<div className="border-b border-border bg-gradient-to-r from-background via-muted/20 to-background px-4 py-3">
+			<div className="rounded-t-lg border-b border-border bg-gradient-to-r from-background via-muted/20 to-background px-4 py-2.5">
 				<div className="flex items-center gap-3">
-					<div className="flex h-9 w-9 items-center justify-center rounded-lg border border-primary/30 bg-primary/15 text-primary shadow-sm">
-						<Gamepad2 className="h-5 w-5" />
+					<div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 text-primary shadow-sm">
+						<Gamepad2 className="h-4 w-4" />
 					</div>
 					<div className="min-w-0">
 						<h2 className="truncate text-sm font-semibold text-foreground">Radar de ofertas</h2>
-						<p className="truncate text-xs text-muted-foreground">Caza descuentos, tiendas fiables y mínimos históricos al vuelo</p>
+						<p className="truncate text-xs text-muted-foreground">Compara precios actuales y mínimos históricos en IsThereAnyDeal</p>
 					</div>
 				</div>
 			</div>
