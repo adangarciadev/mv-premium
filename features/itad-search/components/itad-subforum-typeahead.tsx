@@ -1,8 +1,10 @@
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Gamepad2 from 'lucide-react/dist/esm/icons/gamepad-2'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import Search from 'lucide-react/dist/esm/icons/search'
+import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check'
 import Store from 'lucide-react/dist/esm/icons/store'
 import TrendingDown from 'lucide-react/dist/esm/icons/trending-down'
 import { Badge } from '@/components/ui/badge'
@@ -123,15 +125,36 @@ function getRegularSavings(deal?: ItadDealSummary | null): string | null {
 	return `Ahorras ${formatPrice({ ...deal.price, amount: savings })}`
 }
 
-function PriceBox({ label, deal }: { label: string; deal?: ItadDealSummary | null }) {
+function PriceBox({
+	label,
+	deal,
+	meta,
+	emphasis = false,
+}: {
+	label: string
+	deal?: ItadDealSummary | null
+	meta?: string | null
+	emphasis?: boolean
+}) {
 	const savings = getRegularSavings(deal)
 
 	return (
-		<div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
-			<div className="flex items-start justify-between gap-3 border-b border-border bg-gradient-to-r from-primary/10 via-muted/10 to-transparent p-4">
+		<div
+			className={cn(
+				'overflow-hidden rounded-lg border bg-background shadow-sm',
+				emphasis ? 'border-primary/40 shadow-primary/10' : 'border-border'
+			)}
+		>
+			<div
+				className={cn(
+					'flex items-start justify-between gap-3 border-b border-border p-4',
+					emphasis ? 'bg-primary/10' : 'bg-muted/20'
+				)}
+			>
 				<div className="min-w-0">
 					<div className="text-[11px] font-bold uppercase text-muted-foreground">{label}</div>
 					<div className="mt-1 text-3xl font-semibold tracking-normal text-primary">{formatPrice(deal?.price)}</div>
+					{meta ? <div className="mt-1 truncate text-xs font-medium text-muted-foreground">{meta}</div> : null}
 				</div>
 				{typeof deal?.cut === 'number' && deal.cut > 0 ? (
 					<Badge className="border-emerald-400/30 bg-emerald-500/15 font-bold text-emerald-400">-{deal.cut}%</Badge>
@@ -145,13 +168,22 @@ function PriceBox({ label, deal }: { label: string; deal?: ItadDealSummary | nul
 	)
 }
 
-function DetailRow({ label, value }: { label: string; value?: string | null }) {
+function DetailChip({
+	icon,
+	label,
+	value,
+}: {
+	icon: ReactNode
+	label: string
+	value?: string | null
+}) {
 	if (!value) return null
 
 	return (
-		<div className="flex items-start justify-between gap-4 rounded-lg border border-border bg-background/60 px-3 py-3">
-			<span className="text-xs font-semibold uppercase text-muted-foreground">{label}</span>
-			<span className="max-w-[58%] text-right text-sm font-semibold text-foreground">{value}</span>
+		<div className="inline-flex min-w-0 items-center gap-2 rounded-md border border-border bg-background/70 px-3 py-2 text-xs shadow-sm">
+			<span className="shrink-0 text-primary [&>svg]:h-3.5 [&>svg]:w-3.5">{icon}</span>
+			<span className="shrink-0 font-semibold uppercase text-muted-foreground">{label}</span>
+			<span className="min-w-0 truncate font-semibold text-foreground">{value}</span>
 		</div>
 	)
 }
@@ -261,7 +293,7 @@ function DealsTable({ deals }: { deals: ItadDealSummary[] }) {
 				<span>Mín. tienda</span>
 				<span className="text-right">Actual</span>
 			</div>
-			<div className="max-h-56 overflow-y-auto">
+			<div className="max-h-64 overflow-y-auto">
 				{deals.map((deal, index) => (
 					<a
 						key={`${deal.shop.id}-${deal.url || deal.price.amount}`}
@@ -269,7 +301,7 @@ function DealsTable({ deals }: { deals: ItadDealSummary[] }) {
 						target="_blank"
 						rel="noreferrer"
 						className={cn(
-							'grid min-w-[620px] grid-cols-[1.25fr_0.65fr_0.85fr_0.8fr] items-center gap-2 border-t border-border px-4 py-3 text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
+							'grid min-w-[620px] grid-cols-[1.25fr_0.65fr_0.85fr_0.8fr] items-center gap-2 border-t border-border px-4 py-2.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground',
 							index === 0 && 'border-l-4 border-l-primary bg-primary/10'
 						)}
 					>
@@ -385,15 +417,19 @@ function GameDetailsModal({
 		lowest?.price?.amount !== undefined &&
 		current.price.amount <= lowest.price.amount
 	const deals = details?.prices?.deals || (current ? [current] : [])
+	const ctaUrl = current?.url || url
+	const ctaLabel = current?.price
+		? `Comprar en ${current.shop?.name || 'tienda'} por ${formatPrice(current.price)}`
+		: 'Ver en IsThereAnyDeal'
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[90vh] max-w-4xl overflow-hidden border-border bg-background p-0 shadow-2xl">
 				<div className="max-h-[90vh] overflow-y-auto">
-					<DialogHeader className="border-b border-border bg-gradient-to-r from-background via-muted/20 to-background p-5">
-						<div className={cn('grid gap-5 pr-7', hero ? 'sm:grid-cols-[220px_1fr_auto]' : 'sm:grid-cols-[1fr_auto]')}>
+					<DialogHeader className="border-b border-border bg-muted/10 p-5">
+						<div className={cn('grid gap-5 pr-7', hero ? 'sm:grid-cols-[240px_1fr_auto]' : 'sm:grid-cols-[1fr_auto]')}>
 							{hero ? (
-								<div className="h-32 overflow-hidden rounded-lg border border-primary/30 bg-muted shadow-sm">
+								<div className="aspect-[16/9] overflow-hidden rounded-lg border border-border bg-muted shadow-sm">
 									<img src={hero} alt="" className="h-full w-full object-cover" />
 								</div>
 							) : null}
@@ -404,7 +440,7 @@ function GameDetailsModal({
 										IsThereAnyDeal
 									</span>
 								</div>
-								<DialogTitle className="truncate text-3xl font-semibold tracking-normal">{game.title}</DialogTitle>
+								<DialogTitle className="line-clamp-2 text-2xl font-semibold tracking-normal sm:text-3xl">{game.title}</DialogTitle>
 								<DialogDescription className="mt-2 text-sm font-semibold text-primary">
 									{priceDelta || `${game.type === 'dlc' ? 'DLC' : 'Juego'} en IsThereAnyDeal`}
 								</DialogDescription>
@@ -436,8 +472,8 @@ function GameDetailsModal({
 
 					<div className="grid gap-5 p-5">
 						<div className="grid gap-3 sm:grid-cols-2">
-							<PriceBox label="Mejor precio actual" deal={current} />
-							<PriceBox label="Mínimo histórico" deal={lowest} />
+							<PriceBox label="Comprar ahora" deal={current} meta={currentDate} emphasis />
+							<PriceBox label="Mínimo histórico" deal={lowest} meta={lowestDate} />
 						</div>
 
 						<Separator />
@@ -458,19 +494,19 @@ function GameDetailsModal({
 							<DealsTable deals={deals} />
 						</div>
 
-						<div className="grid gap-2 sm:grid-cols-2">
-							<DetailRow label="Oferta detectada" value={currentDate} />
-							<DetailRow label="Caduca" value={expiryDate} />
-							<DetailRow label="Mínimo histórico visto" value={lowestDate} />
-							<DetailRow label="Plataformas destacadas" value={platforms} />
-							<DetailRow label="DRM destacado" value={drm} />
+						<div className="flex flex-wrap gap-2">
+							<DetailChip icon={<CalendarDays />} label="Detectada" value={currentDate} />
+							<DetailChip icon={<CalendarDays />} label="Caduca" value={expiryDate} />
+							<DetailChip icon={<TrendingDown />} label="Mínimo" value={lowestDate} />
+							<DetailChip icon={<Gamepad2 />} label="Plataformas" value={platforms} />
+							<DetailChip icon={<ShieldCheck />} label="DRM" value={drm} />
 						</div>
 
-						{current?.url ? (
+						{ctaUrl ? (
 							<Button asChild className="h-11 rounded-lg text-sm font-semibold">
-								<a href={current.url} target="_blank" rel="noreferrer">
+								<a href={ctaUrl} target="_blank" rel="noreferrer">
 									<ExternalLink />
-									Ver oferta
+									{ctaLabel}
 								</a>
 							</Button>
 						) : null}
