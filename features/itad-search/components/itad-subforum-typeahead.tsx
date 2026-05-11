@@ -7,6 +7,7 @@ import Search from 'lucide-react/dist/esm/icons/search'
 import ShieldCheck from 'lucide-react/dist/esm/icons/shield-check'
 import Store from 'lucide-react/dist/esm/icons/store'
 import TrendingDown from 'lucide-react/dist/esm/icons/trending-down'
+import X from 'lucide-react/dist/esm/icons/x'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -517,6 +518,26 @@ function GameDetailsModal({
 	)
 }
 
+function SearchLoadingRows() {
+	return (
+		<div className="space-y-1 p-1">
+			{[0, 1, 2].map(index => (
+				<div
+					key={index}
+					className="grid grid-cols-[88px_1fr_auto] items-center gap-3 rounded-lg border border-border/70 p-2"
+				>
+					<div className="h-12 animate-pulse rounded-md bg-muted" />
+					<div className="min-w-0 space-y-2">
+						<div className="h-3.5 w-2/3 animate-pulse rounded bg-muted" />
+						<div className="h-3 w-1/2 animate-pulse rounded bg-muted/70" />
+					</div>
+					<div className="h-6 w-12 animate-pulse rounded-md bg-muted" />
+				</div>
+			))}
+		</div>
+	)
+}
+
 export function ItadSubforumTypeahead() {
 	const containerRef = useRef<HTMLElement | null>(null)
 	const [query, setQuery] = useState('')
@@ -578,7 +599,14 @@ export function ItadSubforumTypeahead() {
 
 		const currentRequest = ++requestId.current
 		setDropdownOpen(true)
-		setState(prev => ({ ...prev, loading: true, error: null }))
+		setState(prev => ({
+			...prev,
+			games: [],
+			prices: {},
+			loading: true,
+			error: null,
+			hasSearched: false,
+		}))
 
 		const timer = window.setTimeout(() => {
 			searchItadGamesWithPrices(trimmedQuery, { country: 'ES', results: 8 })
@@ -643,7 +671,22 @@ export function ItadSubforumTypeahead() {
 		}
 	}
 
+	function clearSearch() {
+		requestId.current += 1
+		setQuery('')
+		setDropdownOpen(false)
+		setState(prev => ({
+			...prev,
+			games: [],
+			prices: {},
+			loading: false,
+			error: null,
+			hasSearched: false,
+		}))
+	}
+
 	const showResults = dropdownOpen && (state.loading || state.hasSearched || !!state.error)
+	const showClearButton = query.length > 0 && state.hasCredentials !== false
 
 	return (
 		<section ref={containerRef} className="relative mb-3 overflow-visible rounded-lg border border-border bg-card text-card-foreground shadow-sm">
@@ -659,7 +702,9 @@ export function ItadSubforumTypeahead() {
 				</div>
 			</div>
 			<div className="relative p-3">
-				<Search className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
+				<div className="pointer-events-none absolute left-6 inset-y-3 flex items-center">
+					<Search className="h-4 w-4 text-primary" />
+				</div>
 				<Input
 					value={query}
 					onChange={event => setQuery(event.target.value)}
@@ -670,12 +715,23 @@ export function ItadSubforumTypeahead() {
 					}}
 					onKeyDown={handleInputKeyDown}
 					placeholder="Buscar ofertas de juegos..."
-					className="h-10 rounded-lg bg-background pl-9 pr-9 shadow-sm"
+					className="h-10 rounded-lg bg-background pl-9 pr-16 shadow-sm"
 					disabled={state.hasCredentials === false}
 				/>
-				{state.loading ? (
-					<Loader2 className="absolute right-6 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-primary" />
-				) : null}
+				<div className="absolute right-5 inset-y-3 flex items-center gap-1">
+					{state.loading ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : null}
+					{showClearButton ? (
+						<button
+							type="button"
+							onClick={clearSearch}
+							className="inline-flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+							title="Limpiar búsqueda"
+							aria-label="Limpiar búsqueda"
+						>
+							<X className="h-4 w-4" />
+						</button>
+					) : null}
+				</div>
 			</div>
 
 			{state.hasCredentials === false ? (
@@ -692,6 +748,7 @@ export function ItadSubforumTypeahead() {
 			>
 				<div className="max-h-[342px] overflow-y-auto p-1">
 					{state.error ? <p className="px-3 py-3 text-sm text-destructive">{state.error}</p> : null}
+					{state.loading && state.games.length === 0 && !state.error ? <SearchLoadingRows /> : null}
 					{state.games.map(game => (
 						<ResultRow
 							key={game.id}
@@ -701,7 +758,12 @@ export function ItadSubforumTypeahead() {
 						/>
 					))}
 					{state.hasSearched && !state.loading && state.games.length === 0 && !state.error ? (
-						<p className="px-3 py-3 text-sm text-muted-foreground">No se han encontrado juegos con ese nombre.</p>
+						<div className="px-3 py-4 text-sm">
+							<p className="font-medium text-foreground">No se han encontrado juegos con ese nombre.</p>
+							<p className="mt-1 text-xs text-muted-foreground">
+								Prueba con el título original, sin subtítulos o con menos palabras.
+							</p>
+						</div>
 					) : null}
 				</div>
 			</div>
