@@ -17,9 +17,15 @@ export interface IGDBGame {
 	storyline?: string
 	first_release_date?: number // Unix timestamp
 	rating?: number // 0-100
+	rating_count?: number
 	aggregated_rating?: number // 0-100
 	total_rating?: number // 0-100
+	total_rating_count?: number
+	hypes?: number
+	follows?: number
+	category?: number
 	status?: number // Game release status
+	version_parent?: number
 	cover?: IGDBCover
 	screenshots?: IGDBScreenshot[]
 	artworks?: IGDBArtwork[]
@@ -141,6 +147,15 @@ export interface IGDBPlatform {
 	name: string
 	abbreviation?: string
 	slug?: string
+	platform_logo?: IGDBPlatformLogo
+}
+
+export interface IGDBPlatformLogo {
+	id: number
+	image_id: string
+	url?: string
+	width?: number
+	height?: number
 }
 
 export interface IGDBInvolvedCompany {
@@ -234,6 +249,8 @@ export interface IGDBReleaseDate {
 	human?: string
 	platform?: IGDBPlatform
 	region?: number
+	category?: number | null
+	status?: number | { name?: string } | null
 }
 
 export interface IGDBLanguageSupport {

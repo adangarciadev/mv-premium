@@ -78,6 +78,17 @@ describe('settings-store', () => {
 
 		it('has ITAD subforum search enabled by default', () => {
 			expect(useSettingsStore.getState().itadSubforumSearchEnabled).toBe(true)
+			expect(useSettingsStore.getState().itadSubforumSearchJuegosEnabled).toBe(true)
+			expect(useSettingsStore.getState().itadSubforumSearchHuchaEnabled).toBe(true)
+		})
+
+		it('has game release calendar enabled by default', () => {
+			expect(useSettingsStore.getState().gameReleaseCalendarEnabled).toBe(true)
+			expect(useSettingsStore.getState().gameReleaseCalendarJuegosEnabled).toBe(true)
+		})
+
+		it('has minimal release calendar layout by default', () => {
+			expect(useSettingsStore.getState().gameReleaseCalendarLayout).toBe('minimal')
 		})
 
 		it('has centered controls position set to top by default', () => {
@@ -180,6 +191,20 @@ describe('settings-store', () => {
 				useSettingsStore.getState().setSetting('centeredControlsPosition', 'side')
 			})
 			expect(useSettingsStore.getState().centeredControlsPosition).toBe('side')
+		})
+
+		it('setSetting supports game release calendar toggle', () => {
+			act(() => {
+				useSettingsStore.getState().setSetting('gameReleaseCalendarEnabled', false)
+			})
+			expect(useSettingsStore.getState().gameReleaseCalendarEnabled).toBe(false)
+		})
+
+		it('setSetting supports game release calendar layout', () => {
+			act(() => {
+				useSettingsStore.getState().setSetting('gameReleaseCalendarLayout', 'bottom')
+			})
+			expect(useSettingsStore.getState().gameReleaseCalendarLayout).toBe('bottom')
 		})
 	})
 

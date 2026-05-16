@@ -227,6 +227,12 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 			injectEditorContentPreservation()
 		})
 
+		if (window.location.pathname.includes('/nuevo-hilo')) {
+			import('@/features/release-calendar').then(({ applyReleaseThreadPrefill }) => {
+				applyReleaseThreadPrefill()
+			})
+		}
+
 		// Draft save button - Only where editor exists
 		import('@/features/drafts').then(({ injectSaveDraftButton }) => {
 			injectSaveDraftButton()
@@ -278,11 +284,18 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 
 	if (
 		pageContext?.isSubforum &&
-		/^\/foro\/juegos\/?$/.test(window.location.pathname) &&
-		isFeatureEnabled(FeatureFlag.ItadSubforumSearch)
+		/^\/foro\/(?:juegos|club-hucha)\/?$/.test(window.location.pathname)
 	) {
 		const { injectItadSubforumSearch } = await import('@/features/itad-search')
 		injectItadSubforumSearch()
+	}
+
+	if (
+		pageContext?.isSubforum &&
+		/^\/foro\/juegos\/?$/.test(window.location.pathname)
+	) {
+		const { injectReleaseCalendar } = await import('@/features/release-calendar')
+		injectReleaseCalendar()
 	}
 
 	// Sidebar on subforum pages, global view pages (spy, new, unread, top, featured), and thread pages

@@ -38,6 +38,7 @@ export const STORAGE_KEYS = {
 	ACTIVITY: 'mvp-activity',
 	TIME_STATS: 'mvp-time-stats',
 	PENDING_THREAD_CREATION: 'mvp-pending-thread-creation',
+	PENDING_RELEASE_THREAD_PREFILL: 'mvp-pending-release-thread-prefill',
 	PENDING_POST_EDIT: 'mvp-pending-post-edit',
 	PENDING_REPLY: 'mvp-pending-reply',
 	LAST_SEEN_VERSION: 'mvp-last-seen-version',

@@ -139,6 +139,24 @@ const createWxtStorageAdapter = () => ({
 
 const storageAdapter = createWxtStorageAdapter()
 
+function applyLegacyPerSubforumSettings(settings: Partial<Settings>, persisted: Record<string, unknown>): Partial<Settings> {
+	if ('itadSubforumSearchEnabled' in persisted) {
+		const legacyEnabled = persisted.itadSubforumSearchEnabled === true
+		if (!('itadSubforumSearchJuegosEnabled' in persisted)) {
+			settings.itadSubforumSearchJuegosEnabled = legacyEnabled
+		}
+		if (!('itadSubforumSearchHuchaEnabled' in persisted)) {
+			settings.itadSubforumSearchHuchaEnabled = legacyEnabled
+		}
+	}
+
+	if ('gameReleaseCalendarEnabled' in persisted && !('gameReleaseCalendarJuegosEnabled' in persisted)) {
+		settings.gameReleaseCalendarJuegosEnabled = persisted.gameReleaseCalendarEnabled === true
+	}
+
+	return settings
+}
+
 // =============================================================================
 // STORE
 // =============================================================================
@@ -229,7 +247,7 @@ export const useSettingsStore = create<SettingsState>()(
 						validKeys.filter((key): boolean => key in persisted).map(key => [key, persisted[key]] as const)
 					) as Partial<Settings>
 
-					return { ...currentState, ...validatedState }
+					return { ...currentState, ...applyLegacyPerSubforumSettings(validatedState, persisted) }
 				}
 
 				return currentState
@@ -288,7 +306,7 @@ export async function getSettings(): Promise<Partial<Settings>> {
 					validated[key] = state[key]
 				}
 			}
-			return validated
+			return applyLegacyPerSubforumSettings(validated, state)
 		}
 	} catch {
 		// Ignore parse errors

@@ -40,7 +40,10 @@ const SHORTCUT_ACTIONS = [
 	{ id: 'templates', label: 'Plantillas', isMessage: true },
 	{ id: 'new-draft', label: 'Nuevo borrador', isMessage: true },
 	{ id: 'theme-toggle', label: 'Cambiar tema', isSpecial: true },
-	{ id: 'itad-search-toggle', label: 'Buscador de ofertas', isSpecial: true },
+	{ id: 'itad-search-toggle', label: 'Ofertas en subforo actual', isSpecial: true },
+	{ id: 'itad-search-juegos-toggle', label: 'Ofertas en Juegos', isSpecial: true },
+	{ id: 'itad-search-hucha-toggle', label: 'Ofertas en Hucha', isSpecial: true },
+	{ id: 'release-calendar-juegos-toggle', label: 'Lanzamientos en Juegos', isSpecial: true },
 ]
 
 describe('keyboard-shortcuts', () => {
@@ -68,10 +71,12 @@ describe('keyboard-shortcuts', () => {
 			expect(toolActions.some(a => a.id === 'drafts')).toBe(true)
 		})
 
-		it('should define ITAD search toggle shortcut', () => {
-			const action = SHORTCUT_ACTIONS.find(a => a.id === 'itad-search-toggle')
-			expect(action).toBeDefined()
-			expect(action?.isSpecial).toBe(true)
+		it('should define game subforum feature toggle shortcuts', () => {
+			for (const id of ['itad-search-toggle', 'itad-search-juegos-toggle', 'itad-search-hucha-toggle', 'release-calendar-juegos-toggle']) {
+				const action = SHORTCUT_ACTIONS.find(a => a.id === id)
+				expect(action).toBeDefined()
+				expect(action?.isSpecial).toBe(true)
+			}
 		})
 
 		it('should have unique IDs', () => {

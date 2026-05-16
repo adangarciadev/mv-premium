@@ -46,6 +46,7 @@ export const FeatureFlag = {
 	MediaHoverCards: 'media-hover-cards',
 	SteamBundleInlineCards: 'steam-bundle-inline-cards',
 	ItadSubforumSearch: 'itad-subforum-search',
+	GameReleaseCalendar: 'game-release-calendar',
 	PinnedPosts: 'pinned-posts',
 	SavedThreads: 'saved-threads',
 
@@ -106,6 +107,7 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 	[FeatureFlag.MediaHoverCards]: { settingsKey: 'mediaHoverCardsEnabled' },
 	[FeatureFlag.SteamBundleInlineCards]: { settingsKey: 'steamBundleInlineCardsEnabled' },
 	[FeatureFlag.ItadSubforumSearch]: { settingsKey: 'itadSubforumSearchEnabled' },
+	[FeatureFlag.GameReleaseCalendar]: { settingsKey: 'gameReleaseCalendarEnabled' },
 	[FeatureFlag.PinnedPosts]: { settingsKey: 'pinnedPostsEnabled' },
 	[FeatureFlag.SavedThreads]: { settingsKey: 'saveThreadEnabled' },
 

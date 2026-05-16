@@ -11,6 +11,7 @@ export * from './dom-markers'
 export * from './timing'
 export * from './toast'
 export * from './runtime-cache'
+export * from './storage-keys'
 
 // =============================================================================
 // MEDIAVIDA URLS

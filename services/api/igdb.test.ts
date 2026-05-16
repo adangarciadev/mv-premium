@@ -6,7 +6,18 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { IGDBGame } from './igdb-types'
+import type { MediaTemplate, UserTemplates } from '@/types/templates'
 import { IGDBAgeRatingCategory, IGDBWebsiteCategory } from './igdb-types'
+
+const storeMock = vi.hoisted(() => ({
+	mediaTemplates: {
+		movie: null,
+		tvshow: null,
+		season: null,
+		game: null,
+	} as UserTemplates,
+	getSettings: vi.fn(),
+}))
 
 // Mock messaging module
 vi.mock('@/lib/messaging', () => ({
@@ -15,14 +26,10 @@ vi.mock('@/lib/messaging', () => ({
 
 // Mock settings store
 vi.mock('@/store', () => ({
+	getSettings: storeMock.getSettings,
 	useSettingsStore: {
 		getState: () => ({
-			mediaTemplates: {
-				movie: null,
-				tvshow: null,
-				season: null,
-				game: null,
-			},
+			mediaTemplates: storeMock.mediaTemplates,
 		}),
 	},
 }))
@@ -41,7 +48,10 @@ import {
 	getGameDetails,
 	getGamesByIds,
 	getGameTemplateData,
+	getGameTemplateString,
 	generateGameTemplate,
+	getUpcomingGameReleases,
+	normalizeUpcomingGameReleases,
 	hasIgdbCredentials,
 } from './igdb'
 
@@ -56,6 +66,11 @@ describe('IGDB API Service', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockSendMessage.mockReset()
+		storeMock.mediaTemplates.movie = null
+		storeMock.mediaTemplates.tvshow = null
+		storeMock.mediaTemplates.season = null
+		storeMock.mediaTemplates.game = null
+		storeMock.getSettings.mockResolvedValue({ mediaTemplates: storeMock.mediaTemplates })
 	})
 
 	describe('hasIgdbCredentials', () => {
@@ -197,6 +212,342 @@ describe('IGDB API Service', () => {
 
 			expect(mockSendMessage).not.toHaveBeenCalled()
 			expect(result).toEqual([])
+		})
+	})
+
+	describe('getUpcomingGameReleases', () => {
+		it('queries upcoming games in the requested date range', async () => {
+			const mockGames: IGDBGame[] = [
+				{
+					id: 1,
+					name: 'Future Game',
+					slug: 'future-game',
+					first_release_date: 1767225600,
+					cover: { id: 1, image_id: 'cofuture' },
+					platforms: [
+						{ id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' },
+						{ id: 167, name: 'PlayStation 5', abbreviation: 'PS5' },
+					],
+					release_dates: [
+						{ id: 1, date: 1767225600, platform: { id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' } },
+						{ id: 2, date: 1790726400, platform: { id: 167, name: 'PlayStation 5', abbreviation: 'PS5' } },
+					],
+					hypes: 20,
+				},
+			]
+			mockSendMessage
+				.mockResolvedValueOnce(mockGames)
+				.mockResolvedValueOnce([])
+
+			const result = await getUpcomingGameReleases({
+				from: new Date('2026-01-01T00:00:00Z'),
+				to: new Date('2026-02-01T00:00:00Z'),
+				limit: 12,
+			})
+
+			expect(mockSendMessage).toHaveBeenCalledWith('igdbRequest', {
+				endpoint: '/games',
+				body: expect.stringContaining('where first_release_date >= 1767225600'),
+			})
+			expect(mockSendMessage).toHaveBeenCalledWith('igdbRequest', {
+				endpoint: '/games',
+				body: expect.stringContaining('limit 500'),
+			})
+			expect(mockSendMessage).toHaveBeenCalledWith('igdbRequest', {
+				endpoint: '/games',
+				body: expect.stringContaining('offset 0'),
+			})
+			expect(mockSendMessage).toHaveBeenCalledWith('igdbRequest', {
+				endpoint: '/games',
+				body: expect.stringContaining('release_dates.date, release_dates.category, release_dates.status.name'),
+			})
+			expect(mockSendMessage).toHaveBeenCalledWith('igdbRequest', {
+				endpoint: '/release_dates',
+				body: expect.stringContaining('where date >= 1767225600 & date < 1769904000'),
+			})
+			expect(mockSendMessage.mock.calls.some(([, payload]) => String(payload.body).includes('& category = 0'))).toBe(false)
+			expect(result).toEqual([
+				expect.objectContaining({
+					id: 1,
+					name: 'Future Game',
+					slug: 'future-game',
+					coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/cofuture.jpg',
+					releaseDate: '2026-01-01',
+					releaseTimestamp: 1767225600,
+					platforms: ['PC', 'PS5'],
+					releasePlatforms: ['PC'],
+					igdbUrl: 'https://www.igdb.com/games/future-game',
+					hypes: 20,
+					follows: 0,
+					rating: null,
+					ratingCount: 0,
+				}),
+			])
+		})
+
+		it('uses the final release date instead of earlier non-final dates', async () => {
+			const mockGames: IGDBGame[] = [
+				{
+					id: 6,
+					name: 'Forza Horizon 6',
+					slug: 'forza-horizon-6',
+					first_release_date: 1778803200,
+					cover: { id: 6, image_id: 'coforza6' },
+					platforms: [
+						{ id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' },
+						{ id: 169, name: 'Xbox Series X|S', abbreviation: 'Series X|S' },
+						{ id: 167, name: 'PlayStation 5', abbreviation: 'PS5' },
+					],
+					release_dates: [
+						{ id: 1, date: 1778803200, category: 0, status: { name: 'Beta' }, platform: { id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' } },
+						{ id: 2, date: 1779148800, category: 0, status: { name: 'Full Release' }, platform: { id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' } },
+						{ id: 3, date: 1779148800, category: 0, status: { name: 'Full Release' }, platform: { id: 169, name: 'Xbox Series X|S', abbreviation: 'Series X|S' } },
+						{ id: 4, date: 1779148800, category: 0, status: { name: 'Full Release' }, platform: { id: 167, name: 'PlayStation 5', abbreviation: 'PS5' } },
+					],
+					hypes: 20,
+				},
+			]
+			mockSendMessage
+				.mockResolvedValueOnce(mockGames)
+				.mockResolvedValueOnce([])
+
+			const result = await getUpcomingGameReleases({
+				from: new Date('2026-05-15T00:00:00Z'),
+				to: new Date('2026-05-30T00:00:00Z'),
+				limit: 12,
+			})
+
+			expect(result).toEqual([
+				expect.objectContaining({
+					name: 'Forza Horizon 6',
+					releaseDate: '2026-05-19',
+					releaseTimestamp: 1779148800,
+					releasePlatforms: ['PC', 'Series X|S', 'PS5'],
+				}),
+			])
+		})
+
+		it('includes platform-specific releases when the game first launched before the requested range', async () => {
+			mockSendMessage
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce([
+					{
+						id: 10,
+						date: 1767657600,
+						platform: { id: 167, name: 'PlayStation 5', abbreviation: 'PS5' },
+						game: {
+							id: 1,
+							name: 'Former PC Exclusive',
+							slug: 'former-pc-exclusive',
+							first_release_date: 1767225600,
+							cover: { id: 1, image_id: 'coformer' },
+							platforms: [
+								{ id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' },
+								{ id: 167, name: 'PlayStation 5', abbreviation: 'PS5' },
+							],
+							release_dates: [
+								{ id: 1, date: 1767225600, platform: { id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' } },
+								{ id: 10, date: 1767657600, platform: { id: 167, name: 'PlayStation 5', abbreviation: 'PS5' } },
+							],
+							hypes: 12,
+						},
+					},
+				])
+
+			const result = await getUpcomingGameReleases({
+				from: new Date('2026-01-05T00:00:00Z'),
+				to: new Date('2026-01-10T00:00:00Z'),
+				limit: 12,
+			})
+
+			expect(result).toEqual([
+				expect.objectContaining({
+					id: 1,
+					name: 'Former PC Exclusive',
+					releaseDate: '2026-01-06',
+					releaseTimestamp: 1767657600,
+					platforms: ['PC', 'PS5'],
+					releasePlatforms: ['PS5'],
+				}),
+			])
+		})
+
+		it('keeps more than three releases from the same day', async () => {
+			const sameDayReleases = Array.from({ length: 5 }, (_, index) => ({
+				id: index + 1,
+				date: 1767225600,
+				platform: { id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' },
+				game: {
+					id: index + 1,
+					name: `Same Day Game ${index + 1}`,
+					slug: `same-day-game-${index + 1}`,
+					first_release_date: 1767225600,
+					cover: { id: index + 1, image_id: `coday${index + 1}` },
+					platforms: [{ id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' }],
+					hypes: 5 - index,
+				},
+			}))
+
+			mockSendMessage
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce(sameDayReleases)
+
+			const result = await getUpcomingGameReleases({
+				from: new Date('2026-01-01T00:00:00Z'),
+				to: new Date('2026-01-02T00:00:00Z'),
+				limit: 12,
+			})
+
+			expect(result).toHaveLength(5)
+			expect(result.map(item => item.name)).toEqual([
+				'Same Day Game 1',
+				'Same Day Game 2',
+				'Same Day Game 3',
+				'Same Day Game 4',
+				'Same Day Game 5',
+			])
+		})
+
+		it('paginates release dates until the full requested range is loaded', async () => {
+			const firstPage = Array.from({ length: 500 }, (_, index) => ({
+				id: index + 1,
+				date: 1767225600 + index,
+				platform: { id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' },
+				game: {
+					id: index + 1,
+					name: `Paged Game ${index + 1}`,
+					slug: `paged-game-${index + 1}`,
+					first_release_date: 1767225600 + index,
+					platforms: [{ id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' }],
+				},
+			}))
+			const secondPage = [
+				{
+					id: 501,
+					date: 1767312000,
+					platform: { id: 169, name: 'Xbox Series X|S', abbreviation: 'Series X|S' },
+					game: {
+						id: 501,
+						name: 'Paged Xbox Game',
+						slug: 'paged-xbox-game',
+						first_release_date: 1767312000,
+						platforms: [{ id: 169, name: 'Xbox Series X|S', abbreviation: 'Series X|S' }],
+					},
+				},
+			]
+
+			mockSendMessage
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce(firstPage)
+				.mockResolvedValueOnce(secondPage)
+
+			const result = await getUpcomingGameReleases({
+				from: new Date('2026-01-01T00:00:00Z'),
+				to: new Date('2026-02-01T00:00:00Z'),
+			})
+
+			expect(result).toHaveLength(501)
+			expect(result.some(item => item.name === 'Paged Xbox Game')).toBe(true)
+			expect(mockSendMessage).toHaveBeenCalledWith('igdbRequest', {
+				endpoint: '/release_dates',
+				body: expect.stringContaining('offset 450'),
+			})
+		})
+
+		it('deduplicates overlapped release date pages', async () => {
+			const firstPage = Array.from({ length: 500 }, (_, index) => ({
+				id: index + 1,
+				date: 1767225600 + index,
+				platform: { id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' },
+				game: {
+					id: index + 1,
+					name: `Overlap Game ${index + 1}`,
+					slug: `overlap-game-${index + 1}`,
+					first_release_date: 1767225600 + index,
+					platforms: [{ id: 6, name: 'PC (Microsoft Windows)', abbreviation: 'PC' }],
+				},
+			}))
+			const overlappedSecondPage = [
+				...firstPage.slice(450),
+				{
+					id: 501,
+					date: 1767312000,
+					platform: { id: 167, name: 'PlayStation 5', abbreviation: 'PS5' },
+					game: {
+						id: 501,
+						name: 'Overlap New Game',
+						slug: 'overlap-new-game',
+						first_release_date: 1767312000,
+						platforms: [{ id: 167, name: 'PlayStation 5', abbreviation: 'PS5' }],
+					},
+				},
+			]
+
+			mockSendMessage
+				.mockResolvedValueOnce([])
+				.mockResolvedValueOnce(firstPage)
+				.mockResolvedValueOnce(overlappedSecondPage)
+
+			const result = await getUpcomingGameReleases({
+				from: new Date('2026-01-01T00:00:00Z'),
+				to: new Date('2026-02-01T00:00:00Z'),
+			})
+
+			expect(result).toHaveLength(501)
+			expect(result.filter(item => item.id === 451)).toHaveLength(1)
+			expect(result.some(item => item.name === 'Overlap New Game')).toBe(true)
+		})
+
+		it('normalizes and sorts releases while filtering non-game categories', () => {
+			const result = normalizeUpcomingGameReleases([
+				{ id: 2, name: 'Second Game', first_release_date: 1767312000, cover: { id: 2, image_id: 'co2' } },
+				{ id: 3, name: 'No Date Game' },
+				{ id: 4, name: 'Low Signal Game', first_release_date: 1767225600 },
+				{ id: 5, name: 'DLC Game', first_release_date: 1767225600, category: 1, cover: { id: 5, image_id: 'co5' } },
+				{ id: 1, name: 'First Game', slug: 'first-game', first_release_date: 1767225600, follows: 10 },
+			])
+
+			expect(result).toEqual([
+				expect.objectContaining({
+					id: 1,
+					name: 'First Game',
+					coverUrl: null,
+					platforms: [],
+					releasePlatforms: [],
+					igdbUrl: 'https://www.igdb.com/games/first-game',
+					relevanceScore: expect.any(Number),
+					hypes: 0,
+					follows: 10,
+					rating: null,
+					ratingCount: 0,
+				}),
+				expect.objectContaining({
+					id: 4,
+					name: 'Low Signal Game',
+					coverUrl: null,
+					platforms: [],
+					releasePlatforms: [],
+					igdbUrl: 'https://www.igdb.com/games/4',
+					relevanceScore: 0,
+					hypes: 0,
+					follows: 0,
+					rating: null,
+					ratingCount: 0,
+				}),
+				expect.objectContaining({
+					id: 2,
+					name: 'Second Game',
+					coverUrl: 'https://images.igdb.com/igdb/image/upload/t_cover_big/co2.jpg',
+					platforms: [],
+					releasePlatforms: [],
+					igdbUrl: 'https://www.igdb.com/games/2',
+					relevanceScore: expect.any(Number),
+					hypes: 0,
+					follows: 0,
+					rating: null,
+					ratingCount: 0,
+				}),
+			])
 		})
 	})
 
@@ -599,6 +950,19 @@ describe('IGDB API Service', () => {
 	})
 
 	describe('generateGameTemplate', () => {
+		const customGameTemplate: MediaTemplate = {
+			id: 'custom-game-template',
+			type: 'game',
+			name: 'Custom Game Template',
+			blocks: [
+				{
+					id: 'raw',
+					type: 'raw',
+					rawText: '[b]MI PLANTILLA:[/b] {{name}}\n[bar]PLATAFORMAS[/bar]\n{{platforms}}',
+				},
+			],
+		}
+
 		it('should generate BBCode template from game data', () => {
 			const gameData = {
 				name: 'Test Game',
@@ -712,6 +1076,51 @@ describe('IGDB API Service', () => {
 			expect(result).not.toContain('[bar]TRAILER[/bar]') // No video, no trailer section
 			expect(result).not.toContain('[bar]STEAM[/bar]') // No Steam URL, no Steam section
 			expect(result).not.toContain('[bar]LANZAMIENTO[/bar]') // No release date
+		})
+
+		it('should use the custom game template from the settings store when creating a thread', async () => {
+			storeMock.mediaTemplates.game = customGameTemplate
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Custom Game',
+				platforms: [{ id: 1, name: 'PC', abbreviation: 'PC' }],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+
+			const result = await getGameTemplateString(123)
+
+			expect(result).toContain('[b]MI PLANTILLA:[/b] Custom Game')
+			expect(result).toContain('[bar]PLATAFORMAS[/bar]')
+			expect(result).toContain('PC')
+			expect(result).not.toContain('[b]Desarrollador:[/b]')
+		})
+
+		it('should use the persisted custom game template when the settings store has not hydrated it yet', async () => {
+			storeMock.mediaTemplates.game = null
+			storeMock.getSettings.mockResolvedValueOnce({
+				mediaTemplates: {
+					movie: null,
+					tvshow: null,
+					season: null,
+					game: customGameTemplate,
+				},
+			})
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Persisted Template Game',
+				platforms: [{ id: 1, name: 'PlayStation 5', abbreviation: 'PS5' }],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+
+			const result = await getGameTemplateString(123)
+
+			expect(result).toContain('[b]MI PLANTILLA:[/b] Persisted Template Game')
+			expect(result).toContain('PS5')
+			expect(result).not.toContain('[b]Desarrollador:[/b]')
 		})
 	})
 })

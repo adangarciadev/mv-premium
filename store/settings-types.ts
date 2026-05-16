@@ -31,6 +31,9 @@ export type DashboardIcon = 'logo' | 'user-shield' | 'dashboard' | 'rocket' | 'g
 /** Centered posts control bar position */
 export type CenteredControlsPosition = 'top' | 'side'
 
+/** Game release calendar display mode */
+export type GameReleaseCalendarLayout = 'showcase' | 'minimal' | 'bottom'
+
 /** Work mode sub-options */
 export interface WorkModeOptions {
 	hideAvatars: boolean
@@ -84,6 +87,11 @@ export interface Settings {
 	mediaHoverCardsEnabled: boolean
 	steamBundleInlineCardsEnabled: boolean
 	itadSubforumSearchEnabled: boolean
+	itadSubforumSearchJuegosEnabled: boolean
+	itadSubforumSearchHuchaEnabled: boolean
+	gameReleaseCalendarEnabled: boolean
+	gameReleaseCalendarJuegosEnabled: boolean
+	gameReleaseCalendarLayout: GameReleaseCalendarLayout
 	twitterLiteEmbedsEnabled: boolean
 	pinnedPostsEnabled: boolean
 	threadSummarizerEnabled: boolean

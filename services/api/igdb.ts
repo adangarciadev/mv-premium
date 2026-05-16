@@ -16,10 +16,10 @@ import { logger } from '@/lib/logger'
 import { cachedFetch, createCacheKey, CACHE_TTL } from '@/services/media'
 import { renderTemplate } from '@/lib/template-engine'
 import { getDefaultTemplate } from '@/features/templates'
-import { useSettingsStore } from '@/store'
+import { getSettings, useSettingsStore } from '@/store'
 import { fetchSteamGameDetailsViaBackground, extractSteamAppId } from '@/services/api/steam'
 import type { MediaTemplate, GameTemplateDataInput } from '@/types/templates'
-import type { IGDBGame, IGDBAlternativeName, IGDBGameLocalization, IGDBRegion } from './igdb-types'
+import type { IGDBGame, IGDBAlternativeName, IGDBGameLocalization, IGDBRegion, IGDBReleaseDate } from './igdb-types'
 import {
 	getIGDBImageUrl,
 	PEGI_RATING_LABELS,
@@ -42,6 +42,8 @@ export { getIGDBImageUrl, IGDBWebsiteCategory } from './igdb-types'
 // =============================================================================
 
 const CACHE_PREFIX = 'mv-igdb-v1'
+const IGDB_PAGE_SIZE = 500
+const IGDB_PAGE_OVERLAP = 50
 
 const SPANISH_MONTHS = [
 	'enero',
@@ -58,6 +60,38 @@ const SPANISH_MONTHS = [
 	'diciembre',
 ] as const
 
+export interface UpcomingGameRelease {
+	id: number
+	name: string
+	slug?: string
+	coverUrl: string | null
+	heroUrl: string | null
+	releaseDate: string
+	releaseTimestamp: number
+	platforms: string[]
+	releasePlatforms: string[]
+	platformLogos: UpcomingPlatformLogo[]
+	igdbUrl: string
+	relevanceScore: number
+	hypes: number
+	follows: number
+	rating: number | null
+	ratingCount: number
+}
+
+export interface UpcomingPlatformLogo {
+	name: string
+	abbreviation?: string
+	logoUrl: string
+}
+
+export interface UpcomingGameReleaseQuery {
+	from: Date
+	to: Date
+	platforms?: number[]
+	limit?: number
+}
+
 const SPANISH_LANGUAGE_TOKENS = ['espanol', 'spanish', 'espa']
 const SUPPORT_TYPE_RANKS: { token: string; rank: number }[] = [
 	{ token: 'voces', rank: 0 },
@@ -67,6 +101,25 @@ const SUPPORT_TYPE_RANKS: { token: string; rank: number }[] = [
 	{ token: 'interfaz', rank: 2 },
 	{ token: 'interface', rank: 2 },
 ]
+
+const MAIN_GAME_CATEGORY = 0
+const REMAKE_CATEGORY = 8
+const REMASTER_CATEGORY = 9
+const FEATURED_RELEASE_CATEGORIES = new Set([MAIN_GAME_CATEGORY, REMAKE_CATEGORY, REMASTER_CATEGORY])
+const NON_FINAL_RELEASE_STATUS_TOKENS = [
+	'alpha',
+	'beta',
+	'early',
+	'advanced',
+	'cancel',
+	'offline',
+	'compatibility',
+	'optimization',
+] as const
+
+interface IGDBReleaseDateWithGame extends IGDBReleaseDate {
+	game?: IGDBGame
+}
 
 // =============================================================================
 // API Availability Check
@@ -342,6 +395,299 @@ export async function getGamesByIds(gameIds: number[]): Promise<IGDBGame[]> {
 	`
 
 	return fetchIGDB<IGDBGame[]>('/games', body, CACHE_TTL.MEDIUM)
+}
+
+function toUnixSeconds(date: Date): number {
+	return Math.floor(date.getTime() / 1000)
+}
+
+function getReleaseRelevanceScore(game: IGDBGame): number {
+	const hypes = game.hypes ?? 0
+	const follows = game.follows ?? 0
+	const ratingCount = game.total_rating_count ?? game.rating_count ?? 0
+	const totalRating = game.total_rating ?? game.rating ?? 0
+	const platformCount = game.platforms?.length ?? 0
+	const hasCover = game.cover?.image_id ? 25 : 0
+	const hasSlug = game.slug ? 8 : 0
+
+	return hypes * 3 + follows * 2 + ratingCount * 1.5 + totalRating * 0.25 + platformCount * 4 + hasCover + hasSlug
+}
+
+function shouldIncludeFeaturedRelease(game: IGDBGame): boolean {
+	if (typeof game.first_release_date !== 'number') return false
+	if (typeof game.category === 'number' && !FEATURED_RELEASE_CATEGORIES.has(game.category)) return false
+	if (typeof game.version_parent === 'number') return false
+
+	return true
+}
+
+function formatReleaseDateKey(timestamp: number): string {
+	return new Date(timestamp * 1000).toISOString().slice(0, 10)
+}
+
+function getPlatformName(platform: { name: string; abbreviation?: string }): string {
+	return platform.abbreviation || platform.name
+}
+
+function uniquePlatforms(platforms: string[]): string[] {
+	return [...new Set(platforms.filter(Boolean))]
+}
+
+function getReleaseDateStatusName(releaseDate: IGDBReleaseDate): string | null {
+	if (!releaseDate.status || typeof releaseDate.status === 'number') return null
+	return releaseDate.status.name?.toLowerCase() ?? null
+}
+
+function isCalendarReleaseDate(releaseDate: IGDBReleaseDate): releaseDate is IGDBReleaseDate & { date: number } {
+	const statusName = getReleaseDateStatusName(releaseDate)
+	const isFinalRelease =
+		statusName === null || !NON_FINAL_RELEASE_STATUS_TOKENS.some(token => statusName.includes(token))
+
+	return typeof releaseDate.date === 'number' && isFinalRelease
+}
+
+function getReleasePlatformsForDate(game: IGDBGame, releaseDate: string): string[] {
+	const releasePlatforms =
+		game.release_dates
+			?.filter(releaseDateEntry => {
+				return (
+					isCalendarReleaseDate(releaseDateEntry) &&
+					formatReleaseDateKey(releaseDateEntry.date) === releaseDate &&
+					releaseDateEntry.platform
+				)
+			})
+			.map(releaseDateEntry => getPlatformName(releaseDateEntry.platform!)) ?? []
+
+	return uniquePlatforms(releasePlatforms)
+}
+
+function getCalendarReleaseDatesInRange(game: IGDBGame, fromSeconds?: number, toSeconds?: number): number[] {
+	const timestamps =
+		game.release_dates
+			?.filter(isCalendarReleaseDate)
+			.map(releaseDate => releaseDate.date)
+			.filter(timestamp => {
+				if (fromSeconds !== undefined && timestamp < fromSeconds) return false
+				if (toSeconds !== undefined && timestamp >= toSeconds) return false
+				return true
+			}) ?? []
+
+	return [...new Set(timestamps)].sort((a, b) => a - b)
+}
+
+function toUpcomingGameRelease(
+	game: IGDBGame,
+	releaseTimestamp: number,
+	releasePlatforms: string[]
+): UpcomingGameRelease | null {
+	if (!shouldIncludeFeaturedRelease(game)) return null
+
+	const releaseDate = formatReleaseDateKey(releaseTimestamp)
+	const coverUrl = game.cover?.image_id ? getIGDBImageUrl(game.cover.image_id, 'cover_big') : null
+	const heroImageId = game.artworks?.[0]?.image_id || game.screenshots?.[0]?.image_id
+	const heroUrl = heroImageId ? getIGDBImageUrl(heroImageId, 'screenshot_big') : null
+	const platformEntries = game.platforms ?? []
+	const platforms = uniquePlatforms(platformEntries.map(getPlatformName))
+	const visibleReleasePlatforms = releasePlatforms.length > 0 ? releasePlatforms : getReleasePlatformsForDate(game, releaseDate)
+	const platformLogos = platformEntries
+		.filter(platform => platform.platform_logo?.image_id)
+		.map(platform => ({
+			name: platform.name,
+			abbreviation: platform.abbreviation,
+			logoUrl: getIGDBImageUrl(platform.platform_logo!.image_id, 'logo_med'),
+		}))
+	const slug = game.slug || String(game.id)
+
+	return {
+		id: game.id,
+		name: game.name,
+		slug: game.slug,
+		coverUrl,
+		heroUrl,
+		releaseDate,
+		releaseTimestamp,
+		platforms,
+		releasePlatforms: visibleReleasePlatforms.length > 0 ? visibleReleasePlatforms : platforms,
+		platformLogos,
+		igdbUrl: `https://www.igdb.com/games/${slug}`,
+		relevanceScore: getReleaseRelevanceScore(game),
+		hypes: game.hypes ?? 0,
+		follows: game.follows ?? 0,
+		rating: game.total_rating ?? game.rating ?? null,
+		ratingCount: game.total_rating_count ?? game.rating_count ?? 0,
+	}
+}
+
+function normalizeUpcomingReleaseDateEntries(entries: IGDBReleaseDateWithGame[]): UpcomingGameRelease[] {
+	const grouped = new Map<string, { game: IGDBGame; releaseTimestamp: number; platforms: string[] }>()
+
+	for (const entry of entries) {
+		if (!isCalendarReleaseDate(entry) || !entry.game) continue
+
+		const key = `${entry.game.id}:${entry.date}`
+		const current = grouped.get(key) ?? { game: entry.game, releaseTimestamp: entry.date, platforms: [] }
+		if (entry.platform) current.platforms.push(getPlatformName(entry.platform))
+		grouped.set(key, current)
+	}
+
+	return [...grouped.values()]
+		.map(({ game, releaseTimestamp, platforms }) => toUpcomingGameRelease(game, releaseTimestamp, uniquePlatforms(platforms)))
+		.filter((release): release is UpcomingGameRelease => release !== null)
+		.sort((a, b) => a.releaseTimestamp - b.releaseTimestamp || b.relevanceScore - a.relevanceScore || a.id - b.id)
+}
+
+function pickUpcomingReleases(releases: UpcomingGameRelease[], limit?: number): UpcomingGameRelease[] {
+	const sorted = releases.sort(
+		(a, b) =>
+			a.releaseTimestamp - b.releaseTimestamp ||
+			b.relevanceScore - a.relevanceScore ||
+			a.name.localeCompare(b.name, 'es') ||
+			a.id - b.id
+	)
+
+	return typeof limit === 'number' ? sorted.slice(0, limit) : sorted
+}
+
+export function normalizeUpcomingGameReleases(games: IGDBGame[], from?: Date, to?: Date): UpcomingGameRelease[] {
+	const fromSeconds = from ? toUnixSeconds(from) : undefined
+	const toSeconds = to ? toUnixSeconds(to) : undefined
+
+	return games
+		.flatMap(game => {
+			const releaseDates = getCalendarReleaseDatesInRange(game, fromSeconds, toSeconds)
+			const timestamps =
+				releaseDates.length > 0
+					? releaseDates
+					: typeof game.first_release_date === 'number'
+						? [game.first_release_date]
+						: []
+
+			return timestamps.map(timestamp => toUpcomingGameRelease(game, timestamp, []))
+		})
+		.filter((release): release is UpcomingGameRelease => release !== null)
+		.sort((a, b) => a.releaseTimestamp - b.releaseTimestamp || b.relevanceScore - a.relevanceScore || a.id - b.id)
+}
+
+async function fetchIGDBPages<T>(
+	endpoint: string,
+	body: string,
+	ttl: number = CACHE_TTL.MEDIUM,
+	getKey?: (item: T) => number | string
+): Promise<T[]> {
+	const results: T[] = []
+	const seenKeys = new Set<number | string>()
+	let offset = 0
+	const pageStep = getKey ? IGDB_PAGE_SIZE - IGDB_PAGE_OVERLAP : IGDB_PAGE_SIZE
+
+	while (true) {
+		const page = await fetchIGDB<T[]>(
+			endpoint,
+			`
+			${body}
+			limit ${IGDB_PAGE_SIZE};
+			offset ${offset};
+		`,
+			ttl
+		)
+		for (const item of page) {
+			if (!getKey) {
+				results.push(item)
+				continue
+			}
+
+			const key = getKey(item)
+			if (seenKeys.has(key)) continue
+
+			seenKeys.add(key)
+			results.push(item)
+		}
+
+		if (page.length < IGDB_PAGE_SIZE) return results
+		offset += pageStep
+	}
+}
+
+export async function getUpcomingGameReleases({
+	from,
+	to,
+	platforms,
+	limit,
+}: UpcomingGameReleaseQuery): Promise<UpcomingGameRelease[]> {
+	const fromSeconds = toUnixSeconds(from)
+	const toSeconds = toUnixSeconds(to)
+	const finalCacheKey = createCacheKey(
+		'upcoming-releases',
+		fromSeconds,
+		toSeconds,
+		platforms?.join(',') || 'all',
+		limit ?? 'all'
+	)
+
+	return cachedFetch(
+		finalCacheKey,
+		() => fetchUpcomingGameReleases({ from, to, platforms, limit }, fromSeconds, toSeconds),
+		{
+			prefix: CACHE_PREFIX,
+			ttl: CACHE_TTL.LONG,
+			persist: true,
+		}
+	)
+}
+
+async function fetchUpcomingGameReleases(
+	{ from, to, platforms, limit }: UpcomingGameReleaseQuery,
+	fromSeconds: number,
+	toSeconds: number
+): Promise<UpcomingGameRelease[]> {
+	const platformClause = platforms?.length ? ` & platforms = (${platforms.join(',')})` : ''
+	const releaseDatePlatformClause = platforms?.length ? ` & platform = (${platforms.join(',')})` : ''
+	const fields = `
+		fields name, slug, category, version_parent, cover.image_id, artworks.image_id, screenshots.image_id, first_release_date,
+			   platforms.name, platforms.abbreviation, platforms.platform_logo.image_id,
+			   release_dates.date, release_dates.category, release_dates.status.name,
+			   release_dates.platform.name, release_dates.platform.abbreviation,
+			   hypes, follows, rating, rating_count,
+			   total_rating, total_rating_count;
+	`
+	const releaseDateFields = `
+		fields date, category, status.name, platform.name, platform.abbreviation,
+			   game.name, game.slug, game.category, game.version_parent,
+			   game.cover.image_id, game.artworks.image_id, game.screenshots.image_id, game.first_release_date,
+			   game.platforms.name, game.platforms.abbreviation, game.platforms.platform_logo.image_id,
+			   game.hypes, game.follows, game.rating, game.rating_count,
+			   game.total_rating, game.total_rating_count;
+	`
+	const whereClause = `where first_release_date >= ${fromSeconds} & first_release_date < ${toSeconds}${platformClause};`
+	const releaseDateWhereClause = `where date >= ${fromSeconds} & date < ${toSeconds}${releaseDatePlatformClause};`
+	const gamesBody = `
+		${fields}
+		${whereClause}
+		sort first_release_date asc;
+	`
+	const releaseDatesBody = `
+		${releaseDateFields}
+		${releaseDateWhereClause}
+		sort date asc;
+	`
+
+	const [gameResults, releaseDateEntries] = await Promise.all([
+		fetchIGDBPages<IGDBGame>('/games', gamesBody, CACHE_TTL.MEDIUM, game => game.id),
+		fetchIGDBPages<IGDBReleaseDateWithGame>('/release_dates', releaseDatesBody, CACHE_TTL.MEDIUM, releaseDate => releaseDate.id),
+	])
+	const gamesById = new Map<number, IGDBGame>()
+	for (const game of gameResults) {
+		gamesById.set(game.id, game)
+	}
+
+	const releasesByGameAndDate = new Map<string, UpcomingGameRelease>()
+	for (const release of [
+		...normalizeUpcomingGameReleases([...gamesById.values()], from, to),
+		...normalizeUpcomingReleaseDateEntries(releaseDateEntries),
+	]) {
+		releasesByGameAndDate.set(`${release.id}:${release.releaseDate}`, release)
+	}
+
+	return pickUpcomingReleases([...releasesByGameAndDate.values()], limit)
 }
 
 /**
@@ -684,6 +1030,15 @@ function getActiveGameTemplate(): MediaTemplate {
 	return customTemplate || getDefaultTemplate('game')
 }
 
+async function getActiveGameTemplateForThread(): Promise<MediaTemplate> {
+	const storeTemplate = useSettingsStore.getState().mediaTemplates.game
+	if (storeTemplate) return storeTemplate
+
+	const persistedSettings = await getSettings()
+	const persistedTemplate = persistedSettings.mediaTemplates?.game
+	return persistedTemplate || getDefaultTemplate('game')
+}
+
 /**
  * Generate BBCode template for a game
  */
@@ -698,5 +1053,6 @@ export function generateGameTemplate(data: GameTemplateDataInput): string {
 export async function getGameTemplateString(gameId: number): Promise<string | null> {
 	const data = await getGameTemplateData(gameId)
 	if (!data) return null
-	return generateGameTemplate(data)
+	const template = await getActiveGameTemplateForThread()
+	return renderTemplate(template, data)
 }

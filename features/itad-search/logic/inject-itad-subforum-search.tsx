@@ -4,10 +4,26 @@ import { isFeatureMounted, mountFeatureWithBoundary, unmountFeature } from '@/li
 import { ItadSubforumTypeahead } from '@/features/itad-search/components/itad-subforum-typeahead'
 import { useSettingsStore } from '@/store/settings-store'
 
-const JUEGOS_SUBFORUM_PATH_PATTERN = /^\/foro\/juegos\/?$/
+const DEALS_SUBFORUM_PATH_PATTERN = /^\/foro\/(?:juegos|club-hucha)\/?$/
+type ItadDealsSubforum = 'juegos' | 'club-hucha'
 
-function isJuegosSubforumPage(): boolean {
-	return JUEGOS_SUBFORUM_PATH_PATTERN.test(window.location.pathname)
+function isDealsSubforumPage(): boolean {
+	return DEALS_SUBFORUM_PATH_PATTERN.test(window.location.pathname)
+}
+
+function getCurrentDealsSubforum(): ItadDealsSubforum | null {
+	const match = /^\/foro\/(juegos|club-hucha)\/?$/.exec(window.location.pathname)
+	return (match?.[1] as ItadDealsSubforum | undefined) ?? null
+}
+
+function getSettingKey(subforum: ItadDealsSubforum): 'itadSubforumSearchJuegosEnabled' | 'itadSubforumSearchHuchaEnabled' {
+	return subforum === 'juegos' ? 'itadSubforumSearchJuegosEnabled' : 'itadSubforumSearchHuchaEnabled'
+}
+
+function isItadSubforumSearchEnabled(): boolean {
+	const subforum = getCurrentDealsSubforum()
+	if (!subforum) return false
+	return useSettingsStore.getState()[getSettingKey(subforum)]
 }
 
 function findInsertionTarget(): Element | null {
@@ -20,8 +36,8 @@ function findInsertionTarget(): Element | null {
 }
 
 export function injectItadSubforumSearch(): void {
-	if (!isJuegosSubforumPage()) return
-	if (!useSettingsStore.getState().itadSubforumSearchEnabled) return
+	if (!isDealsSubforumPage()) return
+	if (!isItadSubforumSearchEnabled()) return
 	if (isFeatureMounted(FEATURE_IDS.ITAD_SUBFORUM_SEARCH)) return
 	if (document.getElementById(DOM_MARKERS.IDS.ITAD_SUBFORUM_SEARCH)) return
 
@@ -49,18 +65,24 @@ export function removeItadSubforumSearch(): void {
 	document.getElementById(DOM_MARKERS.IDS.ITAD_SUBFORUM_SEARCH)?.remove()
 }
 
-export async function setItadSubforumSearchEnabled(enabled: boolean): Promise<void> {
-	useSettingsStore.getState().setSetting('itadSubforumSearchEnabled', enabled)
+export async function setItadSubforumSearchEnabled(subforum: ItadDealsSubforum, enabled: boolean): Promise<void> {
+	useSettingsStore.getState().setSetting(getSettingKey(subforum), enabled)
 
-	if (enabled) {
+	if (enabled && getCurrentDealsSubforum() === subforum) {
 		injectItadSubforumSearch()
 		return
 	}
 
-	removeItadSubforumSearch()
+	if (getCurrentDealsSubforum() === subforum) {
+		removeItadSubforumSearch()
+	}
 }
 
-export async function toggleItadSubforumSearch(): Promise<void> {
-	const enabled = !useSettingsStore.getState().itadSubforumSearchEnabled
-	await setItadSubforumSearchEnabled(enabled)
+export async function toggleItadSubforumSearch(subforum?: ItadDealsSubforum): Promise<void> {
+	const targetSubforum = subforum ?? getCurrentDealsSubforum()
+	if (!targetSubforum) return
+
+	const settingKey = getSettingKey(targetSubforum)
+	const enabled = !useSettingsStore.getState()[settingKey]
+	await setItadSubforumSearchEnabled(targetSubforum, enabled)
 }

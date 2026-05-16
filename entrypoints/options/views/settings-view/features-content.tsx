@@ -18,6 +18,7 @@ import Gamepad2 from 'lucide-react/dist/esm/icons/gamepad-2'
 import Package from 'lucide-react/dist/esm/icons/package'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Store from 'lucide-react/dist/esm/icons/store'
+import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
 import { browser } from 'wxt/browser'
 import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
@@ -38,7 +39,9 @@ export function FeaturesContent() {
 		templateButtonEnabled,
 		mediaHoverCardsEnabled,
 		steamBundleInlineCardsEnabled,
-		itadSubforumSearchEnabled,
+		itadSubforumSearchJuegosEnabled,
+		itadSubforumSearchHuchaEnabled,
+		gameReleaseCalendarJuegosEnabled,
 		pinnedPostsEnabled,
 		threadSummarizerEnabled,
 		postSummaryEnabled,
@@ -73,7 +76,9 @@ export function FeaturesContent() {
 				| 'templateButtonEnabled'
 				| 'mediaHoverCardsEnabled'
 				| 'steamBundleInlineCardsEnabled'
-				| 'itadSubforumSearchEnabled'
+				| 'itadSubforumSearchJuegosEnabled'
+				| 'itadSubforumSearchHuchaEnabled'
+				| 'gameReleaseCalendarJuegosEnabled'
 				| 'pinnedPostsEnabled'
 				| 'threadSummarizerEnabled'
 				| 'postSummaryEnabled'
@@ -218,12 +223,12 @@ export function FeaturesContent() {
 
 			<SettingRow
 				icon={<Store className="h-4 w-4" />}
-				label="Buscador de ofertas en Juegos"
+				label="Buscador de ofertas"
 				description={
 					<div className="space-y-2 pr-1">
 						<p className="m-0 leading-relaxed">
-							Muestra un buscador premium en el subforo Juegos para encontrar precios actuales, tiendas disponibles,
-							descuentos y mínimos históricos de videojuegos.
+							Muestra un buscador premium en Juegos y Club de la hucha para encontrar precios actuales, tiendas disponibles,
+							descuentos y mínimos históricos.
 						</p>
 						<div className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5">
 							<p className="m-0 text-[11px] leading-snug text-muted-foreground">
@@ -234,9 +239,32 @@ export function FeaturesContent() {
 					</div>
 				}
 			>
+				<div className="grid gap-2 min-w-[190px]">
+					<label className="flex items-center justify-between gap-3 text-sm font-medium">
+						<span>Juegos</span>
+						<Switch
+							checked={itadSubforumSearchJuegosEnabled}
+							onCheckedChange={withToastAndReload('itadSubforumSearchJuegosEnabled', true)}
+						/>
+					</label>
+					<label className="flex items-center justify-between gap-3 text-sm font-medium">
+						<span>Club de la hucha</span>
+						<Switch
+							checked={itadSubforumSearchHuchaEnabled}
+							onCheckedChange={withToastAndReload('itadSubforumSearchHuchaEnabled', true)}
+						/>
+					</label>
+				</div>
+			</SettingRow>
+
+			<SettingRow
+				icon={<CalendarDays className="h-4 w-4" />}
+				label="Próximos lanzamientos"
+				description="Muestra próximos lanzamientos de videojuegos en el subforo Juegos y permite preparar hilos con plantilla IGDB."
+			>
 				<Switch
-					checked={itadSubforumSearchEnabled}
-					onCheckedChange={withToastAndReload('itadSubforumSearchEnabled', true)}
+					checked={gameReleaseCalendarJuegosEnabled}
+					onCheckedChange={withToastAndReload('gameReleaseCalendarJuegosEnabled', true)}
 				/>
 			</SettingRow>
 

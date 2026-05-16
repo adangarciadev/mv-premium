@@ -17,6 +17,7 @@ import SunMoon from 'lucide-react/dist/esm/icons/sun-moon'
 import PanelTopClose from 'lucide-react/dist/esm/icons/panel-top-close'
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase'
 import Store from 'lucide-react/dist/esm/icons/store'
+import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
 import { useSettingsStore } from '@/store/settings-store'
 import { cn } from '@/lib/utils'
 import { Kbd } from '@/components/ui/kbd'
@@ -40,7 +41,10 @@ const SHORTCUT_ACTIONS = [
 	{ id: 'theme-toggle', label: 'Alternar Tema', icon: SunMoon, description: 'Cambiar entre modo claro/oscuro' },
 	{ id: 'hide-header', label: 'Ocultar/Mostrar Cabecera', icon: PanelTopClose, description: 'Alternar visibilidad del header de Mediavida' },
 	{ id: 'work-mode', label: 'Modo Trabajo', icon: Briefcase, description: 'Alternar modo trabajo para navegar discretamente' },
-	{ id: 'itad-search-toggle', label: 'Buscador de Ofertas', icon: Store, description: 'Mostrar u ocultar el buscador de ofertas del subforo Juegos' },
+	{ id: 'itad-search-toggle', label: 'Ofertas en Subforo Actual', icon: Store, description: 'Activar o desactivar ofertas en el subforo actual si es Juegos o Hucha' },
+	{ id: 'itad-search-juegos-toggle', label: 'Ofertas en Juegos', icon: Store, description: 'Activar o desactivar el buscador de ofertas en Juegos' },
+	{ id: 'itad-search-hucha-toggle', label: 'Ofertas en Hucha', icon: Store, description: 'Activar o desactivar el buscador de ofertas en Club de la hucha' },
+	{ id: 'release-calendar-juegos-toggle', label: 'Lanzamientos en Juegos', icon: CalendarDays, description: 'Activar o desactivar próximos lanzamientos en Juegos' },
 ]
 
 export function ShortcutsView() {
