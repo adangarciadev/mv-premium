@@ -26,6 +26,8 @@ let hiddenSubforumIds = new Set<string>()
 let initialized = false
 let initializationPromise: Promise<void> | null = null
 let clickGuardInitialized = false
+let liveFilterObserver: MutationObserver | null = null
+let pendingFilterTimeout: ReturnType<typeof window.setTimeout> | null = null
 let unwatchHiddenSubforums: (() => void) | null = null
 
 function isSpyPage(): boolean {
@@ -154,13 +156,6 @@ function applyGenericHiddenLinkFilter(): void {
 }
 
 function applyHiddenSubforumsFilter(): void {
-	if (isSpyPage()) {
-		document.querySelectorAll(`.${HIDDEN_SUBFORUM_CLASS}`).forEach(element => {
-			element.classList.remove(HIDDEN_SUBFORUM_CLASS)
-		})
-		return
-	}
-
 	ensureHiddenSubforumStyles()
 	document.querySelectorAll(`.${HIDDEN_SUBFORUM_CLASS}`).forEach(element => {
 		element.classList.remove(HIDDEN_SUBFORUM_CLASS)
@@ -172,6 +167,30 @@ function applyHiddenSubforumsFilter(): void {
 	applySidebarLinkFilter()
 	applyGenericHiddenLinkFilter()
 	applyForumSelectDropdownFilter()
+}
+
+function scheduleHiddenSubforumsFilter(): void {
+	if (pendingFilterTimeout !== null) return
+
+	pendingFilterTimeout = window.setTimeout(() => {
+		pendingFilterTimeout = null
+		applyHiddenSubforumsFilter()
+	}, 0)
+}
+
+function setupLiveFilteringObserver(): void {
+	if (liveFilterObserver) return
+
+	liveFilterObserver = new MutationObserver(mutations => {
+		if (mutations.some(mutation => mutation.addedNodes.length > 0)) {
+			scheduleHiddenSubforumsFilter()
+		}
+	})
+
+	liveFilterObserver.observe(document.documentElement, {
+		childList: true,
+		subtree: true,
+	})
 }
 
 function getOrCreateBlockerContainer(): HTMLElement {
@@ -240,6 +259,12 @@ function setupClickGuard(): void {
 			const match = getHiddenSubforumMatch(link.getAttribute('href') || link.href, hiddenSubforumIds)
 			if (!match) return
 
+			if (isSpyPage()) {
+				event.preventDefault()
+				event.stopPropagation()
+				return
+			}
+
 			event.preventDefault()
 			event.stopPropagation()
 
@@ -253,6 +278,16 @@ function updateHiddenSubforumIds(subforums: Awaited<ReturnType<typeof getHiddenS
 	hiddenSubforumIds = new Set(subforums.map(subforum => subforum.id))
 }
 
+export const __hiddenSubforumsTestUtils = import.meta.env.MODE === 'test'
+	? {
+			setHiddenSubforumIds(ids: string[]): void {
+				hiddenSubforumIds = new Set(ids)
+			},
+			applyHiddenSubforumsFilter,
+			setupLiveFilteringObserver,
+		}
+	: undefined
+
 export async function initHiddenSubforums(): Promise<{ isPageBlocked: boolean }> {
 	if (initialized) {
 		applyHiddenSubforumsFilter()
@@ -264,6 +299,7 @@ export async function initHiddenSubforums(): Promise<{ isPageBlocked: boolean }>
 			try {
 				updateHiddenSubforumIds(await getHiddenSubforums())
 				setupClickGuard()
+				setupLiveFilteringObserver()
 
 				if (!unwatchHiddenSubforums) {
 					unwatchHiddenSubforums = watchHiddenSubforums(nextSubforums => {
