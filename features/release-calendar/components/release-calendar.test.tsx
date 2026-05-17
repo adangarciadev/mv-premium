@@ -121,6 +121,14 @@ describe('ReleaseCalendar', () => {
 		expect(screen.getByText('14 may')).toBeInTheDocument()
 	})
 
+	it('shows a create thread button in minimal layout', async () => {
+		render(<ReleaseCalendar />)
+
+		await screen.findByTitle('Subnautica 2 · 14 may · Plataformas: PC, Xbox')
+
+		expect(screen.getByRole('button', { name: 'Crear hilo de Subnautica 2' })).toBeInTheDocument()
+	})
+
 	it('groups Xbox and Series X|S into a single Xbox platform badge', async () => {
 		getUpcomingGameReleasesMock.mockResolvedValue([
 			{

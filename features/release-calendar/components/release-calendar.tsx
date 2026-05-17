@@ -884,7 +884,7 @@ export function ReleaseCalendar() {
 					</div>
 				) : layout === 'minimal' ? (
 					<div className="overflow-x-auto bg-background/40 px-2.5 py-2">
-						{renderPosterRail()}
+						{renderPosterRail(true)}
 					</div>
 				) : null
 			) : state.hasCredentials ? (
