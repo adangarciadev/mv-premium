@@ -26,7 +26,6 @@
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"resolveJsonModule": true,
-		"baseUrl": ".",
 		"paths": {
 			"@/*": ["./*"],
 			"@/components/*": ["./components/*"],
