@@ -11,6 +11,7 @@
 
 import { DOM_MARKERS, FEATURE_IDS, MV_SELECTORS } from '@/constants'
 import { getSettings } from '@/store/settings-store'
+import { enhanceSearchResultsPage } from './search-results-page'
 
 const FEATURE_ID = FEATURE_IDS.COMMAND_MENU
 const CONTAINER_ID = DOM_MARKERS.IDS.COMMAND_MENU
@@ -86,6 +87,8 @@ async function openCommandMenu(): Promise<void> {
 export async function injectCommandMenu(): Promise<void> {
 	if (initialized) return
 	initialized = true
+
+	enhanceSearchResultsPage()
 
 	// 1. Global keyboard shortcut (Ctrl+K / Cmd+K) - LIGHTWEIGHT
 	keydownHandler = (e: KeyboardEvent) => {

@@ -143,6 +143,8 @@ export function CommandMenu({ open: controlledOpen, onOpenChange: setControlledO
 				placeholder="Escribe un comando o busca..."
 				value={search}
 				onValueChange={setSearch}
+				onSearchClick={() => runCommand(searchMV)}
+				searchButtonDisabled={!search.trim()}
 				className="border-none"
 			/>
 			<CommandList className="max-h-[450px]">

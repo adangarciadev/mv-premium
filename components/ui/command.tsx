@@ -37,12 +37,31 @@ const CommandDialog = ({ children, shouldFilter, className, ...props }: CommandD
 	)
 }
 
-const CommandInput = React.forwardRef<React.ComponentRef<typeof CommandPrimitive.Input>, React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input> & { breadcrumbs?: React.ReactNode }>(
-	({ className, breadcrumbs, ...props }, ref) => {
+interface CommandInputProps extends React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input> {
+	breadcrumbs?: React.ReactNode
+	onSearchClick?: () => void
+	searchButtonDisabled?: boolean
+}
+
+const CommandInput = React.forwardRef<React.ComponentRef<typeof CommandPrimitive.Input>, CommandInputProps>(
+	({ className, breadcrumbs, onSearchClick, searchButtonDisabled, ...props }, ref) => {
 		return (
 			// eslint-disable-next-line react/no-unknown-property
 			<div className="flex items-center border-b border-border/40 bg-transparent px-6" cmdk-input-wrapper="">
-				<Search className="mr-3 h-4 w-4 shrink-0 opacity-50 text-foreground" />
+				{onSearchClick ? (
+					<button
+						type="button"
+						onClick={onSearchClick}
+						disabled={searchButtonDisabled}
+						className="mr-3 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-foreground/50 transition-colors hover:bg-accent hover:text-primary disabled:pointer-events-none disabled:opacity-45"
+						title="Buscar en Mediavida"
+						aria-label="Buscar en Mediavida"
+					>
+						<Search className="h-4 w-4" />
+					</button>
+				) : (
+					<Search className="mr-3 h-4 w-4 shrink-0 opacity-50 text-foreground" />
+				)}
 				{breadcrumbs && (
 					<div className="mr-3 flex items-center border-r border-border/40 pr-3">
 						{breadcrumbs}
