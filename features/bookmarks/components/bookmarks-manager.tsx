@@ -33,6 +33,9 @@ import { getUserProfileUrl } from '@/constants'
 
 type ViewMode = 'cards' | 'table'
 
+const tableCheckboxClassName =
+	'border-[#657782] bg-[#2f3940] text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)] hover:border-[#8fa1ad] hover:bg-[#36424a] focus-visible:ring-[#9fb2bf]/45 data-[state=checked]:border-[#f0a000] data-[state=checked]:bg-[#f0a000] data-[state=checked]:text-white data-[state=indeterminate]:border-[#f0a000] data-[state=indeterminate]:bg-[#f0a000] data-[state=indeterminate]:text-white'
+
 interface BookmarksManagerProps {
 	initialBookmarks: BookmarkData[]
 	initialViewMode: ViewMode
@@ -275,6 +278,7 @@ export function BookmarksManager({
 										<Checkbox
 											checked={allSelected ? true : someSelected ? 'indeterminate' : false}
 											onCheckedChange={handleSelectAll}
+											className={tableCheckboxClassName}
 										/>
 									</TableHead>
 									<TableHead className="w-[30%]">
@@ -312,6 +316,7 @@ export function BookmarksManager({
 												<Checkbox
 													checked={selectedIds.has(bookmark.compositeId)}
 													onClick={e => handleToggleSelect(bookmark.compositeId, index, e)}
+													className={tableCheckboxClassName}
 												/>
 											</TableCell>
 											<TableCell>
