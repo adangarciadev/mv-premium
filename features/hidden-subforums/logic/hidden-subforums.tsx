@@ -27,7 +27,7 @@ let initialized = false
 let initializationPromise: Promise<void> | null = null
 let clickGuardInitialized = false
 let liveFilterObserver: MutationObserver | null = null
-let pendingFilterTimeout: ReturnType<typeof window.setTimeout> | null = null
+let pendingFilterTimeout: number | null = null
 let unwatchHiddenSubforums: (() => void) | null = null
 
 function isSpyPage(): boolean {

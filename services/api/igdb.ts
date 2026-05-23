@@ -446,6 +446,13 @@ function isCalendarReleaseDate(releaseDate: IGDBReleaseDate): releaseDate is IGD
 	return typeof releaseDate.date === 'number' && isFinalRelease
 }
 
+function isCalendarReleaseDateWithGame(
+	releaseDate: IGDBReleaseDateWithGame
+): releaseDate is IGDBReleaseDateWithGame & { date: number; game: IGDBGame } {
+	const game = releaseDate.game
+	return Boolean(game) && isCalendarReleaseDate(releaseDate)
+}
+
 function getReleasePlatformsForDate(game: IGDBGame, releaseDate: string): string[] {
 	const releasePlatforms =
 		game.release_dates
@@ -522,12 +529,15 @@ function normalizeUpcomingReleaseDateEntries(entries: IGDBReleaseDateWithGame[])
 	const grouped = new Map<string, { game: IGDBGame; releaseTimestamp: number; platforms: string[] }>()
 
 	for (const entry of entries) {
-		if (!isCalendarReleaseDate(entry) || !entry.game) continue
+		if (!isCalendarReleaseDateWithGame(entry)) continue
 
 		const key = `${entry.game.id}:${entry.date}`
-		const current = grouped.get(key) ?? { game: entry.game, releaseTimestamp: entry.date, platforms: [] }
+		let current = grouped.get(key)
+		if (!current) {
+			current = { game: entry.game, releaseTimestamp: entry.date, platforms: [] }
+			grouped.set(key, current)
+		}
 		if (entry.platform) current.platforms.push(getPlatformName(entry.platform))
-		grouped.set(key, current)
 	}
 
 	return [...grouped.values()]
