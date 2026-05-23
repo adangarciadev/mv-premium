@@ -56,6 +56,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	gameReleaseCalendarEnabled: true,
 	gameReleaseCalendarJuegosEnabled: true,
 	gameReleaseCalendarLayout: 'minimal',
+	threadClipperSubforums: ['juegos'],
 	twitterLiteEmbedsEnabled: false,
 	pinnedPostsEnabled: true,
 	threadSummarizerEnabled: true,

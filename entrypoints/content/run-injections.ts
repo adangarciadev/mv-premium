@@ -231,6 +231,9 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 			import('@/features/release-calendar').then(({ applyReleaseThreadPrefill }) => {
 				applyReleaseThreadPrefill()
 			})
+			import('@/features/thread-clipper').then(({ applyClippedThreadPrefill }) => {
+				void applyClippedThreadPrefill()
+			})
 		}
 
 		// Draft save button - Only where editor exists

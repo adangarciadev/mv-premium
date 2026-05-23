@@ -1,6 +1,7 @@
 /**
  * Features Content - Feature toggles
  */
+import { useMemo, useState } from 'react'
 import Film from 'lucide-react/dist/esm/icons/film'
 import HomeIcon from 'lucide-react/dist/esm/icons/home'
 import { logger } from '@/lib/logger'
@@ -19,12 +20,21 @@ import Package from 'lucide-react/dist/esm/icons/package'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Store from 'lucide-react/dist/esm/icons/store'
 import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
+import MousePointerClick from 'lucide-react/dist/esm/icons/mouse-pointer-click'
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import { browser } from 'wxt/browser'
 import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Input } from '@/components/ui/input'
+import { NativeFidIcon } from '@/components/native-fid-icon'
 import { SettingsSection } from '../../components/settings/settings-section'
 import { SettingRow } from '../../components/settings'
+import { sendMessage } from '@/lib/messaging'
+import { ALL_SUBFORUMS, VALID_SUBFORUM_SLUGS } from '@/lib/subforums'
 import { useSettingsStore } from '@/store/settings-store'
 
 export function FeaturesContent() {
@@ -42,6 +52,7 @@ export function FeaturesContent() {
 		itadSubforumSearchJuegosEnabled,
 		itadSubforumSearchHuchaEnabled,
 		gameReleaseCalendarJuegosEnabled,
+		threadClipperSubforums,
 		pinnedPostsEnabled,
 		threadSummarizerEnabled,
 		postSummaryEnabled,
@@ -101,6 +112,25 @@ export function FeaturesContent() {
 				toast.success(val ? 'Funcionalidad activada' : 'Funcionalidad desactivada')
 			}
 		}
+
+	const handleThreadClipperSubforumsChange = async (subforums: string[]) => {
+		const uniqueSubforums = subforums.filter(
+			(slug, index, values) => VALID_SUBFORUM_SLUGS.has(slug) && values.indexOf(slug) === index
+		)
+		setSetting('threadClipperSubforums', uniqueSubforums)
+
+		try {
+			await sendMessage('refreshContextMenus', { threadClipperSubforums: uniqueSubforums })
+			toast.success(
+				uniqueSubforums.length > 0
+					? 'Subforos del recortador actualizados'
+					: 'Recortador de hilos desactivado'
+			)
+		} catch (error) {
+			logger.warn('Could not refresh context menus:', error)
+			toast.error('No se pudo actualizar el menú contextual')
+		}
+	}
 
 	return (
 		<SettingsSection title="Funcionalidades" description="Activa o desactiva las características de la extensión.">
@@ -269,6 +299,17 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				icon={<MousePointerClick className="h-4 w-4" />}
+				label="Crear hilo desde cualquier web"
+				description="Abre un recortador para noticias externas: añade texto seleccionado y embeds de YouTube, tweets o Instagram. No captura imágenes ni usa páginas directas de redes."
+			>
+				<ThreadClipperSubforumSettings
+					value={threadClipperSubforums}
+					onChange={handleThreadClipperSubforumsChange}
+				/>
+			</SettingRow>
+
+			<SettingRow
 				icon={<Pin className="h-4 w-4" />}
 				label="Posts Anclados"
 				description="Permite anclar posts importantes y verlos en un panel lateral."
@@ -336,5 +377,100 @@ export function FeaturesContent() {
 				/>
 			</SettingRow>
 		</SettingsSection>
+	)
+}
+
+interface ThreadClipperSubforumSettingsProps {
+	value: string[]
+	onChange: (subforums: string[]) => void | Promise<void>
+}
+
+function ThreadClipperSubforumSettings({
+	value,
+	onChange,
+}: ThreadClipperSubforumSettingsProps) {
+	const [filter, setFilter] = useState('')
+	const selectedSubforums = value.filter((slug, index, values) => VALID_SUBFORUM_SLUGS.has(slug) && values.indexOf(slug) === index)
+	const normalizedFilter = filter.trim().toLowerCase()
+	const visibleSubforums = useMemo(
+		() =>
+			normalizedFilter
+				? ALL_SUBFORUMS.filter(
+						subforum =>
+							subforum.name.toLowerCase().includes(normalizedFilter) ||
+							subforum.slug.toLowerCase().includes(normalizedFilter)
+				  )
+				: ALL_SUBFORUMS,
+		[normalizedFilter]
+	)
+
+	const clearSubforums = () => {
+		void onChange([])
+	}
+
+	const toggleSubforum = (slug: string, checked: boolean) => {
+		if (checked) {
+			void onChange([...selectedSubforums, slug])
+			return
+		}
+		void onChange(selectedSubforums.filter(current => current !== slug))
+	}
+
+	return (
+		<div className="grid w-[590px] max-w-full gap-3 rounded-lg border border-border/70 bg-card/35 p-3">
+			<div className="flex items-center justify-between gap-3">
+				<Badge variant="outline" className="h-6 rounded-md border-border/70 bg-muted/40">
+					{selectedSubforums.length > 0
+						? `${selectedSubforums.length} subforo${selectedSubforums.length === 1 ? '' : 's'} activo${selectedSubforums.length === 1 ? '' : 's'}`
+						: 'Menú desactivado'}
+				</Badge>
+				<Button
+					type="button"
+					variant="ghost"
+					size="sm"
+					className="h-7 gap-1.5 px-2 text-muted-foreground"
+					onClick={clearSubforums}
+					disabled={selectedSubforums.length === 0}
+				>
+					<Trash2 className="h-3.5 w-3.5" />
+					Quitar todos
+				</Button>
+			</div>
+
+			<div className="relative">
+				<Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+				<Input
+					value={filter}
+					onChange={event => setFilter(event.target.value)}
+					placeholder="Filtrar subforos"
+					className="h-8 pl-8 text-sm"
+				/>
+			</div>
+
+			<div className="scrollbar-thin grid h-[220px] grid-cols-1 content-start gap-1.5 overflow-y-auto rounded-md border border-border/60 bg-muted/15 p-2 sm:grid-cols-2">
+				{visibleSubforums.map(subforum => {
+					const checked = selectedSubforums.includes(subforum.slug)
+					return (
+						<label
+							key={subforum.slug}
+							className="group flex min-w-0 cursor-pointer items-center gap-2 rounded-md border border-transparent px-2.5 py-2 text-sm transition-colors hover:border-border/70 hover:bg-muted/35 has-[[data-state=checked]]:border-primary/35 has-[[data-state=checked]]:bg-primary/10"
+						>
+							<Checkbox
+								checked={checked}
+								onCheckedChange={nextChecked => toggleSubforum(subforum.slug, nextChecked === true)}
+								aria-label={`Incluir ${subforum.name} en el recortador`}
+							/>
+							<NativeFidIcon iconId={subforum.iconId} className="h-4 w-4 shrink-0" />
+							<span className="truncate font-medium text-foreground">{subforum.name}</span>
+						</label>
+					)
+				})}
+				{visibleSubforums.length === 0 && (
+					<div className="col-span-full px-2 py-6 text-center text-sm text-muted-foreground">
+						No hay subforos que coincidan
+					</div>
+				)}
+			</div>
+		</div>
 	)
 }

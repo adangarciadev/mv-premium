@@ -7,7 +7,7 @@ export default defineConfig({
 	imports: false, // Disable auto-imports to avoid duplicated imports warnings
 
 	manifest: {
-		permissions: ['storage', 'activeTab', 'contextMenus', 'declarativeNetRequest'],
+		permissions: ['storage', 'activeTab', 'contextMenus', 'scripting', 'declarativeNetRequest'],
 		host_permissions: [
 			'*://*.mediavida.com/*',
 			'https://platform.twitter.com/*',

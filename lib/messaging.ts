@@ -126,6 +126,11 @@ interface ProtocolMap {
 	openOptionsPage: (view?: string) => void
 
 	/**
+	 * Rebuild extension context menus after settings changes.
+	 */
+	refreshContextMenus: (data?: { threadClipperSubforums?: string[] }) => boolean
+
+	/**
 	 * Fetch raw HTML for a Mediavida thread page via background script.
 	 * Keeps thread-page network requests out of content scripts.
 	 */

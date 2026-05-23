@@ -83,6 +83,7 @@ export const settingsSchema = z.object({
 	gameReleaseCalendarEnabled: z.boolean().default(true),
 	gameReleaseCalendarJuegosEnabled: z.boolean().default(true),
 	gameReleaseCalendarLayout: gameReleaseCalendarLayoutSchema.default('minimal'),
+	threadClipperSubforums: z.array(z.string()).default(['juegos']),
 	twitterLiteEmbedsEnabled: z.boolean().default(false),
 	hideIgnoredUserThreadsEnabled: z.boolean().default(true),
 
