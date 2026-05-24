@@ -21,6 +21,57 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.8.0',
+		date: '2026-05-24',
+		title: 'Calendario de lanzamientos y creador rápido de hilos',
+		summary:
+			'Nuevo calendario de lanzamientos de juegos, creación rápida de hilos desde páginas externas y mejoras en ofertas, búsqueda, marcadores y subforos ocultos.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Calendario de lanzamientos: Añadido un calendario de próximos juegos con filtros por plataforma, controles de vista, datos de IGDB y acceso desde el subforo Juegos.',
+				category: 'Juegos',
+			},
+			{
+				type: 'feature',
+				description:
+					'Crear hilo desde lanzamientos: Los juegos del calendario permiten preparar un hilo con plantilla y rellenar el editor de Mediavida automáticamente, también en la vista mínima.',
+				category: 'Juegos',
+			},
+			{
+				type: 'feature',
+				description:
+					'Creador rápido de hilos: Nueva herramienta para iniciar hilos desde páginas externas con subforos configurables, bandeja visual de edición, generación de BBCode y soporte para textos, enlaces y embeds multimedia.',
+				category: 'Editor',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El buscador personalizado de Mediavida se adapta mejor al tema oscuro, con campo de búsqueda más cómodo, resultados más claros y una zona de clic del icono más precisa.',
+				category: 'Búsqueda',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El buscador de ofertas de videojuegos también está disponible en Club de la hucha, con controles independientes para Juegos y Hucha desde ajustes y nuevos atajos para activar cada subforo por separado.',
+				category: 'Juegos',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Mejorado el contraste de los checkboxes en el gestor de marcadores para que sean más legibles en distintos temas.',
+				category: 'Accesibilidad',
+			},
+			{
+				type: 'fix',
+				description:
+					'Los subforos ocultos también se respetan en la página de Spy, evitando que vuelvan a aparecer en esa vista.',
+				category: 'Comunidad',
+			},
+		],
+	},
+	{
 		version: '1.7.1',
 		date: '2026-05-11',
 		title: 'Buscador de ofertas más pulido',
