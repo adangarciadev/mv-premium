@@ -5,7 +5,7 @@
 
 import { browser } from 'wxt/browser'
 import { logger } from '@/lib/logger'
-import { fetchSteamBundleDetails, fetchSteamGameDetails } from '@/services/api/steam'
+import { fetchSteamBundleDetails, fetchSteamGameDetails, searchSteamApps } from '@/services/api/steam'
 import {
 	onMessage,
 	type ThreadPageHtmlFetchResult,
@@ -537,6 +537,15 @@ export function setupSteamHandler(): void {
 		} catch (error) {
 			logger.error('Steam fetch error:', error)
 			return null
+		}
+	})
+
+	onMessage('searchSteamApps', async ({ data }) => {
+		try {
+			return await searchSteamApps(data.query, data.limit)
+		} catch (error) {
+			logger.error('Steam search error:', error)
+			return []
 		}
 	})
 

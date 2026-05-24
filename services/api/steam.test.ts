@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest'
-import { extractSteamAppId, extractSteamBundleId, isSteamBundleUrl, isSteamUrl } from './steam'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { extractSteamAppId, extractSteamBundleId, isSteamBundleUrl, isSteamUrl, searchSteamApps } from './steam'
+
+afterEach(() => {
+	vi.restoreAllMocks()
+})
 
 describe('steam url helpers', () => {
 	it('extracts steam app id from store URLs', () => {
@@ -30,6 +34,44 @@ describe('steam url helpers', () => {
 	it('detects steam bundle urls', () => {
 		expect(isSteamBundleUrl('https://store.steampowered.com/bundle/33369')).toBe(true)
 		expect(isSteamBundleUrl('https://store.steampowered.com/app/1091500')).toBe(false)
+	})
+})
+
+describe('steam app search', () => {
+	it('maps Steam storesearch app results', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					items: [
+						{
+							type: 'app',
+							id: 292030,
+							name: 'The Witcher 3: Wild Hunt',
+							tiny_image: 'https://cdn.example/witcher.jpg',
+						},
+						{
+							type: 'sub',
+							id: 1,
+							name: 'Ignored package',
+						},
+					],
+				})
+			)
+		)
+
+		const result = await searchSteamApps('witcher', 5)
+
+		expect(fetch).toHaveBeenCalledWith(
+			'https://store.steampowered.com/api/storesearch/?term=witcher&l=spanish&cc=es'
+		)
+		expect(result).toEqual([
+			{
+				appId: 292030,
+				name: 'The Witcher 3: Wild Hunt',
+				appUrl: 'https://store.steampowered.com/app/292030',
+				tinyImage: 'https://cdn.example/witcher.jpg',
+			},
+		])
 	})
 })
 

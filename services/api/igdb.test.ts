@@ -50,6 +50,7 @@ import {
 	getGameTemplateData,
 	getGameTemplateString,
 	generateGameTemplate,
+	generateSteamMediaTemplate,
 	getUpcomingGameReleases,
 	normalizeUpcomingGameReleases,
 	hasIgdbCredentials,
@@ -908,13 +909,72 @@ describe('IGDB API Service', () => {
 			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
 			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
 			mockLocalizationData()
+			mockSendMessage.mockResolvedValueOnce([]) // searchSteamApps fallback
 
 			const result = await getGameTemplateData(123)
 
 			expect(result?.summary).toBe('A console only game')
 			expect(result?.steamStoreUrl).toBeNull()
+			expect(mockSendMessage).toHaveBeenCalledWith('searchSteamApps', { query: 'Console Exclusive', limit: 5 })
 			// Should NOT have called fetchSteamGame
-			expect(mockSendMessage).toHaveBeenCalledTimes(4) // igdbRequest x4 (details, timeToBeat, localizations, alt names)
+			expect(mockSendMessage).toHaveBeenCalledTimes(5) // igdbRequest x4 + steam search fallback
+		})
+
+		it('should search Steam by title when IGDB has no Steam link', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Found on Steam',
+				summary: 'English summary',
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+			mockSendMessage.mockResolvedValueOnce([
+				{
+					appId: 456,
+					name: 'Found on Steam',
+					appUrl: 'https://store.steampowered.com/app/456',
+					tinyImage: null,
+				},
+			]) // searchSteamApps fallback
+			mockSendMessage.mockResolvedValueOnce({
+				description: 'Descripción de Steam',
+				screenshots: [],
+				steamLibraryHeaderUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/456/library_header_2x.jpg',
+			}) // fetchSteamGame
+
+			const result = await getGameTemplateData(123)
+
+			expect(result?.summary).toBe('Descripción de Steam')
+			expect(result?.steamStoreUrl).toBe('https://store.steampowered.com/app/456')
+			expect(mockSendMessage).toHaveBeenCalledWith('searchSteamApps', { query: 'Found on Steam', limit: 5 })
+			expect(mockSendMessage).toHaveBeenCalledWith('fetchSteamGame', 456)
+		})
+
+		it('should ignore weak Steam search matches when IGDB has no Steam link', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Forza Horizon 6',
+				summary: 'English summary',
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+			mockSendMessage.mockResolvedValueOnce([
+				{
+					appId: 1551360,
+					name: 'Forza Horizon 5',
+					appUrl: 'https://store.steampowered.com/app/1551360',
+					tinyImage: null,
+				},
+			]) // searchSteamApps fallback
+
+			const result = await getGameTemplateData(123)
+
+			expect(result?.summary).toBe('English summary')
+			expect(result?.steamStoreUrl).toBeNull()
+			expect(mockSendMessage).toHaveBeenCalledWith('searchSteamApps', { query: 'Forza Horizon 6', limit: 5 })
+			expect(mockSendMessage).not.toHaveBeenCalledWith('fetchSteamGame', 1551360)
 		})
 
 		it('should fall back to websites for Steam App ID when external_games has no Steam', async () => {
@@ -1121,6 +1181,98 @@ describe('IGDB API Service', () => {
 			expect(result).toContain('[b]MI PLANTILLA:[/b] Persisted Template Game')
 			expect(result).toContain('PS5')
 			expect(result).not.toContain('[b]Desarrollador:[/b]')
+		})
+	})
+
+	describe('generateSteamMediaTemplate', () => {
+		it('generates a minimal Steam media embed when Steam URL is available', () => {
+			const result = generateSteamMediaTemplate({
+				name: 'The Witcher 3',
+				originalName: 'The Witcher 3',
+				releaseDate: null,
+				releaseYear: null,
+				releaseDates: [],
+				status: null,
+				developers: [],
+				publishers: [],
+				platforms: [],
+				genres: [],
+				themes: [],
+				gameModes: [],
+				playerPerspectives: [],
+				gameEngines: [],
+				collection: null,
+				summary: '',
+				detailedDescription: null,
+				storyline: null,
+				coverUrl: null,
+				steamLibraryHeaderUrl: null,
+				screenshots: [],
+				steamScreenshots: [],
+				artworks: [],
+				trailerUrl: null,
+				trailers: [],
+				similarGames: [],
+				dlcs: [],
+				timeToBeatHastily: null,
+				timeToBeatNormally: null,
+				timeToBeatCompletely: null,
+				websites: [],
+				externalGames: [],
+				steamStoreUrl: 'https://store.steampowered.com/app/292030',
+				languageSupports: [],
+				rating: null,
+				aggregatedRating: null,
+				totalRating: null,
+				ageRating: null,
+			})
+
+			expect(result).toBe('[media]https://store.steampowered.com/app/292030[/media]')
+		})
+
+		it('returns null when the game has no Steam URL', () => {
+			const result = generateSteamMediaTemplate({
+				name: 'Console Game',
+				originalName: 'Console Game',
+				releaseDate: null,
+				releaseYear: null,
+				releaseDates: [],
+				status: null,
+				developers: [],
+				publishers: [],
+				platforms: [],
+				genres: [],
+				themes: [],
+				gameModes: [],
+				playerPerspectives: [],
+				gameEngines: [],
+				collection: null,
+				summary: '',
+				detailedDescription: null,
+				storyline: null,
+				coverUrl: null,
+				steamLibraryHeaderUrl: null,
+				screenshots: [],
+				steamScreenshots: [],
+				artworks: [],
+				trailerUrl: null,
+				trailers: [],
+				similarGames: [],
+				dlcs: [],
+				timeToBeatHastily: null,
+				timeToBeatNormally: null,
+				timeToBeatCompletely: null,
+				websites: [],
+				externalGames: [],
+				steamStoreUrl: null,
+				languageSupports: [],
+				rating: null,
+				aggregatedRating: null,
+				totalRating: null,
+				ageRating: null,
+			})
+
+			expect(result).toBeNull()
 		})
 	})
 })

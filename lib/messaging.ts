@@ -12,7 +12,7 @@
  * - Frontend: Import `sendMessage` to call background functions
  */
 import { defineExtensionMessaging } from '@webext-core/messaging'
-import type { SteamGameDetails, SteamBundleDetails } from '@/services/api/steam'
+import type { SteamGameDetails, SteamBundleDetails, SteamAppSearchResult } from '@/services/api/steam'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import type { ItadGamePriceOverview, ItadGamePrices, ItadGameSearchResult } from '@/services/api/itad'
 import type { ChatMessage } from '@/types/ai'
@@ -142,6 +142,13 @@ interface ProtocolMap {
 	 * @returns Game details or null if not found
 	 */
 	fetchSteamGame: (appId: number) => SteamGameDetails | null
+
+	/**
+	 * Search Steam apps by title (CORS proxy)
+	 * @param data - Search query and optional result limit
+	 * @returns Steam app search results
+	 */
+	searchSteamApps: (data: { query: string; limit?: number }) => SteamAppSearchResult[]
 
 	/**
 	 * Fetch Steam bundle details (CORS proxy)

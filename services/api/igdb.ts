@@ -17,7 +17,7 @@ import { cachedFetch, createCacheKey, CACHE_TTL } from '@/services/media'
 import { renderTemplate } from '@/lib/template-engine'
 import { getDefaultTemplate } from '@/features/templates'
 import { getSettings, useSettingsStore } from '@/store'
-import { fetchSteamGameDetailsViaBackground, extractSteamAppId } from '@/services/api/steam'
+import { fetchSteamGameDetailsViaBackground, extractSteamAppId, searchSteamAppsViaBackground } from '@/services/api/steam'
 import type { MediaTemplate, GameTemplateDataInput } from '@/types/templates'
 import type { IGDBGame, IGDBAlternativeName, IGDBGameLocalization, IGDBRegion, IGDBReleaseDate } from './igdb-types'
 import {
@@ -101,6 +101,37 @@ const SUPPORT_TYPE_RANKS: { token: string; rank: number }[] = [
 	{ token: 'interfaz', rank: 2 },
 	{ token: 'interface', rank: 2 },
 ]
+
+function normalizeSteamSearchName(name: string): string {
+	return name
+		.toLowerCase()
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^a-z0-9]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.trim()
+}
+
+async function findSteamAppIdByTitle(title: string): Promise<number | null> {
+	const results = await searchSteamAppsViaBackground(title, 5)
+	if (!Array.isArray(results)) return null
+	if (results.length === 0) return null
+
+	const normalizedTitle = normalizeSteamSearchName(title)
+	const exactMatch = results.find(result => normalizeSteamSearchName(result.name) === normalizedTitle)
+	if (exactMatch) return exactMatch.appId
+
+	const strongMatch = results.find(result => {
+		const normalizedResultName = normalizeSteamSearchName(result.name)
+		return (
+			normalizedResultName.startsWith(`${normalizedTitle} `) ||
+			normalizedResultName.startsWith(`${normalizedTitle}:`) ||
+			normalizedResultName.startsWith(`${normalizedTitle}-`)
+		)
+	})
+
+	return strongMatch?.appId ?? null
+}
 
 const MAIN_GAME_CATEGORY = 0
 const REMAKE_CATEGORY = 8
@@ -888,6 +919,15 @@ export async function getGameTemplateData(
 		}
 	}
 
+	// Final fallback: search Steam Store by title when IGDB has no direct Steam link.
+	if (!steamAppId) {
+		try {
+			steamAppId = await findSteamAppIdByTitle(localizedName || game.name)
+		} catch (error) {
+			logger.debug('Failed to search Steam app for game', gameId, error)
+		}
+	}
+
 	if (steamAppId) {
 		try {
 			onProgress?.('steam')
@@ -1055,6 +1095,13 @@ async function getActiveGameTemplateForThread(): Promise<MediaTemplate> {
 export function generateGameTemplate(data: GameTemplateDataInput): string {
 	const template = getActiveGameTemplate()
 	return renderTemplate(template, data)
+}
+
+/**
+ * Generate a minimal Steam media embed for a game.
+ */
+export function generateSteamMediaTemplate(data: GameTemplateDataInput): string | null {
+	return data.steamStoreUrl ? `[media]${data.steamStoreUrl}[/media]` : null
 }
 
 /**

@@ -13,7 +13,7 @@ import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
 import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
-import { generateGameTemplate, getIGDBImageUrl } from '@/services/api/igdb'
+import { generateGameTemplate, generateSteamMediaTemplate, getIGDBImageUrl } from '@/services/api/igdb'
 import { browser } from 'wxt/browser'
 import type { IGDBGame } from '@/services/api/igdb'
 import type { GameTemplateDataInput } from '@/types/templates'
@@ -163,6 +163,15 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 		handleClose()
 	}
 
+	const handleInsertSteamMedia = () => {
+		if (!templateData) return
+		const steamMediaTemplate = generateSteamMediaTemplate(templateData)
+		if (!steamMediaTemplate) return
+
+		onInsert(steamMediaTemplate)
+		handleClose()
+	}
+
 	// Get title for dialog header
 	const getDialogTitle = () => {
 		if (isCheckingCredentials) return 'Cargando...'
@@ -185,6 +194,14 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 						backLabel="← Buscar otro"
 						onCopy={handleCopy}
 						copied={copied}
+						secondaryInsertLabel="Media Steam"
+						onSecondaryInsert={handleInsertSteamMedia}
+						secondaryInsertDisabled={!templateData?.steamStoreUrl}
+						secondaryInsertTitle={
+							templateData?.steamStoreUrl
+								? 'Insertar [media] con la URL de Steam'
+								: 'No se ha encontrado enlace de Steam para este juego'
+						}
 						onInsert={handleInsert}
 					/>
 				) : undefined

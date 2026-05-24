@@ -52,6 +52,13 @@ export interface SteamBundleDetails {
 	bundleUrl: string
 }
 
+export interface SteamAppSearchResult {
+	appId: number
+	name: string
+	appUrl: string
+	tinyImage: string | null
+}
+
 interface SteamPriceOverview {
 	currency: string
 	initial: number
@@ -90,6 +97,16 @@ interface SteamApiResponse {
 			screenshots?: Array<{ id: number; path_thumbnail: string; path_full: string }>
 		}
 	}
+}
+
+interface SteamStoreSearchResponse {
+	total?: number
+	items?: Array<{
+		type?: string
+		name?: string
+		id?: number
+		tiny_image?: string
+	}>
 }
 
 type UnknownRecord = Record<string, unknown>
@@ -801,6 +818,48 @@ export async function fetchSteamGameDetails(appId: number): Promise<SteamGameDet
 }
 
 /**
+ * Search Steam Store apps by title.
+ *
+ * @internal
+ * USE ONLY IN BACKGROUND SCRIPT.
+ * Do not import directly in UI components. Use searchSteamAppsViaBackground.
+ */
+export async function searchSteamApps(query: string, limit = 5): Promise<SteamAppSearchResult[]> {
+	const trimmedQuery = query.trim()
+	if (!trimmedQuery) return []
+
+	try {
+		const params = new URLSearchParams({
+			term: trimmedQuery,
+			l: 'spanish',
+			cc: 'es',
+		})
+		const response = await fetchWithRetry(
+			`${API_URLS.STEAM_STORE}/api/storesearch/?${params}`,
+			`storesearch:${trimmedQuery}`
+		)
+
+		if (!response.ok) {
+			throw new Error(`HTTP ${response.status}`)
+		}
+
+		const json = (await response.json()) as SteamStoreSearchResponse
+		return (json.items || [])
+			.filter(item => item.type === 'app' && typeof item.id === 'number' && item.name)
+			.slice(0, limit)
+			.map(item => ({
+				appId: item.id!,
+				name: item.name!,
+				appUrl: `${API_URLS.STEAM_STORE}/app/${item.id}`,
+				tinyImage: item.tiny_image || null,
+			}))
+	} catch (error) {
+		logger.error('[Steam] Failed to search apps:', error)
+		return []
+	}
+}
+
+/**
  * Fetch Steam bundle details.
  *
  * @internal
@@ -896,6 +955,19 @@ export async function fetchSteamGameDetailsViaBackground(appId: number): Promise
 	} catch (error) {
 		logger.error('[Steam] Failed to fetch game via background:', error)
 		return null
+	}
+}
+
+/**
+ * Search Steam apps via background script (for content scripts).
+ */
+export async function searchSteamAppsViaBackground(query: string, limit = 5): Promise<SteamAppSearchResult[]> {
+	try {
+		const { sendMessage } = await import('@/lib/messaging')
+		return await sendMessage('searchSteamApps', { query, limit })
+	} catch (error) {
+		logger.error('[Steam] Failed to search apps via background:', error)
+		return []
 	}
 }
 
