@@ -46,7 +46,7 @@ export {
 } from './settings-schema'
 
 // Pure types (safe for content script - no runtime deps)
-export type { Settings, SettingsUpdate, SettingsKey, ThemeMode, AIModel, UltrawideMode } from './settings-types'
+export type { Settings, SettingsUpdate, SettingsKey, ThemeMode, AIModel, UltrawideMode, ItadCountry } from './settings-types'
 
 // Granular selectors (for optimal re-renders)
 export {

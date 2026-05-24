@@ -30,12 +30,20 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { NativeFidIcon } from '@/components/native-fid-icon'
 import { SettingsSection } from '../../components/settings/settings-section'
 import { SettingRow } from '../../components/settings'
 import { sendMessage } from '@/lib/messaging'
 import { ALL_SUBFORUMS, VALID_SUBFORUM_SLUGS } from '@/lib/subforums'
 import { useSettingsStore } from '@/store/settings-store'
+import type { ItadCountry } from '@/store/settings-types'
+
+const ITAD_COUNTRY_OPTIONS: Array<{ value: ItadCountry; label: string }> = [
+	{ value: 'ES', label: 'Europa / España - EUR' },
+	{ value: 'GB', label: 'Reino Unido - GBP' },
+	{ value: 'US', label: 'Estados Unidos - USD' },
+]
 
 export function FeaturesContent() {
 	const {
@@ -51,6 +59,7 @@ export function FeaturesContent() {
 		steamBundleInlineCardsEnabled,
 		itadSubforumSearchJuegosEnabled,
 		itadSubforumSearchHuchaEnabled,
+		itadCountry,
 		gameReleaseCalendarJuegosEnabled,
 		threadClipperSubforums,
 		pinnedPostsEnabled,
@@ -130,6 +139,13 @@ export function FeaturesContent() {
 			logger.warn('Could not refresh context menus:', error)
 			toast.error('No se pudo actualizar el menú contextual')
 		}
+	}
+
+	const handleItadCountryChange = async (value: string) => {
+		setSetting('itadCountry', value as ItadCountry)
+		toast.success('Región de precios actualizada', {
+			description: 'La moneda final depende de los datos que devuelva IsThereAnyDeal.',
+		})
 	}
 
 	return (
@@ -263,13 +279,44 @@ export function FeaturesContent() {
 						<div className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5">
 							<p className="m-0 text-[11px] leading-snug text-muted-foreground">
 								La información sale de IsThereAnyDeal: MV Premium consulta su API desde el background de la extensión,
-								combina resultados con precios para España y cachea temporalmente las respuestas para evitar peticiones innecesarias.
+								pide precios para la región elegida y cachea temporalmente las respuestas para evitar peticiones innecesarias.
 							</p>
+							<p className="m-0 mt-1 text-[11px] leading-snug text-muted-foreground">
+								MV Premium no convierte divisas. La moneda y los importes dependen de la cobertura de ITAD y de cada tienda:
+								si no hay precio regional, ITAD puede convertirlo o usar una región de referencia.
+							</p>
+							<p className="m-0 mt-1 text-[11px] leading-snug text-muted-foreground">
+								Para euros usamos España como referencia europea para evitar mostrar varias regiones con la misma moneda.
+							</p>
+							<a
+								href="https://isthereanydeal.com/status/"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+							>
+								Ver cobertura de regiones y monedas en ITAD
+								<ExternalLink className="h-3 w-3" />
+							</a>
 						</div>
 					</div>
 				}
 			>
 				<div className="grid gap-2 min-w-[190px]">
+					<div className="grid gap-1.5">
+						<span className="text-xs font-semibold text-muted-foreground">Región de precios</span>
+						<Select value={itadCountry} onValueChange={handleItadCountryChange}>
+							<SelectTrigger className="w-full">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{ITAD_COUNTRY_OPTIONS.map(option => (
+									<SelectItem key={option.value} value={option.value}>
+										{option.label}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
 					<label className="flex items-center justify-between gap-3 text-sm font-medium">
 						<span>Juegos</span>
 						<Switch

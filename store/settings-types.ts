@@ -34,6 +34,9 @@ export type CenteredControlsPosition = 'top' | 'side'
 /** Game release calendar display mode */
 export type GameReleaseCalendarLayout = 'showcase' | 'minimal' | 'bottom'
 
+/** Country used by IsThereAnyDeal to localize shops and currency */
+export type ItadCountry = 'ES' | 'GB' | 'US'
+
 /** Work mode sub-options */
 export interface WorkModeOptions {
 	hideAvatars: boolean
@@ -89,6 +92,7 @@ export interface Settings {
 	itadSubforumSearchEnabled: boolean
 	itadSubforumSearchJuegosEnabled: boolean
 	itadSubforumSearchHuchaEnabled: boolean
+	itadCountry: ItadCountry
 	gameReleaseCalendarEnabled: boolean
 	gameReleaseCalendarJuegosEnabled: boolean
 	gameReleaseCalendarLayout: GameReleaseCalendarLayout

@@ -31,6 +31,7 @@ import {
 } from '@/services/api/itad'
 import { logger } from '@/lib/logger'
 import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/store/settings-store'
 
 const SEARCH_DEBOUNCE_MS = 350
 const MIN_QUERY_LENGTH = 2
@@ -57,13 +58,16 @@ interface GameDetailsState {
 function formatPrice(price?: ItadPrice | null): string {
 	if (!price || !Number.isFinite(price.amount)) return 'N/D'
 
+	const currency = price.currency || 'EUR'
+	const locale = currency === 'GBP' ? 'en-GB' : currency === 'USD' ? 'en-US' : 'es-ES'
+
 	try {
-		return new Intl.NumberFormat('es-ES', {
+		return new Intl.NumberFormat(locale, {
 			style: 'currency',
-			currency: price.currency || 'EUR',
+			currency,
 		}).format(price.amount)
 	} catch {
-		return `${price.amount.toFixed(2)} ${price.currency || ''}`.trim()
+		return `${price.amount.toFixed(2)} ${currency}`.trim()
 	}
 }
 
@@ -540,6 +544,7 @@ function SearchLoadingRows() {
 
 export function ItadSubforumTypeahead() {
 	const containerRef = useRef<HTMLElement | null>(null)
+	const itadCountry = useSettingsStore(state => state.itadCountry)
 	const [query, setQuery] = useState('')
 	const [selected, setSelected] = useState<SelectedGame | null>(null)
 	const [detailsByGameId, setDetailsByGameId] = useState<Record<string, GameDetailsState>>({})
@@ -609,7 +614,7 @@ export function ItadSubforumTypeahead() {
 		}))
 
 		const timer = window.setTimeout(() => {
-			searchItadGamesWithPrices(trimmedQuery, { country: 'ES', results: 8 })
+			searchItadGamesWithPrices(trimmedQuery, { country: itadCountry, results: 8 })
 				.then(result => {
 					if (requestId.current !== currentRequest) return
 					setState(prev => ({
@@ -636,30 +641,31 @@ export function ItadSubforumTypeahead() {
 		}, SEARCH_DEBOUNCE_MS)
 
 		return () => window.clearTimeout(timer)
-	}, [state.hasCredentials, trimmedQuery])
+	}, [itadCountry, state.hasCredentials, trimmedQuery])
 
 	function openGame(game: ItadGameSearchResult) {
+		const detailsKey = `${itadCountry}:${game.id}`
 		setSelected({ game, overview: state.prices[game.id] })
 		setModalOpen(true)
 		setDropdownOpen(false)
 
-		if (!detailsByGameId[game.id]?.prices && !detailsByGameId[game.id]?.loading) {
+		if (!detailsByGameId[detailsKey]?.prices && !detailsByGameId[detailsKey]?.loading) {
 			setDetailsByGameId(prev => ({
 				...prev,
-				[game.id]: { loading: true },
+				[detailsKey]: { loading: true },
 			}))
-			getItadGamePrices([game.id], { country: 'ES', capacity: 8 })
+			getItadGamePrices([game.id], { country: itadCountry, capacity: 8 })
 				.then(result => {
 					setDetailsByGameId(prev => ({
 						...prev,
-						[game.id]: { loading: false, prices: result[game.id] },
+						[detailsKey]: { loading: false, prices: result[game.id] },
 					}))
 				})
 				.catch(error => {
 					logger.error('ITAD game prices failed', error)
 					setDetailsByGameId(prev => ({
 						...prev,
-						[game.id]: { loading: false },
+						[detailsKey]: { loading: false },
 					}))
 				})
 		}
@@ -687,6 +693,7 @@ export function ItadSubforumTypeahead() {
 
 	const showResults = dropdownOpen && (state.loading || state.hasSearched || !!state.error)
 	const showClearButton = query.length > 0 && state.hasCredentials !== false
+	const selectedDetailsKey = selected ? `${itadCountry}:${selected.game.id}` : null
 
 	return (
 		<section ref={containerRef} className="relative mb-3 overflow-visible rounded-lg border border-border bg-card text-card-foreground shadow-sm">
@@ -770,7 +777,7 @@ export function ItadSubforumTypeahead() {
 
 			<GameDetailsModal
 				selected={selected}
-				details={selected ? detailsByGameId[selected.game.id] : undefined}
+				details={selectedDetailsKey ? detailsByGameId[selectedDetailsKey] : undefined}
 				open={modalOpen}
 				onOpenChange={setModalOpen}
 			/>

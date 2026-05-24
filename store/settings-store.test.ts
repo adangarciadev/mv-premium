@@ -80,6 +80,7 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().itadSubforumSearchEnabled).toBe(true)
 			expect(useSettingsStore.getState().itadSubforumSearchJuegosEnabled).toBe(true)
 			expect(useSettingsStore.getState().itadSubforumSearchHuchaEnabled).toBe(true)
+			expect(useSettingsStore.getState().itadCountry).toBe('ES')
 		})
 
 		it('has game release calendar enabled by default', () => {
@@ -205,6 +206,13 @@ describe('settings-store', () => {
 				useSettingsStore.getState().setSetting('gameReleaseCalendarLayout', 'bottom')
 			})
 			expect(useSettingsStore.getState().gameReleaseCalendarLayout).toBe('bottom')
+		})
+
+		it('setSetting supports ITAD country', () => {
+			act(() => {
+				useSettingsStore.getState().setSetting('itadCountry', 'GB')
+			})
+			expect(useSettingsStore.getState().itadCountry).toBe('GB')
 		})
 	})
 

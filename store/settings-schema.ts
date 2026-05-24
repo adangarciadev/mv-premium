@@ -43,6 +43,7 @@ export const ultrawideSchema = z.enum(['off', 'wide', 'extra-wide', 'full'])
 export type UltrawideMode = z.infer<typeof ultrawideSchema>
 export const centeredControlsPositionSchema = z.enum(['top', 'side'])
 export const gameReleaseCalendarLayoutSchema = z.enum(['showcase', 'minimal', 'bottom'])
+export const itadCountrySchema = z.enum(['ES', 'GB', 'US'])
 
 // =============================================================================
 // SETTINGS SCHEMA
@@ -80,6 +81,7 @@ export const settingsSchema = z.object({
 	itadSubforumSearchEnabled: z.boolean().default(true),
 	itadSubforumSearchJuegosEnabled: z.boolean().default(true),
 	itadSubforumSearchHuchaEnabled: z.boolean().default(true),
+	itadCountry: itadCountrySchema.default('ES'),
 	gameReleaseCalendarEnabled: z.boolean().default(true),
 	gameReleaseCalendarJuegosEnabled: z.boolean().default(true),
 	gameReleaseCalendarLayout: gameReleaseCalendarLayoutSchema.default('minimal'),

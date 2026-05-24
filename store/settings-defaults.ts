@@ -53,6 +53,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	itadSubforumSearchEnabled: true,
 	itadSubforumSearchJuegosEnabled: true,
 	itadSubforumSearchHuchaEnabled: true,
+	itadCountry: 'ES',
 	gameReleaseCalendarEnabled: true,
 	gameReleaseCalendarJuegosEnabled: true,
 	gameReleaseCalendarLayout: 'minimal',

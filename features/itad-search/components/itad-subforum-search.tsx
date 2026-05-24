@@ -17,6 +17,7 @@ import {
 } from '@/services/api/itad'
 import { logger } from '@/lib/logger'
 import { cn } from '@/lib/utils'
+import { useSettingsStore } from '@/store/settings-store'
 
 interface SearchState {
 	games: ItadGameSearchResult[]
@@ -30,13 +31,16 @@ interface SearchState {
 function formatPrice(price?: ItadPrice | null): string {
 	if (!price || !Number.isFinite(price.amount)) return 'N/D'
 
+	const currency = price.currency || 'EUR'
+	const locale = currency === 'GBP' ? 'en-GB' : currency === 'USD' ? 'en-US' : 'es-ES'
+
 	try {
-		return new Intl.NumberFormat('es-ES', {
+		return new Intl.NumberFormat(locale, {
 			style: 'currency',
-			currency: price.currency || 'EUR',
+			currency,
 		}).format(price.amount)
 	} catch {
-		return `${price.amount.toFixed(2)} ${price.currency || ''}`.trim()
+		return `${price.amount.toFixed(2)} ${currency}`.trim()
 	}
 }
 
@@ -121,6 +125,7 @@ function GameResult({
 }
 
 export function ItadSubforumSearch() {
+	const itadCountry = useSettingsStore(state => state.itadCountry)
 	const [query, setQuery] = useState('')
 	const [state, setState] = useState<SearchState>({
 		games: [],
@@ -158,7 +163,7 @@ export function ItadSubforumSearch() {
 		setState(prev => ({ ...prev, loading: true, error: null }))
 
 		try {
-			const result = await searchItadGamesWithPrices(trimmedQuery, { country: 'ES', results: 8 })
+			const result = await searchItadGamesWithPrices(trimmedQuery, { country: itadCountry, results: 8 })
 			if (requestId.current !== currentRequest) return
 			setState(prev => ({
 				...prev,
