@@ -286,6 +286,14 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	}
 
 	if (
+		(pageContext?.isSubforum || isPaginatedSubforum || pageContext?.isForumGlobalView || pageContext?.isFavorites) &&
+		isFeatureEnabled(FeatureFlag.ThreadPreview)
+	) {
+		const { injectThreadPreviewButtons } = await import('@/features/thread-preview')
+		injectThreadPreviewButtons()
+	}
+
+	if (
 		pageContext?.isSubforum &&
 		/^\/foro\/(?:juegos|club-hucha)\/?$/.test(window.location.pathname)
 	) {

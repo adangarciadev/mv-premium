@@ -17,6 +17,7 @@ const mockState = {
 	steamBundleInlineCardsEnabled: true,
 	itadSubforumSearchEnabled: true,
 	pinnedPostsEnabled: true,
+	threadPreviewEnabled: true,
 	saveThreadEnabled: true,
 	galleryButtonEnabled: true,
 	postSummaryEnabled: true,
@@ -51,6 +52,7 @@ describe('feature-flags', () => {
 		mockState.steamBundleInlineCardsEnabled = true
 		mockState.itadSubforumSearchEnabled = true
 		mockState.pinnedPostsEnabled = true
+		mockState.threadPreviewEnabled = true
 		mockState.saveThreadEnabled = true
 		mockState.galleryButtonEnabled = true
 		mockState.postSummaryEnabled = true
@@ -81,6 +83,15 @@ describe('feature-flags', () => {
 			it('returns false for PinnedPosts feature when disabled', () => {
 				mockState.pinnedPostsEnabled = false
 				expect(isFeatureEnabled(FeatureFlag.PinnedPosts)).toBe(false)
+			})
+
+			it('returns true for ThreadPreview feature when enabled', () => {
+				expect(isFeatureEnabled(FeatureFlag.ThreadPreview)).toBe(true)
+			})
+
+			it('returns false for ThreadPreview feature when disabled', () => {
+				mockState.threadPreviewEnabled = false
+				expect(isFeatureEnabled(FeatureFlag.ThreadPreview)).toBe(false)
 			})
 
 			it('returns true for SavedThreads feature when enabled', () => {

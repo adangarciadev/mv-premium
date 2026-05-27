@@ -60,6 +60,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	threadClipperSubforums: ['juegos'],
 	twitterLiteEmbedsEnabled: false,
 	pinnedPostsEnabled: true,
+	threadPreviewEnabled: true,
 	threadSummarizerEnabled: true,
 	postSummaryEnabled: true,
 	saveThreadEnabled: true,

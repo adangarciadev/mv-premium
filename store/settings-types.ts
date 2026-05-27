@@ -99,6 +99,7 @@ export interface Settings {
 	threadClipperSubforums: string[]
 	twitterLiteEmbedsEnabled: boolean
 	pinnedPostsEnabled: boolean
+	threadPreviewEnabled: boolean
 	threadSummarizerEnabled: boolean
 	postSummaryEnabled: boolean
 	saveThreadEnabled: boolean

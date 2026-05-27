@@ -48,6 +48,7 @@ export const FeatureFlag = {
 	ItadSubforumSearch: 'itad-subforum-search',
 	GameReleaseCalendar: 'game-release-calendar',
 	PinnedPosts: 'pinned-posts',
+	ThreadPreview: 'thread-preview',
 	SavedThreads: 'saved-threads',
 
 	// Experimental Features (may require debug mode)
@@ -109,6 +110,7 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 	[FeatureFlag.ItadSubforumSearch]: { settingsKey: 'itadSubforumSearchEnabled' },
 	[FeatureFlag.GameReleaseCalendar]: { settingsKey: 'gameReleaseCalendarEnabled' },
 	[FeatureFlag.PinnedPosts]: { settingsKey: 'pinnedPostsEnabled' },
+	[FeatureFlag.ThreadPreview]: { settingsKey: 'threadPreviewEnabled' },
 	[FeatureFlag.SavedThreads]: { settingsKey: 'saveThreadEnabled' },
 
 	// Experimental Features

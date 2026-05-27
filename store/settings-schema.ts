@@ -87,6 +87,7 @@ export const settingsSchema = z.object({
 	gameReleaseCalendarLayout: gameReleaseCalendarLayoutSchema.default('minimal'),
 	threadClipperSubforums: z.array(z.string()).default(['juegos']),
 	twitterLiteEmbedsEnabled: z.boolean().default(false),
+	threadPreviewEnabled: z.boolean().default(true),
 	hideIgnoredUserThreadsEnabled: z.boolean().default(true),
 
 	// Feature Toggles - Users

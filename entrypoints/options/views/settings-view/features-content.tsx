@@ -7,6 +7,7 @@ import HomeIcon from 'lucide-react/dist/esm/icons/home'
 import { logger } from '@/lib/logger'
 import ImageIcon from 'lucide-react/dist/esm/icons/image-play'
 import Pin from 'lucide-react/dist/esm/icons/pin'
+import PanelTopOpen from 'lucide-react/dist/esm/icons/panel-top-open'
 import Bot from 'lucide-react/dist/esm/icons/bot'
 import FileText from 'lucide-react/dist/esm/icons/file-text'
 import Layout from 'lucide-react/dist/esm/icons/layout'
@@ -63,6 +64,7 @@ export function FeaturesContent() {
 		gameReleaseCalendarJuegosEnabled,
 		threadClipperSubforums,
 		pinnedPostsEnabled,
+		threadPreviewEnabled,
 		threadSummarizerEnabled,
 		postSummaryEnabled,
 		saveThreadEnabled,
@@ -100,6 +102,7 @@ export function FeaturesContent() {
 				| 'itadSubforumSearchHuchaEnabled'
 				| 'gameReleaseCalendarJuegosEnabled'
 				| 'pinnedPostsEnabled'
+				| 'threadPreviewEnabled'
 				| 'threadSummarizerEnabled'
 				| 'postSummaryEnabled'
 				| 'saveThreadEnabled'
@@ -362,6 +365,14 @@ export function FeaturesContent() {
 				description="Permite anclar posts importantes y verlos en un panel lateral."
 			>
 				<Switch checked={pinnedPostsEnabled} onCheckedChange={withToastAndReload('pinnedPostsEnabled', true)} />
+			</SettingRow>
+
+			<SettingRow
+				icon={<PanelTopOpen className="h-4 w-4" />}
+				label="Preview de OP en listados"
+				description="Añade un botón en las filas de hilos para desplegar el primer post sin salir del listado."
+			>
+				<Switch checked={threadPreviewEnabled} onCheckedChange={withToastAndReload('threadPreviewEnabled', true)} />
 			</SettingRow>
 
 			<SettingRow
