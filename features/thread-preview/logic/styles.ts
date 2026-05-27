@@ -1,4 +1,5 @@
 import {
+	ACTION_GROUP_CLASS,
 	BODY_CLASS,
 	BODY_CLAMPED_CLASS,
 	BODY_TRUNCABLE_CLASS,
@@ -24,16 +25,20 @@ export function ensureStyles(): void {
 			overflow: visible;
 		}
 		td.mvp-preview-btn-cell > .thread {
-			margin-right: max(var(--mvp-thread-actions-padding, 0px), 94px);
+			margin-right: var(--mvp-thread-actions-padding, 0px);
+		}
+		.${ACTION_GROUP_CLASS} {
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			white-space: nowrap;
+			vertical-align: middle;
 		}
 		.${BUTTON_CLASS} {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			position: absolute;
-			right: 60px;
-			top: 50%;
-			transform: translateY(-50%);
+			vertical-align: middle;
 			width: 24px;
 			height: 24px;
 			border: 0;
@@ -47,7 +52,7 @@ export function ensureStyles(): void {
 			visibility: hidden;
 			pointer-events: none;
 			padding: 0;
-			margin: 0;
+			margin: 0 0 0 16px;
 			z-index: 5;
 		}
 		#temas tr:hover .${BUTTON_CLASS},

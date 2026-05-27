@@ -369,8 +369,8 @@ export function FeaturesContent() {
 
 			<SettingRow
 				icon={<PanelTopOpen className="h-4 w-4" />}
-				label="Preview de OP en listados"
-				description="Añade un botón en las filas de hilos para desplegar el primer post sin salir del listado."
+				label="Vista previa del primer post"
+				description="Añade un botón en el Spy y en los listados de subforos para leer el OP sin salir de la página."
 			>
 				<Switch checked={threadPreviewEnabled} onCheckedChange={withToastAndReload('threadPreviewEnabled', true)} />
 			</SettingRow>

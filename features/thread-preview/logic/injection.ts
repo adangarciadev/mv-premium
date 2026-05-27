@@ -1,6 +1,6 @@
 import { logger } from '@/lib/logger'
 import { sendMessage } from '@/lib/messaging'
-import { BUTTON_ATTR, BUTTON_CLASS, ROW_ATTR, STYLE_ID, THREAD_ROWS_SELECTOR } from './constants'
+import { ACTION_GROUP_CLASS, BUTTON_ATTR, BUTTON_CLASS, ROW_ATTR, STYLE_ID, THREAD_ROWS_SELECTOR } from './constants'
 import { extractFirstPostPreview } from './extractor'
 import {
 	cleanupRenderedPreviews,
@@ -44,6 +44,27 @@ function createPreviewButton(): HTMLButtonElement {
 	})
 
 	return button
+}
+
+function appendButtonToThread(threadDiv: HTMLElement, button: HTMLButtonElement): void {
+	const titleLink = getThreadTitleLinkFromRow(threadDiv)
+	if (!titleLink) {
+		threadDiv.appendChild(button)
+		return
+	}
+
+	const actionGroup = document.createElement('span')
+	actionGroup.className = ACTION_GROUP_CLASS
+	let nextNode = titleLink.nextSibling
+
+	while (nextNode) {
+		const node = nextNode
+		nextNode = nextNode.nextSibling
+		actionGroup.appendChild(node)
+	}
+
+	actionGroup.appendChild(button)
+	threadDiv.appendChild(actionGroup)
 }
 
 async function loadPreview(url: string): Promise<ThreadPreviewData> {
@@ -125,7 +146,7 @@ function injectButtonsIntoRows(): void {
 		button.title = 'Mostrar OP completo'
 		button.setAttribute('aria-label', 'Mostrar OP completo')
 
-		cell.appendChild(button)
+		appendButtonToThread(threadDiv, button)
 	})
 }
 

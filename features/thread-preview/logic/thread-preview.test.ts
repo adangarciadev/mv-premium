@@ -16,7 +16,7 @@ import {
 import { sendMessage } from '@/lib/messaging'
 import { reinitializeEmbeds } from '@/lib/content-modules/utils/reinitialize-embeds'
 import { useSettingsStore } from '@/store/settings-store'
-import { EXPAND_CLASS, STYLE_ID } from './constants'
+import { ACTION_GROUP_CLASS, EXPAND_CLASS, STYLE_ID } from './constants'
 
 vi.mock('@/lib/messaging', () => ({
 	sendMessage: vi.fn(),
@@ -59,6 +59,27 @@ function renderThreadTable(): void {
 					<td class="dtc">514</td>
 					<td class="col-av">avatars</td>
 					<td class="last-av">5m</td>
+				</tr>
+			</tbody>
+		</table>
+	`
+}
+
+function renderSpyThreadTable(): void {
+	document.body.innerHTML = `
+		<table id="tablatemas" class="mv full">
+			<tbody id="temas">
+				<tr>
+					<td>
+						<div class="thread">
+							<a class="h" title="Zapatero imputado por blanqueo en la AN" href="/foro/off-topic/zapatero-imputado-blanqueo-735817/live">
+								Zapatero imputado por blanqueo en la AN
+							</a>
+						</div>
+					</td>
+					<td class="thread-count">5.1K</td>
+					<td class="dtc">43.4K</td>
+					<td class="last-av">2m</td>
 				</tr>
 			</tbody>
 		</table>
@@ -459,6 +480,30 @@ describe('thread-preview', () => {
 		injectThreadPreviewButtons()
 
 		expect(row.querySelector('[data-mvp-thread-preview]')).toBeTruthy()
+	})
+
+	it('keeps native title actions and the preview button in one nowrap group', () => {
+		renderThreadTable()
+
+		injectThreadPreviewButtons()
+
+		const button = document.querySelector<HTMLButtonElement>('[data-mvp-thread-preview]')!
+		const group = button.closest<HTMLElement>(`.${ACTION_GROUP_CLASS}`)
+		expect(group?.parentElement).toBe(document.querySelector('.thread'))
+		expect(group?.querySelector('.unread-g')).toBeTruthy()
+		expect(document.getElementById(STYLE_ID)?.textContent).not.toContain('right: 60px')
+	})
+
+	it('injects preview buttons in spy rows without a col-th cell', () => {
+		renderSpyThreadTable()
+		const row = document.querySelector('tbody#temas tr')!
+
+		injectThreadPreviewButtons()
+
+		expect(row.querySelector('[data-mvp-thread-preview]')).toBeTruthy()
+		expect(getThreadPreviewUrlFromRow(row)).toBe(
+			'https://www.mediavida.com/foro/off-topic/zapatero-imputado-blanqueo-735817'
+		)
 	})
 
 	it('closes a preview and reopens it from cache', async () => {

@@ -1,6 +1,7 @@
 export const STYLE_ID = 'mvp-thread-preview-styles'
 export const BUTTON_ATTR = 'data-mvp-thread-preview'
 export const BUTTON_CLASS = 'mvp-thread-preview-btn'
+export const ACTION_GROUP_CLASS = 'mvp-thread-preview-action-group'
 export const ROW_ATTR = 'data-mvp-thread-preview-row'
 export const ROW_CLASS = 'mvp-thread-preview-row'
 export const CONTENT_CLASS = 'mvp-thread-preview-content'
