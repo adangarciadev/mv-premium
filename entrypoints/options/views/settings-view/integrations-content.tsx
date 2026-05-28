@@ -20,8 +20,14 @@ import { ProviderStatusBadge } from '../../components/settings/provider-status-b
 import { useSettingsStore } from '@/store/settings-store'
 import { getAvailableModels, testGeminiConnection } from '@/services/ai/gemini-service'
 import type { GeminiModel } from '@/store/settings-types'
+import {
+	getSettingDomId,
+	isHighlightedSetting,
+	shouldShowSetting,
+	type SettingsContentFilter,
+} from './constants'
 
-export function IntegrationsContent() {
+export function IntegrationsContent({ settingFilter }: { settingFilter?: SettingsContentFilter }) {
 	const { imgbbApiKey, setImgbbApiKey } = useSettingsStore()
 	const [imgbbExpanded, setImgbbExpanded] = useState(false)
 
@@ -73,6 +79,20 @@ export function IntegrationsContent() {
 
 	// Available models
 	const availableGeminiModels = getAvailableModels()
+	const rowState = (settingId: string) => ({
+		settingId,
+		hidden: !shouldShowSetting(settingFilter, settingId),
+		highlighted: isHighlightedSetting(settingFilter, settingId),
+	})
+	const showImageUpload = shouldShowSetting(settingFilter, 'imgbb-api-key')
+	const showGeminiKey = shouldShowSetting(settingFilter, 'gemini-api-key')
+	const showGeminiModel = shouldShowSetting(settingFilter, 'gemini-model')
+	const customRowClass = (settingId: string) =>
+		cn(
+			'-mx-2 scroll-mt-28 rounded-lg border border-transparent px-2 transition-colors',
+			!shouldShowSetting(settingFilter, settingId) && 'hidden',
+			isHighlightedSetting(settingFilter, settingId) && 'border-primary/50 bg-primary/10 shadow-sm ring-1 ring-primary/20'
+		)
 
 	return (
 		<SettingsSection
@@ -80,6 +100,7 @@ export function IntegrationsContent() {
 			description="Configura las claves de acceso a servicios externos e Inteligencia Artificial."
 		>
 			{/* Image Upload Row */}
+			<div id={getSettingDomId('imgbb-api-key')} data-setting-id="imgbb-api-key" className={customRowClass('imgbb-api-key')}>
 			<div className="flex flex-col gap-4 py-4">
 				<div className="flex items-start justify-between gap-4">
 					<div className="flex gap-3">
@@ -176,10 +197,12 @@ export function IntegrationsContent() {
 					</div>
 				)}
 			</div>
+			</div>
 
-			<Separator />
+			{showImageUpload && (showGeminiKey || showGeminiModel) && <Separator />}
 
 			{/* Gemini API Card */}
+			<div id={getSettingDomId('gemini-api-key')} data-setting-id="gemini-api-key" className={customRowClass('gemini-api-key')}>
 			<div className="flex flex-col gap-4 py-4">
 				<div className="flex items-start justify-between gap-4">
 					<div className="flex gap-3">
@@ -250,9 +273,13 @@ export function IntegrationsContent() {
 					</div>
 				)}
 			</div>
+			</div>
+
+			{showGeminiKey && showGeminiModel && <Separator />}
 
 			{/* Model Selection - Gemini */}
 			<SettingRow
+				{...rowState('gemini-model')}
 				icon={<Settings2 className="h-4 w-4" />}
 				label="Modelo Gemini"
 				description="Modelo de Google para resumir e IA."

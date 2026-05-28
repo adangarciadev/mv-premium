@@ -17,8 +17,21 @@ import { SettingsSection } from '../../components/settings/settings-section'
 import { SettingRow } from '../../components/settings'
 import { useSettingsStore } from '@/store/settings-store'
 import { exportAllData, importAllData, resetAllData, downloadJSON } from '../../lib/export-import'
+import {
+	getSettingDomId,
+	isHighlightedSetting,
+	shouldShowSetting,
+	type SettingsContentFilter,
+} from './constants'
+import { cn } from '@/lib/utils'
 
-export function AdvancedContent() {
+export function AdvancedContent({
+	settingFilter,
+	hasActiveFinder,
+}: {
+	settingFilter?: SettingsContentFilter
+	hasActiveFinder?: boolean
+}) {
 	const { enableActivityTracking, updateSettings } = useSettingsStore()
 	const [showResetDialog, setShowResetDialog] = useState(false)
 	const [showClearActivityDialog, setShowClearActivityDialog] = useState(false)
@@ -95,59 +108,95 @@ export function AdvancedContent() {
 		}
 	}
 
+	const rowState = (settingId: string) => ({
+		settingId,
+		hidden: !shouldShowSetting(settingFilter, settingId),
+		highlighted: isHighlightedSetting(settingFilter, settingId),
+	})
+	const customRowClass = (settingId: string) =>
+		cn(
+			'scroll-mt-28 rounded-lg border border-transparent transition-colors',
+			!shouldShowSetting(settingFilter, settingId) && 'hidden',
+			isHighlightedSetting(settingFilter, settingId) && 'border-primary/50 bg-primary/10 shadow-sm ring-1 ring-primary/20'
+		)
+	const showActivityTracking = shouldShowSetting(settingFilter, 'activity-tracking')
+	const showBackupData = shouldShowSetting(settingFilter, 'backup-data')
+	const showResetData = shouldShowSetting(settingFilter, 'reset-data')
+
 	return (
 		<>
-			<SettingsSection title="Avanzado" description="Opciones para usuarios avanzados, depuración y gestión de datos.">
-				{/* Activity Tracking */}
-				<SettingRow
-					icon={<Activity className="h-4 w-4" />}
-					label="Registro de actividad (Heatmap)"
-					description="Registra posts creados y editados para el heatmap del dashboard."
-				>
-					<Switch checked={enableActivityTracking} onCheckedChange={handleToggleActivityTracking} />
-				</SettingRow>
+			{(showActivityTracking || showBackupData) && (
+				<SettingsSection title="Avanzado" description="Opciones para usuarios avanzados, depuración y gestión de datos.">
+					{/* Activity Tracking */}
+					{showActivityTracking && (
+						<SettingRow
+							{...rowState('activity-tracking')}
+							icon={<Activity className="h-4 w-4" />}
+							label="Registro de actividad (Heatmap)"
+							description="Registra posts creados y editados para el heatmap del dashboard."
+						>
+							<Switch checked={enableActivityTracking} onCheckedChange={handleToggleActivityTracking} />
+						</SettingRow>
+					)}
 
-				<div className="flex items-center justify-between py-2 pl-8">
-					<span className="text-sm text-muted-foreground">Borrar todo el historial del heatmap</span>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => setShowClearActivityDialog(true)}
-						className="text-destructive hover:text-destructive"
+					{showActivityTracking && !hasActiveFinder && (
+						<div className="flex items-center justify-between py-2 pl-8">
+							<span className="text-sm text-muted-foreground">Borrar todo el historial del heatmap</span>
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => setShowClearActivityDialog(true)}
+								className="text-destructive hover:text-destructive"
+							>
+								<Trash2 className="mr-2 h-4 w-4" />
+								Borrar historial
+							</Button>
+						</div>
+					)}
+
+					{showActivityTracking && showBackupData && <Separator />}
+
+					{/* Data Management */}
+					<div
+						id={getSettingDomId('backup-data')}
+						data-setting-id="backup-data"
+						className={customRowClass('backup-data')}
 					>
-						<Trash2 className="mr-2 h-4 w-4" />
-						Borrar historial
-					</Button>
-				</div>
+						<div className="space-y-4 p-2 pt-2">
+							<div>
+								<h3 className="text-base font-medium">Copia de Seguridad</h3>
+								<p className="text-sm text-muted-foreground mt-1">Exporta o importa tus datos y configuraciones.</p>
+							</div>
 
-				<Separator />
-
-				{/* Data Management */}
-				<div className="space-y-4 pt-2">
-					<div>
-						<h3 className="text-base font-medium">Copia de Seguridad</h3>
-						<p className="text-sm text-muted-foreground mt-1">Exporta o importa tus datos y configuraciones.</p>
+							<div className="flex flex-wrap gap-3">
+								<Button variant="outline" className="gap-2" onClick={handleExport}>
+									<Download className="h-4 w-4" />
+									Exportar datos
+								</Button>
+								<Button variant="outline" className="gap-2" onClick={handleImport}>
+									<Upload className="h-4 w-4" />
+									Importar datos
+								</Button>
+							</div>
+							<p className="text-xs text-muted-foreground">
+								La exportación incluye: palabras silenciadas, posts anclados, borradores, plantillas, preferencias y
+								temas guardados (incluyendo tema MV personalizado y presets).
+							</p>
+						</div>
 					</div>
-
-					<div className="flex flex-wrap gap-3">
-						<Button variant="outline" className="gap-2" onClick={handleExport}>
-							<Download className="h-4 w-4" />
-							Exportar datos
-						</Button>
-						<Button variant="outline" className="gap-2" onClick={handleImport}>
-							<Upload className="h-4 w-4" />
-							Importar datos
-						</Button>
-					</div>
-					<p className="text-xs text-muted-foreground">
-						La exportación incluye: palabras silenciadas, posts anclados, borradores, plantillas, preferencias y
-						temas guardados (incluyendo tema MV personalizado y presets).
-					</p>
-				</div>
-			</SettingsSection>
+				</SettingsSection>
+			)}
 
 			{/* Danger Zone - Separate section for destructive actions */}
-			<div className="mt-6 pt-6 border-t border-destructive/30">
+			<div
+				id={getSettingDomId('reset-data')}
+				data-setting-id="reset-data"
+				className={cn(
+					(showActivityTracking || showBackupData) && 'mt-6 border-t border-destructive/30 pt-6',
+					!showResetData && 'hidden',
+					isHighlightedSetting(settingFilter, 'reset-data') && 'rounded-lg border border-primary/50 bg-primary/10 p-2 shadow-sm ring-1 ring-primary/20'
+				)}
+			>
 				<div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4">
 					<div className="flex items-start gap-3">
 						<div className="p-2 rounded-full bg-destructive/10">

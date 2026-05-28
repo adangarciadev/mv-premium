@@ -39,6 +39,7 @@ import { sendMessage } from '@/lib/messaging'
 import { ALL_SUBFORUMS, VALID_SUBFORUM_SLUGS } from '@/lib/subforums'
 import { useSettingsStore } from '@/store/settings-store'
 import type { ItadCountry } from '@/store/settings-types'
+import { isHighlightedSetting, shouldShowAnySetting, shouldShowSetting, type SettingsContentFilter } from './constants'
 
 const ITAD_COUNTRY_OPTIONS: Array<{ value: ItadCountry; label: string }> = [
 	{ value: 'ES', label: 'Europa / España - EUR' },
@@ -46,7 +47,24 @@ const ITAD_COUNTRY_OPTIONS: Array<{ value: ItadCountry; label: string }> = [
 	{ value: 'US', label: 'Estados Unidos - USD' },
 ]
 
-export function FeaturesContent() {
+const NAVIGATION_SETTING_IDS = ['new-homepage', 'navbar-search']
+const EDITOR_SETTING_IDS = ['cinema-button', 'game-button', 'gif-picker', 'drafts-button', 'template-button']
+const CONTENT_SETTING_IDS = [
+	'media-hover-cards',
+	'steam-bundle-cards',
+	'itad-search',
+	'game-release-calendar',
+	'thread-clipper',
+	'pinned-posts',
+	'thread-preview',
+	'thread-summarizer',
+	'post-summary',
+	'save-thread',
+	'hide-thread',
+	'hide-ignored-user-threads',
+]
+
+export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsContentFilter }) {
 	const {
 		setSetting,
 		newHomepageEnabled,
@@ -151,59 +169,77 @@ export function FeaturesContent() {
 		})
 	}
 
+	const rowState = (settingId: string) => ({
+		settingId,
+		hidden: !shouldShowSetting(settingFilter, settingId),
+		highlighted: isHighlightedSetting(settingFilter, settingId),
+	})
+	const showNavigationGroup = shouldShowAnySetting(settingFilter, NAVIGATION_SETTING_IDS)
+	const showEditorGroup = shouldShowAnySetting(settingFilter, EDITOR_SETTING_IDS)
+	const showContentGroup = shouldShowAnySetting(settingFilter, CONTENT_SETTING_IDS)
+
 	return (
 		<SettingsSection title="Funcionalidades" description="Activa o desactiva las características de la extensión.">
-			{/* Navigation Section */}
-			<div className="space-y-1 mb-4">
-				<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Navegación</h3>
-				<p className="text-xs text-muted-foreground">Estos cambios requieren recargar las pestañas de Mediavida.</p>
-			</div>
-
-			<SettingRow
-				icon={<HomeIcon className="h-4 w-4" />}
-				label="Homepage de MV Premium"
-				description={
-					<div className="space-y-2 pr-1">
-						<p className="m-0 leading-relaxed">
-							Reemplaza la portada nativa por una homepage personalizada de MV Premium con noticias y actividad del foro.
-						</p>
-						<div className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5">
-							<p className="m-0 text-[11px] leading-snug font-medium text-foreground/90">
-								Todos los créditos del diseño visual original de esta homepage pertenecen a MV-Ignited.
-							</p>
-							<a
-								href="https://www.mediavida.com/foro/dev/mv-ignited-2024-tampoco-me-dejo-mediavida-extension-709386"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="mt-1 inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/15 hover:underline"
-							>
-								Ver MV-Ignited (diseño original)
-								<ExternalLink className="h-3 w-3" />
-							</a>
-						</div>
+			{showNavigationGroup && (
+				<>
+					{/* Navigation Section */}
+					<div className="space-y-1 mb-4">
+						<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Navegación</h3>
+						<p className="text-xs text-muted-foreground">Estos cambios requieren recargar las pestañas de Mediavida.</p>
 					</div>
-				}
-			>
-				<Switch checked={newHomepageEnabled} onCheckedChange={withToastAndReload('newHomepageEnabled', true)} />
-			</SettingRow>
+
+					<SettingRow
+						{...rowState('new-homepage')}
+						icon={<HomeIcon className="h-4 w-4" />}
+						label="Homepage de MV Premium"
+						description={
+							<div className="space-y-2 pr-1">
+								<p className="m-0 leading-relaxed">
+									Reemplaza la portada nativa por una homepage personalizada de MV Premium con noticias y actividad del foro.
+								</p>
+								<div className="rounded-md border border-primary/20 bg-primary/5 px-2 py-1.5">
+									<p className="m-0 text-[11px] leading-snug font-medium text-foreground/90">
+										Todos los créditos del diseño visual original de esta homepage pertenecen a MV-Ignited.
+									</p>
+									<a
+										href="https://www.mediavida.com/foro/dev/mv-ignited-2024-tampoco-me-dejo-mediavida-extension-709386"
+										target="_blank"
+										rel="noopener noreferrer"
+										className="mt-1 inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/15 hover:underline"
+									>
+										Ver MV-Ignited (diseño original)
+										<ExternalLink className="h-3 w-3" />
+									</a>
+								</div>
+							</div>
+						}
+					>
+						<Switch checked={newHomepageEnabled} onCheckedChange={withToastAndReload('newHomepageEnabled', true)} />
+					</SettingRow>
+
+					<SettingRow
+						{...rowState('navbar-search')}
+						icon={<Search className="h-4 w-4" />}
+						label="Super Buscador en Navbar"
+						description="Reemplaza el buscador nativo de Mediavida con el Super Buscador. Si lo desactivas, el buscador nativo se mostrará pero Ctrl+K seguirá funcionando."
+					>
+						<Switch checked={navbarSearchEnabled} onCheckedChange={withToastAndReload('navbarSearchEnabled', true)} />
+					</SettingRow>
+				</>
+			)}
+
+			{showNavigationGroup && showEditorGroup && <Separator className="my-6" />}
+
+			{showEditorGroup && (
+				<>
+					{/* Editor Section */}
+					<div className="space-y-1 mb-4">
+						<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Editor</h3>
+						<p className="text-xs text-muted-foreground">Estos cambios requieren recargar las pestañas de Mediavida.</p>
+					</div>
 
 			<SettingRow
-				icon={<Search className="h-4 w-4" />}
-				label="Super Buscador en Navbar"
-				description="Reemplaza el buscador nativo de Mediavida con el Super Buscador. Si lo desactivas, el buscador nativo se mostrará pero Ctrl+K seguirá funcionando."
-			>
-				<Switch checked={navbarSearchEnabled} onCheckedChange={withToastAndReload('navbarSearchEnabled', true)} />
-			</SettingRow>
-
-			<Separator className="my-6" />
-
-			{/* Editor Section */}
-			<div className="space-y-1 mb-4">
-				<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Editor</h3>
-				<p className="text-xs text-muted-foreground">Estos cambios requieren recargar las pestañas de Mediavida.</p>
-			</div>
-
-			<SettingRow
+				{...rowState('cinema-button')}
 				icon={<Film className="h-4 w-4" />}
 				label="Botón de Cine"
 				description="Añade un botón en el editor para buscar e insertar fichas de películas y series desde TMDB."
@@ -212,6 +248,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('game-button')}
 				icon={<Gamepad2 className="h-4 w-4" />}
 				label="Botón de Videojuegos"
 				description="Añade un botón en el editor para buscar e insertar fichas de videojuegos desde IGDB."
@@ -220,6 +257,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('gif-picker')}
 				icon={<ImageIcon className="h-4 w-4" />}
 				label="Selector de GIFs"
 				description="Permite buscar e insertar GIFs animados desde GIPHY directamente en el editor."
@@ -228,6 +266,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('drafts-button')}
 				icon={<FileText className="h-4 w-4" />}
 				label="Botón de Borradores"
 				description="Añade acceso rápido a tus borradores guardados en la barra de herramientas."
@@ -236,22 +275,28 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('template-button')}
 				icon={<Layout className="h-4 w-4" />}
 				label="Insertar Plantilla"
 				description="Añade un botón para insertar plantillas predefinidas o propias."
 			>
 				<Switch checked={templateButtonEnabled} onCheckedChange={withToastAndReload('templateButtonEnabled', true)} />
 			</SettingRow>
+				</>
+			)}
 
-			<Separator className="my-6" />
+			{(showNavigationGroup || showEditorGroup) && showContentGroup && <Separator className="my-6" />}
 
-			{/* Content Section */}
-			<div className="space-y-1 mb-4">
-				<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contenido</h3>
-				<p className="text-xs text-muted-foreground">Estos cambios requieren recargar las pestañas de Mediavida.</p>
-			</div>
+			{showContentGroup && (
+				<>
+					{/* Content Section */}
+					<div className="space-y-1 mb-4">
+						<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Contenido</h3>
+						<p className="text-xs text-muted-foreground">Estos cambios requieren recargar las pestañas de Mediavida.</p>
+					</div>
 
 			<SettingRow
+				{...rowState('media-hover-cards')}
 				icon={<Sparkles className="h-4 w-4" />}
 				label="Hover Cards de Medios"
 				description="Muestra tarjetas informativas al pasar el ratón sobre enlaces de TMDB o IMDb."
@@ -260,6 +305,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('steam-bundle-cards')}
 				icon={<Package className="h-4 w-4" />}
 				label="Cards de Bundles de Steam"
 				description="Muestra tarjetas inline para enlaces de bundles de Steam en editores y vistas previas. No afecta a las cards de juegos individuales."
@@ -271,6 +317,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('itad-search')}
 				icon={<Store className="h-4 w-4" />}
 				label="Buscador de ofertas"
 				description={
@@ -338,6 +385,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('game-release-calendar')}
 				icon={<CalendarDays className="h-4 w-4" />}
 				label="Próximos lanzamientos"
 				description="Muestra próximos lanzamientos de videojuegos en el subforo Juegos y permite preparar hilos con plantilla IGDB."
@@ -349,6 +397,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('thread-clipper')}
 				icon={<MousePointerClick className="h-4 w-4" />}
 				label="Crear hilo desde cualquier web"
 				description="Abre un recortador para noticias externas: añade texto seleccionado y embeds de YouTube, tweets o Instagram. No captura imágenes ni usa páginas directas de redes."
@@ -360,6 +409,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('pinned-posts')}
 				icon={<Pin className="h-4 w-4" />}
 				label="Posts Anclados"
 				description="Permite anclar posts importantes y verlos en un panel lateral."
@@ -368,6 +418,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('thread-preview')}
 				icon={<PanelTopOpen className="h-4 w-4" />}
 				label="Vista previa del primer post"
 				description="Añade un botón en el Spy y en los listados de subforos para leer el OP sin salir de la página."
@@ -376,6 +427,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('thread-summarizer')}
 				icon={<Bot className="h-4 w-4" />}
 				label="Resumidor de Hilos (IA)"
 				description={
@@ -394,6 +446,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('post-summary')}
 				icon={<List className="h-4 w-4" />}
 				label="Resumen de Post (IA)"
         				description={
@@ -409,6 +462,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('save-thread')}
 				icon={<FolderHeart className="h-4 w-4" />}
 				label="Guardar Hilo"
 				description="Muestra botones de guardar en listados y noticias. El botón de guardar dentro del hilo y el click derecho siempre están activos."
@@ -417,6 +471,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('hide-thread')}
 				icon={<EyeOff className="h-4 w-4" />}
 				label="Ocultar Hilos"
 				description="Muestra botones para ocultar hilos en listados. La opción de ocultar con click derecho siempre está activa."
@@ -425,6 +480,7 @@ export function FeaturesContent() {
 			</SettingRow>
 
 			<SettingRow
+				{...rowState('hide-ignored-user-threads')}
 				icon={<EyeOff className="h-4 w-4" />}
 				label="Ocultar Hilos de Ignorados"
 				description="Oculta automáticamente hilos creados por usuarios ignorados en modo ocultar solo en los listados clásicos de subforos, porque ahí Mediavida sí muestra quién creó el hilo. No se aplica en Spy ni en la home premium, ya que en esos listados ese dato no aparece."
@@ -434,6 +490,8 @@ export function FeaturesContent() {
 					onCheckedChange={withToastAndReload('hideIgnoredUserThreadsEnabled', true)}
 				/>
 			</SettingRow>
+				</>
+			)}
 		</SettingsSection>
 	)
 }
