@@ -21,6 +21,57 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '1.9.0',
+		date: '2026-05-29',
+		title: 'Estrenos de cine, previews de hilos y ajustes más cómodos',
+		summary:
+			'Nuevo calendario de estrenos para Cine, previews del primer post en listados, mejoras importantes en ajustes y nuevas opciones para juegos, Steam e IsThereAnyDeal.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Calendario de estrenos de Cine: Añadido un carrusel de próximos estrenos de películas en España con datos de TMDB, filtros por rango, vistas configurables y creación rápida de hilos con plantilla.',
+				category: 'Cine',
+			},
+			{
+				type: 'feature',
+				description:
+					'Previews de hilos: Los threads en subforos y Spy muestran una vista previa del primer post con texto, enlaces, embeds y controles para expandir o compartir el contenido.',
+				category: 'Comunidad',
+			},
+			{
+				type: 'feature',
+				description:
+					'Editor de juegos: Las fichas de juegos pueden insertar enlaces de Steam cuando están disponibles, usando datos enriquecidos de IGDB y Steam.',
+				category: 'Editor',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Buscador de ofertas: Añadida selección de región para precios de IsThereAnyDeal, permitiendo ajustar las ofertas de juegos al mercado preferido.',
+				category: 'Juegos',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Dashboard de ajustes: Reorganizada la navegación, mejorados los filtros y resultados de búsqueda, y refinado el resaltado de ajustes seleccionados.',
+				category: 'Ajustes',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Calendarios de lanzamientos: Compartidos los controles de diseño entre juegos y cine, con mejoras visuales en tarjetas, carruseles y creación de hilos.',
+				category: 'Diseño',
+			},
+			{
+				type: 'fix',
+				description:
+					'Corregidos detalles de estado y tipado en las previews de hilos para mantener estable el comportamiento de contenido oculto y spoilers.',
+				category: 'Comunidad',
+			},
+		],
+	},
+	{
 		version: '1.8.0',
 		date: '2026-05-24',
 		title: 'Calendario de lanzamientos y creador rápido de hilos',
