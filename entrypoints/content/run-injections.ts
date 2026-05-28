@@ -309,6 +309,14 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		injectReleaseCalendar()
 	}
 
+	if (
+		pageContext?.isSubforum &&
+		/^\/foro\/cine\/?$/.test(window.location.pathname)
+	) {
+		const { injectMovieReleaseCalendar } = await import('@/features/movie-release-calendar')
+		injectMovieReleaseCalendar()
+	}
+
 	// Sidebar on subforum pages, global view pages (spy, new, unread, top, featured), and thread pages
 	if (pageContext?.isSubforum || pageContext?.isForumGlobalView || pageContext?.isThread) {
 		const { injectFavoriteSubforumsSidebar } = await import(

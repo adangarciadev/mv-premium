@@ -88,6 +88,11 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().gameReleaseCalendarJuegosEnabled).toBe(true)
 		})
 
+		it('has movie release calendar enabled by default', () => {
+			expect(useSettingsStore.getState().movieReleaseCalendarCineEnabled).toBe(true)
+			expect(useSettingsStore.getState().movieReleaseCalendarLayout).toBe('minimal')
+		})
+
 		it('has minimal release calendar layout by default', () => {
 			expect(useSettingsStore.getState().gameReleaseCalendarLayout).toBe('minimal')
 		})
@@ -206,6 +211,20 @@ describe('settings-store', () => {
 				useSettingsStore.getState().setSetting('gameReleaseCalendarLayout', 'bottom')
 			})
 			expect(useSettingsStore.getState().gameReleaseCalendarLayout).toBe('bottom')
+		})
+
+		it('setSetting supports movie release calendar toggle', () => {
+			act(() => {
+				useSettingsStore.getState().setSetting('movieReleaseCalendarCineEnabled', false)
+			})
+			expect(useSettingsStore.getState().movieReleaseCalendarCineEnabled).toBe(false)
+		})
+
+		it('setSetting supports movie release calendar layout', () => {
+			act(() => {
+				useSettingsStore.getState().setSetting('movieReleaseCalendarLayout', 'showcase')
+			})
+			expect(useSettingsStore.getState().movieReleaseCalendarLayout).toBe('showcase')
 		})
 
 		it('setSetting supports ITAD country', () => {

@@ -52,6 +52,26 @@ describe('release thread prefill', () => {
 		expect(sessionStorage.getItem(STORAGE_KEYS.PENDING_RELEASE_THREAD_PREFILL)).toBeNull()
 	})
 
+	it('supports Cine thread prefills', () => {
+		setPath('/foro/cine/nuevo-hilo')
+		document.body.innerHTML = `
+			<input id="cabecera" />
+			<textarea id="cuerpo" name="cuerpo"></textarea>
+		`
+
+		saveReleaseThreadPrefill({
+			subforum: 'cine',
+			title: "'La Odisea', de Christopher Nolan (2026)",
+			body: '[b]La Odisea[/b]',
+		})
+
+		expect(applyReleaseThreadPrefill()).toBe(true)
+		expect(document.querySelector<HTMLInputElement>('#cabecera')!.value).toBe(
+			"'La Odisea', de Christopher Nolan (2026)"
+		)
+		expect(document.querySelector<HTMLTextAreaElement>('#cuerpo')!.value).toBe('[b]La Odisea[/b]')
+	})
+
 	it('does not overwrite existing user input', () => {
 		document.body.innerHTML = `
 			<input id="cabecera" value="Mi titulo" />

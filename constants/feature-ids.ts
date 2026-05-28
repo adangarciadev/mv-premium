@@ -29,6 +29,7 @@ export const FEATURE_IDS = {
 	HIDDEN_SUBFORUM_BLOCKER: 'mvp-hidden-subforum-blocker',
 	ITAD_SUBFORUM_SEARCH: 'mvp-itad-subforum-search',
 	GAME_RELEASE_CALENDAR: 'mvp-game-release-calendar',
+	MOVIE_RELEASE_CALENDAR: 'mvp-movie-release-calendar',
 
 	// Dynamic Feature Prefixes (used with ID/Counter)
 	FAVORITE_SUBFORUM_BTN_PREFIX: 'mvp-favorite-subforum-btn-',

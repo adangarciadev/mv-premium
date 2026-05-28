@@ -12,6 +12,8 @@ export interface TMDBMovie {
 	backdrop_path: string | null
 	release_date: string
 	vote_average: number
+	popularity?: number
+	vote_count?: number
 	genre_ids: number[]
 }
 
@@ -53,6 +55,7 @@ export interface TMDBReleaseDates {
 		release_dates: {
 			certification: string
 			release_date: string
+			note?: string
 			type: number
 		}[]
 	}[]

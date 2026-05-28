@@ -54,6 +54,7 @@ const CONTENT_SETTING_IDS = [
 	'steam-bundle-cards',
 	'itad-search',
 	'game-release-calendar',
+	'movie-release-calendar',
 	'thread-clipper',
 	'pinned-posts',
 	'thread-preview',
@@ -80,6 +81,7 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		itadSubforumSearchHuchaEnabled,
 		itadCountry,
 		gameReleaseCalendarJuegosEnabled,
+		movieReleaseCalendarCineEnabled,
 		threadClipperSubforums,
 		pinnedPostsEnabled,
 		threadPreviewEnabled,
@@ -119,6 +121,7 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				| 'itadSubforumSearchJuegosEnabled'
 				| 'itadSubforumSearchHuchaEnabled'
 				| 'gameReleaseCalendarJuegosEnabled'
+				| 'movieReleaseCalendarCineEnabled'
 				| 'pinnedPostsEnabled'
 				| 'threadPreviewEnabled'
 				| 'threadSummarizerEnabled'
@@ -393,6 +396,18 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				<Switch
 					checked={gameReleaseCalendarJuegosEnabled}
 					onCheckedChange={withToastAndReload('gameReleaseCalendarJuegosEnabled', true)}
+				/>
+			</SettingRow>
+
+			<SettingRow
+				{...rowState('movie-release-calendar')}
+				icon={<Film className="h-4 w-4" />}
+				label="Próximos estrenos"
+				description="Muestra próximos estrenos de películas en España en el subforo Cine usando TMDB."
+			>
+				<Switch
+					checked={movieReleaseCalendarCineEnabled}
+					onCheckedChange={withToastAndReload('movieReleaseCalendarCineEnabled', true)}
 				/>
 			</SettingRow>
 

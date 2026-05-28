@@ -193,6 +193,17 @@ export const SETTINGS_SEARCH_INDEX: SettingSearchItem[] = [
 		isEnabled: settings => settings.gameReleaseCalendarJuegosEnabled,
 	},
 	{
+		id: 'movie-release-calendar',
+		category: 'features',
+		section: 'Cine',
+		label: 'Próximos estrenos',
+		description: 'Muestra próximos estrenos de películas en España en el subforo Cine.',
+		keywords: ['estrenos', 'calendario', 'cine', 'tmdb', 'peliculas', 'españa'],
+		settingKeys: ['movieReleaseCalendarCineEnabled'],
+		requiresReload: true,
+		isEnabled: settings => settings.movieReleaseCalendarCineEnabled,
+	},
+	{
 		id: 'thread-clipper',
 		category: 'features',
 		section: 'Hilos',

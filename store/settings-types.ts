@@ -96,6 +96,8 @@ export interface Settings {
 	gameReleaseCalendarEnabled: boolean
 	gameReleaseCalendarJuegosEnabled: boolean
 	gameReleaseCalendarLayout: GameReleaseCalendarLayout
+	movieReleaseCalendarCineEnabled: boolean
+	movieReleaseCalendarLayout: GameReleaseCalendarLayout
 	threadClipperSubforums: string[]
 	twitterLiteEmbedsEnabled: boolean
 	pinnedPostsEnabled: boolean

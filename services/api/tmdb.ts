@@ -54,6 +54,56 @@ import type {
 
 const TMDB_IMAGE_BASE = API_URLS.TMDB_IMAGE
 const CACHE_PREFIX = 'mv-tmdb-v2'
+const SPAIN_REGION = 'ES'
+const THEATRICAL_RELEASE_TYPES = '2|3'
+const MAX_DISCOVER_PAGES_FOR_RELEASES = 5
+const MIN_FEATURE_RUNTIME_MINUTES = 60
+const MIN_METADATA_SCORE = 3
+const MIN_POPULARITY_FOR_WEAK_METADATA = 3
+const RERELEASE_YEAR_GAP = 3
+
+export interface UpcomingSpanishMovieRelease {
+	id: number
+	title: string
+	originalTitle: string
+	overview: string
+	posterUrl: string | null
+	backdropUrl: string | null
+	releaseDate: string
+	releaseTimestamp: number
+	voteAverage: number
+	popularity: number
+	voteCount: number
+	genreIds: number[]
+	genres: string[]
+	director: string | null
+	runtime: number | null
+	releaseNote: string | null
+	isRerelease: boolean
+	source: 'tmdb'
+	tmdbUrl: string
+}
+
+export interface UpcomingSpanishMovieReleaseOptions {
+	from: Date
+	to: Date
+	limit?: number
+}
+
+export interface MovieThreadPrefillData {
+	title: string
+	body: string
+}
+
+interface SpanishTheatricalRelease {
+	dateKey: string
+	type: number
+	note: string | null
+}
+
+interface TMDBMovieDetailsWithCredits extends TMDBMovieDetails {
+	credits?: TMDBCredits
+}
 
 // =============================================================================
 // Image URL Helpers (no API call needed)
@@ -83,6 +133,10 @@ export function getBackdropUrl(path: string | null, size: BackdropSize = 'w780')
 async function fetchTMDBViaBackground<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
 	const result = await sendMessage('tmdbRequest', { endpoint, params })
 	return result as T
+}
+
+export async function hasTmdbApiKey(): Promise<boolean> {
+	return sendMessage('hasTmdbApiKey')
 }
 
 /**
@@ -121,7 +175,13 @@ export async function searchMovies(query: string, page = 1): Promise<TMDBSearchR
 	const cacheKey = createCacheKey('search', query, page)
 	return cachedFetch(
 		cacheKey,
-		() => fetchTMDBViaBackground<TMDBSearchResult<TMDBMovie>>('/search/movie', { query, page: String(page) }),
+		() =>
+			fetchTMDBViaBackground<TMDBSearchResult<TMDBMovie>>('/search/movie', {
+				query,
+				page: String(page),
+				language: 'es-ES',
+				region: SPAIN_REGION,
+			}),
 		{ prefix: CACHE_PREFIX, ttl: CACHE_TTL.SHORT, persist: false }
 	)
 }
@@ -184,6 +244,225 @@ export async function getMovieVideos(movieId: number): Promise<TMDBVideos> {
 
 export async function getMovieReleaseDates(movieId: number): Promise<TMDBReleaseDates> {
 	return fetchTMDB<TMDBReleaseDates>(`/movie/${movieId}/release_dates`, {}, { persist: false })
+}
+
+function toDateKey(date: Date): string {
+	const year = date.getFullYear()
+	const month = String(date.getMonth() + 1).padStart(2, '0')
+	const day = String(date.getDate()).padStart(2, '0')
+	return `${year}-${month}-${day}`
+}
+
+function normalizeReleaseDate(value: string | null | undefined): string | null {
+	if (!value) return null
+	const match = value.match(/^\d{4}-\d{2}-\d{2}/)
+	return match?.[0] ?? null
+}
+
+function dateKeyToTimestamp(dateKey: string): number {
+	return new Date(`${dateKey}T00:00:00`).getTime()
+}
+
+function getSpanishTheatricalRelease(
+	releaseDates: TMDBReleaseDates,
+	fromKey: string,
+	toKey: string
+): SpanishTheatricalRelease | null {
+	const spainRelease = releaseDates.results.find(result => result.iso_3166_1 === SPAIN_REGION)
+	if (!spainRelease) return null
+
+	const getReleaseInRange = (type: number) =>
+		spainRelease.release_dates
+			.map(release => ({ ...release, dateKey: normalizeReleaseDate(release.release_date) }))
+			.filter(
+				(release): release is typeof release & { dateKey: string } =>
+					release.type === type && release.dateKey !== null && isDateInRange(release.dateKey, fromKey, toKey)
+			)
+			.sort((a, b) => a.dateKey.localeCompare(b.dateKey))
+			.map(release => ({ dateKey: release.dateKey, type: release.type, note: release.note ?? null }))[0] ?? null
+
+	return getReleaseInRange(3) ?? getReleaseInRange(2)
+}
+
+function isDateInRange(dateKey: string, fromKey: string, toKey: string): boolean {
+	return dateKey >= fromKey && dateKey <= toKey
+}
+
+function getYearFromDateKey(dateKey: string | null): number | null {
+	if (!dateKey) return null
+	const year = Number.parseInt(dateKey.slice(0, 4), 10)
+	return Number.isFinite(year) ? year : null
+}
+
+function isRereleaseNote(note: string | null): boolean {
+	if (!note) return false
+	return /re-?release|reestreno|anniversary|aniversario|remaster|restaurad|restored|4k/i.test(note)
+}
+
+function isLikelyRerelease(movie: TMDBMovie, release: SpanishTheatricalRelease): boolean {
+	if (isRereleaseNote(release.note)) return true
+
+	const originalYear = getYearFromDateKey(normalizeReleaseDate(movie.release_date))
+	const spanishReleaseYear = getYearFromDateKey(release.dateKey)
+	if (originalYear === null || spanishReleaseYear === null) return false
+
+	return spanishReleaseYear - originalYear >= RERELEASE_YEAR_GAP
+}
+
+function getDirectorFromCredits(credits: TMDBCredits | undefined): string | null {
+	return credits?.crew.find(c => c.job === 'Director')?.name ?? null
+}
+
+async function getMovieReleaseDetails(movieId: number): Promise<TMDBMovieDetailsWithCredits> {
+	return fetchTMDB<TMDBMovieDetailsWithCredits>(
+		`/movie/${movieId}`,
+		{ append_to_response: 'credits', language: 'es-ES' },
+		{ ttl: CACHE_TTL.LONG, persist: false }
+	)
+}
+
+async function enrichMovieRelease(release: UpcomingSpanishMovieRelease): Promise<UpcomingSpanishMovieRelease> {
+	const details = await getMovieReleaseDetails(release.id)
+
+	return {
+		...release,
+		title: details.title ?? release.title,
+		originalTitle: details.original_title ?? release.originalTitle,
+		overview: details.overview ?? release.overview,
+		posterUrl: details.poster_path ? getPosterUrl(details.poster_path, 'w342') : release.posterUrl,
+		backdropUrl: details.backdrop_path ? getBackdropUrl(details.backdrop_path, 'w780') : release.backdropUrl,
+		voteAverage: details.vote_average ?? release.voteAverage,
+		genreIds: details.genre_ids ?? release.genreIds,
+		genres: details.genres?.map(genre => GENRE_TRANSLATIONS[genre.name] || genre.name) ?? release.genres,
+		director: getDirectorFromCredits(details.credits) ?? release.director,
+		runtime: typeof details.runtime === 'number' && details.runtime > 0 ? details.runtime : release.runtime,
+	}
+}
+
+function mapMovieRelease(movie: TMDBMovie, release: SpanishTheatricalRelease): UpcomingSpanishMovieRelease {
+	return {
+		id: movie.id,
+		title: movie.title,
+		originalTitle: movie.original_title,
+		overview: movie.overview,
+		posterUrl: getPosterUrl(movie.poster_path, 'w342'),
+		backdropUrl: getBackdropUrl(movie.backdrop_path, 'w780'),
+		releaseDate: release.dateKey,
+		releaseTimestamp: dateKeyToTimestamp(release.dateKey),
+		voteAverage: movie.vote_average,
+		popularity: movie.popularity ?? 0,
+		voteCount: movie.vote_count ?? 0,
+		genreIds: movie.genre_ids,
+		genres: [],
+		director: null,
+		runtime: null,
+		releaseNote: release.note,
+		isRerelease: isLikelyRerelease(movie, release),
+		source: 'tmdb',
+		tmdbUrl: `https://www.themoviedb.org/movie/${movie.id}`,
+	}
+}
+
+function mergeMovieReleases(releases: UpcomingSpanishMovieRelease[]): UpcomingSpanishMovieRelease[] {
+	const byMovieAndDate = new Map<string, UpcomingSpanishMovieRelease>()
+
+	for (const release of releases) {
+		const key = `${release.id}:${release.releaseDate}`
+		const existing = byMovieAndDate.get(key)
+		if (!existing) {
+			byMovieAndDate.set(key, release)
+			continue
+		}
+
+		byMovieAndDate.set(key, {
+			...existing,
+			...release,
+			releaseNote: existing.releaseNote ?? release.releaseNote,
+			isRerelease: existing.isRerelease || release.isRerelease,
+			source: existing.source === 'tmdb' ? existing.source : release.source,
+		})
+	}
+
+	return [...byMovieAndDate.values()]
+}
+
+function isDisplayableMovieRelease(release: UpcomingSpanishMovieRelease): boolean {
+	if (release.runtime !== null && release.runtime < MIN_FEATURE_RUNTIME_MINUTES) return false
+
+	const metadataScore = [
+		release.posterUrl !== null,
+		release.overview.trim().length >= 80,
+		release.director !== null,
+		release.runtime !== null,
+		release.genreIds.length > 0 || release.genres.length > 0,
+		release.voteCount > 0 || release.popularity >= MIN_POPULARITY_FOR_WEAK_METADATA,
+	].filter(Boolean).length
+
+	return metadataScore >= MIN_METADATA_SCORE
+}
+
+export async function getUpcomingSpanishMovieReleases({
+	from,
+	to,
+	limit = 18,
+}: UpcomingSpanishMovieReleaseOptions): Promise<UpcomingSpanishMovieRelease[]> {
+	const fromKey = toDateKey(from)
+	const toKey = toDateKey(to)
+	const baseParams = {
+		include_adult: 'false',
+		language: 'es-ES',
+		region: SPAIN_REGION,
+		'release_date.gte': fromKey,
+		'release_date.lte': toKey,
+		sort_by: 'primary_release_date.asc',
+		with_release_type: THEATRICAL_RELEASE_TYPES,
+	}
+
+	const firstPage = await discoverMovies({ ...baseParams, page: '1' })
+	const totalPages = Math.min(firstPage.total_pages, MAX_DISCOVER_PAGES_FOR_RELEASES)
+	const remainingPages =
+		totalPages > 1
+			? await Promise.all(
+					Array.from({ length: totalPages - 1 }, (_, index) =>
+						discoverMovies({ ...baseParams, page: String(index + 2) })
+					)
+				)
+			: []
+
+	const moviesById = new Map<number, TMDBMovie>()
+	for (const movie of [firstPage, ...remainingPages].flatMap(page => page.results)) {
+		if (!moviesById.has(movie.id)) {
+			moviesById.set(movie.id, movie)
+		}
+	}
+
+	const tmdbReleases = await Promise.all(
+		[...moviesById.values()].map(async movie => {
+			const releaseDates = await getMovieReleaseDates(movie.id)
+			const spanishRelease = getSpanishTheatricalRelease(releaseDates, fromKey, toKey)
+
+			if (!spanishRelease || !isDateInRange(spanishRelease.dateKey, fromKey, toKey)) {
+				return null
+			}
+
+			return mapMovieRelease(movie, spanishRelease)
+		})
+	)
+
+	const mappedTmdbReleases = tmdbReleases.filter(
+		(release): release is UpcomingSpanishMovieRelease => release !== null
+	)
+	const selectedReleases = mergeMovieReleases(mappedTmdbReleases)
+		.filter((release): release is UpcomingSpanishMovieRelease => release !== null)
+		.sort(
+			(a, b) =>
+				a.releaseTimestamp - b.releaseTimestamp ||
+				b.voteAverage - a.voteAverage ||
+				a.title.localeCompare(b.title, 'es')
+		)
+
+	const enrichedReleases = await Promise.all(selectedReleases.map(enrichMovieRelease))
+	return enrichedReleases.filter(isDisplayableMovieRelease).slice(0, limit)
 }
 
 // External IDs response type
@@ -285,6 +564,20 @@ function getActiveTemplate(type: 'movie' | 'tvshow' | 'season'): MediaTemplate {
 export function generateTemplate(data: MovieTemplateData): string {
 	const template = getActiveTemplate('movie')
 	return renderTemplate(template, data)
+}
+
+export function buildMovieThreadTitle(data: Pick<MovieTemplateData, 'title' | 'director' | 'year'>): string {
+	const director = data.director.trim() || 'Desconocido'
+	const year = data.year.trim() || 's/f'
+	return `'${data.title}', de ${director} (${year})`
+}
+
+export async function getMovieThreadPrefillData(movieId: number): Promise<MovieThreadPrefillData> {
+	const data = await getMovieTemplateData(movieId)
+	return {
+		title: buildMovieThreadTitle(data),
+		body: generateTemplate(data),
+	}
 }
 
 // =============================================================================

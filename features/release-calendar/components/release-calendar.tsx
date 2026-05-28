@@ -23,6 +23,7 @@ import {
 import { logger } from '@/lib/logger'
 import { cn } from '@/lib/utils'
 import { saveReleaseThreadPrefill } from '../logic/thread-prefill'
+import { CalendarLayoutControls } from './calendar-layout-controls'
 
 interface ReleaseState {
 	releases: UpcomingGameRelease[]
@@ -515,41 +516,7 @@ export function ReleaseCalendar() {
 	}
 
 	const layoutControls = (
-		<div className="flex rounded-md bg-muted p-1">
-			<button
-				type="button"
-				onClick={() => selectLayout('showcase')}
-				aria-pressed={layout === 'showcase'}
-				className={cn(
-					'h-8 rounded px-3 text-[12px] font-bold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-					layout === 'showcase' && 'bg-primary text-primary-foreground hover:text-primary-foreground'
-				)}
-			>
-				Carrusel
-			</button>
-			<button
-				type="button"
-				onClick={() => selectLayout('minimal')}
-				aria-pressed={layout === 'minimal'}
-				className={cn(
-					'h-8 rounded px-3 text-[12px] font-bold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-					layout === 'minimal' && 'bg-primary text-primary-foreground hover:text-primary-foreground'
-				)}
-			>
-				Minimalista
-			</button>
-			<button
-				type="button"
-				onClick={() => selectLayout('bottom')}
-				aria-pressed={layout === 'bottom'}
-				className={cn(
-					'h-8 rounded px-3 text-[12px] font-bold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-					layout === 'bottom' && 'bg-primary text-primary-foreground hover:text-primary-foreground'
-				)}
-			>
-				Inferior
-			</button>
-		</div>
+		<CalendarLayoutControls layout={layout} onChange={selectLayout} />
 	)
 
 	const platformControls = (

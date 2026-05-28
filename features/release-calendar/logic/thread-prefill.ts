@@ -2,7 +2,7 @@ import { MV_SELECTORS, STORAGE_KEYS } from '@/constants'
 import { logger } from '@/lib/logger'
 
 export interface ReleaseThreadPrefill {
-	subforum: 'juegos'
+	subforum: 'juegos' | 'cine'
 	title: string
 	body: string
 	createdAt: number
@@ -22,7 +22,7 @@ function readPrefill(): ReleaseThreadPrefill | null {
 
 		const prefill = JSON.parse(raw) as ReleaseThreadPrefill
 		if (
-			prefill.subforum !== 'juegos' ||
+			(prefill.subforum !== 'juegos' && prefill.subforum !== 'cine') ||
 			typeof prefill.title !== 'string' ||
 			typeof prefill.body !== 'string' ||
 			typeof prefill.createdAt !== 'number'
@@ -59,6 +59,9 @@ export function applyReleaseThreadPrefill(): boolean {
 	const prefill = readPrefill()
 	clearReleaseThreadPrefill()
 	if (!prefill) return false
+
+	const currentSubforum = window.location.pathname.match(/^\/foro\/([^/]+)\/nuevo-hilo/)?.[1]
+	if (currentSubforum && currentSubforum !== prefill.subforum) return false
 
 	const titleInput = document.querySelector<HTMLInputElement>(MV_SELECTORS.EDITOR.TITLE_INPUT)
 	const textarea = document.querySelector<HTMLTextAreaElement>(MV_SELECTORS.EDITOR.TEXTAREA_ALL)

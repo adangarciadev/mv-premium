@@ -143,6 +143,7 @@ export const DOM_MARKERS = {
 		HIDDEN_SUBFORUM_BLOCKER: 'mvp-hidden-subforum-blocker',
 		ITAD_SUBFORUM_SEARCH: 'mvp-itad-subforum-search',
 		GAME_RELEASE_CALENDAR: 'mvp-game-release-calendar',
+		MOVIE_RELEASE_CALENDAR: 'mvp-movie-release-calendar',
 		// Gallery
 		GALLERY_BTN: 'mvp-gallery-btn',
 		GALLERY_TRIGGER: 'mvp-gallery-trigger',
