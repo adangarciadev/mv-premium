@@ -134,6 +134,12 @@ function executeAction(actionId: string) {
 				toggleReleaseCalendarJuegos().catch(err => logger.error('Release calendar toggle error:', err))
 			}).catch(err => logger.error('Release calendar import error:', err))
 			break
+
+		case 'release-calendar-cine-toggle':
+			import('@/features/movie-release-calendar').then(({ toggleMovieReleaseCalendarCine }) => {
+				toggleMovieReleaseCalendarCine().catch(err => logger.error('Movie release calendar toggle error:', err))
+			}).catch(err => logger.error('Movie release calendar import error:', err))
+			break
 	}
 }
 
