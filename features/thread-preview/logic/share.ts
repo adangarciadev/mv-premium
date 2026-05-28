@@ -167,7 +167,7 @@ function togglePreviewSpoiler(anchor: HTMLAnchorElement): void {
 
 	const isHidden =
 		spoiler.hidden === true ||
-		spoiler.hidden === 'until-found' ||
+		spoiler.getAttribute('hidden') === 'until-found' ||
 		spoiler.style.display === 'none' ||
 		getComputedStyle(spoiler).display === 'none' ||
 		spoiler.classList.contains('hidden')
