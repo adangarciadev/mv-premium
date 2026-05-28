@@ -115,6 +115,9 @@ export function updatePreviewClamp(body: HTMLElement, expandButton: HTMLButtonEl
 
 	const truncable = isPreviewTruncable(body, height)
 	body.classList.toggle(BODY_TRUNCABLE_CLASS, truncable)
+	if (!truncable) {
+		body.style.maxHeight = `${height + TRUNCATION_TOLERANCE}px`
+	}
 	expandButton.hidden = !truncable
 }
 

@@ -13,10 +13,11 @@ import {
 	isPreviewTruncable,
 	normalizeThreadPreviewUrl,
 } from './thread-preview'
+import { updatePreviewClamp } from './clamp'
 import { sendMessage } from '@/lib/messaging'
 import { reinitializeEmbeds } from '@/lib/content-modules/utils/reinitialize-embeds'
 import { useSettingsStore } from '@/store/settings-store'
-import { ACTION_GROUP_CLASS, EXPAND_CLASS, STYLE_ID } from './constants'
+import { ACTION_GROUP_CLASS, BODY_CLAMPED_CLASS, EXPAND_CLASS, STYLE_ID } from './constants'
 
 vi.mock('@/lib/messaging', () => ({
 	sendMessage: vi.fn(),
@@ -267,6 +268,31 @@ describe('thread-preview', () => {
 		controls.getBoundingClientRect = vi.fn(() => createRect(690, 720))
 
 		expect(isPreviewTruncable(element, 760)).toBe(false)
+	})
+
+	it('keeps near-threshold short previews from clipping like counts when the expand button is hidden', () => {
+		const body = document.createElement('div')
+		body.className = BODY_CLAMPED_CLASS
+		body.innerHTML = `
+			<div class="post">
+				<div class="post-contents"><p>Post corto.</p></div>
+				<div class="post-controls"><span class="mvp-thread-preview-like-summary">12</span></div>
+			</div>
+		`
+		const expandButton = document.createElement('button')
+		document.body.appendChild(body)
+
+		const contents = body.querySelector<HTMLElement>('.post-contents')!
+		const controls = body.querySelector<HTMLElement>('.post-controls')!
+		Object.defineProperty(body, 'scrollHeight', { value: 772, configurable: true })
+		body.getBoundingClientRect = vi.fn(() => createRect(100, 860))
+		contents.getBoundingClientRect = vi.fn(() => createRect(130, 700))
+		controls.getBoundingClientRect = vi.fn(() => createRect(742, 872))
+
+		updatePreviewClamp(body, expandButton)
+
+		expect(expandButton.hidden).toBe(true)
+		expect(body.style.maxHeight).toBe('788px')
 	})
 
 	it('injects preview buttons once and opens a preview row', async () => {
