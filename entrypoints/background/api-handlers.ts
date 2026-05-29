@@ -750,12 +750,12 @@ function enrichWithSyndicationData(
  */
 async function resolveReplyContext(
 	tweetData: TweetLiteData,
-	oEmbedPayload: Record<string, unknown>,
+	oEmbedPayload: Record<string, unknown> | null,
 	syndicationPayload: Record<string, unknown> | null,
 	normalizedTweetUrl: string,
 	statusId: string | null
 ): Promise<void> {
-	const html = typeof oEmbedPayload.html === 'string' ? oEmbedPayload.html : ''
+	const html = typeof oEmbedPayload?.html === 'string' ? oEmbedPayload.html : ''
 	let replyTargetUrl = extractReplyTargetUrlFromOEmbedHtml(html, normalizedTweetUrl)
 	let threadHtml = ''
 
@@ -874,11 +874,9 @@ export function setupTwitterLiteHandler(): void {
 				statusId ? fetchSyndicationTweetById(statusId) : Promise.resolve(null),
 			])
 
-			if (!payload) {
-				return { success: false, error: 'oEmbed error' }
-			}
-
-			const tweetData = extractTweetLiteDataFromOEmbed(payload, normalizedTweetUrl)
+			const tweetData =
+				(payload ? extractTweetLiteDataFromOEmbed(payload, normalizedTweetUrl) : null) ||
+				(syndicationPayload ? extractTweetLiteDataFromSyndication(syndicationPayload, normalizedTweetUrl) : null)
 			if (!tweetData) {
 				return { success: false, error: 'Tweet content unavailable' }
 			}
