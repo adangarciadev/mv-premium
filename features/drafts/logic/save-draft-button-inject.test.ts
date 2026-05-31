@@ -91,4 +91,39 @@ describe('save draft button injection', () => {
 		expect(changeListener).toHaveBeenCalledOnce()
 		expect(clearBtn.disabled).toBe(true)
 	})
+
+	it('shows copied feedback on the copy button for one second', async () => {
+		vi.useFakeTimers()
+		document.body.innerHTML = `
+			<div class="wpx">
+				<form>
+					<textarea id="cuerpo">Contenido del hilo</textarea>
+					<div class="cf">
+						<button type="submit">Crear tema</button>
+					</div>
+				</form>
+			</div>
+		`
+
+		injectSaveDraftButton()
+
+		const textarea = document.querySelector<HTMLTextAreaElement>('#cuerpo')!
+		const copyBtn = document.querySelector<HTMLButtonElement>('.mvp-copy-content-action')!
+
+		copyBtn.click()
+		await Promise.resolve()
+
+		expect(copyBtn.textContent).toContain('Copiado')
+		expect(copyBtn.disabled).toBe(true)
+
+		textarea.value = 'Contenido editado durante el feedback'
+		textarea.dispatchEvent(new Event('input', { bubbles: true }))
+
+		expect(copyBtn.disabled).toBe(true)
+
+		vi.advanceTimersByTime(1000)
+
+		expect(copyBtn.textContent).toContain('Copiar')
+		expect(copyBtn.disabled).toBe(false)
+	})
 })

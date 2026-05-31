@@ -11,6 +11,9 @@ const STATUS_CONTAINER_ID = DOM_MARKERS.IDS.DRAFT_STATUS_CONTAINER
 const SAVE_DRAFT_BUTTON_CLASS = 'mvp-save-draft-action'
 const COPY_BUTTON_CLASS = 'mvp-copy-content-action'
 const CLEAR_BUTTON_CLASS = 'mvp-clear-content-action'
+const COPY_BUTTON_DEFAULT_HTML = '<i class="fa fa-copy"></i> Copiar'
+const COPY_BUTTON_SUCCESS_HTML = '<i class="fa fa-check"></i> Copiado'
+const COPY_FEEDBACK_MS = 1000
 
 function dispatchTextareaChange(textarea: HTMLTextAreaElement): void {
 	textarea.dispatchEvent(new Event('input', { bubbles: true }))
@@ -24,6 +27,12 @@ function updateContentActionState(textarea: HTMLTextAreaElement, ...buttons: HTM
 		button.style.opacity = hasContent ? '' : '0.55'
 		button.style.cursor = hasContent ? '' : 'not-allowed'
 	})
+}
+
+function lockCopyButtonFeedback(copyBtn: HTMLButtonElement): void {
+	copyBtn.disabled = true
+	copyBtn.style.opacity = ''
+	copyBtn.style.cursor = 'default'
 }
 
 /**
@@ -90,9 +99,11 @@ export function injectSaveDraftButton(): void {
 		const copyBtn = document.createElement('button')
 		copyBtn.type = 'button'
 		copyBtn.className = `btn btn-large ${COPY_BUTTON_CLASS}`
-		copyBtn.innerHTML = '<i class="fa fa-copy"></i> Copiar'
+		copyBtn.innerHTML = COPY_BUTTON_DEFAULT_HTML
 		copyBtn.title = 'Copiar contenido al portapapeles'
 		copyBtn.style.cssText = 'margin-left: 5px;'
+		let copyFeedbackActive = false
+		let copyFeedbackTimeout: number | null = null
 
 		// Handle click - copy textarea content to clipboard
 		copyBtn.addEventListener('click', async e => {
@@ -100,6 +111,18 @@ export function injectSaveDraftButton(): void {
 			e.stopPropagation()
 			try {
 				await navigator.clipboard.writeText(textarea.value)
+				if (copyFeedbackTimeout !== null) {
+					window.clearTimeout(copyFeedbackTimeout)
+				}
+				copyFeedbackActive = true
+				copyBtn.innerHTML = COPY_BUTTON_SUCCESS_HTML
+				lockCopyButtonFeedback(copyBtn)
+				copyFeedbackTimeout = window.setTimeout(() => {
+					copyFeedbackActive = false
+					copyFeedbackTimeout = null
+					copyBtn.innerHTML = COPY_BUTTON_DEFAULT_HTML
+					updateContentActionState(textarea, copyBtn, clearBtn)
+				}, COPY_FEEDBACK_MS)
 				import('@/lib/lazy-toast').then(({ toast }) => {
 					toast.success('Contenido copiado al portapapeles')
 				})
@@ -134,7 +157,12 @@ export function injectSaveDraftButton(): void {
 			})
 		})
 
-		const updateActionButtons = () => updateContentActionState(textarea, copyBtn, clearBtn)
+		const updateActionButtons = () => {
+			updateContentActionState(textarea, copyBtn, clearBtn)
+			if (copyFeedbackActive) {
+				lockCopyButtonFeedback(copyBtn)
+			}
+		}
 		textarea.addEventListener('input', updateActionButtons)
 		updateActionButtons()
 
