@@ -15,7 +15,8 @@ export function CineToolbarButton({ onFullSheet }: CineToolbarButtonProps) {
 		<button
 			type="button"
 			className="mvp-toolbar-btn"
-			title="Películas y series (TMDB)"
+			title="Plantillas multimedia (TMDB/AniList)"
+			aria-label="Plantillas multimedia"
 			onClick={e => {
 				e.preventDefault()
 				e.stopPropagation()

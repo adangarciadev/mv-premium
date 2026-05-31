@@ -93,6 +93,8 @@ const MEDIA_TYPES: { value: TemplateType; label: string; tooltip: string }[] = [
 		tooltip: 'Plantilla para fichas de una temporada específica de una serie (busca en TMDB)',
 	},
 	{ value: 'game', label: 'Videojuegos', tooltip: 'Plantilla para fichas de videojuegos (busca en IGDB)' },
+	{ value: 'anime', label: 'Anime', tooltip: 'Plantilla para fichas de anime (busca en AniList)' },
+	{ value: 'manga', label: 'Manga', tooltip: 'Plantilla para fichas de manga (busca en AniList)' },
 ]
 
 export function MediaTemplateEditor() {
@@ -102,7 +104,7 @@ export function MediaTemplateEditor() {
 
 	// Current media type from URL
 	const currentType = (searchParams.get('type') as TemplateType) || 'movie'
-	const validTypes: TemplateType[] = ['movie', 'tvshow', 'season', 'game']
+	const validTypes: TemplateType[] = ['movie', 'tvshow', 'season', 'game', 'anime', 'manga']
 	const mediaType = validTypes.includes(currentType) ? currentType : 'movie'
 
 	// Settings
@@ -229,7 +231,7 @@ export function MediaTemplateEditor() {
 		const newTemplate: MediaTemplate = createEmptyTemplate(mediaType, `Plantilla Personalizada (${mediaType})`)
 		newTemplate.blocks = [createRawBlock(content)]
 
-		const currentTemplates = mediaTemplates || { movie: null, tvshow: null, season: null, game: null }
+		const currentTemplates = mediaTemplates || { movie: null, tvshow: null, season: null, game: null, anime: null, manga: null }
 		const updatedTemplates = {
 			...currentTemplates,
 			[mediaType]: newTemplate,
@@ -251,7 +253,7 @@ export function MediaTemplateEditor() {
 	// Handle clear confirm — removes custom template from store and loads default
 	const handleClearConfirm = () => {
 		// Remove the custom template from settings
-		const currentTemplates = mediaTemplates || { movie: null, tvshow: null, season: null, game: null }
+		const currentTemplates = mediaTemplates || { movie: null, tvshow: null, season: null, game: null, anime: null, manga: null }
 		const updatedTemplates = {
 			...currentTemplates,
 			[mediaType]: null,
@@ -417,7 +419,7 @@ export function MediaTemplateEditor() {
 						<div className="w-px h-6 bg-border shrink-0" />
 
 						{/* Search Bar */}
-						{mediaType !== 'game' ? (
+						{mediaType === 'movie' || mediaType === 'tvshow' || mediaType === 'season' ? (
 							<div ref={searchContainerRef} className="relative flex-1 min-w-[240px] max-w-sm group">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
 								<Input
@@ -614,7 +616,7 @@ export function MediaTemplateEditor() {
 										</div>
 									)}
 							</div>
-						) : (
+						) : mediaType === 'game' ? (
 							<div ref={searchContainerRef} className="relative flex-1 min-w-[240px] max-w-sm group">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
 								<Input
@@ -707,6 +709,10 @@ export function MediaTemplateEditor() {
 											)}
 										</div>
 									)}
+							</div>
+						) : (
+							<div className="flex-1 min-w-[240px] max-w-sm rounded-md border border-border bg-muted/20 px-3 py-1.5 text-xs text-muted-foreground">
+								Vista previa con datos de ejemplo
 							</div>
 						)}
 
@@ -1079,6 +1085,10 @@ function getTypeName(type: TemplateType): string {
 			return 'Temporadas'
 		case 'game':
 			return 'Videojuegos'
+		case 'anime':
+			return 'Anime'
+		case 'manga':
+			return 'Manga'
 		default:
 			return 'Media'
 	}

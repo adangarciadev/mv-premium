@@ -178,7 +178,10 @@ function renderFieldBlock(block: FieldBlock, data: Record<string, unknown>): str
 		stringValue = `${value} min`
 	}
 	if (
-		(block.field === 'releaseDate' || block.field === 'firstAirDate' || block.field === 'airDate') &&
+		(block.field === 'releaseDate' ||
+			block.field === 'firstAirDate' ||
+			block.field === 'airDate' ||
+			block.field === 'startDate') &&
 		typeof value === 'string'
 	) {
 		stringValue = formatDate(value)

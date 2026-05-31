@@ -2,7 +2,7 @@
 import { type TemplateType, type TemplateDataInput, getFieldsForType } from '@/types/templates'
 
 /** Image field keys that need a valid placeholder URL instead of {{placeholder}} text */
-export const IMAGE_FIELD_KEYS = new Set(['posterUrl', 'coverUrl'])
+export const IMAGE_FIELD_KEYS = new Set(['posterUrl', 'coverUrl', 'bannerUrl'])
 
 /** Array fields that contain image URLs — should be empty in placeholder mode */
 export const IMAGE_ARRAY_KEYS = new Set(['screenshots', 'artworks'])

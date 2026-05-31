@@ -244,8 +244,8 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 			<SettingRow
 				{...rowState('cinema-button')}
 				icon={<Film className="h-4 w-4" />}
-				label="Botón de Cine"
-				description="Añade un botón en el editor para buscar e insertar fichas de películas y series desde TMDB."
+				label="Botón de plantillas multimedia"
+				description="Añade un botón en el editor para buscar e insertar fichas de películas, series, anime y manga desde TMDB y AniList."
 			>
 				<Switch checked={cinemaButtonEnabled} onCheckedChange={withToastAndReload('cinemaButtonEnabled', true)} />
 			</SettingRow>

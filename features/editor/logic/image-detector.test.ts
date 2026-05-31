@@ -84,6 +84,10 @@ describe('image-detector', () => {
 				expect(isImageUrl('https://image.tmdb.org/t/p/w500/abc123')).toBe(true)
 			})
 
+			it('should detect AniList CDN URLs', () => {
+				expect(isImageUrl('https://s4.anilist.co/file/anilistcdn/media/manga/banner/30664-B3RVMh7TnXEB.jpg')).toBe(true)
+			})
+
 			it('should detect Giphy URLs', () => {
 				expect(isImageUrl('https://media.giphy.com/media/abc123/giphy.gif')).toBe(true)
 				expect(isImageUrl('https://media1.giphy.com/media/abc123/giphy.gif')).toBe(true)

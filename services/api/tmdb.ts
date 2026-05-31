@@ -259,6 +259,30 @@ function normalizeReleaseDate(value: string | null | undefined): string | null {
 	return match?.[0] ?? null
 }
 
+function containsCjk(text: string): boolean {
+	return /[\u3040-\u30ff\u3400-\u9fff]/.test(text)
+}
+
+function getCreditName(person: { name: string; original_name?: string }): string {
+	const name = person.name?.trim() || ''
+	const originalName = person.original_name?.trim() || ''
+
+	if (name && !containsCjk(name)) return name
+	if (originalName && !containsCjk(originalName)) return originalName
+	return name || originalName
+}
+
+function pickCreditNames(people: Array<{ name: string; original_name?: string }>, limit: number): string[] {
+	const uniqueNames = [...new Set(people.map(getCreditName).filter(Boolean))]
+	const latinNames = uniqueNames.filter(name => !containsCjk(name))
+	if (latinNames.length > 0) return latinNames.slice(0, limit)
+	return uniqueNames.slice(0, limit)
+}
+
+function firstCreditName(people: Array<{ name: string; original_name?: string }>): string | null {
+	return pickCreditNames(people, 1)[0] ?? null
+}
+
 function dateKeyToTimestamp(dateKey: string): number {
 	return new Date(`${dateKey}T00:00:00`).getTime()
 }
@@ -310,7 +334,7 @@ function isLikelyRerelease(movie: TMDBMovie, release: SpanishTheatricalRelease):
 }
 
 function getDirectorFromCredits(credits: TMDBCredits | undefined): string | null {
-	return credits?.crew.find(c => c.job === 'Director')?.name ?? null
+	return firstCreditName(credits?.crew.filter(c => c.job === 'Director') ?? [])
 }
 
 async function getMovieReleaseDetails(movieId: number): Promise<TMDBMovieDetailsWithCredits> {
@@ -511,22 +535,23 @@ export async function getMovieTemplateData(movieId: number): Promise<MovieTempla
 		getMovieReleaseDates(movieId),
 	])
 
-	const director = credits.crew.find(c => c.job === 'Director')?.name || 'Desconocido'
+	const director = firstCreditName(credits.crew.filter(c => c.job === 'Director')) || 'Desconocido'
 
 	// Prioritize "Screenplay", "Writer", "Scenario" jobs
-	let writers = credits.crew.filter(c => ['Screenplay', 'Writer', 'Scenario'].includes(c.job)).map(c => c.name)
+	let writers = credits.crew.filter(c => ['Screenplay', 'Writer', 'Scenario'].includes(c.job))
 
 	// Fallback to Writing department if empty
 	if (writers.length === 0) {
-		writers = credits.crew.filter(c => c.department === 'Writing').map(c => c.name)
+		writers = credits.crew.filter(c => c.department === 'Writing')
 	}
 
-	const screenplay = writers.filter((name, i, arr) => arr.indexOf(name) === i).slice(0, 5)
+	const screenplay = pickCreditNames(writers, 5)
 
 	const cast = credits.cast
 		.sort((a, b) => a.order - b.order)
-		.slice(0, 5)
-		.map(c => c.name)
+		.slice(0, 12)
+		.map(c => ({ name: c.name, original_name: c.original_name }))
+	const displayCast = pickCreditNames(cast, 5)
 
 	const trailer = videos.results.find(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'))
 
@@ -540,7 +565,7 @@ export async function getMovieTemplateData(movieId: number): Promise<MovieTempla
 		year: details.release_date?.split('-')[0] || '',
 		director,
 		screenplay,
-		cast,
+		cast: displayCast,
 		genres: details.genres.map(g => GENRE_TRANSLATIONS[g.name] || g.name),
 		runtime: details.runtime,
 		overview: details.overview,
@@ -704,12 +729,13 @@ export async function getTVShowTemplateData(tvId: number): Promise<TVShowTemplat
 		getTVShowVideos(tvId),
 	])
 
-	const creators = details.created_by?.map(c => c.name) || []
+	const creators = pickCreditNames(details.created_by ?? [], 6)
 
 	const cast = credits.cast
 		.sort((a, b) => a.order - b.order)
-		.slice(0, 6)
-		.map(c => c.name)
+		.slice(0, 12)
+		.map(c => ({ name: c.name, original_name: c.original_name }))
+	const displayCast = pickCreditNames(cast, 6)
 
 	const trailer = videos.results.find(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'))
 
@@ -736,7 +762,7 @@ export async function getTVShowTemplateData(tvId: number): Promise<TVShowTemplat
 		originalTitle: details.original_name,
 		year: details.first_air_date?.split('-')[0] || '',
 		creators,
-		cast,
+		cast: displayCast,
 		genres: details.genres.map(g => GENRE_TRANSLATIONS[g.name] || g.name),
 		episodeRunTime,
 		numberOfSeasons: details.number_of_seasons,

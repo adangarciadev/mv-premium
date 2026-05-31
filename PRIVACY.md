@@ -19,9 +19,9 @@ MV Premium trata datos en dos grupos:
 - Claves API configuradas por el usuario para integraciones opcionales (por ejemplo: Gemini, ImgBB).
 
 2. **Datos enviados a servicios de terceros solo cuando usas funciones concretas**:
-- **Subida de imágenes**: si usas esa función, se envía la imagen (base64/archivo) a ImgBB o freeimage.host.
+- **Subida de imágenes**: si usas esa función, se envía la imagen (base64/archivo) a ImgBB o freeimage.host. En plantillas Anime/Manga, las imágenes de AniList pueden rehostearse automáticamente ahí para que el BBCode se vea correctamente en Mediavida.
 - **Funciones de IA**: si usas resúmenes u otras funciones IA, se envía el prompt/contenido que tú dispares a Gemini (Google).
-- **Búsqueda/consulta de contenido multimedia**: consultas de GIFs, cine/series, juegos o tweets ligeros pueden enviar términos, URLs o parámetros técnicos a GIPHY, TMDB, Steam, IGDB/Twitch y endpoints públicos de X/Twitter.
+- **Búsqueda/consulta de contenido multimedia**: consultas de GIFs, cine/series, anime/manga, juegos o tweets ligeros pueden enviar términos, URLs o parámetros técnicos a GIPHY, TMDB, AniList, Steam, IGDB/Twitch y endpoints públicos de X/Twitter.
 
 ## 3. Finalidad del tratamiento
 
@@ -45,7 +45,7 @@ MV Premium **no vende datos**.
 Los datos solo se comparten con terceros cuando es necesario para la función solicitada por el usuario, por ejemplo:
 - ImgBB / freeimage.host (subida de imágenes)
 - Google Gemini (generación IA)
-- GIPHY, TMDB, Steam, IGDB/Twitch, X/Twitter (consultas de contenido)
+- GIPHY, TMDB, AniList, Steam, IGDB/Twitch, X/Twitter (consultas de contenido)
 
 Cada proveedor externo aplica sus propias condiciones y política de privacidad sobre los datos que recibe.
 
@@ -107,9 +107,9 @@ MV Premium processes data in two groups:
 - API keys configured by the user for optional integrations (for example: Gemini, ImgBB).
 
 2. **Data sent to third-party services only when you use specific features**:
-- **Image upload**: if you use this feature, the image (base64/file) is sent to ImgBB or freeimage.host.
+- **Image upload**: if you use this feature, the image (base64/file) is sent to ImgBB or freeimage.host. In Anime/Manga templates, AniList images may be automatically rehosted there so the BBCode renders correctly on Mediavida.
 - **AI features**: if you use summaries or other AI features, prompted content is sent to Gemini (Google).
-- **Multimedia/content queries**: GIF, movies/TV, games, or lightweight tweet features may send queries, URLs, or technical parameters to GIPHY, TMDB, Steam, IGDB/Twitch, and public X/Twitter endpoints.
+- **Multimedia/content queries**: GIF, movies/TV, anime/manga, games, or lightweight tweet features may send queries, URLs, or technical parameters to GIPHY, TMDB, AniList, Steam, IGDB/Twitch, and public X/Twitter endpoints.
 
 ## 3. Purpose of processing
 
@@ -133,7 +133,7 @@ MV Premium **does not sell data**.
 Data is only shared with third parties when needed for a user-requested feature, for example:
 - ImgBB / freeimage.host (image upload)
 - Google Gemini (AI generation)
-- GIPHY, TMDB, Steam, IGDB/Twitch, X/Twitter (content queries)
+- GIPHY, TMDB, AniList, Steam, IGDB/Twitch, X/Twitter (content queries)
 
 Each third-party provider applies its own terms and privacy policy to the data it receives.
 

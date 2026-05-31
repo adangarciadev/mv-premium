@@ -548,13 +548,215 @@ export const DEFAULT_GAME_TEMPLATE: MediaTemplate = {
 }
 
 // =============================================================================
+// Anime Template (Default) - For AniList
+// =============================================================================
+
+export const DEFAULT_ANIME_TEMPLATE: MediaTemplate = {
+	id: 'default-anime-template',
+	type: 'anime',
+	name: 'Plantilla de Anime',
+	isDefault: true,
+	version: 1,
+	blocks: [
+		{
+			id: 'anime-banner',
+			type: 'field',
+			field: 'bannerUrl',
+			wrapper: '[center]\n[img]{{content}}[/img]\n[/center]',
+			conditional: true,
+			addLineBreak: true,
+		},
+		{ id: 'anime-info-bar', type: 'raw', rawText: '[bar]INFO[/bar]', addLineBreak: false },
+		{
+			id: 'anime-title',
+			type: 'field',
+			field: 'title',
+			label: '[b]Título:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'anime-genres',
+			type: 'field',
+			field: 'genres',
+			label: '[b]Género:[/b] {{value}}',
+			separator: ', ',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'anime-source',
+			type: 'field',
+			field: 'source',
+			label: '[b]Origen:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'anime-demographic',
+			type: 'field',
+			field: 'demographic',
+			label: '[b]Demografía:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'anime-studios',
+			type: 'field',
+			field: 'studios',
+			label: '[b]Estudio:[/b] {{value}}',
+			separator: ', ',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'anime-episodes',
+			type: 'field',
+			field: 'episodes',
+			label: '[b]Capítulos:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'anime-premiere',
+			type: 'field',
+			field: 'startDate',
+			label: '[b]Estreno:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'anime-links',
+			type: 'field',
+			field: 'linksText',
+			label: '[b]Enlaces:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: true,
+		},
+		{
+			id: 'anime-synopsis',
+			type: 'field',
+			field: 'overview',
+			wrapper: '[bar]SINOPSIS[/bar]\n{{content}}',
+			conditional: true,
+			addLineBreak: true,
+		},
+		{
+			id: 'anime-pv',
+			type: 'field',
+			field: 'trailerUrl',
+			wrapper: '[bar]PV[/bar]\n[media]{{content}}[/media]',
+			conditional: true,
+			addLineBreak: false,
+		},
+	],
+}
+
+// =============================================================================
+// Manga Template (Default) - For AniList
+// =============================================================================
+
+export const DEFAULT_MANGA_TEMPLATE: MediaTemplate = {
+	id: 'default-manga-template',
+	type: 'manga',
+	name: 'Plantilla de Manga',
+	isDefault: true,
+	version: 1,
+	blocks: [
+		{
+			id: 'manga-banner',
+			type: 'field',
+			field: 'bannerUrl',
+			wrapper: '[center]\n[img]{{content}}[/img]\n[/center]',
+			conditional: true,
+			addLineBreak: true,
+		},
+		{ id: 'manga-info-bar', type: 'raw', rawText: '[bar]INFO[/bar]', addLineBreak: false },
+		{
+			id: 'manga-title',
+			type: 'field',
+			field: 'title',
+			label: '[b]Título:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'manga-genres',
+			type: 'field',
+			field: 'genres',
+			label: '[b]Género:[/b] {{value}}',
+			separator: ', ',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'manga-demographic',
+			type: 'field',
+			field: 'demographic',
+			label: '[b]Demografía:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'manga-authors',
+			type: 'field',
+			field: 'authors',
+			label: '[b]Autor:[/b] {{value}}',
+			separator: ', ',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'manga-year',
+			type: 'field',
+			field: 'year',
+			label: '[b]Año:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'manga-status',
+			type: 'field',
+			field: 'status',
+			label: '[b]Publicación:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'manga-chapters',
+			type: 'field',
+			field: 'chapters',
+			label: '[b]Capítulos:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		{
+			id: 'manga-links',
+			type: 'field',
+			field: 'linksText',
+			label: '[b]Enlaces:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: true,
+		},
+		{
+			id: 'manga-synopsis',
+			type: 'field',
+			field: 'overview',
+			wrapper: '[bar]SINOPSIS[/bar]\n{{content}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+	],
+}
+
+// =============================================================================
 // Exports
 // =============================================================================
 
 /**
  * Get the default template for a given type
  */
-export function getDefaultTemplate(type: 'movie' | 'tvshow' | 'season' | 'game'): MediaTemplate {
+export function getDefaultTemplate(type: 'movie' | 'tvshow' | 'season' | 'game' | 'anime' | 'manga'): MediaTemplate {
 	switch (type) {
 		case 'movie':
 			return DEFAULT_MOVIE_TEMPLATE
@@ -564,6 +766,10 @@ export function getDefaultTemplate(type: 'movie' | 'tvshow' | 'season' | 'game')
 			return DEFAULT_SEASON_TEMPLATE
 		case 'game':
 			return DEFAULT_GAME_TEMPLATE
+		case 'anime':
+			return DEFAULT_ANIME_TEMPLATE
+		case 'manga':
+			return DEFAULT_MANGA_TEMPLATE
 	}
 }
 
@@ -575,4 +781,6 @@ export const DEFAULT_TEMPLATES = {
 	tvshow: DEFAULT_TVSHOW_TEMPLATE,
 	season: DEFAULT_SEASON_TEMPLATE,
 	game: DEFAULT_GAME_TEMPLATE,
+	anime: DEFAULT_ANIME_TEMPLATE,
+	manga: DEFAULT_MANGA_TEMPLATE,
 } as const

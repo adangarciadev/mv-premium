@@ -10,11 +10,14 @@ import { useReducer, useEffect, useRef } from 'react'
 import Search from 'lucide-react/dist/esm/icons/search'
 import Film from 'lucide-react/dist/esm/icons/film'
 import Tv from 'lucide-react/dist/esm/icons/tv'
+import Origami from 'lucide-react/dist/esm/icons/origami'
+import BookOpen from 'lucide-react/dist/esm/icons/book-open'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import Clapperboard from 'lucide-react/dist/esm/icons/clapperboard'
 import Layers from 'lucide-react/dist/esm/icons/layers'
 import { browser } from 'wxt/browser'
 import { generateTemplate, generateTVTemplate, generateSeasonTemplate, getPosterUrl } from '@/services/api/tmdb'
+import { generateAnimeTemplate, generateMangaTemplate, titleFromMedia } from '@/services/api/anilist'
 import type {
 	TMDBMovie,
 	TMDBTVShow,
@@ -22,6 +25,7 @@ import type {
 	TVShowTemplateData,
 	SeasonTemplateData,
 } from '@/services/api/tmdb'
+import type { AniListMedia, AnimeTemplateData, MangaTemplateData } from '@/services/api/anilist'
 import {
 	useMovieSearch,
 	useMovieTemplateData,
@@ -29,6 +33,12 @@ import {
 	useTVShowTemplateData,
 	useSeasonTemplateData,
 } from '@/features/cine/hooks/use-tmdb'
+import {
+	useAnimeSearch,
+	useAnimeTemplateData,
+	useMangaSearch,
+	useMangaTemplateData,
+} from '@/features/cine/hooks/use-anilist'
 import { useDebounce } from 'use-debounce'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
@@ -47,8 +57,9 @@ interface MovieTemplateDialogProps {
 	onInsert: (template: string) => void
 }
 
-type MediaType = 'movie' | 'tv'
-type TemplateData = MovieTemplateData | TVShowTemplateData | SeasonTemplateData
+type MediaType = 'movie' | 'tv' | 'anime' | 'manga'
+type SearchItem = TMDBMovie | TMDBTVShow | AniListMedia
+type TemplateData = MovieTemplateData | TVShowTemplateData | SeasonTemplateData | AnimeTemplateData | MangaTemplateData
 
 // =============================================================================
 // State management
@@ -59,7 +70,7 @@ interface DialogState {
 	mediaType: MediaType
 	searchQuery: string
 	selectedId: number | null
-	selectedItem: TMDBMovie | TMDBTVShow | null
+	selectedItem: SearchItem | null
 	templateData: TemplateData | null
 	template: string
 	error: string | null
@@ -71,10 +82,12 @@ interface DialogState {
 }
 
 type DialogAction =
-	| { type: 'SELECT_ITEM'; item: TMDBMovie | TMDBTVShow; id: number }
+	| { type: 'SELECT_ITEM'; item: SearchItem; id: number }
 	| { type: 'MOVIE_DATA_LOADED'; data: MovieTemplateData; template: string }
 	| { type: 'TV_DATA_LOADED_PREVIEW'; data: TVShowTemplateData; template: string }
 	| { type: 'TV_DATA_LOADED_SEASON_SELECT'; data: TVShowTemplateData }
+	| { type: 'ANIME_DATA_LOADED'; data: AnimeTemplateData; template: string }
+	| { type: 'MANGA_DATA_LOADED'; data: MangaTemplateData; template: string }
 	| { type: 'SELECT_COMPLETE_SERIES'; data: TVShowTemplateData; template: string }
 	| { type: 'SELECT_SEASON'; seasonNumber: number }
 	| { type: 'SEASON_DATA_LOADED'; data: SeasonTemplateData; template: string }
@@ -103,6 +116,32 @@ const initialState: DialogState = {
 	loadingSeasonNumber: null,
 }
 
+const MEDIA_TYPE_LABELS: Record<MediaType, string> = {
+	movie: 'película',
+	tv: 'serie',
+	anime: 'anime',
+	manga: 'manga',
+}
+
+const MEDIA_TYPE_SOURCES: Record<MediaType, string> = {
+	movie: 'TMDB',
+	tv: 'TMDB',
+	anime: 'AniList',
+	manga: 'AniList',
+}
+
+function getAniListTitle(item: AniListMedia): string {
+	return titleFromMedia(item)
+}
+
+function getAniListYear(item: AniListMedia): string {
+	return item.startDate.year ? String(item.startDate.year) : '—'
+}
+
+function getAniListImage(item: AniListMedia): string | null {
+	return item.coverImage.large || item.coverImage.extraLarge || null
+}
+
 function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 	switch (action.type) {
 		case 'SELECT_ITEM':
@@ -113,6 +152,10 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 			return { ...state, tvShowData: action.data, templateData: action.data, template: action.template, step: 'preview', selectedId: null }
 		case 'TV_DATA_LOADED_SEASON_SELECT':
 			return { ...state, tvShowData: action.data, step: 'season-select' }
+		case 'ANIME_DATA_LOADED':
+			return { ...state, templateData: action.data, template: action.template, step: 'preview', selectedId: null }
+		case 'MANGA_DATA_LOADED':
+			return { ...state, templateData: action.data, template: action.template, step: 'preview', selectedId: null }
 		case 'SELECT_COMPLETE_SERIES':
 			return { ...state, templateData: action.data, template: action.template, step: 'preview' }
 		case 'SELECT_SEASON':
@@ -120,7 +163,17 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 		case 'SEASON_DATA_LOADED':
 			return { ...state, templateData: action.data, template: action.template, step: 'preview', selectedSeason: null, loadingSeasonNumber: null }
 		case 'CHANGE_MEDIA_TYPE':
-			return { ...state, mediaType: action.mediaType, searchQuery: '', selectedItem: null, tvShowData: null }
+			return {
+				...state,
+				mediaType: action.mediaType,
+				searchQuery: '',
+				selectedId: null,
+				selectedItem: null,
+				templateData: null,
+				template: '',
+				tvShowData: null,
+				selectedSeason: null,
+			}
 		case 'SET_SEARCH_QUERY':
 			return { ...state, searchQuery: action.query }
 		case 'SET_ERROR':
@@ -160,22 +213,39 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 
 	// Debounce search query
 	const [debouncedQuery] = useDebounce(searchQuery, 400)
+	const normalizedSearchQuery = searchQuery.trim()
+	const normalizedDebouncedQuery = debouncedQuery.trim()
+	const isSearchReady = normalizedSearchQuery.length >= 2 && normalizedDebouncedQuery === normalizedSearchQuery
 
 	// Movie search hook
 	const {
 		data: movieSearchData,
 		isLoading: isSearchingMovies,
 		error: movieSearchError,
-	} = useMovieSearch(debouncedQuery, isOpen && mediaType === 'movie')
-	const movieResults = movieSearchData?.results?.slice(0, 8) ?? []
+	} = useMovieSearch(debouncedQuery, isOpen && mediaType === 'movie' && isSearchReady)
+	const movieResults = isSearchReady ? movieSearchData?.results?.slice(0, 8) ?? [] : []
 
 	// TV search hook
 	const {
 		data: tvSearchData,
 		isLoading: isSearchingTV,
 		error: tvSearchError,
-	} = useTVShowSearch(debouncedQuery, isOpen && mediaType === 'tv')
-	const tvResults = tvSearchData?.results?.slice(0, 8) ?? []
+	} = useTVShowSearch(debouncedQuery, isOpen && mediaType === 'tv' && isSearchReady)
+	const tvResults = isSearchReady ? tvSearchData?.results?.slice(0, 8) ?? [] : []
+
+	const {
+		data: animeSearchData,
+		isLoading: isSearchingAnime,
+		error: animeSearchError,
+	} = useAnimeSearch(debouncedQuery, isOpen && mediaType === 'anime' && isSearchReady)
+	const animeResults = isSearchReady ? animeSearchData?.slice(0, 20) ?? [] : []
+
+	const {
+		data: mangaSearchData,
+		isLoading: isSearchingManga,
+		error: mangaSearchError,
+	} = useMangaSearch(debouncedQuery, isOpen && mediaType === 'manga' && isSearchReady)
+	const mangaResults = isSearchReady ? mangaSearchData?.slice(0, 20) ?? [] : []
 
 	// Template data hooks
 	const { data: fetchedMovieData, isLoading: isLoadingMovieDetails } = useMovieTemplateData(
@@ -185,6 +255,14 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 	const { data: fetchedTVData, isLoading: isLoadingTVDetails } = useTVShowTemplateData(
 		mediaType === 'tv' ? selectedId ?? 0 : 0,
 		selectedId !== null && mediaType === 'tv'
+	)
+	const { data: fetchedAnimeData, isLoading: isLoadingAnimeDetails } = useAnimeTemplateData(
+		mediaType === 'anime' ? selectedId ?? 0 : 0,
+		selectedId !== null && mediaType === 'anime'
+	)
+	const { data: fetchedMangaData, isLoading: isLoadingMangaDetails } = useMangaTemplateData(
+		mediaType === 'manga' ? selectedId ?? 0 : 0,
+		selectedId !== null && mediaType === 'manga'
 	)
 
 	// Season template data hook
@@ -196,10 +274,38 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 	)
 
 	// Derived state
-	const isSearching = mediaType === 'movie' ? isSearchingMovies : isSearchingTV
-	const searchError = mediaType === 'movie' ? movieSearchError : tvSearchError
-	const searchResults = mediaType === 'movie' ? movieResults : tvResults
-	const isLoadingDetails = mediaType === 'movie' ? isLoadingMovieDetails : isLoadingTVDetails
+	const isSearching =
+		mediaType === 'movie'
+			? isSearchingMovies
+			: mediaType === 'tv'
+			? isSearchingTV
+			: mediaType === 'anime'
+			? isSearchingAnime
+			: isSearchingManga
+	const searchError =
+		mediaType === 'movie'
+			? movieSearchError
+			: mediaType === 'tv'
+			? tvSearchError
+			: mediaType === 'anime'
+			? animeSearchError
+			: mangaSearchError
+	const searchResults =
+		mediaType === 'movie'
+			? movieResults
+			: mediaType === 'tv'
+			? tvResults
+			: mediaType === 'anime'
+			? animeResults
+			: mangaResults
+	const isLoadingDetails =
+		mediaType === 'movie'
+			? isLoadingMovieDetails
+			: mediaType === 'tv'
+			? isLoadingTVDetails
+			: mediaType === 'anime'
+			? isLoadingAnimeDetails
+			: isLoadingMangaDetails
 
 	// Process movie template data when it loads
 	useEffect(() => {
@@ -218,6 +324,18 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 			}
 		}
 	}, [fetchedTVData, selectedId, mediaType])
+
+	useEffect(() => {
+		if (mediaType === 'anime' && fetchedAnimeData && selectedId !== null) {
+			dispatch({ type: 'ANIME_DATA_LOADED', data: fetchedAnimeData, template: generateAnimeTemplate(fetchedAnimeData) })
+		}
+	}, [fetchedAnimeData, selectedId, mediaType])
+
+	useEffect(() => {
+		if (mediaType === 'manga' && fetchedMangaData && selectedId !== null) {
+			dispatch({ type: 'MANGA_DATA_LOADED', data: fetchedMangaData, template: generateMangaTemplate(fetchedMangaData) })
+		}
+	}, [fetchedMangaData, selectedId, mediaType])
 
 	// Process season template data when it loads
 	useEffect(() => {
@@ -276,6 +394,20 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 				subtitle: `${templateData.year} · ${templateData.episodeCount} ${epLabel}`,
 				genres: templateData.seriesGenres,
 			}
+		} else if ('studios' in templateData) {
+			const episodeLabel = templateData.episodes ? `${templateData.episodes} capítulos` : templateData.format || 'Anime'
+			return {
+				title: templateData.title,
+				subtitle: [templateData.year, episodeLabel, templateData.studios[0]].filter(Boolean).join(' · '),
+				genres: templateData.genres,
+			}
+		} else if ('authors' in templateData) {
+			const chapterLabel = templateData.chapters ? `${templateData.chapters} capítulos` : templateData.format || 'Manga'
+			return {
+				title: templateData.title,
+				subtitle: [templateData.year, chapterLabel, templateData.authors[0]].filter(Boolean).join(' · '),
+				genres: templateData.genres,
+			}
 		} else {
 			const seasonLabel = templateData.numberOfSeasons === 1 ? 'temporada' : 'temporadas'
 			return {
@@ -290,7 +422,7 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 
 	// Get title for dialog header
 	const getDialogTitle = () => {
-		if (step === 'search') return `Buscar ${mediaType === 'movie' ? 'película' : 'serie'}`
+		if (step === 'search') return `Buscar ${MEDIA_TYPE_LABELS[mediaType]}`
 		if (step === 'season-select') return tvShowData?.title || 'Seleccionar temporada'
 		return previewInfo.title || 'Vista previa'
 	}
@@ -341,38 +473,42 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 			{step === 'search' && (
 				<div className="flex min-h-full flex-col">
 					{/* Media Type Toggle */}
-					<div className="flex p-1 bg-muted/50 rounded-lg mb-4 gap-1 border border-border">
-						<button
-							onClick={() => dispatch({ type: 'CHANGE_MEDIA_TYPE', mediaType: 'movie' })}
-							className={cn(
-								'flex-1 flex items-center justify-center gap-2 h-9 rounded-md text-[13px] font-medium transition-all border-none cursor-pointer',
-								mediaType === 'movie'
-									? 'bg-primary text-primary-foreground shadow-sm'
-									: 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60'
-							)}
-						>
-							<Film className="w-4 h-4" />
-							Películas
-						</button>
-						<button
-							onClick={() => dispatch({ type: 'CHANGE_MEDIA_TYPE', mediaType: 'tv' })}
-							className={cn(
-								'flex-1 flex items-center justify-center gap-2 h-9 rounded-md text-[13px] font-medium transition-all border-none cursor-pointer',
-								mediaType === 'tv'
-									? 'bg-primary text-primary-foreground shadow-sm'
-									: 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60'
-							)}
-						>
-							<Tv className="w-4 h-4" />
-							Series
-						</button>
+					<div className="grid grid-cols-4 p-1 bg-muted/40 rounded-lg mb-4 gap-1 border border-border">
+						{([
+							{ type: 'movie' as const, label: 'Películas', icon: <Film className="w-4 h-4" /> },
+							{ type: 'tv' as const, label: 'Series', icon: <Tv className="w-4 h-4" /> },
+							{ type: 'anime' as const, label: 'Anime', icon: <Origami className="w-4 h-4" /> },
+							{ type: 'manga' as const, label: 'Manga', icon: <BookOpen className="w-4 h-4" /> },
+						]).map(item => (
+							<button
+								key={item.type}
+								onClick={() => dispatch({ type: 'CHANGE_MEDIA_TYPE', mediaType: item.type })}
+								className={cn(
+									'flex min-w-0 items-center justify-center gap-1.5 h-10 rounded-md px-1.5 text-[11px] font-medium transition-all border-none cursor-pointer',
+									mediaType === item.type
+										? 'bg-primary text-primary-foreground shadow-sm'
+										: 'bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted/60'
+								)}
+							>
+								<span className="shrink-0">{item.icon}</span>
+								<span className="shrink-0 whitespace-nowrap">{item.label}</span>
+								<span className={cn(
+									'shrink-0 rounded-sm border px-1 py-0.5 text-[7px] leading-none font-mono uppercase',
+									mediaType === item.type
+										? 'border-primary-foreground/25 bg-primary-foreground/15 text-primary-foreground/80'
+										: 'border-border bg-background/70 text-muted-foreground/70'
+								)}>
+									{MEDIA_TYPE_SOURCES[item.type]}
+								</span>
+							</button>
+						))}
 					</div>
 
 					<MediaSearchInput
 						ref={searchInputRef}
 						value={searchQuery}
 						onChange={q => dispatch({ type: 'SET_SEARCH_QUERY', query: q })}
-						placeholder={mediaType === 'movie' ? 'Buscar película por título...' : 'Buscar serie por título...'}
+						placeholder={`Buscar ${MEDIA_TYPE_LABELS[mediaType]} por título...`}
 						isSearching={isSearching}
 					/>
 
@@ -381,7 +517,7 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 					{/* Movie Results */}
 					{mediaType === 'movie' && movieResults.length > 0 && (
 						<div className="mb-4 rounded-lg bg-muted/15 p-1">
-							<ScrollArea className="h-[320px] pr-3">
+							<ScrollArea className="h-[268px] pr-3">
 								<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
 									{movieResults.map(movie => {
 										const isRowLoading = isLoadingDetails && selectedItem != null && 'title' in selectedItem && selectedItem.id === movie.id
@@ -441,7 +577,7 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 					{/* TV Results */}
 					{mediaType === 'tv' && tvResults.length > 0 && (
 						<div className="mb-4 rounded-lg bg-muted/15 p-1">
-							<ScrollArea className="h-[320px] pr-3">
+							<ScrollArea className="h-[268px] pr-3">
 								<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
 									{tvResults.map(show => {
 										const isRowLoading = isLoadingDetails && selectedItem != null && 'name' in selectedItem && selectedItem.id === show.id
@@ -498,37 +634,115 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 						</div>
 					)}
 
+					{/* AniList Results */}
+					{(mediaType === 'anime' || mediaType === 'manga') && searchResults.length > 0 && (
+						<div className="mb-4 rounded-lg bg-muted/15 p-1">
+							<ScrollArea className="h-[268px] pr-3">
+								<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
+									{(searchResults as AniListMedia[]).map(item => {
+										const isRowLoading = isLoadingDetails && selectedItem?.id === item.id
+										const title = getAniListTitle(item)
+										const year = getAniListYear(item)
+										const format = item.format?.replace(/_/g, ' ') || MEDIA_TYPE_LABELS[mediaType]
+
+										return (
+											<button
+												key={item.id}
+												onClick={() => dispatch({ type: 'SELECT_ITEM', item, id: item.id })}
+												disabled={isLoadingDetails}
+												className="group w-full overflow-hidden text-left px-2 py-2.5 rounded-md hover:bg-muted focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-muted transition-colors disabled:cursor-wait disabled:opacity-70"
+											>
+												<div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
+													{getAniListImage(item) ? (
+														<img
+															src={getAniListImage(item) ?? ''}
+															alt={title}
+															className="w-10 h-14 rounded-md object-cover shrink-0 bg-muted"
+														/>
+													) : (
+														<div className="w-10 h-14 rounded-md bg-background border border-border/50 flex items-center justify-center shrink-0">
+															{mediaType === 'anime'
+																? <Origami className="w-4 h-4 text-muted-foreground" />
+																: <BookOpen className="w-4 h-4 text-muted-foreground" />
+															}
+														</div>
+													)}
+													<div className="min-w-0 overflow-hidden">
+														<div className="block max-w-full text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+															{title}
+														</div>
+														{isRowLoading ? (
+															<div className="text-xs text-muted-foreground mt-0.5 truncate">Cargando...</div>
+														) : (
+															<div className="mt-1 flex items-center gap-1.5 min-w-0 overflow-hidden">
+																<span className="inline-flex items-center rounded-sm bg-popover border border-border/60 px-1.5 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">
+																	{year}
+																</span>
+																<span className="inline-flex max-w-full min-w-0 items-center rounded-sm bg-background/85 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground truncate">
+																	{format}
+																</span>
+															</div>
+														)}
+													</div>
+													{isRowLoading && <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />}
+												</div>
+											</button>
+										)
+									})}
+								</div>
+							</ScrollArea>
+						</div>
+					)}
+
 					{/* Empty state */}
-					{searchQuery && !isSearching && searchResults.length === 0 && !error && (
+					{isSearchReady && !isSearching && searchResults.length === 0 && !error && (
 						<MediaEmptyState
 							icon={mediaType === 'movie'
 								? <Film className="w-6 h-6 text-muted-foreground" />
-								: <Tv className="w-6 h-6 text-muted-foreground" />
+								: mediaType === 'tv'
+								? <Tv className="w-6 h-6 text-muted-foreground" />
+								: mediaType === 'anime'
+								? <Origami className="w-6 h-6 text-muted-foreground" />
+								: <BookOpen className="w-6 h-6 text-muted-foreground" />
 							}
-							text={`No se encontraron ${mediaType === 'movie' ? 'películas' : 'series'}`}
+							text={`No se encontró ${MEDIA_TYPE_LABELS[mediaType]}`}
+							className="mb-4 min-h-[224px] flex-1"
 						/>
 					)}
 
 					{/* Initial state */}
-					{!searchQuery && searchResults.length === 0 && (
+					{normalizedSearchQuery.length < 2 && searchResults.length === 0 && (
 						<MediaEmptyState
 							icon={<Search className="w-6 h-6 text-muted-foreground" />}
-							text={`Escribe para buscar ${mediaType === 'movie' ? 'películas' : 'series'}`}
+							text={`Escribe para buscar ${MEDIA_TYPE_LABELS[mediaType]}`}
+							className="mb-4 min-h-[224px] flex-1"
 						/>
 					)}
 
-					{/* TMDB Attribution */}
 					<div className="mt-auto mb-0 border-t border-border/70 pt-4 flex flex-col items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
-						<a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="block mb-1">
-							<img
-								src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
-								alt="TMDB"
-								className="h-2.5 w-auto"
-							/>
-						</a>
-						<p className="text-[10px] text-center text-muted-foreground m-0 max-w-[280px] leading-tight">
-							Este producto utiliza la API de TMDB pero no está avalado ni certificado por TMDB.
-						</p>
+						{mediaType === 'movie' || mediaType === 'tv' ? (
+							<>
+								<a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="block mb-1">
+									<img
+										src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
+										alt="TMDB"
+										className="h-2.5 w-auto"
+									/>
+								</a>
+								<p className="text-[10px] text-center text-muted-foreground m-0 max-w-[280px] leading-tight">
+									Este producto utiliza la API de TMDB pero no está avalado ni certificado por TMDB.
+								</p>
+							</>
+						) : (
+							<>
+								<a href="https://anilist.co" target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-foreground">
+									AniList
+								</a>
+								<p className="text-[10px] text-center text-muted-foreground m-0 max-w-[280px] leading-tight">
+									Datos de AniList; la sinopsis suele venir en inglés. MAL se enlaza si AniList aporta el identificador.
+								</p>
+							</>
+						)}
 					</div>
 				</div>
 			)}
@@ -609,7 +823,13 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 			{/* Preview Step */}
 			{step === 'preview' && template && templateData && (
 				<MediaPreviewStep
-					coverUrl={'posterUrl' in templateData ? templateData.posterUrl : undefined}
+					coverUrl={
+						'posterUrl' in templateData
+							? templateData.posterUrl
+							: 'coverUrl' in templateData
+							? templateData.coverUrl || templateData.bannerUrl
+							: undefined
+					}
 					coverHeight={105}
 					previewInfo={
 						<>
@@ -630,6 +850,10 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 								? 'season'
 								: templateData && 'director' in templateData
 								? 'movie'
+								: templateData && 'studios' in templateData
+								? 'anime'
+								: templateData && 'authors' in templateData
+								? 'manga'
 								: 'tvshow'
 						browser.tabs.create({
 							url: browser.runtime.getURL(`/options.html#/templates?tab=media&type=${type}`),
