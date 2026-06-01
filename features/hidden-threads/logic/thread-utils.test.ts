@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
 	extractThreadCreatorUsernameFromRow,
 	extractThreadPathFromRow,
+	extractThreadTitleFromRow,
+	extractSubforumIdFromThreadPath,
+	canExtractThreadCreatorFromPath,
 	normalizeThreadPath,
 	parseHiddenThreadFromUrl,
 } from './thread-utils'
@@ -106,6 +109,61 @@ describe('hidden-threads thread-utils', () => {
 
 			const row = document.querySelector('tbody#temas tr')!
 			expect(extractThreadPathFromRow(row)).toBeNull()
+		})
+	})
+
+	describe('content rule helpers', () => {
+		it('extracts the visible thread title from a row', () => {
+			document.body.innerHTML = `
+				<table>
+					<tbody id="temas">
+						<tr>
+							<td class="col-th">
+								<div class="thread">
+									<a title="Título completo" href="/foro/cine/titulo-completo-123">Título corto</a>
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			`
+
+			const row = document.querySelector('tbody#temas tr')!
+			expect(extractThreadTitleFromRow(row)).toBe('Título completo')
+		})
+
+		it('ignores subforum links inside the thread block when extracting title', () => {
+			document.body.innerHTML = `
+				<table>
+					<tbody id="temas">
+						<tr>
+							<td class="col-th">
+								<div class="thread">
+									<a class="tag" href="/foro/deportes">Deportes</a>
+									<a class="title" href="/foro/deportes/pretemporada-real-madrid-cf-123">
+										Pretemporada 2026/27: Real Madrid CF
+									</a>
+								</div>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			`
+
+			const row = document.querySelector('tbody#temas tr')!
+			expect(extractThreadPathFromRow(row)).toBe('/foro/deportes/pretemporada-real-madrid-cf-123')
+			expect(extractThreadTitleFromRow(row)).toBe('Pretemporada 2026/27: Real Madrid CF')
+		})
+
+		it('extracts the subforum id from a normalized thread path', () => {
+			expect(extractSubforumIdFromThreadPath('/foro/juegos/ofertas-steam-123')).toBe('/foro/juegos')
+			expect(extractSubforumIdFromThreadPath(null)).toBeNull()
+		})
+
+		it('does not trust row users as thread creators on Spy', () => {
+			expect(canExtractThreadCreatorFromPath('/foro/spy')).toBe(false)
+			expect(canExtractThreadCreatorFromPath('/foro/spy/live')).toBe(false)
+			expect(canExtractThreadCreatorFromPath('/foro/juegos')).toBe(true)
 		})
 	})
 

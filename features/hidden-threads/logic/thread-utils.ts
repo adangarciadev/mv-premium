@@ -12,6 +12,11 @@ export interface HiddenThreadMetadata {
 	subforumId: string
 }
 
+function findThreadLinkFromRow(row: Element): HTMLAnchorElement | null {
+	const links = Array.from(row.querySelectorAll<HTMLAnchorElement>('.thread a[href*="/foro/"]'))
+	return links.find(link => Boolean(normalizeThreadPath(link.getAttribute('href') || link.href))) ?? null
+}
+
 function isMediavidaHost(hostname: string): boolean {
 	return hostname === 'www.mediavida.com' || hostname === 'mediavida.com'
 }
@@ -75,10 +80,26 @@ export function parseHiddenThreadFromUrl(input: string): HiddenThreadMetadata | 
  * - Spy compact rows (live updates, no col-th): `td > .thread > a`
  */
 export function extractThreadPathFromRow(row: Element): string | null {
-	const threadLink = row.querySelector<HTMLAnchorElement>('.thread a[href*="/foro/"]')
+	const threadLink = findThreadLinkFromRow(row)
 	if (!threadLink) return null
 
 	return normalizeThreadPath(threadLink.getAttribute('href') || threadLink.href)
+}
+
+export function extractThreadTitleFromRow(row: Element): string | null {
+	const threadLink = findThreadLinkFromRow(row)
+	const title = threadLink?.getAttribute('title') || threadLink?.textContent
+	return title?.trim() || null
+}
+
+export function extractSubforumIdFromThreadPath(threadPath: string | null): string | null {
+	if (!threadPath) return null
+	const match = threadPath.match(/^\/foro\/([^/]+)\//)
+	return match?.[1] ? `/foro/${match[1]}` : null
+}
+
+export function canExtractThreadCreatorFromPath(pathname: string): boolean {
+	return !pathname.startsWith('/foro/spy')
 }
 
 /**

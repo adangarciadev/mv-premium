@@ -31,11 +31,8 @@ import { HomeView } from './views/home-view'
 import { SubforumsView } from './views/subforums-view'
 import { DraftsView } from './views/drafts-view'
 import { DraftEditorView } from './views/draft-editor-view'
-import { UsersView } from './views/users-view'
 import { SettingsView } from './views/settings-view'
-import MutedPostsView from './views/muted-posts-view'
-import { HiddenThreadsView } from './views/hidden-threads-view'
-import { HiddenSubforumsView } from './views/hidden-subforums-view'
+import { FiltersView } from './views/filters-view'
 import { WhatsNewView } from './views/whats-new-view'
 
 const MvThemeView = lazy(() =>
@@ -62,9 +59,11 @@ const routeLabels: Record<string, string> = {
 	drafts: 'Borradores',
 	templates: 'Plantillas',
 	'template-editor': 'Plantillas de Fichas',
-	'muted-posts': 'Palabras Silenciadas',
-	'hidden-threads': 'Hilos Ocultos',
-	'hidden-subforums': 'Subforos Ocultos',
+	filters: 'Filtros',
+	'muted-posts': 'Palabras silenciadas',
+	'content-rules': 'Reglas de hilos',
+	'hidden-threads': 'Hilos ocultos',
+	'hidden-subforums': 'Subforos ocultos',
 	favorites: 'Subforos Favoritos',
 	subforums: 'Subforos',
 	users: 'Usuarios',
@@ -268,10 +267,12 @@ export default function OptionsApp() {
 							/>
 
 							{/* Others */}
-							<Route path="/muted-posts" element={<MutedPostsView />} />
-							<Route path="/hidden-threads" element={<HiddenThreadsView />} />
-							<Route path="/hidden-subforums" element={<HiddenSubforumsView />} />
-							<Route path="/users" element={<UsersView />} />
+							<Route path="/filters" element={<FiltersView />} />
+							<Route path="/content-rules" element={<Navigate to="/filters?tab=threads" replace />} />
+							<Route path="/muted-posts" element={<Navigate to="/filters?tab=words" replace />} />
+							<Route path="/hidden-threads" element={<Navigate to="/filters?tab=hidden-threads" replace />} />
+							<Route path="/hidden-subforums" element={<Navigate to="/filters?tab=hidden-subforums" replace />} />
+							<Route path="/users" element={<Navigate to="/filters?tab=users" replace />} />
 							<Route path="/settings" element={<SettingsView />} />
 
 							<Route path="/whats-new" element={<WhatsNewView />} />

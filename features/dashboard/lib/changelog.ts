@@ -21,6 +21,39 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '2.0.0',
+		date: '2026-06-01',
+		title: 'Filtros y una integración más nativa',
+		summary:
+			'Mediavida Premium 2.0 estrena reglas de hilos para ocultar o destacar contenido automáticamente y agrupa las acciones de hilo en un menú más discreto.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Reglas de hilos: Nuevo sistema para ocultar o destacar hilos en Spy, subforos, favoritos y listados compatibles según título, autor y subforo.',
+				category: 'Organización',
+			},
+			{
+				type: 'feature',
+				description:
+					'Centro de filtros: Nueva vista en el dashboard para gestionar reglas de hilos, palabras, usuarios ignorados, hilos ocultos y subforos ocultos.',
+				category: 'Ajustes',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Acciones de hilo más nativas: Guardar, ocultar y crear reglas desde listados se agrupan en un menú Premium compacto.',
+				category: 'Diseño',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Las reglas son reversibles y dinámicas: no añaden hilos a la lista de ocultos salvo que se pulse explícitamente ocultar.',
+				category: 'Privacidad',
+			},
+		],
+	},
+	{
 		version: '1.9.0',
 		date: '2026-05-29',
 		title: 'Estrenos de cine, previews de hilos y ajustes más cómodos',

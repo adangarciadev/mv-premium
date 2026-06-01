@@ -46,7 +46,11 @@ export type { UserCustomization, GlobalRoleSettings }
 // MAIN COMPONENT
 // =============================================================================
 
-export function UserFinder() {
+interface UserFinderProps {
+	embedded?: boolean
+}
+
+export function UserFinder({ embedded = false }: UserFinderProps) {
 	// Search state
 	const [searchQuery, setSearchQuery] = useState('')
 	const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -170,11 +174,15 @@ export function UserFinder() {
 	const customizedUserCount = Object.keys(userCustomizations).length
 
 	return (
-		<div className="w-full max-w-5xl mx-auto space-y-6 pb-20">
+		<div className={embedded ? 'w-full space-y-6' : 'w-full max-w-5xl mx-auto space-y-6 pb-20'}>
 			{/* Header */}
 			<div className="space-y-1">
-				<h1 className="text-2xl font-bold tracking-tight">Gestión de Usuarios</h1>
-				<p className="text-muted-foreground text-sm">Personaliza cómo ves a otros usuarios en el foro.</p>
+				<h1 className="text-2xl font-bold tracking-tight">{embedded ? 'Usuarios' : 'Gestión de Usuarios'}</h1>
+				<p className="text-muted-foreground text-sm">
+					{embedded
+						? 'Busca usuarios, personalízalos o ignóralos desde el centro de filtros.'
+						: 'Personaliza cómo ves a otros usuarios en el foro.'}
+				</p>
 			</div>
 
 			{/* Tabs */}

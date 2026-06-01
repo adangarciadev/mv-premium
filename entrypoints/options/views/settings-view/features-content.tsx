@@ -56,6 +56,8 @@ const CONTENT_SETTING_IDS = [
 	'game-release-calendar',
 	'movie-release-calendar',
 	'thread-clipper',
+	'content-rules',
+	'classic-thread-actions',
 	'pinned-posts',
 	'thread-preview',
 	'thread-summarizer',
@@ -83,6 +85,8 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		gameReleaseCalendarJuegosEnabled,
 		movieReleaseCalendarCineEnabled,
 		threadClipperSubforums,
+		contentRulesEnabled,
+		classicThreadActionsEnabled,
 		pinnedPostsEnabled,
 		threadPreviewEnabled,
 		threadSummarizerEnabled,
@@ -122,6 +126,8 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				| 'itadSubforumSearchHuchaEnabled'
 				| 'gameReleaseCalendarJuegosEnabled'
 				| 'movieReleaseCalendarCineEnabled'
+				| 'contentRulesEnabled'
+				| 'classicThreadActionsEnabled'
 				| 'pinnedPostsEnabled'
 				| 'threadPreviewEnabled'
 				| 'threadSummarizerEnabled'
@@ -420,6 +426,27 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				<ThreadClipperSubforumSettings
 					value={threadClipperSubforums}
 					onChange={handleThreadClipperSubforumsChange}
+				/>
+			</SettingRow>
+
+			<SettingRow
+				{...rowState('content-rules')}
+				icon={<List className="h-4 w-4" />}
+				label="Reglas de hilos"
+				description="Permite ocultar o destacar hilos automaticamente en listados segun titulo, autor y subforo."
+			>
+				<Switch checked={contentRulesEnabled} onCheckedChange={withToastAndReload('contentRulesEnabled', false)} />
+			</SettingRow>
+
+			<SettingRow
+				{...rowState('classic-thread-actions')}
+				icon={<MousePointerClick className="h-4 w-4" />}
+				label="Mostrar acciones rápidas clásicas en los hilos"
+				description="Muestra botones visibles de guardar/ocultar en lugar del menú compacto."
+			>
+				<Switch
+					checked={classicThreadActionsEnabled}
+					onCheckedChange={withToastAndReload('classicThreadActionsEnabled', true)}
 				/>
 			</SettingRow>
 

@@ -3,23 +3,24 @@
  * Uses React Router for SPA navigation within the options page
  * Based on Shadcn sidebar-08 pattern
  */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type MouseEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
 import Home from 'lucide-react/dist/esm/icons/home'
 import Settings from 'lucide-react/dist/esm/icons/settings'
 import Gift from 'lucide-react/dist/esm/icons/gift'
 import Trophy from 'lucide-react/dist/esm/icons/trophy'
-import Users from 'lucide-react/dist/esm/icons/users'
-import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
-import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
+import ListFilter from 'lucide-react/dist/esm/icons/list-filter'
 import StickyNote from 'lucide-react/dist/esm/icons/sticky-note'
 import Layout from 'lucide-react/dist/esm/icons/layout'
 import Palette from 'lucide-react/dist/esm/icons/palette'
 import { getDrafts, draftsStorage } from '@/features/drafts/storage'
+import { getContentRules, watchContentRules } from '@/features/content-rules'
 import { getHiddenThreads, watchHiddenThreads } from '@/features/hidden-threads/logic/storage'
 import { getHiddenSubforums, watchHiddenSubforums } from '@/features/hidden-subforums/logic/storage'
+import { getUserCustomizations, watchUserCustomizations } from '@/features/user-customizations/storage'
 import { useSettingsStore } from '@/store/settings-store'
 import { CommandMenu } from '@/features/command-menu/components/command-menu'
 import { CommandMenuTrigger } from '@/features/command-menu/components/command-menu-trigger'
@@ -39,6 +40,7 @@ import { browser } from 'wxt/browser'
 interface NavItem {
 	title: string
 	path: string
+	defaultPath?: string
 	icon: LucideIcon
 	badgeKey?: keyof SidebarCounts
 	items?: {
@@ -54,6 +56,8 @@ interface SidebarCounts {
 	muted: number
 	hidden: number
 	hiddenSubforums: number
+	contentRules: number
+	customizedUsers: number
 }
 
 const platformItems: NavItem[] = [
@@ -81,27 +85,18 @@ const platformItems: NavItem[] = [
 		icon: Trophy,
 	},
 	{
-		title: 'Palabras Silenciadas',
-		path: '/muted-posts',
-		icon: VolumeX,
-		badgeKey: 'muted',
-	},
-	{
-		title: 'Hilos Ocultos',
-		path: '/hidden-threads',
-		icon: EyeOff,
-		badgeKey: 'hidden',
-	},
-	{
-		title: 'Subforos Ocultos',
-		path: '/hidden-subforums',
-		icon: EyeOff,
-		badgeKey: 'hiddenSubforums',
-	},
-	{
-		title: 'Usuarios',
-		path: '/users',
-		icon: Users,
+		title: 'Filtros',
+		path: '/filters',
+		defaultPath: '/filters?tab=threads',
+		icon: ListFilter,
+		badgeKey: 'contentRules',
+		items: [
+			{ title: 'Reglas de hilos', path: '/filters?tab=threads', badgeKey: 'contentRules' },
+			{ title: 'Palabras', path: '/filters?tab=words', badgeKey: 'muted' },
+			{ title: 'Usuarios', path: '/filters?tab=users', badgeKey: 'customizedUsers' },
+			{ title: 'Hilos ocultos', path: '/filters?tab=hidden-threads', badgeKey: 'hidden' },
+			{ title: 'Subforos ocultos', path: '/filters?tab=hidden-subforums', badgeKey: 'hiddenSubforums' },
+		],
 	},
 ]
 
@@ -130,12 +125,15 @@ const settingsItems: NavItem[] = [
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const location = useLocation()
 	const [commandOpen, setCommandOpen] = useState(false)
+	const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set())
 	const [counts, setCounts] = useState<SidebarCounts>({
 		drafts: 0,
 		templates: 0,
 		muted: 0,
 		hidden: 0,
 		hiddenSubforums: 0,
+		contentRules: 0,
+		customizedUsers: 0,
 	})
 
 	// Keyboard shortcut for command menu (Ctrl+K / Cmd+K)
@@ -175,11 +173,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			setCounts(prev => ({ ...prev, hiddenSubforums: hiddenSubforums.length }))
 		}
 
+		const loadContentRules = async () => {
+			const rules = await getContentRules()
+			setCounts(prev => ({ ...prev, contentRules: rules.length }))
+		}
+
+		const loadCustomizedUsers = async () => {
+			const data = await getUserCustomizations()
+			setCounts(prev => ({ ...prev, customizedUsers: Object.keys(data.users).length }))
+		}
+
 		// Initial load
 		loadDrafts()
 		loadMuted()
 		void loadHidden()
 		void loadHiddenSubforums()
+		void loadContentRules()
+		void loadCustomizedUsers()
 
 		// Listeners
 		const unwatchDrafts = draftsStorage.watch(() => loadDrafts())
@@ -192,12 +202,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		const unwatchHiddenSubforums = watchHiddenSubforums(hiddenSubforums => {
 			setCounts(prev => ({ ...prev, hiddenSubforums: hiddenSubforums.length }))
 		})
+		const unwatchContentRules = watchContentRules(rules => {
+			setCounts(prev => ({ ...prev, contentRules: rules.length }))
+		})
+		const unwatchUserCustomizations = watchUserCustomizations(data => {
+			setCounts(prev => ({ ...prev, customizedUsers: Object.keys(data.users).length }))
+		})
 
 		return () => {
 			unwatchDrafts()
 			unwatchSettings()
 			unwatchHidden()
 			unwatchHiddenSubforums()
+			unwatchContentRules()
+			unwatchUserCustomizations()
 		}
 	}, [])
 
@@ -209,12 +227,56 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		if (path.includes('#')) {
 			return location.pathname + location.hash === path
 		}
+		if (path.includes('?')) {
+			return location.pathname + location.search === path
+		}
 		return location.pathname.startsWith(path)
+	}
+
+	const getItemCount = (item: NavItem) => {
+		if (item.items) {
+			return item.items.reduce((total, subItem) => total + (subItem.badgeKey ? counts[subItem.badgeKey] : 0), 0)
+		}
+		return item.badgeKey ? counts[item.badgeKey] : 0
 	}
 
 	const hasActiveChild = (item: NavItem) => {
 		if (!item.items) return false
 		return item.items.some(subItem => isActive(subItem.path))
+	}
+
+	useEffect(() => {
+		setCollapsedGroups(current => {
+			let changed = false
+			const next = new Set(current)
+			for (const item of platformItems) {
+				if (item.items && location.pathname !== item.path && next.delete(item.path)) {
+					changed = true
+				}
+			}
+			return changed ? next : current
+		})
+	}, [location.pathname])
+
+	const handleItemClick = (event: MouseEvent<HTMLAnchorElement>, item: NavItem, isGroupActive: boolean) => {
+		if (!item.items) return
+		if (!isGroupActive) {
+			setCollapsedGroups(current => {
+				if (!current.has(item.path)) return current
+				const next = new Set(current)
+				next.delete(item.path)
+				return next
+			})
+			return
+		}
+
+		event.preventDefault()
+		setCollapsedGroups(current => {
+			const next = new Set(current)
+			if (next.has(item.path)) next.delete(item.path)
+			else next.add(item.path)
+			return next
+		})
 	}
 
 	return (
@@ -253,6 +315,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					<SidebarMenu>
 						{platformItems.map(item => {
 							const active = isActive(item.path)
+							const groupActive = active || hasActiveChild(item)
+							const groupExpanded = Boolean(item.items && groupActive && !collapsedGroups.has(item.path))
+							const itemCount = getItemCount(item)
 							return (
 								<SidebarMenuItem key={item.path}>
 									<SidebarMenuButton
@@ -261,25 +326,64 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 										isActive={active}
 										className={cn(active && 'text-primary font-bold')}
 									>
-										<Link to={item.path} className="flex justify-between items-center w-full group/item">
+										<Link
+											to={item.defaultPath ?? item.path}
+											onClick={event => handleItemClick(event, item, groupActive)}
+											className="flex justify-between items-center w-full group/item"
+										>
 											<div className="flex items-center gap-2">
 												<item.icon className={cn('h-4 w-4', active && '!text-primary')} />
 												<span className={cn(active && '!text-primary')}>{item.title}</span>
 											</div>
-											{item.badgeKey && counts[item.badgeKey] > 0 && (
-												<span
-													className={cn(
-														'flex items-center justify-center text-[10px] font-bold h-5 w-5 rounded-full shrink-0 shadow-sm transition-colors',
-														active
-															? 'bg-primary text-primary-foreground'
-															: 'bg-muted text-muted-foreground group-hover/item:bg-primary group-hover/item:text-primary-foreground'
-													)}
-												>
-													{counts[item.badgeKey]}
-												</span>
-											)}
+											<div className="ml-auto flex items-center gap-1">
+												{item.items && (
+													<ChevronDown
+														className={cn(
+															'h-3.5 w-3.5 text-muted-foreground transition-transform',
+															groupExpanded ? 'rotate-0' : '-rotate-90'
+														)}
+													/>
+												)}
+												{itemCount > 0 && (
+													<span
+														className={cn(
+															'flex items-center justify-center text-[10px] font-bold h-5 w-5 rounded-full shrink-0 shadow-sm transition-colors',
+															active
+																? 'bg-primary text-primary-foreground'
+																: 'bg-muted text-muted-foreground group-hover/item:bg-primary group-hover/item:text-primary-foreground'
+														)}
+													>
+														{itemCount}
+													</span>
+												)}
+											</div>
 										</Link>
 									</SidebarMenuButton>
+									{item.items && groupExpanded && (
+										<div className="ml-7 mt-1 flex flex-col gap-1 border-l border-sidebar-border/60 pl-2">
+											{item.items.map(subItem => {
+												const subActive = isActive(subItem.path)
+												const subCount = subItem.badgeKey ? counts[subItem.badgeKey] : 0
+												return (
+													<Link
+														key={subItem.path}
+														to={subItem.path}
+														className={cn(
+															'flex min-h-7 items-center justify-between gap-2 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+															subActive && 'bg-sidebar-accent text-primary font-semibold'
+														)}
+													>
+														<span className="truncate">{subItem.title}</span>
+														{subCount > 0 && (
+															<span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[9px] font-bold text-muted-foreground">
+																{subCount}
+															</span>
+														)}
+													</Link>
+												)
+											})}
+										</div>
+									)}
 								</SidebarMenuItem>
 							)
 						})}
