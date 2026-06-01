@@ -393,7 +393,7 @@ export function SharedEditorToolbar({
 								</Button>
 							</TooltipTrigger>
 							<TooltipContent side="bottom" className="text-xs">
-								Películas y series (TMDB)
+								Plantillas multimedia (TMDB/AniList)
 							</TooltipContent>
 						</Tooltip>
 					)}

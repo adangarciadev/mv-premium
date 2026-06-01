@@ -3,15 +3,17 @@
  */
 
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
+import { cn } from '@/lib/utils'
 
 interface MediaEmptyStateProps {
 	icon: React.ReactNode
 	text: string
+	className?: string
 }
 
-export function MediaEmptyState({ icon, text }: MediaEmptyStateProps) {
+export function MediaEmptyState({ icon, text, className }: MediaEmptyStateProps) {
 	return (
-		<div className="rounded-lg border border-dashed border-border bg-muted/15 px-5 py-10 text-center">
+		<div className={cn('flex flex-col justify-center rounded-lg border border-dashed border-border bg-muted/15 px-5 py-10 text-center', className)}>
 			<div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-lg border border-border bg-background shadow-sm">
 				{icon}
 			</div>

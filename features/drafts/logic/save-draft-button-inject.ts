@@ -4,9 +4,36 @@
  */
 
 import { DOM_MARKERS } from '@/constants'
+import { logger } from '@/lib/logger'
 
 const INJECTED_MARKER = DOM_MARKERS.EDITOR.SAVE_DRAFT_BTN
 const STATUS_CONTAINER_ID = DOM_MARKERS.IDS.DRAFT_STATUS_CONTAINER
+const SAVE_DRAFT_BUTTON_CLASS = 'mvp-save-draft-action'
+const COPY_BUTTON_CLASS = 'mvp-copy-content-action'
+const CLEAR_BUTTON_CLASS = 'mvp-clear-content-action'
+const COPY_BUTTON_DEFAULT_HTML = '<i class="fa fa-copy"></i> Copiar'
+const COPY_BUTTON_SUCCESS_HTML = '<i class="fa fa-check"></i> Copiado'
+const COPY_FEEDBACK_MS = 1000
+
+function dispatchTextareaChange(textarea: HTMLTextAreaElement): void {
+	textarea.dispatchEvent(new Event('input', { bubbles: true }))
+	textarea.dispatchEvent(new Event('change', { bubbles: true }))
+}
+
+function updateContentActionState(textarea: HTMLTextAreaElement, ...buttons: HTMLButtonElement[]): void {
+	const hasContent = textarea.value.length > 0
+	buttons.forEach(button => {
+		button.disabled = !hasContent
+		button.style.opacity = hasContent ? '' : '0.55'
+		button.style.cursor = hasContent ? '' : 'not-allowed'
+	})
+}
+
+function lockCopyButtonFeedback(copyBtn: HTMLButtonElement): void {
+	copyBtn.disabled = true
+	copyBtn.style.opacity = ''
+	copyBtn.style.cursor = 'default'
+}
 
 /**
  * Injects a "Save Draft" button next to native submit buttons.
@@ -39,7 +66,7 @@ export function injectSaveDraftButton(): void {
 		// Create save draft button
 		const saveDraftBtn = document.createElement('button')
 		saveDraftBtn.type = 'button'
-		saveDraftBtn.className = 'btn btn-large'
+		saveDraftBtn.className = `btn btn-large ${SAVE_DRAFT_BUTTON_CLASS}`
 		saveDraftBtn.innerHTML = '<i class="fa fa-save"></i> Guardar borrador'
 		saveDraftBtn.title = 'Guardar borrador (Ctrl+S)'
 		saveDraftBtn.style.cssText = 'margin-left: 8px;'
@@ -71,31 +98,84 @@ export function injectSaveDraftButton(): void {
 		// Create copy button
 		const copyBtn = document.createElement('button')
 		copyBtn.type = 'button'
-		copyBtn.className = 'btn btn-large'
-		copyBtn.innerHTML = '<i class="fa fa-copy"></i> Copiar'
+		copyBtn.className = `btn btn-large ${COPY_BUTTON_CLASS}`
+		copyBtn.innerHTML = COPY_BUTTON_DEFAULT_HTML
 		copyBtn.title = 'Copiar contenido al portapapeles'
 		copyBtn.style.cssText = 'margin-left: 5px;'
+		let copyFeedbackActive = false
+		let copyFeedbackTimeout: number | null = null
 
 		// Handle click - copy textarea content to clipboard
-		copyBtn.addEventListener('click', e => {
+		copyBtn.addEventListener('click', async e => {
 			e.preventDefault()
 			e.stopPropagation()
-			navigator.clipboard.writeText(textarea.value).then(() => {
+			try {
+				await navigator.clipboard.writeText(textarea.value)
+				if (copyFeedbackTimeout !== null) {
+					window.clearTimeout(copyFeedbackTimeout)
+				}
+				copyFeedbackActive = true
+				copyBtn.innerHTML = COPY_BUTTON_SUCCESS_HTML
+				lockCopyButtonFeedback(copyBtn)
+				copyFeedbackTimeout = window.setTimeout(() => {
+					copyFeedbackActive = false
+					copyFeedbackTimeout = null
+					copyBtn.innerHTML = COPY_BUTTON_DEFAULT_HTML
+					updateContentActionState(textarea, copyBtn, clearBtn)
+				}, COPY_FEEDBACK_MS)
 				import('@/lib/lazy-toast').then(({ toast }) => {
 					toast.success('Contenido copiado al portapapeles')
 				})
+			} catch (error) {
+				logger.error('Failed to copy editor content:', error)
+				import('@/lib/lazy-toast').then(({ toast }) => {
+					toast.error('No se pudo copiar el contenido')
+				})
+			}
+		})
+
+		// Create clear button
+		const clearBtn = document.createElement('button')
+		clearBtn.type = 'button'
+		clearBtn.className = `btn btn-large ${CLEAR_BUTTON_CLASS}`
+		clearBtn.innerHTML = '<i class="fa fa-trash-o"></i> Limpiar'
+		clearBtn.title = 'Limpiar contenido del editor'
+		clearBtn.style.cssText = 'margin-left: 5px;'
+
+		clearBtn.addEventListener('click', e => {
+			e.preventDefault()
+			e.stopPropagation()
+			if (!textarea.value) return
+			if (!window.confirm('¿Seguro que quieres vaciar el contenido del editor?')) return
+
+			textarea.value = ''
+			dispatchTextareaChange(textarea)
+			updateContentActionState(textarea, copyBtn, clearBtn)
+			textarea.focus()
+			import('@/lib/lazy-toast').then(({ toast }) => {
+				toast.success('Contenido limpiado')
 			})
 		})
 
-		// Insert copy button right after save draft button
-		saveDraftBtn.insertAdjacentElement('afterend', copyBtn)
+		const updateActionButtons = () => {
+			updateContentActionState(textarea, copyBtn, clearBtn)
+			if (copyFeedbackActive) {
+				lockCopyButtonFeedback(copyBtn)
+			}
+		}
+		textarea.addEventListener('input', updateActionButtons)
+		updateActionButtons()
 
-		// Create status container after copy button
+		// Insert content actions right after save draft button
+		saveDraftBtn.insertAdjacentElement('afterend', copyBtn)
+		copyBtn.insertAdjacentElement('afterend', clearBtn)
+
+		// Create status container after content actions
 		const statusContainer = document.createElement('span')
 		statusContainer.id = STATUS_CONTAINER_ID
 		statusContainer.style.cssText =
 			'margin-left: 10px; display: inline-flex; align-items: center; vertical-align: middle;'
-		copyBtn.insertAdjacentElement('afterend', statusContainer)
+		clearBtn.insertAdjacentElement('afterend', statusContainer)
 	})
 
 	// Also setup Ctrl+S keyboard shortcut
@@ -130,7 +210,9 @@ export function cleanupSaveDraftButton(): void {
 	const buttons = document.querySelectorAll(`[${INJECTED_MARKER}]`)
 	buttons.forEach(container => {
 		container.removeAttribute(INJECTED_MARKER)
-		const saveBtn = container.querySelector('.btn:has(.fa-save)')
-		saveBtn?.remove()
+		container.querySelector(`.${SAVE_DRAFT_BUTTON_CLASS}`)?.remove()
+		container.querySelector(`.${COPY_BUTTON_CLASS}`)?.remove()
+		container.querySelector(`.${CLEAR_BUTTON_CLASS}`)?.remove()
+		container.querySelector(`#${STATUS_CONTAINER_ID}`)?.remove()
 	})
 }

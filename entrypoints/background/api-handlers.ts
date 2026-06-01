@@ -15,6 +15,7 @@ import {
 import { API_URLS } from '@/constants'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import { normalizeTweetUrl as normalizeTweetUrlBase } from '@/lib/content-modules/twitter-lite/utils'
+import { uploadBase64ImageToBestProvider } from './upload-handlers'
 
 // =============================================================================
 // Constants
@@ -27,6 +28,9 @@ const GIPHY_BASE_URL = API_URLS.GIPHY
 const GIPHY_PAGE_SIZE = 18
 const TWITTER_OEMBED_URL = 'https://publish.twitter.com/oembed'
 const TWITTER_SYNDICATION_URL = 'https://cdn.syndication.twimg.com/tweet-result'
+const ANILIST_GRAPHQL_URL = 'https://graphql.anilist.co'
+const ANILIST_IMAGE_HOST = 's4.anilist.co'
+const MAX_REHOST_IMAGE_BYTES = 8 * 1024 * 1024
 const TWITTER_FETCH_TIMEOUT_MS = 3500
 const MEDIAVIDA_THREAD_HOSTS = new Set(['www.mediavida.com', 'mediavida.com'])
 
@@ -81,6 +85,46 @@ function stripHtmlToPlainText(html: string): string {
 			.replace(/\s+/g, ' ')
 			.trim()
 	)
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+	const bytes = new Uint8Array(buffer)
+	const chunkSize = 0x8000
+	let binary = ''
+
+	for (let index = 0; index < bytes.length; index += chunkSize) {
+		const chunk = bytes.subarray(index, index + chunkSize)
+		binary += String.fromCharCode(...chunk)
+	}
+
+	return btoa(binary)
+}
+
+function extensionFromContentType(contentType: string | null): string {
+	if (!contentType) return 'jpg'
+	if (/png/i.test(contentType)) return 'png'
+	if (/webp/i.test(contentType)) return 'webp'
+	if (/gif/i.test(contentType)) return 'gif'
+	return 'jpg'
+}
+
+function getSafeAniListImageFileName(rawUrl: string, contentType: string | null): string {
+	try {
+		const url = new URL(rawUrl)
+		const rawName = url.pathname.split('/').pop()?.replace(/[^a-z0-9._-]/gi, '-') || ''
+		if (rawName && /\.[a-z0-9]{2,5}$/i.test(rawName)) return rawName
+		return `anilist-image.${extensionFromContentType(contentType)}`
+	} catch {
+		return `anilist-image.${extensionFromContentType(contentType)}`
+	}
+}
+
+function assertAllowedAniListImageUrl(rawUrl: string): URL {
+	const url = new URL(rawUrl)
+	if (url.protocol !== 'https:' || url.hostname !== ANILIST_IMAGE_HOST) {
+		throw new Error('URL de imagen AniList no permitida')
+	}
+	return url
 }
 
 /** Wraps shared normalizeTweetUrl with HTML entity decoding for oEmbed HTML contexts. */
@@ -607,6 +651,83 @@ export function setupTmdbRequestHandler(): void {
 }
 
 /**
+ * Setup AniList GraphQL API request handler.
+ */
+export function setupAniListRequestHandler(): void {
+	onMessage('anilistRequest', async ({ data }) => {
+		try {
+			const response = await fetch(ANILIST_GRAPHQL_URL, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Accept: 'application/json',
+				},
+				body: JSON.stringify({
+					query: data.query,
+					variables: data.variables ?? {},
+				}),
+			})
+
+			if (!response.ok) {
+				if (response.status === 429) {
+					throw new Error('AniList está limitando las peticiones. Prueba de nuevo en unos segundos.')
+				}
+				throw new Error(`AniList API error: ${response.status}`)
+			}
+
+			const payload = await response.json()
+			if (payload?.errors?.length) {
+				throw new Error(payload.errors[0]?.message || 'AniList API error')
+			}
+
+			return payload
+		} catch (error) {
+			logger.error('AniList request error:', error)
+			throw error
+		}
+	})
+
+	onMessage('rehostAniListImage', async ({ data }) => {
+		try {
+			const url = assertAllowedAniListImageUrl(data.url)
+			const response = await fetch(url.toString(), {
+				headers: { Accept: 'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8' },
+			})
+
+			if (!response.ok) {
+				throw new Error(`AniList image fetch error: ${response.status}`)
+			}
+
+			const contentType = response.headers.get('content-type')
+			if (!contentType?.startsWith('image/')) {
+				throw new Error('La URL de AniList no devolvió una imagen')
+			}
+
+			const contentLength = Number(response.headers.get('content-length') || '0')
+			if (contentLength > MAX_REHOST_IMAGE_BYTES) {
+				throw new Error('La imagen de AniList es demasiado grande')
+			}
+
+			const buffer = await response.arrayBuffer()
+			if (buffer.byteLength > MAX_REHOST_IMAGE_BYTES) {
+				throw new Error('La imagen de AniList es demasiado grande')
+			}
+
+			return uploadBase64ImageToBestProvider({
+				base64: arrayBufferToBase64(buffer),
+				fileName: getSafeAniListImageFileName(url.toString(), contentType),
+			})
+		} catch (error) {
+			logger.error('AniList image rehost error:', error)
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'No se pudo rehostear la imagen',
+			}
+		}
+	})
+}
+
+/**
  * Setup GIPHY API handlers
  * Reads API key from env and proxies requests
  */
@@ -750,12 +871,12 @@ function enrichWithSyndicationData(
  */
 async function resolveReplyContext(
 	tweetData: TweetLiteData,
-	oEmbedPayload: Record<string, unknown>,
+	oEmbedPayload: Record<string, unknown> | null,
 	syndicationPayload: Record<string, unknown> | null,
 	normalizedTweetUrl: string,
 	statusId: string | null
 ): Promise<void> {
-	const html = typeof oEmbedPayload.html === 'string' ? oEmbedPayload.html : ''
+	const html = typeof oEmbedPayload?.html === 'string' ? oEmbedPayload.html : ''
 	let replyTargetUrl = extractReplyTargetUrlFromOEmbedHtml(html, normalizedTweetUrl)
 	let threadHtml = ''
 
@@ -874,11 +995,9 @@ export function setupTwitterLiteHandler(): void {
 				statusId ? fetchSyndicationTweetById(statusId) : Promise.resolve(null),
 			])
 
-			if (!payload) {
-				return { success: false, error: 'oEmbed error' }
-			}
-
-			const tweetData = extractTweetLiteDataFromOEmbed(payload, normalizedTweetUrl)
+			const tweetData =
+				(payload ? extractTweetLiteDataFromOEmbed(payload, normalizedTweetUrl) : null) ||
+				(syndicationPayload ? extractTweetLiteDataFromSyndication(syndicationPayload, normalizedTweetUrl) : null)
 			if (!tweetData) {
 				return { success: false, error: 'Tweet content unavailable' }
 			}
@@ -903,6 +1022,7 @@ export function setupApiHandlers(): void {
 	setupSteamHandler()
 	setupTmdbKeyCheckHandler()
 	setupTmdbRequestHandler()
+	setupAniListRequestHandler()
 	setupGiphyHandlers()
 	setupTwitterLiteHandler()
 }

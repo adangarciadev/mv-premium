@@ -19,7 +19,7 @@ import {
 	type HiddenSubforum,
 } from '@/features/hidden-subforums/logic/storage'
 
-export function HiddenSubforumsView() {
+export function HiddenSubforumsView({ embedded = false }: { embedded?: boolean }) {
 	const [subforums, setSubforums] = useState<HiddenSubforum[]>([])
 	const [isLoading, setIsLoading] = useState(true)
 	const [query, setQuery] = useState('')
@@ -102,10 +102,12 @@ export function HiddenSubforumsView() {
 	}
 
 	return (
-		<div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 animate-in fade-in duration-300">
+		<div className={embedded ? 'flex flex-col gap-6' : 'mx-auto flex max-w-5xl flex-col gap-6 p-6 animate-in fade-in duration-300'}>
 			<div className="space-y-2">
 				<div className="flex items-center justify-between gap-4">
-					<h1 className="text-3xl font-bold tracking-tight">Subforos ocultos</h1>
+					<h1 className={embedded ? 'text-2xl font-semibold tracking-tight' : 'text-3xl font-bold tracking-tight'}>
+						Subforos ocultos
+					</h1>
 					<Button variant="outline" size="sm" onClick={() => setShowClearDialog(true)} disabled={subforums.length === 0}>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Desocultar todos ({subforums.length})

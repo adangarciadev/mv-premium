@@ -33,7 +33,7 @@ import {
 const PAGE_SIZE = 25
 type SortOption = 'recent' | 'oldest' | 'title' | 'subforum'
 
-export function HiddenThreadsView() {
+export function HiddenThreadsView({ embedded = false }: { embedded?: boolean }) {
 	const [threads, setThreads] = useState<HiddenThread[]>([])
 	const [searchFilter, setSearchFilter] = useState('')
 	const [activeSubforum, setActiveSubforum] = useState<string>('all')
@@ -217,17 +217,19 @@ export function HiddenThreadsView() {
 	const isFiltering = searchFilter !== '' || activeSubforum !== 'all' || sortBy !== 'recent'
 
 	return (
-		<div className="flex flex-col gap-6 max-w-5xl mx-auto p-6 animate-in fade-in duration-300">
+		<div className={embedded ? 'flex flex-col gap-6' : 'flex flex-col gap-6 max-w-5xl mx-auto p-6 animate-in fade-in duration-300'}>
 			<div className="space-y-2">
 				<div className="flex items-center justify-between">
-					<h1 className="text-3xl font-bold tracking-tight">Hilos Ocultos</h1>
+					<h1 className={embedded ? 'text-2xl font-semibold tracking-tight' : 'text-3xl font-bold tracking-tight'}>
+						Hilos ocultos
+					</h1>
 					<Button variant="outline" size="sm" onClick={() => setShowClearDialog(true)} disabled={threads.length === 0}>
 						<Trash2 className="h-4 w-4 mr-2" />
 						Desocultar todos ({threads.length})
 					</Button>
 				</div>
 				<p className="text-sm text-muted-foreground">
-					Estos hilos se ocultan automáticamente en subforos, Spy y en perfiles (últimos posts, /temas y /posts).
+					Estos hilos se ocultan automaticamente en subforos, Spy y en perfiles (ultimos posts, /temas y /posts).
 				</p>
 				<p className="text-sm text-muted-foreground">
 					{threads.length} ocultos en total · {filteredThreads.length} visibles con filtros

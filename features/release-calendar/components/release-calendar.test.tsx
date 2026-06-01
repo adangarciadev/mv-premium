@@ -233,12 +233,12 @@ describe('ReleaseCalendar', () => {
 		expect(within(card!).getByText('Xbox')).toBeInTheDocument()
 	})
 
-	it('shows every platform released on that date', async () => {
+	it('caps platform badges and shows overflow', async () => {
 		getUpcomingGameReleasesMock.mockResolvedValue([
 			{
 				...release,
-				platforms: ['PC', 'PS5', 'Xbox Series X|S', 'Nintendo Switch', 'Meta Quest 3'],
-				releasePlatforms: ['PC', 'PS5', 'Xbox Series X|S', 'Nintendo Switch', 'Meta Quest 3'],
+				platforms: ['PC', 'PS5', 'Xbox Series X|S', 'Nintendo Switch', 'Meta Quest 3', 'Amazon Luna'],
+				releasePlatforms: ['PC', 'PS5', 'Xbox Series X|S', 'Nintendo Switch', 'Meta Quest 3', 'Amazon Luna'],
 			},
 		])
 
@@ -253,7 +253,9 @@ describe('ReleaseCalendar', () => {
 		expect(within(card!).getByText('PlayStation')).toBeInTheDocument()
 		expect(within(card!).getByText('Xbox')).toBeInTheDocument()
 		expect(within(card!).getByText('Nintendo Switch')).toBeInTheDocument()
-		expect(within(card!).getByText('Meta Quest 3')).toBeInTheDocument()
+		expect(within(card!).getByText('+2')).toBeInTheDocument()
+		expect(within(card!).queryByText('Meta Quest 3')).not.toBeInTheDocument()
+		expect(within(card!).queryByText('Amazon Luna')).not.toBeInTheDocument()
 	})
 
 	it('curates busy days by relevance instead of showing every release', async () => {

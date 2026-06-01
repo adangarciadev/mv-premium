@@ -89,5 +89,17 @@ export {
 
 export type { IGDBGame, IGDBCover, IGDBSearchResult, IGDBImageSize } from './api/igdb'
 
+// AniList
+export {
+  searchAnime,
+  searchManga,
+  getAnimeTemplateData,
+  getMangaTemplateData,
+  generateAnimeTemplate,
+  generateMangaTemplate,
+} from './api/anilist'
+
+export type { AniListMedia, AnimeTemplateData, MangaTemplateData } from './api/anilist'
+
 // NOTE: Mediavida DOM Scraper & API functions are in @/lib/mv-api
 // Import directly from there instead of re-exporting here to avoid redundancy

@@ -233,6 +233,18 @@ interface ProtocolMap {
 	igdbRequest: (data: { endpoint: string; body: string }) => unknown
 
 	/**
+	 * Generic AniList GraphQL request via background script.
+	 * Keeps anime/manga external requests out of content scripts.
+	 */
+	anilistRequest: (data: { query: string; variables?: Record<string, unknown> }) => unknown
+
+	/**
+	 * Download an AniList CDN image and rehost it through the configured image provider.
+	 * Keeps cross-origin image fetching and upload credentials in the background script.
+	 */
+	rehostAniListImage: (data: { url: string }) => UploadResult
+
+	/**
 	 * Check if the IsThereAnyDeal public API key is configured.
 	 */
 	hasItadApiKey: () => boolean

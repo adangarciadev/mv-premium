@@ -52,6 +52,7 @@ const MAX_FEATURED_RELEASES_PER_DAY = 5
 const MIN_FEATURED_RELEASE_SCORE = 40
 const MIN_FALLBACK_RELEASE_SCORE = 25
 const LOADING_SKELETON_COUNT = 24
+const MAX_PLATFORM_BADGES = 5
 
 function addDays(date: Date, days: number): Date {
 	const next = new Date(date)
@@ -67,7 +68,8 @@ function formatReleaseDate(dateString: string): string {
 function getPlatformBadge(platform: string): PlatformBadge {
 	const normalized = platform.toLowerCase()
 	if (normalized.includes('pc') || normalized.includes('win')) return { kind: 'pc', label: 'PC' }
-	if (normalized.includes('switch') || normalized.includes('nintendo')) return { kind: 'switch', label: 'Nintendo Switch' }
+	if (normalized.includes('switch') || normalized.includes('nintendo'))
+		return { kind: 'switch', label: 'Nintendo Switch' }
 	if (normalized.includes('xbox') || normalized.includes('series x') || normalized.includes('series s')) {
 		return { kind: 'xbox', label: 'Xbox' }
 	}
@@ -94,6 +96,19 @@ function getVisiblePlatforms(platforms: string[], priorityFilter: PlatformFilter
 
 	const [priorityPlatform] = visible.splice(priorityIndex, 1)
 	return [priorityPlatform, ...visible]
+}
+
+function getPlatformDisplayBadges(
+	platforms: string[],
+	priorityFilter: PlatformFilter = 'all'
+): { badges: PlatformBadge[]; extraCount: number } {
+	const visible = getVisiblePlatforms(platforms, priorityFilter)
+	if (visible.length <= MAX_PLATFORM_BADGES) {
+		return { badges: visible, extraCount: 0 }
+	}
+
+	const badges = visible.slice(0, MAX_PLATFORM_BADGES - 1)
+	return { badges, extraCount: visible.length - badges.length }
 }
 
 function getPlatformBadgeClass(platform: PlatformBadge): string {
@@ -196,7 +211,8 @@ function selectFeaturedReleases(releases: UpcomingGameRelease[]): UpcomingGameRe
 	for (const [, dayReleases] of byDay) {
 		const ranked = [...dayReleases].sort(sortByImportance)
 		const notable = ranked.filter(isNotableRelease)
-		const candidates = notable.length > 0 ? notable : ranked.filter(release => release.relevanceScore >= MIN_FALLBACK_RELEASE_SCORE)
+		const candidates =
+			notable.length > 0 ? notable : ranked.filter(release => release.relevanceScore >= MIN_FALLBACK_RELEASE_SCORE)
 		selected.push(...candidates.slice(0, MAX_FEATURED_RELEASES_PER_DAY))
 	}
 
@@ -383,7 +399,9 @@ export function ReleaseCalendar() {
 			<div className={cn('flex', showActions ? 'gap-2.5' : 'gap-2')}>
 				{filteredReleases.map(release => {
 					const isCreating = creatingId === release.id
-					const title = `${release.name} · ${formatReleaseDate(release.releaseDate)} · Plataformas: ${getReleasePlatformSummary(release)}`
+					const title = `${release.name} · ${formatReleaseDate(
+						release.releaseDate
+					)} · Plataformas: ${getReleasePlatformSummary(release)}`
 					const poster = (
 						<div className={posterClass}>
 							{release.coverUrl ? (
@@ -398,31 +416,31 @@ export function ReleaseCalendar() {
 								<Gamepad2 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
 							)}
 							{showActions ? (
-									<div className="absolute inset-x-1 bottom-1 flex justify-end gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+								<div className="absolute inset-x-1 bottom-1 flex justify-end gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
 									<a
 										href={release.igdbUrl}
 										target="_blank"
 										rel="noreferrer"
-											title="Ver en IGDB"
-											aria-label={`Ver ${release.name} en IGDB`}
-											className="flex h-7 w-7 items-center justify-center rounded bg-background/85 text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-										>
-											<ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-										</a>
+										title="Ver en IGDB"
+										aria-label={`Ver ${release.name} en IGDB`}
+										className="flex h-7 w-7 items-center justify-center rounded bg-background/85 text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+									>
+										<ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+									</a>
 									<button
 										type="button"
 										title="Crear hilo con plantilla"
-											aria-label={`Crear hilo de ${release.name}`}
-											onClick={() => void handleCreateThread(release)}
-											disabled={creatingId !== null}
-											className="flex h-7 w-7 items-center justify-center rounded bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60"
-										>
-											{isCreating ? (
-												<Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-											) : (
-												<MessageSquarePlus className="h-3.5 w-3.5" aria-hidden="true" />
-											)}
-										</button>
+										aria-label={`Crear hilo de ${release.name}`}
+										onClick={() => void handleCreateThread(release)}
+										disabled={creatingId !== null}
+										className="flex h-7 w-7 items-center justify-center rounded bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60"
+									>
+										{isCreating ? (
+											<Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+										) : (
+											<MessageSquarePlus className="h-3.5 w-3.5" aria-hidden="true" />
+										)}
+									</button>
 								</div>
 							) : null}
 						</div>
@@ -436,9 +454,7 @@ export function ReleaseCalendar() {
 								className={cn(cardClass, 'focus-within:border-primary/70')}
 							>
 								{poster}
-								<span className={dateClass}>
-									{formatReleaseDate(release.releaseDate)}
-								</span>
+								<span className={dateClass}>{formatReleaseDate(release.releaseDate)}</span>
 							</article>
 						)
 					}
@@ -453,9 +469,7 @@ export function ReleaseCalendar() {
 							className={cn(cardClass, 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary')}
 						>
 							{poster}
-							<span className={dateClass}>
-								{formatReleaseDate(release.releaseDate)}
-							</span>
+							<span className={dateClass}>{formatReleaseDate(release.releaseDate)}</span>
 						</a>
 					)
 				})}
@@ -515,9 +529,7 @@ export function ReleaseCalendar() {
 		)
 	}
 
-	const layoutControls = (
-		<CalendarLayoutControls layout={layout} onChange={selectLayout} />
-	)
+	const layoutControls = <CalendarLayoutControls layout={layout} onChange={selectLayout} />
 
 	const platformControls = (
 		<div className="flex max-w-full gap-1 overflow-x-auto rounded-md bg-muted p-1">
@@ -595,16 +607,16 @@ export function ReleaseCalendar() {
 				<div className="space-y-2">
 					<p className="text-sm font-black text-foreground">Cómo se eligen</p>
 					<p className="text-muted-foreground">
-						Muestra lanzamientos de los próximos {RELEASE_WINDOW_DAYS} días. Incluye juegos base, remakes,
-						remasters y estrenos por plataforma.
+						Muestra lanzamientos de los próximos {RELEASE_WINDOW_DAYS} días. Incluye juegos base, remakes, remasters y
+						estrenos por plataforma.
 					</p>
 					<p className="text-muted-foreground">
-						Se descartan DLCs, expansiones, versiones hijas y fechas no finales como betas, alpha, early
-						access o cancelados.
+						Se descartan DLCs, expansiones, versiones hijas y fechas no finales como betas, alpha, early access o
+						cancelados.
 					</p>
 					<p className="text-muted-foreground">
-						Los destacados se priorizan con señales de IGDB: hypes, follows, valoraciones, rating, plataformas
-						y si la ficha tiene carátula.
+						Los destacados se priorizan con señales de IGDB: hypes, follows, valoraciones, rating, plataformas y si la
+						ficha tiene carátula.
 					</p>
 					<p className="text-[11px] font-semibold text-primary">
 						Para evitar ruido, se muestran hasta {MAX_FEATURED_RELEASES_PER_DAY} destacados por día.
@@ -633,9 +645,7 @@ export function ReleaseCalendar() {
 									Próximos lanzamientos
 								</p>
 								{releaseInfo}
-								<p className="shrink-0 text-[11px] font-black leading-none text-primary">
-									{releaseCountLabel}
-								</p>
+								<p className="shrink-0 text-[11px] font-black leading-none text-primary">{releaseCountLabel}</p>
 							</div>
 						</div>
 
@@ -656,16 +666,12 @@ export function ReleaseCalendar() {
 									<Loader2 className="h-3.5 w-3.5 animate-spin text-primary" aria-hidden="true" />
 									<span>Cargando próximos lanzamientos...</span>
 								</div>
-								<div className="overflow-hidden">
-									{renderPosterRailSkeleton(true)}
-								</div>
+								<div className="overflow-hidden">{renderPosterRailSkeleton(true)}</div>
 							</div>
 						) : filteredReleases.length > 0 ? (
 							renderPosterRail(true)
 						) : state.hasCredentials ? (
-							<p className="py-5 text-sm text-muted-foreground">
-								No hay lanzamientos próximos para este filtro.
-							</p>
+							<p className="py-5 text-sm text-muted-foreground">No hay lanzamientos próximos para este filtro.</p>
 						) : null}
 					</div>
 				</div>
@@ -687,17 +693,17 @@ export function ReleaseCalendar() {
 
 	return (
 		<section className="mb-3 overflow-hidden rounded-lg border border-border bg-card text-card-foreground shadow-[0_14px_40px_color-mix(in_srgb,var(--background)75%,transparent)]">
-				<style>
-					{'@keyframes release-calendar-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}'}
-				</style>
-				<div className="space-y-2 border-b border-border px-3 py-3">
-					<div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-						<div className="flex min-w-[260px] flex-1 flex-wrap items-center gap-2.5 gap-y-1">
-							<Clock3 className="h-5 w-5 shrink-0 text-primary" />
-							<h2 className="whitespace-nowrap text-[16px] font-black uppercase leading-none text-foreground">
-								Próximos lanzamientos
-							</h2>
-							{releaseInfo}
+			<style>
+				{'@keyframes release-calendar-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}'}
+			</style>
+			<div className="space-y-2 border-b border-border px-3 py-3">
+				<div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+					<div className="flex min-w-[260px] flex-1 flex-wrap items-center gap-2.5 gap-y-1">
+						<Clock3 className="h-5 w-5 shrink-0 text-primary" />
+						<h2 className="whitespace-nowrap text-[16px] font-black uppercase leading-none text-foreground">
+							Próximos lanzamientos
+						</h2>
+						{releaseInfo}
 						<span className="hidden whitespace-nowrap rounded-full border border-border bg-background px-2 py-0.5 text-[11px] font-bold text-muted-foreground sm:inline-flex">
 							Próximos {RELEASE_WINDOW_DAYS} días
 						</span>
@@ -708,11 +714,11 @@ export function ReleaseCalendar() {
 						) : null}
 					</div>
 
-						<div className="ml-auto flex shrink-0 items-center gap-2">
-							{layoutControls}
-							{navigationControls}
-							{refreshControl}
-						</div>
+					<div className="ml-auto flex shrink-0 items-center gap-2">
+						{layoutControls}
+						{navigationControls}
+						{refreshControl}
+					</div>
 				</div>
 
 				<div className="flex min-w-0 items-center justify-between gap-2">
@@ -754,20 +760,23 @@ export function ReleaseCalendar() {
 					</div>
 				)
 			) : filteredReleases.length > 0 ? (
-					layout === 'showcase' ? (
-						<div ref={railRef} className="overflow-x-auto px-3 py-3">
-							<div className="flex items-start gap-3">
+				layout === 'showcase' ? (
+					<div ref={railRef} className="overflow-x-auto px-3 py-3">
+						<div className="flex items-start gap-3">
 							{filteredReleases.map(release => {
 								const isCreating = creatingId === release.id
 								const dateLabel = getReleaseTimingLabel(release.releaseDate)
-								const visiblePlatforms = getVisiblePlatforms(getDisplayPlatforms(release), platformFilter)
+								const { badges: visiblePlatforms, extraCount } = getPlatformDisplayBadges(
+									getDisplayPlatforms(release),
+									platformFilter
+								)
 
 								return (
-										<article
-											key={`${release.id}-${release.releaseDate}`}
-											className="group flex h-[442px] w-[168px] shrink-0 flex-col overflow-hidden rounded-md border border-border bg-[color-mix(in_srgb,var(--card)94%,var(--background))] shadow-[0_8px_22px_color-mix(in_srgb,var(--background)48%,transparent)] transition-colors hover:border-primary/60"
-										>
-											<div className="relative flex h-[220px] shrink-0 items-center justify-center overflow-hidden bg-background">
+									<article
+										key={`${release.id}-${release.releaseDate}`}
+										className="group flex h-[442px] w-[168px] shrink-0 flex-col overflow-hidden rounded-md border border-border bg-[color-mix(in_srgb,var(--card)94%,var(--background))] shadow-[0_8px_22px_color-mix(in_srgb,var(--background)48%,transparent)] transition-colors hover:border-primary/60"
+									>
+										<div className="relative flex h-[220px] shrink-0 items-center justify-center overflow-hidden bg-background">
 											{release.coverUrl ? (
 												<img
 													src={release.coverUrl}
@@ -781,11 +790,22 @@ export function ReleaseCalendar() {
 													<Gamepad2 className="h-10 w-10 text-muted-foreground" />
 												</div>
 											)}
-											<div className={cn('absolute right-2.5 top-2.5 z-30 rounded px-1.5 py-0.5 text-[10px] font-black uppercase shadow-sm', getDateBadgeClass(release.releaseDate))}>
+											<div
+												className={cn(
+													'absolute right-2.5 top-2.5 z-30 rounded px-1.5 py-0.5 text-[10px] font-black uppercase shadow-sm',
+													getDateBadgeClass(release.releaseDate)
+												)}
+											>
 												{dateLabel}
 											</div>
 											<div className="absolute bottom-3 right-3 z-30 flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
-												<Button asChild size="icon-sm" variant="ghost" title="Ver en IGDB" className="h-8 w-8 rounded-full bg-background/85 text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary">
+												<Button
+													asChild
+													size="icon-sm"
+													variant="ghost"
+													title="Ver en IGDB"
+													className="h-8 w-8 rounded-full bg-background/85 text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary"
+												>
 													<a href={release.igdbUrl} target="_blank" rel="noreferrer">
 														<ExternalLink className="h-3.5 w-3.5" />
 													</a>
@@ -811,9 +831,7 @@ export function ReleaseCalendar() {
 												{release.name}
 											</h3>
 											<div className="mt-2 min-h-[86px]">
-												<p className="mb-1 text-[10px] font-black uppercase text-muted-foreground">
-													Plataformas
-												</p>
+												<p className="mb-1 text-[10px] font-black uppercase text-muted-foreground">Plataformas</p>
 												<div className="flex content-start flex-wrap gap-1.5">
 													{visiblePlatforms.map(platform => (
 														<span
@@ -828,6 +846,15 @@ export function ReleaseCalendar() {
 															<span className="truncate">{platform.label}</span>
 														</span>
 													))}
+													{extraCount > 0 ? (
+														<span
+															className="inline-flex items-center rounded border border-dashed bg-muted/70 px-2 py-1 text-[10px] font-bold leading-none text-muted-foreground"
+															title={`+${extraCount} plataformas`}
+															aria-label={`+${extraCount} plataformas`}
+														>
+															+{extraCount}
+														</span>
+													) : null}
 												</div>
 											</div>
 											<div className="mt-auto border-t border-border pt-2">
@@ -850,9 +877,7 @@ export function ReleaseCalendar() {
 						</div>
 					</div>
 				) : layout === 'minimal' ? (
-					<div className="overflow-x-auto bg-background/40 px-2.5 py-2">
-						{renderPosterRail(true)}
-					</div>
+					<div className="overflow-x-auto bg-background/40 px-2.5 py-2">{renderPosterRail(true)}</div>
 				) : null
 			) : state.hasCredentials ? (
 				<p className="px-4 py-5 text-center text-sm text-muted-foreground">

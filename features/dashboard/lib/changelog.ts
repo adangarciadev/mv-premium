@@ -21,6 +21,189 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '2.0.0',
+		date: '2026-06-01',
+		title: 'Filtros 2.0, reglas de hilos y AniList',
+		summary:
+			'Mediavida Premium 2.0 reorganiza por completo la zona de Filtros, estrena reglas de hilos y añade AniList al editor para buscar anime y manga junto a las fichas de cine.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Reglas de hilos: Nuevo sistema para destacar u ocultar hilos automáticamente cuando coinciden con un título, un autor real de Mediavida y uno o varios subforos.',
+				category: 'Filtros',
+			},
+			{
+				type: 'feature',
+				description:
+					'Centro de filtros: Palabras silenciadas, usuarios, hilos ocultos, subforos ocultos y reglas de hilos viven ahora en una misma pantalla con pestañas, para que todo lo relacionado con ocultar, silenciar o destacar contenido esté junto.',
+				category: 'Ajustes',
+			},
+			{
+				type: 'feature',
+				description:
+					'Creación rápida desde Mediavida: En los listados de hilos se puede crear una regla directamente desde el menú de acciones, usando el título o el autor del hilo como punto de partida.',
+				category: 'Filtros',
+			},
+			{
+				type: 'feature',
+				description:
+					'Importar y exportar filtros: La pantalla de Filtros permite guardar o restaurar solo reglas, palabras silenciadas, usuarios, hilos ocultos y subforos ocultos, sin tocar temas, borradores, plantillas ni el resto del dashboard.',
+				category: 'Copia de seguridad',
+			},
+			{
+				type: 'feature',
+				description:
+					'Borrado masivo de reglas: Las reglas creadas por ti pueden eliminarse de golpe respetando la búsqueda y la pestaña activa, con confirmación clara de cuántas reglas se van a borrar y de qué filtro salen.',
+				category: 'Filtros',
+			},
+			{
+				type: 'feature',
+				description:
+					'Gestión completa de reglas: Cada regla puede pausarse, duplicarse, editarse o eliminarse desde el dashboard, con confirmaciones para las acciones destructivas.',
+				category: 'Filtros',
+			},
+			{
+				type: 'feature',
+				description:
+					'Reglas activas o pausadas: Se puede pausar el sistema completo de reglas de hilos. Al hacerlo, las zonas de creación y edición quedan bloqueadas visualmente para evitar cambios accidentales.',
+				category: 'Filtros',
+			},
+			{
+				type: 'feature',
+				description:
+					'AniList en el editor: El botón de Cine del editor ahora también permite buscar anime y manga con AniList para insertar fichas enriquecidas en tus mensajes.',
+				category: 'Editor',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Editor más cómodo: Añadido un botón para limpiar el contenido del editor rápidamente, útil cuando se quiere rehacer un borrador o empezar de cero sin seleccionar todo a mano.',
+				category: 'Editor',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Nuevo diseño de Reglas de hilos: La pantalla muestra contadores de activas, destacadas y ocultas, tarjetas más expresivas, estados de pausa, chips de condición y tintes suaves que se adaptan al tema.',
+				category: 'Diseño',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Las cards de reglas y subforos seleccionados usan colores derivados del preset activo, sin colores fijos, para que el diseño cambie correctamente al personalizar el dashboard.',
+				category: 'Diseño',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Las insignias de estado como Destacado, Ocultado o Pausada respetan el radio de borde configurado en el tema, igual que el resto de componentes del dashboard.',
+				category: 'Temas',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Acciones de hilo más limpias: Guardar, ocultar y crear reglas se agrupan en un menú Premium compacto de tres puntos para reducir ruido visual en los listados.',
+				category: 'Mediavida',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El menú de tres puntos usa las variables visuales del tema del dashboard para que sus colores acompañen los presets y no quede desconectado del resto de la interfaz.',
+				category: 'Temas',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El sidebar de Filtros abre por defecto Reglas de hilos cuando se entra desde otra zona, pero conserva la pestaña actual si ya se estaba navegando dentro de Filtros.',
+				category: 'Navegación',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El grupo Filtros del sidebar vuelve a poder colapsarse aunque esté activo, manteniendo una navegación más predecible.',
+				category: 'Navegación',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Mejoradas las validaciones al crear reglas: el título tiene límite de 100 caracteres y el autor debe tener entre 3 y 12 caracteres, alineado con la búsqueda de usuarios reales de Mediavida.',
+				category: 'Filtros',
+			},
+			{
+				type: 'improvement',
+				description:
+					'La búsqueda de autor en reglas explica que funciona como el directorio de usuarios y se limita a usuarios reales de Mediavida.',
+				category: 'Filtros',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El selector de subforos en reglas marca cada subforo seleccionado con check y un coloreado suave derivado del tema, para distinguir mejor qué ámbito tendrá la regla.',
+				category: 'Filtros',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Las reglas destacadas permiten elegir tinte de resaltado, y los listados de hilos aplican ese color de forma suave para diferenciar el contenido sin romper la lectura.',
+				category: 'Mediavida',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Las reglas son reversibles y dinámicas: destacar u ocultar por regla no añade hilos a la lista manual de hilos ocultos, salvo que el usuario pulse explícitamente ocultar hilo.',
+				category: 'Privacidad',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El menú compacto de hilos ya no mantiene colores fijos cuando se cambia de preset, y se integra mejor con el tema activo.',
+				category: 'Temas',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El formulario de reglas evita duplicar información innecesaria del título y muestra las condiciones de forma más compacta y legible.',
+				category: 'Diseño',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Los estados vacíos, filtros internos y paginación de reglas se comportan mejor cuando hay muchas reglas, búsquedas activas o pestañas sin resultados.',
+				category: 'Filtros',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El importador manual de filtros también puede leer un backup global y extraer únicamente los datos de Filtros, evitando restaurar partes no deseadas del dashboard.',
+				category: 'Copia de seguridad',
+			},
+			{
+				type: 'fix',
+				description:
+					'Twitter Lite: Corregida la integración de embeds ligeros de Twitter/X, que podía dejar de funcionar y no mostrar correctamente algunos tweets.',
+				category: 'Embeds',
+			},
+			{
+				type: 'fix',
+				description:
+					'Calendario de juegos: Corregido un problema de overflow que podía hacer que el calendario se saliera de su contenedor o rompiera el layout en algunos tamaños de pantalla.',
+				category: 'Juegos',
+			},
+			{
+				type: 'improvement',
+				description:
+					'La copia de seguridad global sigue incluyendo todos los datos de filtros, y ahora se complementa con una exportación específica para quien solo quiera mover o compartir esa parte.',
+				category: 'Copia de seguridad',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El diseño de Filtros se prepara mejor para futuros presets y cambios de tema usando variables del sistema visual en lugar de valores hardcodeados.',
+				category: 'Temas',
+			},
+		],
+	},
+	{
 		version: '1.9.0',
 		date: '2026-05-29',
 		title: 'Estrenos de cine, previews de hilos y ajustes más cómodos',
@@ -340,7 +523,8 @@ export const CHANGELOG: ChangelogEntry[] = [
 			},
 			{
 				type: 'fix',
-				description: 'El video flotante de YouTube se mantiene visible en el viewport tras hacer zoom en posts centrados.',
+				description:
+					'El video flotante de YouTube se mantiene visible en el viewport tras hacer zoom en posts centrados.',
 				category: 'Multimedia',
 			},
 			{

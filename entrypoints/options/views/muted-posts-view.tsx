@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
-export default function MutedPostsView() {
+export default function MutedPostsView({ embedded = false }: { embedded?: boolean }) {
 	const { mutedWordsEnabled, setMutedWordsEnabled, mutedWords, setMutedWords } = useSettingsStore()
 
 	const [inputValue, setInputValue] = useState('')
@@ -67,13 +67,15 @@ export default function MutedPostsView() {
 	}
 
 	return (
-		<div className="flex flex-col gap-6 max-w-4xl mx-auto p-6 animate-in fade-in duration-300">
-			<div className="space-y-2">
-				<h1 className="text-3xl font-bold tracking-tight">Palabras Silenciadas</h1>
-				<p className="text-muted-foreground">
-					Gestiona las palabras o frases que quieres filtrar automáticamente en el foro.
-				</p>
-			</div>
+		<div className={embedded ? 'flex flex-col gap-6' : 'flex flex-col gap-6 max-w-4xl mx-auto p-6 animate-in fade-in duration-300'}>
+			{!embedded && (
+				<div className="space-y-2">
+					<h1 className="text-3xl font-bold tracking-tight">Palabras silenciadas</h1>
+					<p className="text-muted-foreground">
+						Gestiona las palabras o frases que quieres filtrar automaticamente en el foro.
+					</p>
+				</div>
+			)}
 
 			<div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex gap-3 text-amber-600 dark:text-amber-400">
 				<Info className="h-5 w-5 shrink-0 mt-0.5" />

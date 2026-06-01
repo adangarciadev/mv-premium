@@ -19,7 +19,7 @@
 /**
  * Types of media that can have templates
  */
-export type TemplateType = 'movie' | 'tvshow' | 'season' | 'game'
+export type TemplateType = 'movie' | 'tvshow' | 'season' | 'game' | 'anime' | 'manga'
 
 /**
  * Types of blocks that compose a template
@@ -108,7 +108,7 @@ export interface FieldDefinition {
 	/** Example value for preview */
 	example: string | string[]
 	/** Data source indicator for user clarity */
-	source?: 'igdb' | 'steam' | 'igdb+steam'
+	source?: 'igdb' | 'steam' | 'igdb+steam' | 'anilist' | 'anilist+mal'
 	/** Category for grouping in the sidebar (only used for game fields) */
 	category?: string
 }
@@ -749,6 +749,81 @@ export const GAME_FIELDS: FieldDefinition[] = [
 ]
 
 /**
+ * Available fields for anime templates (AniList)
+ */
+export const ANIME_FIELDS: FieldDefinition[] = [
+	{ key: 'title', label: 'Título', description: 'Título principal', isArray: false, example: 'Frieren', source: 'anilist' },
+	{
+		key: 'originalTitle',
+		label: 'Título original',
+		description: 'Título romanizado o nativo',
+		isArray: false,
+		example: 'Sousou no Frieren',
+		source: 'anilist',
+	},
+	{ key: 'genres', label: 'Género', description: 'Géneros de AniList', isArray: true, example: ['Aventura', 'Drama'], source: 'anilist' },
+	{ key: 'source', label: 'Origen', description: 'Material de origen', isArray: false, example: 'Manga', source: 'anilist' },
+	{
+		key: 'demographic',
+		label: 'Demografía',
+		description: 'Demografía inferida desde etiquetas de AniList',
+		isArray: false,
+		example: 'Shounen',
+		source: 'anilist',
+	},
+	{ key: 'studios', label: 'Estudio', description: 'Estudios principales', isArray: true, example: ['Madhouse'], source: 'anilist' },
+	{ key: 'episodes', label: 'Capítulos', description: 'Número de episodios', isArray: false, example: '28', source: 'anilist' },
+	{ key: 'status', label: 'Estado', description: 'Estado de emisión', isArray: false, example: 'Finalizada', source: 'anilist' },
+	{ key: 'format', label: 'Formato', description: 'Formato de publicación', isArray: false, example: 'TV', source: 'anilist' },
+	{ key: 'startDate', label: 'Estreno', description: 'Fecha de estreno', isArray: false, example: '2023-09-29', source: 'anilist' },
+	{ key: 'year', label: 'Año', description: 'Año de estreno', isArray: false, example: '2023', source: 'anilist' },
+	{ key: 'overview', label: 'Sinopsis', description: 'Sinopsis de AniList', isArray: false, example: 'Tras derrotar al rey demonio...', source: 'anilist' },
+	{ key: 'bannerUrl', label: 'Cabecera', description: 'Banner o portada', isArray: false, example: 'https://s4.anilist.co/file/anilistcdn/media/anime/banner/154587.jpg', source: 'anilist' },
+	{ key: 'coverUrl', label: 'Portada', description: 'Imagen de portada', isArray: false, example: 'https://s4.anilist.co/file/anilistcdn/media/anime/cover/large.jpg', source: 'anilist' },
+	{ key: 'trailerUrl', label: 'PV', description: 'Trailer o vídeo promocional', isArray: false, example: 'https://www.youtube.com/watch?v=abc', source: 'anilist' },
+	{ key: 'anilistUrl', label: 'AniList', description: 'URL de AniList', isArray: false, example: 'https://anilist.co/anime/154587', source: 'anilist' },
+	{ key: 'malUrl', label: 'MAL', description: 'URL de MyAnimeList si AniList aporta idMal', isArray: false, example: 'https://myanimelist.net/anime/52991', source: 'anilist+mal' },
+	{ key: 'linksText', label: 'Enlaces', description: 'Enlaces BBCode listos para insertar', isArray: false, example: '[url=https://anilist.co]AniList[/url] · [url=https://myanimelist.net]MAL[/url]', source: 'anilist+mal' },
+]
+
+/**
+ * Available fields for manga templates (AniList)
+ */
+export const MANGA_FIELDS: FieldDefinition[] = [
+	{ key: 'title', label: 'Título', description: 'Título principal', isArray: false, example: 'Berserk', source: 'anilist' },
+	{
+		key: 'originalTitle',
+		label: 'Título original',
+		description: 'Título romanizado o nativo',
+		isArray: false,
+		example: 'Berserk',
+		source: 'anilist',
+	},
+	{ key: 'genres', label: 'Género', description: 'Géneros de AniList', isArray: true, example: ['Acción', 'Drama'], source: 'anilist' },
+	{
+		key: 'demographic',
+		label: 'Demografía',
+		description: 'Demografía inferida desde etiquetas de AniList',
+		isArray: false,
+		example: 'Seinen',
+		source: 'anilist',
+	},
+	{ key: 'authors', label: 'Autor', description: 'Autores/staff principales', isArray: true, example: ['Kentaro Miura'], source: 'anilist' },
+	{ key: 'status', label: 'Estado', description: 'Estado de publicación', isArray: false, example: 'En emisión', source: 'anilist' },
+	{ key: 'format', label: 'Formato', description: 'Formato de publicación', isArray: false, example: 'Manga', source: 'anilist' },
+	{ key: 'chapters', label: 'Capítulos', description: 'Número de capítulos', isArray: false, example: '376', source: 'anilist' },
+	{ key: 'volumes', label: 'Volúmenes', description: 'Número de volúmenes', isArray: false, example: '42', source: 'anilist' },
+	{ key: 'startDate', label: 'Año', description: 'Fecha de inicio', isArray: false, example: '1989-08-25', source: 'anilist' },
+	{ key: 'year', label: 'Año', description: 'Año de inicio', isArray: false, example: '1989', source: 'anilist' },
+	{ key: 'overview', label: 'Sinopsis', description: 'Sinopsis de AniList', isArray: false, example: 'Guts, un guerrero solitario...', source: 'anilist' },
+	{ key: 'bannerUrl', label: 'Cabecera', description: 'Banner o portada', isArray: false, example: 'https://s4.anilist.co/file/anilistcdn/media/manga/banner/30002.jpg', source: 'anilist' },
+	{ key: 'coverUrl', label: 'Portada', description: 'Imagen de portada', isArray: false, example: 'https://s4.anilist.co/file/anilistcdn/media/manga/cover/large.jpg', source: 'anilist' },
+	{ key: 'anilistUrl', label: 'AniList', description: 'URL de AniList', isArray: false, example: 'https://anilist.co/manga/30002', source: 'anilist' },
+	{ key: 'malUrl', label: 'MAL', description: 'URL de MyAnimeList si AniList aporta idMal', isArray: false, example: 'https://myanimelist.net/manga/2', source: 'anilist+mal' },
+	{ key: 'linksText', label: 'Enlaces', description: 'Enlaces BBCode listos para insertar', isArray: false, example: '[url=https://anilist.co]AniList[/url] · [url=https://myanimelist.net]MAL[/url]', source: 'anilist+mal' },
+]
+
+/**
  * Get field definitions for a template type
  */
 export function getFieldsForType(type: TemplateType): FieldDefinition[] {
@@ -761,6 +836,10 @@ export function getFieldsForType(type: TemplateType): FieldDefinition[] {
 			return SEASON_FIELDS
 		case 'game':
 			return GAME_FIELDS
+		case 'anime':
+			return ANIME_FIELDS
+		case 'manga':
+			return MANGA_FIELDS
 	}
 }
 
@@ -776,6 +855,8 @@ export interface UserTemplates {
 	tvshow: MediaTemplate | null
 	season: MediaTemplate | null
 	game: MediaTemplate | null
+	anime: MediaTemplate | null
+	manga: MediaTemplate | null
 }
 
 /**
@@ -786,6 +867,8 @@ export const DEFAULT_USER_TEMPLATES: UserTemplates = {
 	tvshow: null,
 	season: null,
 	game: null,
+	anime: null,
+	manga: null,
 }
 
 // =============================================================================
@@ -912,6 +995,55 @@ export interface GameTemplateDataInput {
 }
 
 /**
+ * Data structure for anime templates (AniList)
+ */
+export interface AnimeTemplateDataInput {
+	title: string
+	originalTitle: string
+	genres: string[]
+	source: string | null
+	demographic: string | null
+	studios: string[]
+	episodes: number | null
+	status: string | null
+	format: string | null
+	startDate: string | null
+	year: string | null
+	overview: string
+	bannerUrl: string | null
+	coverUrl: string | null
+	trailerUrl: string | null
+	anilistUrl: string
+	malUrl: string | null
+	links: { label: string; url: string }[]
+	linksText: string
+}
+
+/**
+ * Data structure for manga templates (AniList)
+ */
+export interface MangaTemplateDataInput {
+	title: string
+	originalTitle: string
+	genres: string[]
+	demographic: string | null
+	authors: string[]
+	status: string | null
+	format: string | null
+	chapters: number | null
+	volumes: number | null
+	startDate: string | null
+	year: string | null
+	overview: string
+	bannerUrl: string | null
+	coverUrl: string | null
+	anilistUrl: string
+	malUrl: string | null
+	links: { label: string; url: string }[]
+	linksText: string
+}
+
+/**
  * Union type for all template data inputs
  */
 export type TemplateDataInput =
@@ -919,3 +1051,5 @@ export type TemplateDataInput =
 	| TVShowTemplateDataInput
 	| SeasonTemplateDataInput
 	| GameTemplateDataInput
+	| AnimeTemplateDataInput
+	| MangaTemplateDataInput

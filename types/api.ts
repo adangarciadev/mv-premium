@@ -28,12 +28,14 @@ export interface TMDBCredits {
 	cast: {
 		id: number
 		name: string
+		original_name?: string
 		character: string
 		order: number
 	}[]
 	crew: {
 		id: number
 		name: string
+		original_name?: string
 		job: string
 		department: string
 	}[]

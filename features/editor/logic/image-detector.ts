@@ -41,6 +41,8 @@ const IMAGE_DOMAINS = [
 	'i.ibb.co',
 	// TMDB
 	'image.tmdb.org',
+	// AniList
+	's4.anilist.co',
 	// Discord
 	'cdn.discordapp.com',
 	'media.discordapp.net',
