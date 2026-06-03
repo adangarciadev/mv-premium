@@ -1,7 +1,8 @@
 /**
  * Advanced Content - Debug mode, activity tracking, data management
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { storage } from '#imports'
 import { logger } from '@/lib/logger'
 import Activity from 'lucide-react/dist/esm/icons/activity'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
@@ -13,10 +14,21 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { SettingsSection } from '../../components/settings/settings-section'
 import { SettingRow } from '../../components/settings'
 import { useSettingsStore } from '@/store/settings-store'
-import { exportAllData, importAllData, resetAllData, downloadJSON } from '../../lib/export-import'
+import { resetAllData } from '../../lib/export-import'
+import { createBackupData, downloadBackupJSON, importBackupData } from '../../lib/backup-service'
+import type { BackupData, BackupImportStats } from '../../lib/backup-service'
 import {
 	getSettingDomId,
 	isHighlightedSetting,
@@ -24,6 +36,120 @@ import {
 	type SettingsContentFilter,
 } from './constants'
 import { cn } from '@/lib/utils'
+
+const LAST_LOCAL_BACKUP_EXPORT_KEY = 'local:mvp-last-local-backup-export'
+
+interface BackupPreview {
+	drafts: number
+	templates: number
+	savedThreads: number
+	pinnedThreads: number
+	pinnedPosts: number
+	contentRules: number
+	savedThemes: number
+	settings: number
+	mutedWords: number
+	userCustomizations: number
+	favoriteSubforums: number
+	hiddenThreads: number
+	hiddenSubforums: number
+	delayPreferences: number
+	subforumStats: number
+	appearanceItems: number
+	lastExportedAt: string | null
+}
+
+interface BackupPreviewItem {
+	label: string
+	value: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function countArray(value: unknown): number {
+	return Array.isArray(value) ? value.length : 0
+}
+
+function countObjectKeys(value: unknown): number {
+	return isRecord(value) ? Object.keys(value).length : 0
+}
+
+function countDraftsAndTemplates(value: unknown): Pick<BackupPreview, 'drafts' | 'templates'> {
+	if (!isRecord(value) || !Array.isArray(value.drafts)) return { drafts: 0, templates: 0 }
+
+	return value.drafts.reduce(
+		(acc, draft) => {
+			if (isRecord(draft) && draft.type === 'template') {
+				acc.templates += 1
+			} else {
+				acc.drafts += 1
+			}
+			return acc
+		},
+		{ drafts: 0, templates: 0 }
+	)
+}
+
+function countUserCustomizations(value: unknown): number {
+	if (isRecord(value) && isRecord(value.users)) return Object.keys(value.users).length
+	return countObjectKeys(value)
+}
+
+function countDefinedValues(values: unknown[]): number {
+	return values.filter(value => value !== undefined && value !== null).length
+}
+
+function createBackupPreview(data: BackupData, lastExportedAt: string | null): BackupPreview {
+	const { drafts, templates } = countDraftsAndTemplates(data.data.content.drafts)
+	const uiTheme = data.data.themes.ui
+	const mvTheme = data.data.themes.mediavida
+
+	return {
+		drafts,
+		templates,
+		savedThreads: countArray(data.data.content.savedThreads),
+		pinnedThreads: data.data.content.pinnedPosts.length,
+		pinnedPosts: data.data.content.pinnedPosts.reduce((total, entry) => total + entry.posts.length, 0),
+		contentRules: countArray(data.data.content.contentRules),
+		savedThemes: countArray(uiTheme.savedPresets) + countArray(mvTheme.savedPresets),
+		settings: countObjectKeys(data.data.settings),
+		mutedWords: countArray(data.data.settings.mutedWords),
+		userCustomizations: countUserCustomizations(data.data.content.userCustomizations),
+		favoriteSubforums: countArray(data.data.content.favoriteSubforums),
+		hiddenThreads: countArray(data.data.content.hiddenThreads),
+		hiddenSubforums: countArray(data.data.content.hiddenSubforums),
+		delayPreferences: countDefinedValues([data.data.preferences.nativeLiveDelay, data.data.preferences.liveThreadDelay]),
+		subforumStats: countObjectKeys(data.data.stats.timeStats),
+		appearanceItems: countDefinedValues([
+			uiTheme.resolvedTheme,
+			uiTheme.rawTheme,
+			uiTheme.custom,
+			uiTheme.customFont,
+			uiTheme.applyFontGlobally,
+			uiTheme.postFontSize,
+			mvTheme.state,
+		]),
+		lastExportedAt,
+	}
+}
+
+function formatLastExportDate(value: string | null): string {
+	if (!value) return 'Nunca'
+
+	const date = new Date(value)
+	if (Number.isNaN(date.getTime())) return 'Fecha no disponible'
+
+	return new Intl.DateTimeFormat('es-ES', {
+		dateStyle: 'medium',
+		timeStyle: 'short',
+	}).format(date)
+}
+
+function formatCount(value: number, singular: string, plural: string): string {
+	return `${value} ${value === 1 ? singular : plural}`
+}
 
 export function AdvancedContent({
 	settingFilter,
@@ -36,13 +162,20 @@ export function AdvancedContent({
 	const [showResetDialog, setShowResetDialog] = useState(false)
 	const [showClearActivityDialog, setShowClearActivityDialog] = useState(false)
 	const [showImportReport, setShowImportReport] = useState(false)
-	const [importStats, setImportStats] = useState<any>(null)
+	const [importStats, setImportStats] = useState<BackupImportStats | null>(null)
+	const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null)
+	const [isBackupPreviewLoading, setIsBackupPreviewLoading] = useState(false)
+	const [backupPreviewError, setBackupPreviewError] = useState<string | null>(null)
+	const [showBackupDetailsDialog, setShowBackupDetailsDialog] = useState(false)
 
 	const handleExport = async () => {
 		try {
-			const data = await exportAllData()
+			const data = await createBackupData()
 			const date = new Date().toISOString().split('T')[0]
-			downloadJSON(data, `mv-premium-backup-${date}.json`)
+			downloadBackupJSON(data, `mv-premium-backup-${date}.json`)
+			const exportedAt = new Date().toISOString()
+			await storage.setItem(LAST_LOCAL_BACKUP_EXPORT_KEY, exportedAt)
+			setBackupPreview(createBackupPreview(data, exportedAt))
 			toast.success('Datos exportados correctamente')
 		} catch (error) {
 			toast.error('Error al exportar datos')
@@ -61,17 +194,17 @@ export function AdvancedContent({
 			try {
 				const text = await file.text()
 				const data = JSON.parse(text)
-				const result = await importAllData(data)
+				const result = await importBackupData(data)
 
 				if (result.success && result.stats) {
 					setImportStats(result.stats)
 					setShowImportReport(true)
 					toast.success('Datos importados correctamente')
 				} else {
-					toast.error(result.error || 'Error desconocido')
+					toast.error(result.error || 'El backup no es válido')
 				}
 			} catch (error) {
-				toast.error('Error al importar datos')
+				toast.error(error instanceof SyntaxError ? 'El archivo no contiene JSON válido' : 'Error al importar datos')
 				logger.error('Import error:', error)
 			}
 		}
@@ -123,6 +256,95 @@ export function AdvancedContent({
 	const showBackupData = shouldShowSetting(settingFilter, 'backup-data')
 	const showResetData = shouldShowSetting(settingFilter, 'reset-data')
 
+	useEffect(() => {
+		if (!showBackupData) return
+
+		let mounted = true
+
+		async function loadBackupPreview() {
+			setIsBackupPreviewLoading(true)
+			setBackupPreviewError(null)
+
+			try {
+				const [data, lastExportedAt] = await Promise.all([
+					createBackupData(),
+					storage.getItem<string | null>(LAST_LOCAL_BACKUP_EXPORT_KEY),
+				])
+				if (!mounted) return
+
+				setBackupPreview(createBackupPreview(data, lastExportedAt ?? null))
+			} catch (error) {
+				if (!mounted) return
+
+				setBackupPreviewError('No se ha podido calcular el resumen del backup.')
+				logger.error('Backup preview error:', error)
+			} finally {
+				if (mounted) setIsBackupPreviewLoading(false)
+			}
+		}
+
+		void loadBackupPreview()
+
+		return () => {
+			mounted = false
+		}
+	}, [showBackupData])
+
+	const backupPreviewGroups: BackupPreviewItem[] = backupPreview
+		? [
+				{
+					label: 'Borradores y plantillas',
+					value: `${formatCount(backupPreview.drafts, 'borrador', 'borradores')} · ${formatCount(backupPreview.templates, 'plantilla', 'plantillas')}`,
+				},
+				{
+					label: 'Hilos guardados',
+					value: `${formatCount(backupPreview.savedThreads, 'hilo', 'hilos')} · incluye la ruta del hilo`,
+				},
+				{
+					label: 'Posts anclados',
+					value: `${formatCount(backupPreview.pinnedPosts, 'post', 'posts')} · ${formatCount(backupPreview.pinnedThreads, 'hilo', 'hilos')} con anclajes`,
+				},
+				{
+					label: 'Filtros y contenido oculto',
+					value: [
+						formatCount(backupPreview.contentRules, 'regla', 'reglas'),
+						formatCount(backupPreview.mutedWords, 'palabra', 'palabras'),
+						formatCount(backupPreview.hiddenThreads + backupPreview.hiddenSubforums, 'oculto', 'ocultos'),
+					].join(' · '),
+				},
+				{
+					label: 'Apariencia y preferencias',
+					value: [
+						formatCount(backupPreview.savedThemes, 'tema guardado', 'temas guardados'),
+						formatCount(backupPreview.appearanceItems, 'valor visual', 'valores visuales'),
+						formatCount(backupPreview.delayPreferences, 'delay', 'delays'),
+					].join(' · '),
+				},
+				{
+					label: 'Datos personales de uso',
+					value: [
+						formatCount(backupPreview.userCustomizations, 'personalización', 'personalizaciones'),
+						formatCount(backupPreview.favoriteSubforums, 'foro favorito', 'foros favoritos'),
+						formatCount(backupPreview.subforumStats, 'subforo con tiempo', 'subforos con tiempo'),
+					].join(' · '),
+				},
+				{
+					label: 'Ajustes seguros',
+					value: `${formatCount(backupPreview.settings, 'opción', 'opciones')} · claves API excluidas`,
+				},
+			]
+		: []
+	const backupPreviewSummary = backupPreview
+		? [
+				formatCount(backupPreview.drafts, 'borrador', 'borradores'),
+				formatCount(backupPreview.templates, 'plantilla', 'plantillas'),
+				formatCount(backupPreview.savedThreads, 'hilo guardado', 'hilos guardados'),
+				formatCount(backupPreview.pinnedPosts, 'post anclado', 'posts anclados'),
+				formatCount(backupPreview.contentRules, 'regla', 'reglas'),
+				formatCount(backupPreview.savedThemes, 'tema guardado', 'temas guardados'),
+			].join(' · ')
+		: 'Preparando resumen...'
+
 	return (
 		<>
 			{(showActivityTracking || showBackupData) && (
@@ -164,8 +386,43 @@ export function AdvancedContent({
 					>
 						<div className="space-y-4 p-2 pt-2">
 							<div>
-								<h3 className="text-base font-medium">Copia de Seguridad</h3>
-								<p className="text-sm text-muted-foreground mt-1">Exporta o importa tus datos y configuraciones.</p>
+								<h3 className="text-base font-medium">Copia de seguridad local</h3>
+								<p className="text-sm text-muted-foreground mt-1">
+									Exporta o importa un backup JSON de tus datos seguros de MV Premium.
+								</p>
+							</div>
+
+							<div className="rounded-md bg-muted/20 p-3">
+								{backupPreviewError ? (
+									<p className="text-sm text-destructive">{backupPreviewError}</p>
+								) : backupPreview ? (
+									<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+										<div className="min-w-0 space-y-1">
+											<p className="text-sm font-medium">Backup local listo</p>
+											<p className="text-xs text-muted-foreground">{backupPreviewSummary}</p>
+											<p className="text-xs text-muted-foreground">
+												Sin claves API, tokens, cachés ni historial. Incluye rutas de hilos/posts guardados para restaurarlos.
+											</p>
+										</div>
+										<div className="flex shrink-0 flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center lg:flex-col lg:items-end">
+											<span>
+												Última exportación: {formatLastExportDate(backupPreview.lastExportedAt)}
+												{isBackupPreviewLoading && ' · Actualizando...'}
+											</span>
+											<Button
+												type="button"
+												variant="link"
+												size="sm"
+												className="h-auto justify-start p-0 text-xs lg:justify-end"
+												onClick={() => setShowBackupDetailsDialog(true)}
+											>
+												Ver detalle del backup
+											</Button>
+										</div>
+									</div>
+								) : (
+									<p className="text-sm text-muted-foreground">Preparando resumen...</p>
+								)}
 							</div>
 
 							<div className="flex flex-wrap gap-3">
@@ -178,14 +435,45 @@ export function AdvancedContent({
 									Importar datos
 								</Button>
 							</div>
-							<p className="text-xs text-muted-foreground">
-								La exportación incluye: palabras silenciadas, posts anclados, borradores, plantillas, preferencias y
-								temas guardados (incluyendo tema MV personalizado y presets).
-							</p>
 						</div>
 					</div>
 				</SettingsSection>
 			)}
+
+			<AlertDialog open={showBackupDetailsDialog} onOpenChange={setShowBackupDetailsDialog}>
+				<AlertDialogContent className="max-w-xl">
+					<AlertDialogHeader>
+						<AlertDialogTitle>Detalle del backup</AlertDialogTitle>
+						<AlertDialogDescription asChild>
+							<div className="space-y-3 mt-2">
+								<p className="text-sm">
+									Se exportarán estos datos seguros para poder restaurarlos más adelante:
+								</p>
+								{backupPreview && (
+									<div className="grid grid-cols-1 gap-x-4 gap-y-2.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider sm:grid-cols-2">
+										{backupPreviewGroups.map(item => (
+											<div key={item.label} className="flex items-start gap-2">
+												<span className="mt-1 text-primary text-[8px]">●</span>
+												<span>
+													<span className="block text-foreground">{item.label}</span>
+													<span className="normal-case tracking-normal text-muted-foreground">{item.value}</span>
+												</span>
+											</div>
+										))}
+									</div>
+								)}
+								<p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
+									Las rutas de hilos guardados y posts anclados se incluyen porque son necesarias para restaurarlos.
+									No se exportan claves API, tokens, cachés, datos temporales, historial granular ni URLs visitadas.
+								</p>
+							</div>
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogAction onClick={() => setShowBackupDetailsDialog(false)}>Cerrar</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Danger Zone - Separate section for destructive actions */}
 			<div
@@ -264,7 +552,6 @@ export function AdvancedContent({
 				title="Importación Completada"
 				description={
 					importStats &&
-					importStats &&
 					(() => {
 						const totalChanges =
 							importStats.pinnedPosts +
@@ -275,7 +562,10 @@ export function AdvancedContent({
 							importStats.userCustomizations +
 							importStats.favorites +
 							importStats.subforumStats +
-							importStats.activityDays +
+							importStats.contentRules +
+							importStats.hiddenThreads +
+							importStats.hiddenSubforums +
+							(importStats.themesUpdated ? 1 : 0) +
 							(importStats.settingsUpdated ? 1 : 0)
 
 						if (totalChanges === 0) {
@@ -361,13 +651,37 @@ export function AdvancedContent({
 											</span>
 										</div>
 									)}
-									{importStats.activityDays > 0 && (
+									{importStats.contentRules > 0 && (
 										<div className="flex items-center gap-2">
 											<span className="text-primary text-[8px]">●</span>
 											<span>
-												{importStats.activityDays}{' '}
-												{importStats.activityDays === 1 ? 'Día de Actividad' : 'Días de Actividad'}
+												{importStats.contentRules}{' '}
+												{importStats.contentRules === 1 ? 'Regla de contenido' : 'Reglas de contenido'}
 											</span>
+										</div>
+									)}
+									{importStats.hiddenThreads > 0 && (
+										<div className="flex items-center gap-2">
+											<span className="text-primary text-[8px]">●</span>
+											<span>
+												{importStats.hiddenThreads}{' '}
+												{importStats.hiddenThreads === 1 ? 'Hilo oculto' : 'Hilos ocultos'}
+											</span>
+										</div>
+									)}
+									{importStats.hiddenSubforums > 0 && (
+										<div className="flex items-center gap-2">
+											<span className="text-primary text-[8px]">●</span>
+											<span>
+												{importStats.hiddenSubforums}{' '}
+												{importStats.hiddenSubforums === 1 ? 'Subforo oculto' : 'Subforos ocultos'}
+											</span>
+										</div>
+									)}
+									{importStats.themesUpdated && (
+										<div className="flex items-center gap-2 col-span-2">
+											<span className="text-primary text-[8px]">●</span>
+											<span>Temas y apariencia</span>
 										</div>
 									)}
 									{importStats.settingsUpdated && (
