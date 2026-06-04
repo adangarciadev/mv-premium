@@ -17,17 +17,19 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
 	AlertDialog,
 	AlertDialogAction,
+	AlertDialogCancel,
 	AlertDialogContent,
 	AlertDialogDescription,
 	AlertDialogFooter,
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Checkbox } from '@/components/ui/checkbox'
 import { SettingsSection } from '../../components/settings/settings-section'
 import { SettingRow } from '../../components/settings'
 import { useSettingsStore } from '@/store/settings-store'
 import { resetAllData } from '../../lib/export-import'
-import { createBackupData, downloadBackupJSON, importBackupData } from '../../lib/backup-service'
+import { backupContainsPersonalApiKeys, createBackupData, downloadBackupJSON, importBackupData } from '../../lib/backup-service'
 import type { BackupData, BackupImportStats } from '../../lib/backup-service'
 import {
 	getSettingDomId,
@@ -167,19 +169,42 @@ export function AdvancedContent({
 	const [isBackupPreviewLoading, setIsBackupPreviewLoading] = useState(false)
 	const [backupPreviewError, setBackupPreviewError] = useState<string | null>(null)
 	const [showBackupDetailsDialog, setShowBackupDetailsDialog] = useState(false)
+	const [showExportOptionsDialog, setShowExportOptionsDialog] = useState(false)
+	const [includePersonalApiKeys, setIncludePersonalApiKeys] = useState(false)
+	const [showImportApiKeysDialog, setShowImportApiKeysDialog] = useState(false)
+	const [includeImportedPersonalApiKeys, setIncludeImportedPersonalApiKeys] = useState(false)
+	const [pendingImportData, setPendingImportData] = useState<unknown>(null)
 
-	const handleExport = async () => {
+	const performExport = async (includeKeys: boolean) => {
 		try {
-			const data = await createBackupData()
+			const data = await createBackupData({ includePersonalApiKeys: includeKeys })
 			const date = new Date().toISOString().split('T')[0]
 			downloadBackupJSON(data, `mv-premium-backup-${date}.json`)
 			const exportedAt = new Date().toISOString()
 			await storage.setItem(LAST_LOCAL_BACKUP_EXPORT_KEY, exportedAt)
 			setBackupPreview(createBackupPreview(data, exportedAt))
+			setShowExportOptionsDialog(false)
 			toast.success('Datos exportados correctamente')
 		} catch (error) {
 			toast.error('Error al exportar datos')
 			logger.error('Export error:', error)
+		}
+	}
+
+	const handleExport = () => {
+		setIncludePersonalApiKeys(false)
+		setShowExportOptionsDialog(true)
+	}
+
+	const performImport = async (data: unknown, includeKeys: boolean) => {
+		const result = await importBackupData(data, { includePersonalApiKeys: includeKeys })
+
+		if (result.success && result.stats) {
+			setImportStats(result.stats)
+			setShowImportReport(true)
+			toast.success('Datos importados correctamente')
+		} else {
+			toast.error(result.error || 'El backup no es válido')
 		}
 	}
 
@@ -194,21 +219,30 @@ export function AdvancedContent({
 			try {
 				const text = await file.text()
 				const data = JSON.parse(text)
-				const result = await importBackupData(data)
 
-				if (result.success && result.stats) {
-					setImportStats(result.stats)
-					setShowImportReport(true)
-					toast.success('Datos importados correctamente')
-				} else {
-					toast.error(result.error || 'El backup no es válido')
+				if (backupContainsPersonalApiKeys(data)) {
+					setPendingImportData(data)
+					setIncludeImportedPersonalApiKeys(false)
+					setShowImportApiKeysDialog(true)
+					return
 				}
+
+				await performImport(data, false)
 			} catch (error) {
 				toast.error(error instanceof SyntaxError ? 'El archivo no contiene JSON válido' : 'Error al importar datos')
 				logger.error('Import error:', error)
 			}
 		}
 		input.click()
+	}
+
+	const handleImportApiKeysDecision = async () => {
+		if (pendingImportData === null) return
+
+		const data = pendingImportData
+		setPendingImportData(null)
+		setShowImportApiKeysDialog(false)
+		await performImport(data, includeImportedPersonalApiKeys)
 	}
 
 	const handleReset = async () => {
@@ -330,7 +364,7 @@ export function AdvancedContent({
 				},
 				{
 					label: 'Ajustes seguros',
-					value: `${formatCount(backupPreview.settings, 'opción', 'opciones')} · claves API excluidas`,
+					value: `${formatCount(backupPreview.settings, 'opción', 'opciones')} · claves personales excluidas por defecto`,
 				},
 			]
 		: []
@@ -401,7 +435,7 @@ export function AdvancedContent({
 											<p className="text-sm font-medium">Backup local listo</p>
 											<p className="text-xs text-muted-foreground">{backupPreviewSummary}</p>
 											<p className="text-xs text-muted-foreground">
-												Sin claves API, tokens, cachés ni historial. Incluye rutas de hilos/posts guardados para restaurarlos.
+												Sin claves personales por defecto, tokens, cachés ni historial. Incluye rutas de hilos/posts guardados para restaurarlos.
 											</p>
 										</div>
 										<div className="flex shrink-0 flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center lg:flex-col lg:items-end">
@@ -464,7 +498,8 @@ export function AdvancedContent({
 								)}
 								<p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
 									Las rutas de hilos guardados y posts anclados se incluyen porque son necesarias para restaurarlos.
-									No se exportan claves API, tokens, cachés, datos temporales, historial granular ni URLs visitadas.
+									Las claves personales solo se exportan si lo activas al crear el backup. No se exportan tokens,
+									cachés, datos temporales, historial granular ni URLs visitadas.
 								</p>
 							</div>
 						</AlertDialogDescription>
@@ -474,6 +509,70 @@ export function AdvancedContent({
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
+
+			<AlertDialog open={showExportOptionsDialog} onOpenChange={setShowExportOptionsDialog}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Exportar backup local</AlertDialogTitle>
+						<AlertDialogDescription asChild>
+							<div className="space-y-4 mt-2">
+								<p className="text-sm">
+									El backup incluirá tus datos restaurables de MV Premium. Las claves personales no se incluyen salvo
+									que lo actives manualmente.
+								</p>
+								<label className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3">
+									<Checkbox
+										checked={includePersonalApiKeys}
+										onCheckedChange={checked => setIncludePersonalApiKeys(checked === true)}
+									/>
+									<span className="space-y-1 text-sm">
+										<span className="block font-medium text-foreground">Incluir claves personales</span>
+										<span className="block text-xs text-muted-foreground">
+											Guarda también tus claves de ImgBB y Gemini en este archivo JSON.
+										</span>
+									</span>
+								</label>
+								<p className="text-xs text-muted-foreground">
+									Activa esta opción solo si vas a guardar el archivo en un sitio privado y de confianza.
+								</p>
+							</div>
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancelar</AlertDialogCancel>
+						<AlertDialogAction onClick={() => void performExport(includePersonalApiKeys)}>Exportar</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			<ConfirmDialog
+				open={showImportApiKeysDialog}
+				onOpenChange={setShowImportApiKeysDialog}
+				title="El backup contiene claves personales"
+				description={
+					<div className="space-y-4 mt-2">
+						<p className="text-sm text-muted-foreground">
+							Puedes importar el resto del backup y conservar tus claves actuales, o restaurar también las claves guardadas
+							en el archivo.
+						</p>
+						<label className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-3">
+							<Checkbox
+								checked={includeImportedPersonalApiKeys}
+								onCheckedChange={checked => setIncludeImportedPersonalApiKeys(checked === true)}
+							/>
+							<span className="space-y-1 text-sm">
+								<span className="block font-medium text-foreground">Restaurar claves personales</span>
+								<span className="block text-xs text-muted-foreground">
+									Sustituirá tus claves locales de ImgBB y Gemini por las del backup.
+								</span>
+							</span>
+						</label>
+					</div>
+				}
+				cancelText="Cancelar"
+				confirmText="Importar"
+				onConfirm={() => void handleImportApiKeysDecision()}
+			/>
 
 			{/* Danger Zone - Separate section for destructive actions */}
 			<div

@@ -61,6 +61,7 @@ vi.mock('@/lib/logger', () => ({
 
 import {
 	BACKUP_SCHEMA_VERSION,
+	backupContainsPersonalApiKeys,
 	createBackupData,
 	importBackupData,
 	type BackupData,
@@ -106,7 +107,7 @@ function createBaseBackup(overrides: Partial<BackupData['data']> = {}): BackupDa
 			...overrides,
 		},
 		excluded: {
-			secretFields: ['imgbbApiKey', 'tmdbApiKey', 'giphyApiKey', 'geminiApiKey'],
+			secretFields: ['imgbbApiKey', 'geminiApiKey'],
 			storageKeys: [],
 			patterns: [],
 		},
@@ -166,9 +167,41 @@ describe('backup-service', () => {
 			expect(serialized).not.toContain('tmdb-secret')
 			expect(serialized).not.toContain('giphy-secret')
 			expect(serialized).not.toContain('gemini-secret')
+			expect(serialized).not.toContain('tmdbApiKey')
+			expect(serialized).not.toContain('giphyApiKey')
 			expect(serialized).not.toContain('Privado')
 			expect(serialized).not.toContain('generated-css')
 			expect(serialized).not.toContain('TestUser')
+		})
+
+		it('can export user-owned API keys when explicitly requested', async () => {
+			setStoredValue(
+				STORAGE_KEYS.SETTINGS,
+				JSON.stringify({
+					state: {
+						theme: 'light',
+						imgbbApiKey: 'imgbb-secret',
+						tmdbApiKey: 'tmdb-extension-key',
+						giphyApiKey: 'giphy-extension-key',
+						geminiApiKey: 'gemini-secret',
+					},
+					version: 0,
+				})
+			)
+
+			const backup = await createBackupData({ includePersonalApiKeys: true })
+			const serialized = JSON.stringify(backup)
+
+			expect(backup.policy.secrets).toBe('user-selected')
+			expect(backup.excluded.secretFields).toEqual([])
+			expect(backup.data.settings.imgbbApiKey).toBe('imgbb-secret')
+			expect(backup.data.settings.geminiApiKey).toBe('gemini-secret')
+			expect(backup.data.settings).not.toHaveProperty('tmdbApiKey')
+			expect(backup.data.settings).not.toHaveProperty('giphyApiKey')
+			expect(serialized).not.toContain('tmdb-extension-key')
+			expect(serialized).not.toContain('giphy-extension-key')
+			expect(serialized).not.toContain('tmdbApiKey')
+			expect(serialized).not.toContain('giphyApiKey')
 		})
 
 		it('normalizes dynamic pinned post keys into stable backup entries', async () => {
@@ -234,7 +267,7 @@ describe('backup-service', () => {
 			expect(storageMockState.store.get(STORAGE_KEYS.CURRENT_USER)).toEqual({ username: 'LocalUser' })
 		})
 
-		it('preserves local API keys and never imports API keys from the backup', async () => {
+		it('preserves local personal API keys unless import explicitly allows them', async () => {
 			setStoredValue(
 				STORAGE_KEYS.SETTINGS,
 				JSON.stringify({
@@ -242,6 +275,8 @@ describe('backup-service', () => {
 						theme: 'dark',
 						geminiApiKey: 'local-gemini-key',
 						imgbbApiKey: 'local-imgbb-key',
+						tmdbApiKey: 'local-tmdb-key',
+						giphyApiKey: 'local-giphy-key',
 					},
 					version: 0,
 				})
@@ -255,6 +290,8 @@ describe('backup-service', () => {
 						boldColorEnabled: true,
 						geminiApiKey: 'backup-gemini-key',
 						imgbbApiKey: 'backup-imgbb-key',
+						tmdbApiKey: 'backup-tmdb-key',
+						giphyApiKey: 'backup-giphy-key',
 					},
 				})
 			)
@@ -266,10 +303,64 @@ describe('backup-service', () => {
 			expect(storedSettings.state.boldColorEnabled).toBe(true)
 			expect(storedSettings.state.geminiApiKey).toBe('local-gemini-key')
 			expect(storedSettings.state.imgbbApiKey).toBe('local-imgbb-key')
+			expect(storedSettings.state.tmdbApiKey).toBe('local-tmdb-key')
+			expect(storedSettings.state.giphyApiKey).toBe('local-giphy-key')
 			expect(storageMockState.store.get(STORAGE_KEYS.BOLD_COLOR)).toBe('#ff8800')
 			expect(storageMockState.store.get(STORAGE_KEYS.BOLD_COLOR_ENABLED)).toBe(true)
 			expect(JSON.stringify(storedSettings)).not.toContain('backup-gemini-key')
 			expect(JSON.stringify(storedSettings)).not.toContain('backup-imgbb-key')
+			expect(JSON.stringify(storedSettings)).not.toContain('backup-tmdb-key')
+			expect(JSON.stringify(storedSettings)).not.toContain('backup-giphy-key')
+		})
+
+		it('imports user-owned API keys only when explicitly requested', async () => {
+			setStoredValue(
+				STORAGE_KEYS.SETTINGS,
+				JSON.stringify({
+					state: {
+						theme: 'dark',
+						geminiApiKey: 'local-gemini-key',
+						imgbbApiKey: 'local-imgbb-key',
+						tmdbApiKey: 'local-tmdb-key',
+						giphyApiKey: 'local-giphy-key',
+					},
+					version: 0,
+				})
+			)
+
+			const result = await importBackupData(
+				createBaseBackup({
+					settings: {
+						geminiApiKey: 'backup-gemini-key',
+						imgbbApiKey: 'backup-imgbb-key',
+						tmdbApiKey: 'backup-tmdb-key',
+						giphyApiKey: 'backup-giphy-key',
+					},
+				}),
+				{ includePersonalApiKeys: true }
+			)
+
+			expect(result.success).toBe(true)
+			const storedSettings = JSON.parse(storageMockState.store.get(STORAGE_KEYS.SETTINGS) as string)
+			expect(storedSettings.state.geminiApiKey).toBe('backup-gemini-key')
+			expect(storedSettings.state.imgbbApiKey).toBe('backup-imgbb-key')
+			expect(storedSettings.state.tmdbApiKey).toBe('local-tmdb-key')
+			expect(storedSettings.state.giphyApiKey).toBe('local-giphy-key')
+			expect(JSON.stringify(storedSettings)).not.toContain('backup-tmdb-key')
+			expect(JSON.stringify(storedSettings)).not.toContain('backup-giphy-key')
+		})
+
+		it('detects backups that contain user-owned API keys', () => {
+			expect(backupContainsPersonalApiKeys(createBaseBackup())).toBe(false)
+			expect(
+				backupContainsPersonalApiKeys(
+					createBaseBackup({
+						settings: {
+							geminiApiKey: 'backup-gemini-key',
+						},
+					})
+				)
+			).toBe(true)
 		})
 
 		it('restores allowlisted data and regenerates MV theme CSS after importing MV themes', async () => {

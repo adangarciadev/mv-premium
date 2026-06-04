@@ -8,9 +8,12 @@ export const BACKUP_SCHEMA_VERSION = 1
 
 const APP_NAME = 'mv-premium'
 const PINNED_META_PREFIX = 'mvp-pinned-meta-'
-const SECRET_SETTINGS_FIELDS = ['imgbbApiKey', 'tmdbApiKey', 'giphyApiKey', 'geminiApiKey'] as const
+const USER_API_KEY_FIELDS = ['imgbbApiKey', 'geminiApiKey'] as const
+const EXTENSION_API_KEY_FIELDS = ['tmdbApiKey', 'giphyApiKey'] as const
+const SECRET_SETTINGS_FIELDS = [...USER_API_KEY_FIELDS, ...EXTENSION_API_KEY_FIELDS] as const
 
 type SecretSettingsField = (typeof SECRET_SETTINGS_FIELDS)[number]
+type UserApiKeyField = (typeof USER_API_KEY_FIELDS)[number]
 
 export interface PinnedPostsBackupEntry {
 	threadId: string
@@ -26,7 +29,7 @@ export interface BackupData {
 		extensionVersion: string
 	}
 	policy: {
-		secrets: 'excluded'
+		secrets: 'excluded' | 'user-selected'
 		activity: 'time-stats-only'
 		compressedValues: 'decompressed'
 	}
@@ -66,10 +69,18 @@ export interface BackupData {
 		}
 	}
 	excluded: {
-		secretFields: SecretSettingsField[]
+		secretFields: UserApiKeyField[]
 		storageKeys: string[]
 		patterns: string[]
 	}
+}
+
+export interface BackupOptions {
+	includePersonalApiKeys?: boolean
+}
+
+export interface BackupImportOptions {
+	includePersonalApiKeys?: boolean
 }
 
 export interface BackupImportStats {
@@ -168,9 +179,10 @@ function parseSettingsPersistVersion(value: unknown): number {
 	return isRecord(value) && typeof value.version === 'number' ? value.version : 0
 }
 
-function sanitizeSettingsForBackup(settings: Record<string, unknown>): Record<string, unknown> {
+function sanitizeSettingsForBackup(settings: Record<string, unknown>, options: BackupOptions = {}): Record<string, unknown> {
 	const sanitized = { ...settings }
-	for (const field of SECRET_SETTINGS_FIELDS) {
+	const fieldsToStrip = options.includePersonalApiKeys ? EXTENSION_API_KEY_FIELDS : SECRET_SETTINGS_FIELDS
+	for (const field of fieldsToStrip) {
 		delete sanitized[field]
 	}
 	return sanitized
@@ -178,17 +190,27 @@ function sanitizeSettingsForBackup(settings: Record<string, unknown>): Record<st
 
 function mergeSettingsForImport(
 	currentStoredValue: unknown,
-	importedSettings: Record<string, unknown>
+	importedSettings: Record<string, unknown>,
+	options: BackupImportOptions = {}
 ): { serialized: string; changed: boolean; nextState: Record<string, unknown> } {
 	const currentState = parseSettingsState(currentStoredValue)
 	const currentVersion = parseSettingsPersistVersion(currentStoredValue)
-	const sanitizedImported = sanitizeSettingsForBackup(importedSettings)
+	const sanitizedImported = sanitizeSettingsForBackup(importedSettings, {
+		includePersonalApiKeys: options.includePersonalApiKeys,
+	})
+	const fieldsToPreserve = options.includePersonalApiKeys ? EXTENSION_API_KEY_FIELDS : SECRET_SETTINGS_FIELDS
 	const preservedSecrets = Object.fromEntries(
-		SECRET_SETTINGS_FIELDS.map(field => [field, currentState[field]]).filter(([, value]) => value !== undefined)
+		fieldsToPreserve.map(field => [field, currentState[field]]).filter(([, value]) => value !== undefined)
+	)
+	const missingImportedUserApiKeys = Object.fromEntries(
+		USER_API_KEY_FIELDS
+			.map(field => [field, currentState[field]])
+			.filter(([field, value]) => sanitizedImported[field as SecretSettingsField] === undefined && value !== undefined)
 	)
 	const nextState = {
 		...currentState,
 		...sanitizedImported,
+		...missingImportedUserApiKeys,
 		...preservedSecrets,
 	}
 	const serialized = JSON.stringify({ state: nextState, version: currentVersion })
@@ -278,7 +300,7 @@ function validatePinnedPosts(value: unknown): PinnedPostsBackupEntry[] {
 		})
 }
 
-export function validateBackupData(input: unknown): BackupData {
+export function validateBackupData(input: unknown, options: BackupImportOptions = {}): BackupData {
 	if (!isRecord(input)) {
 		throw new Error('El archivo no contiene un backup válido de MV Premium.')
 	}
@@ -300,6 +322,7 @@ export function validateBackupData(input: unknown): BackupData {
 	const content = isRecord(data.content) ? data.content : {}
 	const preferences = isRecord(data.preferences) ? data.preferences : {}
 	const stats = isRecord(data.stats) ? data.stats : {}
+	const excluded = isRecord(input.excluded) ? input.excluded : {}
 
 	return {
 		schemaVersion: BACKUP_SCHEMA_VERSION,
@@ -311,12 +334,12 @@ export function validateBackupData(input: unknown): BackupData {
 				: '',
 		},
 		policy: {
-			secrets: 'excluded',
+			secrets: isRecord(input.policy) && input.policy.secrets === 'user-selected' ? 'user-selected' : 'excluded',
 			activity: 'time-stats-only',
 			compressedValues: 'decompressed',
 		},
 		data: {
-			settings: isRecord(data.settings) ? sanitizeSettingsForBackup(data.settings) : {},
+			settings: isRecord(data.settings) ? sanitizeSettingsForBackup(data.settings, options) : {},
 			themes: {
 				ui: isRecord(themes.ui) ? themes.ui : {},
 				mediavida: isRecord(themes.mediavida) ? themes.mediavida : {},
@@ -340,16 +363,27 @@ export function validateBackupData(input: unknown): BackupData {
 			},
 		},
 		excluded: {
-			secretFields: [...SECRET_SETTINGS_FIELDS],
+			secretFields: Array.isArray(excluded.secretFields)
+				? USER_API_KEY_FIELDS.filter(field => excluded.secretFields.includes(field))
+				: [...USER_API_KEY_FIELDS],
 			storageKeys: [...EXCLUDED_STORAGE_KEYS],
 			patterns: ['mv-cache:*', 'mvp-pending-*', 'mvp-live-preview-*'],
 		},
 	}
 }
 
-export async function createBackupData(): Promise<BackupData> {
+export function backupContainsPersonalApiKeys(input: unknown): boolean {
+	if (!isRecord(input) || !isRecord(input.data) || !isRecord(input.data.settings)) return false
+
+	return USER_API_KEY_FIELDS.some(field => {
+		const value = input.data.settings[field]
+		return typeof value === 'string' && value.trim().length > 0
+	})
+}
+
+export async function createBackupData(options: BackupOptions = {}): Promise<BackupData> {
 	const snapshot = await getDecompressedSnapshot()
-	const settings = sanitizeSettingsForBackup(parseSettingsState(getSnapshotValue(snapshot, STORAGE_KEYS.SETTINGS)))
+	const settings = sanitizeSettingsForBackup(parseSettingsState(getSnapshotValue(snapshot, STORAGE_KEYS.SETTINGS)), options)
 	if (settings.boldColor === undefined && typeof getSnapshotValue(snapshot, STORAGE_KEYS.BOLD_COLOR) === 'string') {
 		settings.boldColor = getSnapshotValue(snapshot, STORAGE_KEYS.BOLD_COLOR)
 	}
@@ -368,7 +402,7 @@ export async function createBackupData(): Promise<BackupData> {
 			extensionVersion: packageJson.version,
 		},
 		policy: {
-			secrets: 'excluded',
+			secrets: options.includePersonalApiKeys ? 'user-selected' : 'excluded',
 			activity: 'time-stats-only',
 			compressedValues: 'decompressed',
 		},
@@ -408,7 +442,7 @@ export async function createBackupData(): Promise<BackupData> {
 			},
 		},
 		excluded: {
-			secretFields: [...SECRET_SETTINGS_FIELDS],
+			secretFields: options.includePersonalApiKeys ? [] : [...USER_API_KEY_FIELDS],
 			storageKeys: [...EXCLUDED_STORAGE_KEYS],
 			patterns: ['mv-cache:*', 'mvp-pending-*', 'mvp-live-preview-*'],
 		},
@@ -433,9 +467,9 @@ async function writeIfDefined(key: string, value: unknown): Promise<boolean> {
 	return true
 }
 
-async function importSettings(settings: Record<string, unknown>): Promise<boolean> {
+async function importSettings(settings: Record<string, unknown>, options: BackupImportOptions = {}): Promise<boolean> {
 	const currentStoredValue = await storage.getItem<unknown>(`local:${STORAGE_KEYS.SETTINGS}`)
-	const { serialized, changed, nextState } = mergeSettingsForImport(currentStoredValue, settings)
+	const { serialized, changed, nextState } = mergeSettingsForImport(currentStoredValue, settings, options)
 	await setFromImport(STORAGE_KEYS.SETTINGS, serialized)
 	if (typeof nextState.boldColor === 'string') {
 		await setFromImport(STORAGE_KEYS.BOLD_COLOR, nextState.boldColor)
@@ -456,14 +490,14 @@ async function regenerateMvThemeCSSAfterImport(): Promise<void> {
 	}
 }
 
-export async function importBackupData(input: unknown): Promise<BackupImportResult> {
+export async function importBackupData(input: unknown, options: BackupImportOptions = {}): Promise<BackupImportResult> {
 	try {
-		const backup = validateBackupData(input)
+		const backup = validateBackupData(input, options)
 		const stats = cloneStats()
 		const { data } = backup
 
 		if (Object.keys(data.settings).length > 0) {
-			stats.settingsUpdated = await importSettings(data.settings)
+			stats.settingsUpdated = await importSettings(data.settings, options)
 			stats.mutedWords = countMutedWords(data.settings)
 		}
 
