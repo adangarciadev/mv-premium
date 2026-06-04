@@ -37,6 +37,7 @@ export const DOM_MARKERS = {
 		BOOKMARKS_INJECTED: 'mvp-bookmarks-injected',
 		FAV_INJECTED: 'mvp-fav-injected',
 		NEW_THREAD_INJECTED: 'mvp-new-thread-injected',
+		NEW_THREAD_PLACEHOLDER: 'mvp-new-thread-placeholder',
 		SEARCH_REPLACED: 'mvp-search-replaced',
 		USER_CUSTOMIZED: 'mvp-customized',
 		STEAM_BUNDLE_CARD: 'mvp-steam-bundle-card',
@@ -135,6 +136,7 @@ export const DOM_MARKERS = {
 		SAVED_THREADS_CONTENT: 'mvp-saved-threads-content',
 		WIKI_POSTS_TAB: 'mvp-wiki-posts-tab',
 		WIKI_POSTS_CONTENT: 'mvp-wiki-posts-content',
+		DASHBOARD_BUTTON: 'mvp-dashboard-button',
 		NEW_THREAD_BUTTON: 'mvp-new-thread-button',
 		NEW_THREAD_DROPDOWN: 'mvp-new-thread-dropdown',
 		WHATS_NEW_BADGE: 'mvp-whats-new-badge',
@@ -227,6 +229,7 @@ export const DOM_MARKERS = {
 		BOOKMARKS: 'mvp-bookmarks-injected',
 		FAVORITES: 'mvp-fav-injected',
 		NEW_THREAD: 'mvp-new-thread-injected',
+		NEW_THREAD_PLACEHOLDER: 'mvp-new-thread-placeholder',
 		SEARCH_REPLACED: 'mvp-search-replaced',
 	},
 } as const

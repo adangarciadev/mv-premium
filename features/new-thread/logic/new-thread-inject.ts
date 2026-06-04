@@ -18,6 +18,7 @@ import { getFavoriteSubforums } from '@/features/favorite-subforums/logic/storag
 import { DOM_MARKERS, MV_SELECTORS } from '@/constants'
 
 const INJECTED_MARKER = DOM_MARKERS.INJECTION.NEW_THREAD
+const PLACEHOLDER_MARKER = DOM_MARKERS.INJECTION.NEW_THREAD_PLACEHOLDER
 const BUTTON_CONTAINER_ID = DOM_MARKERS.IDS.NEW_THREAD_BUTTON
 
 // Store handlers for cleanup
@@ -166,17 +167,17 @@ export async function injectNewThreadButton(): Promise<void> {
 	const dropdown = await buildDropdownMenu()
 
 	// DOM guard AFTER await to prevent async race condition
-	if (document.getElementById(BUTTON_CONTAINER_ID)) return
 	if (usermenu.querySelector(`[${INJECTED_MARKER}]`)) return
 
-	// Create the button container
-	const li = document.createElement('li')
+	const existingContainer = document.getElementById(BUTTON_CONTAINER_ID) as HTMLLIElement | null
+	const li = existingContainer ?? document.createElement('li')
 	li.id = BUTTON_CONTAINER_ID
 	li.className = 'dropdown'
 	li.setAttribute(INJECTED_MARKER, 'true')
+	li.removeAttribute(PLACEHOLDER_MARKER)
 
-	// Create the button
-	const button = document.createElement('a')
+	const existingButton = li.querySelector<HTMLAnchorElement>('a[aria-label="Crear nuevo hilo"]')
+	const button = existingButton ?? document.createElement('a')
 	button.href = '#'
 	button.className = 'flink dropdown-toggle'
 	button.setAttribute('data-toggle', 'dropdown')
@@ -219,11 +220,15 @@ export async function injectNewThreadButton(): Promise<void> {
 	document.addEventListener('keydown', escapeHandler)
 
 	// Assemble
-	li.appendChild(button)
+	if (!existingButton) {
+		li.appendChild(button)
+	}
 	li.appendChild(currentDropdown)
 
 	// Insert after avatar
-	avatarItem.insertAdjacentElement('afterend', li)
+	if (!existingContainer) {
+		avatarItem.insertAdjacentElement('afterend', li)
+	}
 
 	// Listen for favorites changes and rebuild dropdown
 	favoritesChangeHandler = async () => {

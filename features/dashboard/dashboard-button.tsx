@@ -16,6 +16,8 @@ import type { DashboardIcon } from '@/store/settings-types'
 
 const INJECTED_MARKER = DOM_MARKERS.CLASSES.DASHBOARD_INJECTED
 const BADGE_ID = DOM_MARKERS.IDS.WHATS_NEW_BADGE
+const BUTTON_CONTAINER_ID = DOM_MARKERS.IDS.DASHBOARD_BUTTON
+const PLACEHOLDER_MARKER = 'data-mvp-dashboard-placeholder'
 
 function getOptionsUrl(view?: string): string {
 	let url = browser.runtime.getURL('/options.html')
@@ -109,13 +111,15 @@ export async function injectDashboardButton(): Promise<void> {
 	const settings = await getSettings()
 	const iconType = settings.dashboardIcon || 'logo'
 
-	// Create the button container (matching native navbar style)
-	const li = document.createElement('li')
+	const existingContainer = document.getElementById(BUTTON_CONTAINER_ID) as HTMLLIElement | null
+	const li = existingContainer ?? document.createElement('li')
+	li.id = BUTTON_CONTAINER_ID
 	li.className = 'mvp-dashboard-nav-item'
 	li.setAttribute(INJECTED_MARKER, 'true')
+	li.removeAttribute(PLACEHOLDER_MARKER)
 
-	// Create the button (anchor to preserve native navbar layout/styles)
-	const button = document.createElement('a')
+	const existingButton = li.querySelector<HTMLAnchorElement>('[data-mvp-dashboard-link]')
+	const button = existingButton ?? document.createElement('a')
 	button.href = getOptionsUrl(hasUnseen ? 'whats-new' : undefined)
 	button.className = 'flink mvp-dashboard-link'
 	button.setAttribute('rel', 'noopener noreferrer')
@@ -152,10 +156,14 @@ export async function injectDashboardButton(): Promise<void> {
 		true
 	)
 
-	li.appendChild(button)
+	if (!existingButton) {
+		li.appendChild(button)
+	}
 
 	// Insert after the reference element
-	insertAfter.insertAdjacentElement('afterend', li)
+	if (!existingContainer) {
+		insertAfter.insertAdjacentElement('afterend', li)
+	}
 
 	// Setup cross-tab sync for badge visibility
 	setupBadgeSync()

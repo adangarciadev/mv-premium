@@ -37,7 +37,12 @@ const HIDDEN_THREAD_STYLE_ID = DOM_MARKERS.IDS.HIDDEN_THREADS_STYLES
 const THREAD_ROWS_SELECTOR = 'tbody#temas tr, table#temas tbody tr'
 const SIDEBAR_FEATURED_LINK_SELECTOR = 'a.featured-side[href*="/foro/"]'
 const HIDDEN_THREADS_CACHE_KEY = RUNTIME_CACHE_KEYS.HIDDEN_THREADS
-const EARLY_HIDDEN_THREAD_STYLE_IDS = [EARLY_STYLE_IDS.HIDDEN_THREADS, EARLY_STYLE_IDS.HIDDEN_THREADS_FALLBACK] as const
+const THREAD_ACTIONS_CACHE_KEY = RUNTIME_CACHE_KEYS.THREAD_ACTIONS_PRESENTATION
+const EARLY_HIDDEN_THREAD_STYLE_IDS = [
+	EARLY_STYLE_IDS.HIDDEN_THREADS,
+	EARLY_STYLE_IDS.HIDDEN_THREADS_FALLBACK,
+	EARLY_STYLE_IDS.THREAD_ACTIONS_LAYOUT,
+] as const
 
 // Hide button constants
 const HIDE_BTN_CLASS = 'mvp-hide-thread-btn'
@@ -125,6 +130,20 @@ function updateHiddenThreadsCache(): void {
 		// Keep unique IDs and a stable order for deterministic cache updates.
 		const unique = Array.from(new Set(numericIds)).sort((a, b) => Number(a) - Number(b))
 		localStorage.setItem(HIDDEN_THREADS_CACHE_KEY, JSON.stringify(unique))
+	} catch {
+		// localStorage can fail in restricted contexts; ignore.
+	}
+}
+
+function updateThreadActionsPresentationCache(): void {
+	try {
+		const presentation = getThreadActionsPresentation({
+			hideEnabled: areHideThreadControlsEnabled(),
+			saveEnabled: areSaveThreadControlsEnabled(),
+			contentRulesEnabled: areContentRulesEnabled(),
+			classicActionsEnabled: areClassicThreadActionsEnabled(),
+		})
+		localStorage.setItem(THREAD_ACTIONS_CACHE_KEY, presentation)
 	} catch {
 		// localStorage can fail in restricted contexts; ignore.
 	}
@@ -914,6 +933,7 @@ function setupHideButtonDelegation(): void {
 
 function updateRowsVisibility(): void {
 	ensureHiddenThreadStyles()
+	updateThreadActionsPresentationCache()
 	injectHideButtons()
 	ignoredAuthorThreadIds = new Set<string>()
 
