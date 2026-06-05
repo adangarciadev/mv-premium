@@ -1,0 +1,298 @@
+import { useEffect, useMemo, useState } from 'react'
+import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
+import Search from 'lucide-react/dist/esm/icons/search'
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
+import UserX from 'lucide-react/dist/esm/icons/user-x'
+import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
+import X from 'lucide-react/dist/esm/icons/x'
+import {
+	getUserCustomizations,
+	saveUserCustomizations,
+	watchUserCustomizations,
+	type UserCustomization,
+	type UserCustomizationsData,
+} from '@/features/user-customizations/storage'
+
+export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
+
+const EMPTY_GLOBAL_SETTINGS = {
+	adminColor: '',
+	subadminColor: '',
+	modColor: '',
+	userColor: '',
+}
+
+type IgnoreType = 'hide' | 'mute'
+
+interface FilteredUser {
+	username: string
+	customization: UserCustomization
+}
+
+function getEmptyData(): UserCustomizationsData {
+	return {
+		users: {},
+		globalSettings: EMPTY_GLOBAL_SETTINGS,
+	}
+}
+
+function hasMeaningfulCustomizationValue(customization: UserCustomization): boolean {
+	return Object.values(customization).some(value => value !== undefined && value !== '' && value !== false)
+}
+
+function getFilteredUsers(data: UserCustomizationsData): FilteredUser[] {
+	return Object.entries(data.users)
+		.filter(([, customization]) => customization.isIgnored)
+		.map(([username, customization]) => ({ username, customization }))
+		.sort((a, b) => a.username.localeCompare(b.username, 'es', { sensitivity: 'base' }))
+}
+
+function getIgnoreType(customization: UserCustomization): IgnoreType {
+	return customization.ignoreType === 'mute' ? 'mute' : 'hide'
+}
+
+function normalizeUsername(username: string): string {
+	return username.trim()
+}
+
+async function updateUserIgnore(username: string, ignoreType: IgnoreType | null): Promise<UserCustomizationsData> {
+	const data = await getUserCustomizations()
+	const existingKey = Object.keys(data.users).find(key => key.toLowerCase() === username.toLowerCase())
+	const storageKey = existingKey ?? username
+	const existing = existingKey ? { ...data.users[existingKey] } : {}
+
+	if (ignoreType) {
+		data.users[storageKey] = {
+			...existing,
+			isIgnored: true,
+			ignoreType,
+		}
+	} else {
+		const { isIgnored: _isIgnored, ignoreType: _ignoreType, ...rest } = existing
+		if (hasMeaningfulCustomizationValue(rest)) {
+			data.users[storageKey] = rest
+		} else {
+			delete data.users[storageKey]
+		}
+	}
+
+	await saveUserCustomizations(data)
+	return data
+}
+
+export function MobileLitePanel() {
+	const [open, setOpen] = useState(false)
+	const [data, setData] = useState<UserCustomizationsData>(getEmptyData)
+	const [query, setQuery] = useState('')
+	const [savingUser, setSavingUser] = useState<string | null>(null)
+
+	useEffect(() => {
+		let mounted = true
+
+		getUserCustomizations()
+			.then(nextData => {
+				if (mounted) setData(nextData)
+			})
+			.catch(() => {
+				if (mounted) setData(getEmptyData())
+			})
+
+		const unwatch = watchUserCustomizations(nextData => {
+			setData(nextData)
+		})
+
+		const handleOpen = () => setOpen(true)
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') setOpen(false)
+		}
+
+		window.addEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
+		window.addEventListener('keydown', handleKeyDown)
+
+		return () => {
+			mounted = false
+			unwatch()
+			window.removeEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
+			window.removeEventListener('keydown', handleKeyDown)
+		}
+	}, [])
+
+	useEffect(() => {
+		if (!open) return
+
+		const previousOverflow = document.body.style.overflow
+		document.body.style.overflow = 'hidden'
+
+		return () => {
+			document.body.style.overflow = previousOverflow
+		}
+	}, [open])
+
+	const filteredUsers = useMemo(() => {
+		const normalizedQuery = query.trim().toLowerCase()
+		const users = getFilteredUsers(data)
+		if (!normalizedQuery) return users
+
+		return users.filter(user => user.username.toLowerCase().includes(normalizedQuery))
+	}, [data, query])
+
+	const exactQueryUsername = normalizeUsername(query)
+	const exactQueryExistingKey = exactQueryUsername
+		? Object.keys(data.users).find(username => username.toLowerCase() === exactQueryUsername.toLowerCase())
+		: undefined
+	const exactQueryCustomization = exactQueryExistingKey ? data.users[exactQueryExistingKey] : undefined
+	const canAddQueryUser = Boolean(exactQueryUsername && !exactQueryCustomization?.isIgnored)
+	const hasFilteredUsers = filteredUsers.length > 0
+
+	const updateFilter = async (username: string, ignoreType: IgnoreType | null) => {
+		const normalizedUsername = normalizeUsername(username)
+		if (!normalizedUsername) return
+
+		setSavingUser(normalizedUsername)
+		try {
+			const nextData = await updateUserIgnore(normalizedUsername, ignoreType)
+			setData(nextData)
+		} finally {
+			setSavingUser(null)
+		}
+	}
+
+	if (!open) return null
+
+	return (
+		<div className="fixed inset-0 z-[99999] bg-black/60">
+			<button type="button" className="absolute inset-0 h-full w-full cursor-default" aria-label="Cerrar panel MVP" onClick={() => setOpen(false)} />
+
+			<section
+				className={`absolute inset-x-3 overflow-hidden border border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl ${
+					hasFilteredUsers ? 'bottom-0 top-[14dvh] flex flex-col rounded-t-lg' : 'top-[24dvh] rounded-lg'
+				}`}
+			>
+				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-4 py-3">
+					<div className="min-w-0">
+						<h2 className="text-lg font-semibold leading-tight">
+							<span>Panel MV</span>
+							<span className="text-[#f0a020]">Premium</span>
+						</h2>
+						<p className="mt-0.5 text-xs text-[#b7bec6]">Usuarios filtrados</p>
+					</div>
+					<button
+						type="button"
+						className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#56606a] bg-[#444b54] text-[#eef1f3]"
+						aria-label="Cerrar"
+						onClick={() => setOpen(false)}
+					>
+						<X className="h-5 w-5" aria-hidden="true" />
+					</button>
+				</header>
+
+				<div className={`${hasFilteredUsers ? 'flex-1 overflow-y-auto' : ''} bg-[#384149] px-4 py-4`}>
+					<label className="relative block">
+						<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#aeb6be]" aria-hidden="true" />
+						<input
+							type="search"
+							value={query}
+							onChange={event => setQuery(event.target.value)}
+							placeholder="Buscar o escribir nick exacto"
+							className="h-11 w-full rounded-md border border-[#505963] bg-[#262d34] pl-10 pr-3 text-base text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00]"
+						/>
+					</label>
+
+					{canAddQueryUser && (
+						<div className="mt-3 rounded-md border border-dashed border-[#56616b] bg-[#303840] p-3">
+							<div className="flex items-center gap-2 text-sm font-medium">
+								<UserX className="h-4 w-4 text-[#b7bec6]" aria-hidden="true" />
+								<span className="min-w-0 truncate">{exactQueryUsername}</span>
+							</div>
+							<div className="mt-3 grid grid-cols-2 gap-2">
+								<button
+									type="button"
+									className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-3 text-sm font-semibold"
+									disabled={savingUser === exactQueryUsername}
+									onClick={() => updateFilter(exactQueryUsername, 'mute')}
+								>
+									<VolumeX className="h-4 w-4" aria-hidden="true" />
+									Silenciar
+								</button>
+								<button
+									type="button"
+									className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-3 text-sm font-semibold"
+									disabled={savingUser === exactQueryUsername}
+									onClick={() => updateFilter(exactQueryUsername, 'hide')}
+								>
+									<EyeOff className="h-4 w-4" aria-hidden="true" />
+									Ocultar
+								</button>
+							</div>
+						</div>
+					)}
+
+					<div className="mt-4 space-y-2">
+						{filteredUsers.length === 0 ? (
+							<div className="rounded-md border border-[#4b545d] bg-[#303840] px-4 py-8 text-center text-sm text-[#b7bec6]">
+								No hay usuarios filtrados.
+							</div>
+						) : (
+							filteredUsers.map(user => {
+								const ignoreType = getIgnoreType(user.customization)
+								const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
+
+								return (
+									<article key={user.username} className="rounded-md border border-[#4b545d] bg-[#3e4750] p-3">
+										<div className="flex items-center gap-3">
+											<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#252b31] text-sm font-bold">
+												{user.customization.avatarUrl ? (
+													<img src={user.customization.avatarUrl} alt="" className="h-full w-full object-cover" />
+												) : (
+													user.username.slice(0, 1).toUpperCase()
+												)}
+											</div>
+											<div className="min-w-0 flex-1">
+												<div className="truncate text-base font-semibold">{user.username}</div>
+												<div className="text-xs text-[#c0c6cc]">{ignoreType === 'mute' ? 'Silenciado' : 'Oculto'}</div>
+											</div>
+										</div>
+
+										<div className="mt-3 grid grid-cols-2 gap-2">
+											<button
+												type="button"
+												className={`inline-flex h-10 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
+													ignoreType === 'mute' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#626b74] bg-[#545d66]'
+												}`}
+												disabled={isSaving}
+												onClick={() => updateFilter(user.username, 'mute')}
+											>
+												<VolumeX className="h-4 w-4" aria-hidden="true" />
+												<span>Silenciar</span>
+											</button>
+											<button
+												type="button"
+												className={`inline-flex h-10 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
+													ignoreType === 'hide' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#626b74] bg-[#545d66]'
+												}`}
+												disabled={isSaving}
+												onClick={() => updateFilter(user.username, 'hide')}
+											>
+												<EyeOff className="h-4 w-4" aria-hidden="true" />
+												<span>Ocultar</span>
+											</button>
+											<button
+												type="button"
+												className="col-span-2 inline-flex h-10 items-center justify-center gap-1 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
+												disabled={isSaving}
+												onClick={() => updateFilter(user.username, null)}
+											>
+												<Trash2 className="h-4 w-4" aria-hidden="true" />
+												<span>Quitar</span>
+											</button>
+										</div>
+									</article>
+								)
+							})
+						)}
+					</div>
+				</div>
+			</section>
+		</div>
+	)
+}

@@ -5,6 +5,8 @@
 Mobile Lite can apply ignored users on Firefox Android by reusing the existing desktop
 customization storage. It also lets users add or change ignored users from mobile through
 Mediavida's native user card.
+Mobile Lite also injects a `Panel MVPremium` entry into Mediavida's mobile user menu for managing
+filtered users without leaving the current page.
 
 Runtime guards:
 
@@ -63,14 +65,17 @@ breakage when desktop custom nicknames or site rendering change the displayed us
 - After applying a Mobile Lite user action, the native card is dismissed.
 - Manual changes preserve existing desktop customizations for the same user, such as notes,
   colors, badges or avatar cache.
+- The mobile user menu includes `Panel MVPremium`, which opens an in-page Shadow DOM panel with:
+  - a local search over filtered users,
+  - exact-nickname add actions for `Silenciar` and `Ocultar`,
+  - per-user controls to switch between `Silenciar`, `Ocultar`, or `Quitar`.
 - Storage changes are watched with the existing WXT storage watcher and re-applied in place.
 - Newly added posts are handled through a debounced `MutationObserver`.
 
 ## Limitations
 
-- Mobile Lite does not include a searchable ignored-user manager yet.
-- Fully hidden users cannot be removed from a hidden post because the post is not visible; use
-  another visible post by that user or the desktop/dashboard UI.
+- The Mobile Lite panel does not perform remote Mediavida user search yet; exact nicknames can be
+  typed manually.
 - The feature depends on Mediavida keeping author links in the `/id/Username` format.
 - If Mediavida changes the post container structure, ignored users may stop applying until
   selectors are updated.
@@ -79,7 +84,7 @@ breakage when desktop custom nicknames or site rendering change the displayed us
 
 ## Future Work
 
-- Add a small Mobile Lite view to list and remove ignored users.
+- Add remote Mediavida user search/autocomplete to the Mobile Lite panel.
 - Revisit the mute placeholder UX on touch screens after real-device testing.
 - Keep advanced editor features out of Mobile Lite unless explicitly scoped.
 

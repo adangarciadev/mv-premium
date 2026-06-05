@@ -1,0 +1,135 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
+import { MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mobile-lite-panel'
+import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
+
+const mocks = vi.hoisted(() => ({
+	getPlatformKind: vi.fn(() => 'firefox-android'),
+	isFeatureEnabled: vi.fn(() => true),
+	getUserCustomizations: vi.fn(() =>
+		Promise.resolve({
+			users: {},
+			globalSettings: {
+				adminColor: '',
+				subadminColor: '',
+				modColor: '',
+				userColor: '',
+			},
+		})
+	),
+	saveUserCustomizations: vi.fn(() => Promise.resolve()),
+	watchUserCustomizations: vi.fn(() => vi.fn()),
+	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
+		const container = document.createElement('div')
+		if (options.id) container.id = options.id
+		options.parent.appendChild(container)
+		return container
+	}),
+	isFeatureMounted: vi.fn(() => false),
+	mountFeatureWithBoundary: vi.fn(),
+}))
+
+vi.mock('@/lib/platform', () => ({
+	getPlatformKind: mocks.getPlatformKind,
+}))
+
+vi.mock('@/lib/feature-flags', () => ({
+	FeatureFlag: {
+		MobileLite: 'mobile-lite',
+	},
+	isFeatureEnabled: mocks.isFeatureEnabled,
+}))
+
+vi.mock('@/lib/content-modules/utils/react-helpers', () => ({
+	createContainer: mocks.createContainer,
+	isFeatureMounted: mocks.isFeatureMounted,
+	mountFeatureWithBoundary: mocks.mountFeatureWithBoundary,
+}))
+
+vi.mock('@/features/user-customizations/storage', () => ({
+	getUserCustomizations: mocks.getUserCustomizations,
+	saveUserCustomizations: mocks.saveUserCustomizations,
+	watchUserCustomizations: mocks.watchUserCustomizations,
+}))
+
+vi.mock('@/components/shadow-wrapper', () => ({
+	ShadowWrapper: ({ children }: { children: ReactNode }) => <>{children}</>,
+}))
+
+describe('Mobile Lite panel injection', () => {
+	beforeEach(() => {
+		vi.clearAllMocks()
+		mocks.getPlatformKind.mockReturnValue('firefox-android')
+		mocks.isFeatureEnabled.mockReturnValue(true)
+		mocks.isFeatureMounted.mockReturnValue(false)
+		document.body.innerHTML = `
+			<ul id="usermenu">
+				<li class="logout">
+					<ul class="dropdown-menu user-menu">
+						<li><a href="/notificaciones">Notificaciones</a></li>
+						<li><a href="/configuracion">Configuración</a></li>
+						<li><a href="/logout">Salir</a></li>
+					</ul>
+				</li>
+			</ul>
+		`
+	})
+
+	afterEach(() => {
+		teardownMobileLitePanel()
+	})
+
+	it('adds the Panel MVPremium entry before configuration', () => {
+		initMobileLitePanel()
+
+		const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu .user-menu a')).map(link =>
+			link.textContent?.trim()
+		)
+
+		expect(links).toEqual(['Notificaciones', 'Panel MVPremium', 'Configuración', 'Salir'])
+		expect(mocks.mountFeatureWithBoundary).toHaveBeenCalledOnce()
+	})
+
+	it('adds the Panel MVPremium entry to Mediavida mobile side user menu', () => {
+		document.body.innerHTML = `
+			<ul id="usermenu" class="m-side">
+				<li><a href="/notificaciones"><i class="fa fa-exclamation-circle"></i><span class="title">Notificaciones</span></a></li>
+				<li><a href="/foro/favoritos"><i class="fa fa-star"></i><span class="title">Favoritos</span></a></li>
+				<li><a href="/mensajes"><i class="fa fa-envelope"></i><span class="title">Mensajes</span></a></li>
+				<li><a href="/id/Test/marcadores"><i class="fa fa-bookmark"></i><span class="title">Marcadores</span></a></li>
+				<li><a href="/id/Test/menciones"><i class="fa fa-at"></i><span class="title">Menciones</span></a></li>
+				<li><a href="/configuracion"><i class="fa fa-cog"></i><span class="title">Configuración</span></a></li>
+				<li><a href="/logout"><i class="fa fa-sign-out"></i><span class="title">Salir</span></a></li>
+			</ul>
+		`
+
+		initMobileLitePanel()
+
+		const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu > li > a')).map(link =>
+			link.textContent?.trim()
+		)
+
+		expect(links).toEqual(['Notificaciones', 'Favoritos', 'Mensajes', 'Marcadores', 'Menciones', 'Panel MVPremium', 'Configuración', 'Salir'])
+	})
+
+	it('opens the panel from the injected menu entry', () => {
+		const openSpy = vi.fn()
+		window.addEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, openSpy)
+
+		initMobileLitePanel()
+		document.querySelector<HTMLAnchorElement>('[data-mvp-mobile-lite-panel-menu-item] a')?.click()
+
+		expect(openSpy).toHaveBeenCalledOnce()
+
+		window.removeEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, openSpy)
+	})
+
+	it('does not inject outside Firefox Android Mobile Lite', () => {
+		mocks.getPlatformKind.mockReturnValue('firefox-desktop')
+
+		initMobileLitePanel()
+
+		expect(document.querySelector('[data-mvp-mobile-lite-panel-menu-item]')).toBeNull()
+		expect(mocks.mountFeatureWithBoundary).not.toHaveBeenCalled()
+	})
+})

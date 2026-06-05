@@ -446,7 +446,6 @@ export function applyMobileLiteIgnoredUsers(data: UserCustomizationsData, root: 
 		post.setAttribute(MOBILE_LITE_IGNORED_ATTR, 'true')
 
 		if ((customization.ignoreType || 'hide') === 'mute') {
-			dismissVisibleMobileLiteUserCards()
 			applyMuteToPost(username, post)
 			return
 		}

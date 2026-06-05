@@ -8,12 +8,14 @@ import {
 	teardownMobileLiteIgnoredUsers,
 } from './ignored-users'
 
+type WatchUserCustomizations = (callback: (data: UserCustomizationsData) => void) => () => void
+
 const mocks = vi.hoisted(() => ({
 	getPlatformKind: vi.fn(() => 'firefox-android'),
 	isFeatureEnabled: vi.fn(() => true),
 	getUserCustomizations: vi.fn(),
 	saveUserCustomizations: vi.fn(),
-	watchUserCustomizations: vi.fn(() => vi.fn()),
+	watchUserCustomizations: vi.fn<WatchUserCustomizations>(() => vi.fn()),
 }))
 
 vi.mock('@/lib/platform', () => ({
@@ -365,7 +367,7 @@ describe('Mobile Lite ignored users', () => {
 
 	it('ignores stale storage snapshots after clearing a manual mute', async () => {
 		renderThread()
-		let watchCallback: ((data: UserCustomizationsData) => void) | null = null
+		let watchCallback: (data: UserCustomizationsData) => void = () => undefined
 		const initialMutedData = userCustomizations({
 			MutedUser: {
 				isIgnored: true,
@@ -400,7 +402,7 @@ describe('Mobile Lite ignored users', () => {
 		const mutedPost = document.querySelector<HTMLElement>('.rep[data-num="3"]')
 		expect(mutedPost).not.toHaveClass('mvp-muted-user')
 
-		watchCallback?.(staleMutedData)
+		watchCallback(staleMutedData)
 
 		expect(mutedPost).not.toHaveClass('mvp-muted-user')
 		expect(mutedPost?.querySelector('.mvp-mute-placeholder')).toBeNull()
