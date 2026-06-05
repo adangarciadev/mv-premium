@@ -78,16 +78,20 @@ export default defineBackground({
 		// Setup All Handlers
 		// ==========================================================================
 
-		// Context menus (save thread, hide thread, mute word)
-		createContextMenus().catch(() => {
-			// Ignore startup menu creation errors; onInstalled will retry on updates.
-		})
-		setupContextMenuListener()
-		setupContextMenuRefreshHandler()
-		setupThreadClipperTrayListener()
-
 		// Upload handlers (ImgBB, Freeimage)
 		setupUploadHandlers()
+
+		// Context menus (save thread, hide thread, mute word)
+		try {
+			createContextMenus().catch(() => {
+				// Ignore startup menu creation errors; onInstalled will retry on updates.
+			})
+			setupContextMenuListener()
+			setupContextMenuRefreshHandler()
+			setupThreadClipperTrayListener()
+		} catch {
+			// Firefox Android can lack full contextMenus support. Keep non-menu handlers alive.
+		}
 
 		// API handlers (Steam, TMDB, GIPHY, options page)
 		setupApiHandlers()

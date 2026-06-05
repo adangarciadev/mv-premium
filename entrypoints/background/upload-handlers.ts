@@ -4,6 +4,7 @@
  */
 
 import { storage } from '#imports'
+import { browser } from 'wxt/browser'
 import { logger } from '@/lib/logger'
 import { STORAGE_KEYS, API_URLS, FREEIMAGE_PUBLIC_KEY } from '@/constants'
 import { onMessage, type UploadResult } from '@/lib/messaging'
@@ -21,6 +22,25 @@ const settingsStorageItem = storage.defineItem<string | null>(`local:${STORAGE_K
 // =============================================================================
 
 const IMGBB_API_URL = API_URLS.IMGBB
+const RAW_UPLOAD_MESSAGE_TYPES = {
+	imgbb: 'mvp-upload-image-to-imgbb',
+	freeimage: 'mvp-upload-image-to-freeimage',
+} as const
+
+interface RawUploadMessage {
+	type?: unknown
+	data?: unknown
+}
+
+function isUploadPayload(data: unknown): data is { base64: string; fileName?: string } {
+	if (!data || typeof data !== 'object') return false
+	const payload = data as { base64?: unknown; fileName?: unknown }
+
+	return (
+		typeof payload.base64 === 'string' &&
+		(payload.fileName === undefined || typeof payload.fileName === 'string')
+	)
+}
 
 // =============================================================================
 // Upload Handlers
@@ -200,10 +220,45 @@ export function setupFreeimageHandler(): void {
 	})
 }
 
+function setupRawUploadHandlers(): void {
+	browser.runtime.onMessage.addListener((message: unknown, _sender, sendResponse: (response: UploadResult) => void) => {
+		const request = message as RawUploadMessage
+		if (!isUploadPayload(request.data)) return false
+		const payload = request.data
+
+		if (request.type === RAW_UPLOAD_MESSAGE_TYPES.imgbb) {
+			void (async () => {
+				const apiKey = await getConfiguredImgbbApiKey()
+				if (!apiKey) {
+					sendResponse({ success: false, error: 'API_KEY_REQUIRED' })
+					return
+				}
+
+				sendResponse(await uploadBase64ToImgbb(payload, apiKey))
+			})()
+			return true
+		}
+
+		if (request.type === RAW_UPLOAD_MESSAGE_TYPES.freeimage) {
+			void uploadBase64ToFreeimage(payload).then(sendResponse).catch(error => {
+				logger.error('Raw freeimage upload error:', error)
+				sendResponse({
+					success: false,
+					error: error instanceof Error ? error.message : 'Network error',
+				})
+			})
+			return true
+		}
+
+		return false
+	})
+}
+
 /**
  * Setup all upload handlers
  */
 export function setupUploadHandlers(): void {
 	setupImgbbHandler()
 	setupFreeimageHandler()
+	setupRawUploadHandlers()
 }

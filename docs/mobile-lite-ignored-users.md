@@ -74,7 +74,7 @@ breakage when desktop custom nicknames or site rendering change the displayed us
 - Add a Mobile Lite action to ignore the author of the current post.
 - Add a small Mobile Lite view to list and remove ignored users.
 - Revisit the mute placeholder UX on touch screens after real-device testing.
-- Keep image upload as a separate Phase 3.
+- Keep advanced editor features out of Mobile Lite unless explicitly scoped.
 
 ## Dev Seed
 

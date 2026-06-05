@@ -14,6 +14,7 @@
 import { logger } from '@/lib/logger'
 import { sendMessage, type UploadResult } from '@/lib/messaging'
 import { getSettings } from '@/store/settings-store'
+import { browser } from 'wxt/browser'
 
 // Re-export types for external use
 export type { UploadResult } from '@/lib/messaging'
@@ -25,6 +26,10 @@ export type { UploadResult } from '@/lib/messaging'
 const MAX_FILE_SIZE_IMGBB = 32 * 1024 * 1024 // 32MB (ImgBB limit)
 const MAX_FILE_SIZE_FREEIMAGE = 64 * 1024 * 1024 // 64MB (freeimage.host limit)
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+const RAW_UPLOAD_MESSAGE_TYPES = {
+	imgbb: 'mvp-upload-image-to-imgbb',
+	freeimage: 'mvp-upload-image-to-freeimage',
+} as const
 
 // =============================================================================
 // API Key Management (reads from Settings store)
@@ -87,6 +92,21 @@ function fileToBase64(file: File | Blob): Promise<string> {
 	})
 }
 
+async function sendUploadMessage(
+	provider: keyof typeof RAW_UPLOAD_MESSAGE_TYPES,
+	data: { base64: string; fileName?: string }
+): Promise<UploadResult> {
+	try {
+		return await sendMessage(provider === 'imgbb' ? 'uploadImageToImgbb' : 'uploadImageToFreeimage', data)
+	} catch (error) {
+		logger.warn('Typed upload messaging failed, trying raw runtime message fallback', error)
+		return await browser.runtime.sendMessage({
+			type: RAW_UPLOAD_MESSAGE_TYPES[provider],
+			data,
+		}) as UploadResult
+	}
+}
+
 // =============================================================================
 // Upload Function (via Background Script)
 // =============================================================================
@@ -116,7 +136,7 @@ export async function uploadImage(file: File | Blob): Promise<UploadResult> {
 		if (useImgBB) {
 			// Use ImgBB first (user-configured), fallback to freeimage on failure.
 			try {
-				result = await sendMessage('uploadImageToImgbb', { base64, fileName })
+				result = await sendUploadMessage('imgbb', { base64, fileName })
 			} catch (error) {
 				logger.warn('ImgBB upload request failed, falling back to freeimage.host', error)
 				result = {
@@ -127,7 +147,7 @@ export async function uploadImage(file: File | Blob): Promise<UploadResult> {
 
 			if (!result.success) {
 				logger.warn('ImgBB upload failed, trying freeimage.host fallback', result.error)
-				const fallback = await sendMessage('uploadImageToFreeimage', { base64, fileName })
+				const fallback = await sendUploadMessage('freeimage', { base64, fileName })
 				if (fallback.success) return fallback
 
 				return {
@@ -137,7 +157,7 @@ export async function uploadImage(file: File | Blob): Promise<UploadResult> {
 			}
 		} else {
 			// Use freeimage.host (default, permanent storage)
-			result = await sendMessage('uploadImageToFreeimage', { base64, fileName })
+			result = await sendUploadMessage('freeimage', { base64, fileName })
 		}
 
 		return result

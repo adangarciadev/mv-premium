@@ -3,6 +3,7 @@ import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { getPlatformKind } from '@/lib/platform'
 import { createContainer, isFeatureMounted, mountFeatureWithBoundary } from '@/lib/content-modules/utils/react-helpers'
 import { MobileLiteFloatingButton } from '../components/mobile-lite-floating-button'
+import { initMobileLiteEditorEnhancements } from './editor-lite'
 import { initMobileLiteIgnoredUsers } from './ignored-users'
 
 const FEATURE_ID = 'mobile-lite-floating-button'
@@ -13,6 +14,7 @@ export function injectMobileLite(): void {
 	if (!isFeatureEnabled(FeatureFlag.MobileLite)) return
 
 	initMobileLiteIgnoredUsers()
+	initMobileLiteEditorEnhancements()
 
 	if (isFeatureMounted(FEATURE_ID)) return
 

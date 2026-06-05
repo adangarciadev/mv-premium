@@ -12,6 +12,8 @@ import { useSettingsStore } from '@/store/settings-store'
 
 type SaveState = 'idle' | 'saved' | 'unavailable' | 'error'
 
+const MOBILE_LITE_UPLOAD_CONTROL_SELECTOR = '[data-mvp-mobile-lite-upload-control="true"]'
+
 function scrollToTop(): void {
 	window.scrollTo({ top: 0, behavior: 'smooth' })
 }
@@ -21,9 +23,29 @@ function scrollToBottom(): void {
 	window.scrollTo({ top: bottom, behavior: 'smooth' })
 }
 
+function isElementTreeDisplayed(element: HTMLElement): boolean {
+	for (let current: HTMLElement | null = element; current; current = current.parentElement) {
+		const style = window.getComputedStyle(current)
+		if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') return false
+		if (current === document.body) break
+	}
+
+	return true
+}
+
+function isMobileLiteUploadControlVisible(): boolean {
+	return Array.from(document.querySelectorAll<HTMLElement>(MOBILE_LITE_UPLOAD_CONTROL_SELECTOR)).some(control => {
+		if (!isElementTreeDisplayed(control)) return false
+
+		const rect = control.getBoundingClientRect()
+		return rect.width > 0 && rect.height > 0
+	})
+}
+
 export function MobileLiteFloatingButton() {
 	const [open, setOpen] = useState(false)
 	const [saveState, setSaveState] = useState<SaveState>('idle')
+	const [editorVisible, setEditorVisible] = useState(false)
 	const currentThreadId = useMemo(() => getThreadId(), [])
 	const isThread = useMemo(() => isThreadUrl(currentThreadId), [currentThreadId])
 	const enabled = useSettingsStore(state => state.mobileLiteEnabled)
@@ -67,6 +89,33 @@ export function MobileLiteFloatingButton() {
 		}
 	}, [currentThreadId, isThread, refreshSavedState])
 
+	useEffect(() => {
+		const refreshEditorVisibility = () => {
+			setEditorVisible(isMobileLiteUploadControlVisible())
+		}
+		const refreshEditorVisibilitySoon = () => {
+			refreshEditorVisibility()
+			window.setTimeout(refreshEditorVisibility, 150)
+		}
+
+		refreshEditorVisibility()
+		document.addEventListener('click', refreshEditorVisibilitySoon, true)
+		document.addEventListener('focusin', refreshEditorVisibilitySoon, true)
+		window.addEventListener('resize', refreshEditorVisibilitySoon)
+
+		const observer = new MutationObserver(refreshEditorVisibilitySoon)
+		if (document.body) {
+			observer.observe(document.body, { childList: true, subtree: true })
+		}
+
+		return () => {
+			document.removeEventListener('click', refreshEditorVisibilitySoon, true)
+			document.removeEventListener('focusin', refreshEditorVisibilitySoon, true)
+			window.removeEventListener('resize', refreshEditorVisibilitySoon)
+			observer.disconnect()
+		}
+	}, [])
+
 	const handleSaveThread = async () => {
 		if (!isThread) {
 			setSaveState('unavailable')
@@ -85,7 +134,7 @@ export function MobileLiteFloatingButton() {
 		}
 	}
 
-	if (!enabled) return null
+	if (!enabled || editorVisible) return null
 
 	return (
 		<div

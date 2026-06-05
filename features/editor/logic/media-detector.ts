@@ -84,7 +84,8 @@ const MEDIA_PATTERNS: { name: string; pattern: RegExp }[] = [
 	// Reddit (posts and comments)
 	{
 		name: 'reddit',
-		pattern: /^https?:\/\/(www\.|old\.|new\.)?(reddit\.com\/r\/[A-Za-z0-9_]+\/comments\/[A-Za-z0-9]+|redd\.it\/[A-Za-z0-9]+)/i,
+		pattern:
+			/^https?:\/\/(www\.|old\.|new\.)?(reddit\.com\/r\/[A-Za-z0-9_]+\/comments\/[A-Za-z0-9]+|redd\.it\/[A-Za-z0-9]+)/i,
 	},
 ]
 
