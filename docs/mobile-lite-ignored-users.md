@@ -3,7 +3,8 @@
 ## Scope
 
 Mobile Lite can apply ignored users on Firefox Android by reusing the existing desktop
-customization storage. It does not let users edit ignored users from mobile yet.
+customization storage. It also lets users add or change ignored users from mobile through
+Mediavida's native user card.
 
 Runtime guards:
 
@@ -56,13 +57,20 @@ breakage when desktop custom nicknames or site rendering change the displayed us
 - `ignoreType: 'mute'` applies the existing muted placeholder behavior and injects only the
   minimum CSS needed for Mobile Lite.
 - Missing `ignoreType` defaults to `hide`, matching the existing desktop behavior.
+- Tapping an author nickname keeps Mediavida's native user card behavior.
+- When the native user card appears, Mobile Lite adds `Silenciar` and `Ocultar` to the card.
+- Active actions toggle their own filter: tapping `Silenciado` or `Oculto` clears that filter.
+- After applying a Mobile Lite user action, the native card is dismissed.
+- Manual changes preserve existing desktop customizations for the same user, such as notes,
+  colors, badges or avatar cache.
 - Storage changes are watched with the existing WXT storage watcher and re-applied in place.
 - Newly added posts are handled through a debounced `MutationObserver`.
 
 ## Limitations
 
-- Mobile Lite cannot add, edit, or remove ignored users yet.
-- The user must configure ignored users from the existing desktop UI first.
+- Mobile Lite does not include a searchable ignored-user manager yet.
+- Fully hidden users cannot be removed from a hidden post because the post is not visible; use
+  another visible post by that user or the desktop/dashboard UI.
 - The feature depends on Mediavida keeping author links in the `/id/Username` format.
 - If Mediavida changes the post container structure, ignored users may stop applying until
   selectors are updated.
@@ -71,7 +79,6 @@ breakage when desktop custom nicknames or site rendering change the displayed us
 
 ## Future Work
 
-- Add a Mobile Lite action to ignore the author of the current post.
 - Add a small Mobile Lite view to list and remove ignored users.
 - Revisit the mute placeholder UX on touch screens after real-device testing.
 - Keep advanced editor features out of Mobile Lite unless explicitly scoped.
