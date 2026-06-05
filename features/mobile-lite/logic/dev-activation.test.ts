@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getMobileLiteDevActivation, getUrlWithoutMobileLiteDevParam } from './dev-activation'
+import { getMobileLiteDevActivation, getUrlWithoutMobileLiteDevParam, hasMobileLiteIgnoredUsersDevSeed } from './dev-activation'
 
 describe('mobile lite dev activation', () => {
 	it('detects enable query value', () => {
@@ -22,6 +22,12 @@ describe('mobile lite dev activation', () => {
 		expect(getMobileLiteDevActivation('?mvp_mobile_lite=true')).toBeNull()
 	})
 
+	it('detects ignored users dev seed from query and hash', () => {
+		expect(hasMobileLiteIgnoredUsersDevSeed('?mvp_mobile_lite_ignored_test=enable')).toBe(true)
+		expect(hasMobileLiteIgnoredUsersDevSeed('', '#mvp_mobile_lite_ignored_test=enable')).toBe(true)
+		expect(hasMobileLiteIgnoredUsersDevSeed('?mvp_mobile_lite_ignored_test=true')).toBe(false)
+	})
+
 	it('removes only the mobile lite dev param from an URL', () => {
 		expect(getUrlWithoutMobileLiteDevParam('https://www.mediavida.com/foro/cine/hilo-1?x=1&mvp_mobile_lite=enable#p2')).toBe(
 			'/foro/cine/hilo-1?x=1#p2'
@@ -32,5 +38,13 @@ describe('mobile lite dev activation', () => {
 		expect(getUrlWithoutMobileLiteDevParam('https://www.mediavida.com/foro/cine/hilo-1#x=1&mvp_mobile_lite=enable')).toBe(
 			'/foro/cine/hilo-1#x=1'
 		)
+	})
+
+	it('removes ignored users dev seed params from an URL', () => {
+		expect(
+			getUrlWithoutMobileLiteDevParam(
+				'https://www.mediavida.com/foro#x=1&mvp_mobile_lite=enable&mvp_mobile_lite_ignored_test=enable'
+			)
+		).toBe('/foro#x=1')
 	})
 })

@@ -42,6 +42,19 @@ No se añade por ahora un gesto oculto de activación: sería más difícil de a
 sobrevivir accidentalmente a una publicación Android. El método dev oficial para esta fase es el
 hash anterior.
 
+Para sembrar usuarios ignorados de prueba en Firefox Android sin usar DevTools:
+
+```text
+https://www.mediavida.com/foro#mvp_mobile_lite=enable&mvp_mobile_lite_ignored_test=enable
+```
+
+Esto añade o actualiza estos usuarios en `mvp-user-customizations`:
+
+- `ClauDeS`: `hide`.
+- `silentMike`: `mute`.
+
+El hash se limpia después de procesarse. Este método es solo para pruebas internas.
+
 ## Favoritos locales
 
 El botón `Guardar hilo` usa el mismo almacenamiento que los favoritos locales de escritorio:
@@ -68,6 +81,18 @@ interface SavedThread {
 descendente. Esto significa que los favoritos guardados desde Firefox Android deberían aparecer
 en las vistas de escritorio que lean la misma key local del mismo perfil/instalación.
 
+## Usuarios ignorados locales
+
+Mobile Lite reutiliza la configuración existente de usuarios ignorados:
+
+- Key WXT: `local:mvp-user-customizations`.
+- Key física en `browser.storage.local`: `mvp-user-customizations`.
+- Solo se leen `isIgnored` e `ignoreType`.
+- `ignoreType: "hide"` oculta el post completo.
+- `ignoreType: "mute"` colapsa el post con placeholder `Mostrar`.
+
+La edición de usuarios ignorados sigue siendo solo de escritorio por ahora.
+
 ## Prueba básica en dispositivo
 
 - Instalar el XPI local en Firefox Android Nightly/Beta o el entorno de pruebas disponible.
@@ -79,6 +104,13 @@ en las vistas de escritorio que lean la misma key local del mismo perfil/instala
 - Abrir el panel y confirmar el texto `MV Premium Mobile Lite experimental`.
 - En un hilo, pulsar `Guardar hilo` y comprobar que el botón cambia a `Guardado`.
 - Pulsar de nuevo o recargar y confirmar que no se crean duplicados en `mvp-saved-threads`.
+- En escritorio, marcar un usuario como oculto (`hide`) y otro como ignorado/colapsado (`mute`).
+- En Firefox Android, abrir un hilo donde aparezcan esos usuarios.
+- Confirmar que el usuario en modo `hide` desaparece del hilo.
+- Confirmar que el usuario en modo `mute` aparece colapsado con botón `Mostrar`.
+- Pulsar `Mostrar` y confirmar que el post muteado se puede revelar temporalmente.
+- Si no se puede editar el storage en Firefox Android, activar el seed dev con
+  `#mvp_mobile_lite=enable&mvp_mobile_lite_ignored_test=enable` y probar con `ClauDeS` y `silentMike`.
 - En una página que no sea hilo, comprobar que el guardado queda deshabilitado o muestra estado no disponible.
 - Probar `Arriba` y `Abajo` dentro de un hilo largo.
 - Recargar la página y confirmar que el botón sigue apareciendo mientras el flag siga activo.
@@ -116,6 +148,7 @@ en las vistas de escritorio que lean la misma key local del mismo perfil/instala
 - Abrir panel en vertical y horizontal; no debe salirse de pantalla.
 - Confirmar que el panel tiene scroll interno si el viewport es bajo.
 - Guardar un hilo y confirmar estado `Guardado`.
+- Confirmar que usuarios ignorados de escritorio se aplican en hilos móviles.
 - Desactivar desde panel o `#mvp_mobile_lite=disable`.
 
 ## Comprobaciones de regresión
@@ -127,6 +160,7 @@ en las vistas de escritorio que lean la misma key local del mismo perfil/instala
 - No deben aparecer context menus nuevos.
 - No debe ejecutarse `scripting.executeScript`.
 - No debe pedirse ningún permiso nuevo.
+- No debe aparecer ningún control nuevo para editar usuarios ignorados desde móvil.
 
 ## Criterios antes de ampliar Fase 1
 

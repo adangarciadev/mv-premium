@@ -45,7 +45,12 @@ import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
 import { RUNTIME_CACHE_KEYS, TOAST_IDS, TOAST_TIMINGS } from '@/constants'
 import { showEarlyHiddenSubforumBlocker } from '@/features/hidden-subforums/logic/early-guard'
-import { getMobileLiteDevActivation, getUrlWithoutMobileLiteDevParam } from '@/features/mobile-lite/logic/dev-activation'
+import {
+	getMobileLiteDevActivation,
+	getUrlWithoutMobileLiteDevParam,
+	hasMobileLiteIgnoredUsersDevSeed,
+} from '@/features/mobile-lite/logic/dev-activation'
+import { seedMobileLiteIgnoredUsersForDev } from '@/features/mobile-lite/logic/dev-ignored-users-seed'
 
 export async function runContentMain(ctx: unknown): Promise<void> {
 	const platform = getPlatformKind()
@@ -56,10 +61,19 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 		settingsHydrated = true
 
 		const devActivation = getMobileLiteDevActivation(window.location.search, window.location.hash)
+		const seedIgnoredUsers = hasMobileLiteIgnoredUsersDevSeed(window.location.search, window.location.hash)
 		if (devActivation) {
 			useSettingsStore.getState().setSetting('mobileLiteEnabled', devActivation === 'enable')
-			window.history.replaceState(window.history.state, document.title, getUrlWithoutMobileLiteDevParam(window.location.href))
 			logger.info(`Mobile Lite dev activation: ${devActivation}`)
+		}
+
+		if (seedIgnoredUsers) {
+			await seedMobileLiteIgnoredUsersForDev()
+			logger.info('Mobile Lite ignored users dev seed applied')
+		}
+
+		if (devActivation || seedIgnoredUsers) {
+			window.history.replaceState(window.history.state, document.title, getUrlWithoutMobileLiteDevParam(window.location.href))
 		}
 
 		if (!useSettingsStore.getState().mobileLiteEnabled) {
