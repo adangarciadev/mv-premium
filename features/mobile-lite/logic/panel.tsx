@@ -8,22 +8,12 @@ import { MobileLitePanel, MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mob
 const FEATURE_ID = 'mobile-lite-panel'
 const CONTAINER_ID = 'mvp-mobile-lite-panel-root'
 const MENU_ITEM_ATTR = 'data-mvp-mobile-lite-panel-menu-item'
-const USER_MENU_SELECTOR = [
-	`${MV_SELECTORS.GLOBAL.USERMENU} li.logout ul.dropdown-menu.user-menu`,
-	`${MV_SELECTORS.GLOBAL.USERMENU} ul.dropdown-menu.user-menu`,
-	`${MV_SELECTORS.GLOBAL.USERMENU} .user-menu`,
-	MV_SELECTORS.GLOBAL.USERMENU,
-].join(', ')
 
 let initialized = false
 let menuObserver: MutationObserver | null = null
 let userMenuClickListenerAttached = false
 
-function handleUserMenuClick(event: MouseEvent): void {
-	const target = event.target
-	if (!(target instanceof Element)) return
-	if (!target.closest(MV_SELECTORS.GLOBAL.USERMENU)) return
-
+function handleUserMenuClick(): void {
 	window.setTimeout(injectPanelMenuItem, 0)
 	window.setTimeout(injectPanelMenuItem, 150)
 }
@@ -52,7 +42,9 @@ function createPanelMenuItem(): HTMLLIElement {
 }
 
 function findMenuInsertionTarget(menu: HTMLElement): Element | null {
-	const links = Array.from(menu.querySelectorAll<HTMLAnchorElement>('a'))
+	const links = Array.from(menu.children)
+		.map(child => Array.from(child.children).find((innerChild): innerChild is HTMLAnchorElement => innerChild instanceof HTMLAnchorElement))
+		.filter((link): link is HTMLAnchorElement => Boolean(link))
 	const configLink = links.find(link => link.href.includes('/configuracion') || link.textContent?.includes('Configuración'))
 	if (configLink?.parentElement) return configLink.parentElement
 
@@ -63,21 +55,23 @@ function findMenuInsertionTarget(menu: HTMLElement): Element | null {
 function injectPanelMenuItem(): void {
 	if (!isMobileLitePanelAllowed()) return
 
-	document.querySelectorAll<HTMLElement>(USER_MENU_SELECTOR).forEach(menu => {
-		if (menu.querySelector(`[${MENU_ITEM_ATTR}="true"]`)) return
-		if (menu.matches(MV_SELECTORS.GLOBAL.USERMENU) && menu.querySelector('ul.dropdown-menu.user-menu, .user-menu')) return
+	const menu = document.querySelector<HTMLElement>(MV_SELECTORS.GLOBAL.USERMENU)
+	if (!menu) return
 
-		const item = createPanelMenuItem()
-		const insertionTarget = findMenuInsertionTarget(menu)
-		if (insertionTarget) {
-			menu.insertBefore(item, insertionTarget)
-			return
-		}
-
-		if (menu.matches(MV_SELECTORS.GLOBAL.USERMENU)) return
-
-		menu.appendChild(item)
+	menu.querySelectorAll<HTMLElement>(`[${MENU_ITEM_ATTR}="true"]`).forEach(item => {
+		if (item.parentElement !== menu) item.remove()
 	})
+
+	if (Array.from(menu.children).some(child => child.hasAttribute(MENU_ITEM_ATTR))) return
+
+	const item = createPanelMenuItem()
+	const insertionTarget = findMenuInsertionTarget(menu)
+	if (insertionTarget) {
+		menu.insertBefore(item, insertionTarget)
+		return
+	}
+
+	menu.appendChild(item)
 }
 
 function ensurePanelRoot(): void {

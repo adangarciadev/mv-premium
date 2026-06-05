@@ -64,13 +64,9 @@ describe('Mobile Lite panel injection', () => {
 		mocks.isFeatureMounted.mockReturnValue(false)
 		document.body.innerHTML = `
 			<ul id="usermenu">
-				<li class="logout">
-					<ul class="dropdown-menu user-menu">
-						<li><a href="/notificaciones">Notificaciones</a></li>
-						<li><a href="/configuracion">Configuración</a></li>
-						<li><a href="/logout">Salir</a></li>
-					</ul>
-				</li>
+				<li><a href="/notificaciones">Notificaciones</a></li>
+				<li><a href="/configuracion">Configuración</a></li>
+				<li><a href="/logout">Salir</a></li>
 			</ul>
 		`
 	})
@@ -82,7 +78,7 @@ describe('Mobile Lite panel injection', () => {
 	it('adds the Panel MVPremium entry before configuration', () => {
 		initMobileLitePanel()
 
-		const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu .user-menu a')).map(link =>
+		const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu > li > a')).map(link =>
 			link.textContent?.trim()
 		)
 
@@ -110,6 +106,37 @@ describe('Mobile Lite panel injection', () => {
 		)
 
 		expect(links).toEqual(['Notificaciones', 'Favoritos', 'Mensajes', 'Marcadores', 'Menciones', 'Panel MVPremium', 'Configuración', 'Salir'])
+	})
+
+	it('adds the Panel MVPremium entry to the visible mobile menu instead of the hidden logout dropdown', () => {
+		document.body.innerHTML = `
+			<ul id="usermenu">
+				<li><a href="/notificaciones"><span class="title">Notificaciones</span></a></li>
+				<li><a href="/foro/favoritos"><span class="title">Favoritos</span></a></li>
+				<li><a href="/mensajes"><span class="title">Mensajes</span></a></li>
+				<li><a href="/id/Test/marcadores"><span class="title">Marcadores</span></a></li>
+				<li><a href="/id/Test/menciones"><span class="title">Menciones</span></a></li>
+				<li><a href="/configuracion"><span class="title">Configuración</span></a></li>
+				<li class="logout dd">
+					<a href="#" class="off dropdown-toggle">Más</a>
+					<ul class="dropdown-menu pull-right user-menu">
+						<li><a href="/id/Test/marcadores">Marcadores</a></li>
+						<li data-mvp-mobile-lite-panel-menu-item="true"><a href="#mvp-panel">Panel MVPremium</a></li>
+						<li><a href="/configuracion">Configuración</a></li>
+						<li><a href="/logout">Salir</a></li>
+					</ul>
+				</li>
+			</ul>
+		`
+
+		initMobileLitePanel()
+
+		const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu > li > a')).map(link =>
+			link.textContent?.trim()
+		)
+
+		expect(links).toEqual(['Notificaciones', 'Favoritos', 'Mensajes', 'Marcadores', 'Menciones', 'Panel MVPremium', 'Configuración', 'Más'])
+		expect(document.querySelector('#usermenu .dropdown-menu [data-mvp-mobile-lite-panel-menu-item]')).toBeNull()
 	})
 
 	it('opens the panel from the injected menu entry', () => {
