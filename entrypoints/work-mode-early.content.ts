@@ -13,6 +13,7 @@ import { EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
 import type { WorkModeOptions } from '@/store/settings-types'
 import { DEFAULT_SETTINGS } from '@/store/settings-defaults'
 import { buildWorkModeCSS } from '@/features/work-mode'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 const STYLE_ID = EARLY_STYLE_IDS.WORK_MODE
 const CACHE_KEY = RUNTIME_CACHE_KEYS.WORK_MODE
@@ -146,6 +147,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		let earlyDisguiseApplied = false
 
 		// STEP 1: Read from localStorage SYNCHRONOUSLY (instant, no flash)

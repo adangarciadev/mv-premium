@@ -11,6 +11,7 @@ import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
 import { DOM_MARKERS, EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
 import { getThreadActionsPresentation, type ThreadActionsPresentation } from '@/features/hidden-threads/logic/thread-actions'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 const CACHE_KEY = RUNTIME_CACHE_KEYS.HIDDEN_THREADS
 const THREAD_ACTIONS_CACHE_KEY = RUNTIME_CACHE_KEYS.THREAD_ACTIONS_PRESENTATION
@@ -269,6 +270,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		if (!isListLikeForumPage()) return
 
 		const cachedActionsPresentation = readThreadActionsPresentationFromCache()

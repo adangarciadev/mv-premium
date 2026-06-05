@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	syncEnabled: false,
 
 	// Feature Toggles - Navigation
+	mobileLiteEnabled: false,
 	infiniteScrollEnabled: false,
 	autoInfiniteScrollEnabled: false,
 	liveThreadEnabled: false,

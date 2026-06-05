@@ -1,6 +1,31 @@
 import { defineConfig } from 'wxt'
 import path from 'path'
 
+const FIREFOX_ANDROID_MIN_VERSION = '120.0'
+const ENABLE_FIREFOX_ANDROID = process.env.MVP_ENABLE_FIREFOX_ANDROID === 'true'
+
+function getBrowserSpecificSettings() {
+	const geckoSettings = {
+		gecko: {
+			id: 'mv-premium@adan-dev',
+			data_collection_permissions: {
+				required: ['none'],
+			},
+		},
+	}
+
+	if (!ENABLE_FIREFOX_ANDROID) {
+		return geckoSettings
+	}
+
+	return {
+		...geckoSettings,
+		gecko_android: {
+			strict_min_version: FIREFOX_ANDROID_MIN_VERSION,
+		},
+	}
+}
+
 // See https://wxt.dev/api/config.html
 export default defineConfig({
 	modules: ['@wxt-dev/module-react'],
@@ -29,15 +54,8 @@ export default defineConfig({
 		name: 'MV Premium',
 		description:
 			'La experiencia definitiva para Mediavida. Potencia el foro con herramientas modernas, navegación fluida y personalización total.',
-		browser_specific_settings: {
-			gecko: {
-				id: 'mv-premium@adan-dev',
-				// @ts-ignore: Esta propiedad es nueva en Firefox y WXT aún no la tiene tipada
-				data_collection_permissions: {
-					required: ['none'],
-				},
-			},
-		},
+		// @ts-ignore: Firefox exposes newer browser_specific_settings fields before WXT types catch up.
+		browser_specific_settings: getBrowserSpecificSettings(),
 		web_accessible_resources: [
 			{
 				resources: ['icon/*.png', 'assets/*.css'],

@@ -323,6 +323,7 @@ export function validateBackupData(input: unknown, options: BackupImportOptions 
 	const preferences = isRecord(data.preferences) ? data.preferences : {}
 	const stats = isRecord(data.stats) ? data.stats : {}
 	const excluded = isRecord(input.excluded) ? input.excluded : {}
+	const excludedSecretFields = excluded.secretFields
 
 	return {
 		schemaVersion: BACKUP_SCHEMA_VERSION,
@@ -363,8 +364,8 @@ export function validateBackupData(input: unknown, options: BackupImportOptions 
 			},
 		},
 		excluded: {
-			secretFields: Array.isArray(excluded.secretFields)
-				? USER_API_KEY_FIELDS.filter(field => excluded.secretFields.includes(field))
+			secretFields: Array.isArray(excludedSecretFields)
+				? USER_API_KEY_FIELDS.filter(field => excludedSecretFields.includes(field))
 				: [...USER_API_KEY_FIELDS],
 			storageKeys: [...EXCLUDED_STORAGE_KEYS],
 			patterns: ['mv-cache:*', 'mvp-pending-*', 'mvp-live-preview-*'],
@@ -375,8 +376,9 @@ export function validateBackupData(input: unknown, options: BackupImportOptions 
 export function backupContainsPersonalApiKeys(input: unknown): boolean {
 	if (!isRecord(input) || !isRecord(input.data) || !isRecord(input.data.settings)) return false
 
+	const settings = input.data.settings
 	return USER_API_KEY_FIELDS.some(field => {
-		const value = input.data.settings[field]
+		const value = settings[field]
 		return typeof value === 'string' && value.trim().length > 0
 	})
 }

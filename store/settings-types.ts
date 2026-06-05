@@ -70,6 +70,7 @@ export interface Settings {
 	syncEnabled: boolean
 
 	// Feature Toggles - Navigation
+	mobileLiteEnabled: boolean
 	infiniteScrollEnabled: boolean
 	autoInfiniteScrollEnabled: boolean
 	liveThreadEnabled: boolean

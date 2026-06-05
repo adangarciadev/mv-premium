@@ -1,6 +1,7 @@
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
 import { RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 interface SettingsState {
 	state?: {
@@ -103,6 +104,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		if (!isHomepagePath()) return
 
 		const cachedEnabled = getCachedEnabled()

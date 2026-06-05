@@ -13,12 +13,15 @@
  */
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 export default defineContentScript({
 	matches: ['*://www.mediavida.com/*'],
 	runAt: 'document_start',
 
 	async main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		try {
 			const data = await browser.storage.local.get(['mvp-custom-font', 'mvp-apply-font-globally'])
 			const font = data['mvp-custom-font'] as string | undefined

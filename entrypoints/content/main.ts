@@ -42,10 +42,36 @@ import { initUserCardInjector } from '@/features/user-customizations/user-card-i
 import { onMessage } from '@/lib/messaging'
 import { toast } from '@/lib/lazy-toast'
 import { logger } from '@/lib/logger'
+import { getPlatformKind } from '@/lib/platform'
 import { RUNTIME_CACHE_KEYS, TOAST_IDS, TOAST_TIMINGS } from '@/constants'
 import { showEarlyHiddenSubforumBlocker } from '@/features/hidden-subforums/logic/early-guard'
+import { getMobileLiteDevActivation, getUrlWithoutMobileLiteDevParam } from '@/features/mobile-lite/logic/dev-activation'
 
 export async function runContentMain(ctx: unknown): Promise<void> {
+	const platform = getPlatformKind()
+	let settingsHydrated = false
+	if (platform === 'firefox-android') {
+		useSettingsStore.persist.rehydrate()
+		await waitForHydration()
+		settingsHydrated = true
+
+		const devActivation = getMobileLiteDevActivation(window.location.search, window.location.hash)
+		if (devActivation) {
+			useSettingsStore.getState().setSetting('mobileLiteEnabled', devActivation === 'enable')
+			window.history.replaceState(window.history.state, document.title, getUrlWithoutMobileLiteDevParam(window.location.href))
+			logger.info(`Mobile Lite dev activation: ${devActivation}`)
+		}
+
+		if (!useSettingsStore.getState().mobileLiteEnabled) {
+			logger.debug('Skipping content main on Firefox Android because mobile lite is disabled')
+			return
+		}
+
+		const { injectMobileLite } = await import('@/features/mobile-lite')
+		injectMobileLite()
+		return
+	}
+
 	const pathname = window.location.pathname
 	showEarlyHiddenSubforumBlocker(pathname)
 	const isHomepage = pathname === '/' || pathname === '' || /^\/p\d+$/.test(pathname)
@@ -138,8 +164,11 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 	// =====================================================================
 	// 1. HYDRATE SETTINGS + CROSS-TAB SYNC
 	// =====================================================================
-	useSettingsStore.persist.rehydrate()
-	await waitForHydration()
+	if (!settingsHydrated) {
+		useSettingsStore.persist.rehydrate()
+		await waitForHydration()
+		settingsHydrated = true
+	}
 	initCrossTabSync()
 
 	const newHomepageEnabled = useSettingsStore.getState().newHomepageEnabled

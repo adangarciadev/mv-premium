@@ -7,6 +7,7 @@ import { FeatureFlag, isFeatureEnabled, getEnabledFeatures, getDisabledFeatures 
 
 // Mock the settings store
 const mockState = {
+	mobileLiteEnabled: false,
 	infiniteScrollEnabled: false,
 	liveThreadEnabled: true,
 	mutedWordsEnabled: false,
@@ -43,6 +44,7 @@ describe('feature-flags', () => {
 	beforeEach(() => {
 		// Reset mock state
 		mockState.infiniteScrollEnabled = false
+		mockState.mobileLiteEnabled = false
 		mockState.liveThreadEnabled = true
 		mockState.mutedWordsEnabled = false
 		mockState.geminiApiKey = ''
@@ -115,6 +117,15 @@ describe('feature-flags', () => {
 		describe('settings-controlled features', () => {
 			it('returns false when InfiniteScroll is disabled in settings', () => {
 				expect(isFeatureEnabled(FeatureFlag.InfiniteScroll)).toBe(false)
+			})
+
+			it('returns false when MobileLite is disabled in settings', () => {
+				expect(isFeatureEnabled(FeatureFlag.MobileLite)).toBe(false)
+			})
+
+			it('returns true when MobileLite is enabled in settings', () => {
+				mockState.mobileLiteEnabled = true
+				expect(isFeatureEnabled(FeatureFlag.MobileLite)).toBe(true)
 			})
 
 			it('returns true when LiveThread is enabled in settings', () => {

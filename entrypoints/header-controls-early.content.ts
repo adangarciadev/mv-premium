@@ -7,6 +7,7 @@
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
 import { DOM_MARKERS, MV_SELECTORS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 const SEARCH_TRIGGER_ID = DOM_MARKERS.IDS.COMMAND_MENU_TRIGGER
 const SEARCH_REPLACED_ATTR = DOM_MARKERS.INJECTION.SEARCH_REPLACED
@@ -238,6 +239,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		const cachedNavbarSearchEnabled = readCachedNavbarSearchEnabled()
 		if (cachedNavbarSearchEnabled !== false) {
 			waitForElement(MV_SELECTORS.GLOBAL.SEARCH, installSearchTrigger)

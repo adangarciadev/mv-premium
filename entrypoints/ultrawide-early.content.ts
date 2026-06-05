@@ -18,6 +18,7 @@
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
 import { EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 type UltrawideMode = 'off' | 'wide' | 'extra-wide' | 'full'
 
@@ -149,6 +150,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		// STEP 1: Read from localStorage SYNCHRONOUSLY (instant, no flash)
 		try {
 			const cachedMode = localStorage.getItem(CACHE_KEY) as UltrawideMode | null

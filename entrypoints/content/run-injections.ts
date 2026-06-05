@@ -32,6 +32,7 @@ export interface PageContext {
 import { MV_SELECTORS } from '@/constants'
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled, FeatureFlag } from '@/lib/feature-flags'
+import { getPlatformKind } from '@/lib/platform'
 import { useSettingsStore } from '@/store/settings-store'
 
 // Track initialization state
@@ -133,6 +134,17 @@ async function loadThreadFeatureModules(): Promise<ThreadFeatureModules> {
  * @param pageContext - Pre-calculated page context to avoid repeated regex checks
  */
 export async function runInjections(ctx?: unknown, pageContext?: PageContext): Promise<void> {
+	if (getPlatformKind() === 'firefox-android') {
+		if (!isFeatureEnabled(FeatureFlag.MobileLite)) {
+			logger.debug('Skipping content injections on Firefox Android because mobile lite is disabled')
+			return
+		}
+
+		const { injectMobileLite } = await import('@/features/mobile-lite')
+		injectMobileLite()
+		return
+	}
+
 	// =========================================================================
 	// TRULY GLOBAL INJECTIONS - Run on all pages where extension loads
 	// =========================================================================

@@ -18,6 +18,7 @@
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
 import { RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 const CACHE_KEY_ENABLED = RUNTIME_CACHE_KEYS.BOLD_COLOR_ENABLED
 const CACHE_KEY_COLOR = RUNTIME_CACHE_KEYS.BOLD_COLOR
@@ -58,6 +59,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		// STEP 1: Read from localStorage SYNCHRONOUSLY (instant, no flash)
 		try {
 			const cachedEnabled = localStorage.getItem(CACHE_KEY_ENABLED) === 'true'

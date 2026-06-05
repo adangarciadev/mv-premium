@@ -1,10 +1,13 @@
 import { defineContentScript } from '#imports'
 import { logger } from '@/lib/logger'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 export default defineContentScript({
 	matches: ['*://www.mediavida.com/*'],
 	world: 'MAIN',
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		// Define the global debug helper in the Main World
 		// @ts-ignore - Signature differs from Isolated World interface
 		window.mvpDebug = () => {

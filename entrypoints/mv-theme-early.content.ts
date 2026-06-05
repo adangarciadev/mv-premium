@@ -14,6 +14,7 @@ import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
 import { EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
 import { getCompressed } from '@/lib/storage/compressed-storage'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 import { parseMvThemeEnabled } from '@/features/mv-theme/logic/theme-state'
 
 const STYLE_ID = EARLY_STYLE_IDS.MV_THEME
@@ -44,6 +45,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		// STEP 1: Read from localStorage SYNCHRONOUSLY (instant, no flash)
 		try {
 			const enabled = localStorage.getItem(CACHE_KEY_ENABLED)
