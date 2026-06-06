@@ -75,6 +75,8 @@ describe('Mobile Lite registry', () => {
 		vi.clearAllMocks()
 		mocks.getPlatformKind.mockReturnValue('firefox-android')
 		mocks.isFeatureEnabled.mockReturnValue(true)
+		window.history.replaceState({}, '', '/')
+		document.body.innerHTML = ''
 	})
 
 	it('returns only modules matching the current mobile context', () => {
@@ -98,7 +100,7 @@ describe('Mobile Lite registry', () => {
 		).toEqual(['editor-lite', 'panel'])
 	})
 
-	it('runs ignored author thread filtering on normal subforum thread lists', () => {
+	it('runs ignored author thread filtering on normal subforum pages', () => {
 		expect(
 			getRunnableMobileLiteModuleIds(
 				context({
@@ -107,6 +109,13 @@ describe('Mobile Lite registry', () => {
 				})
 			)
 		).toEqual(['ignored-user-threads', 'editor-lite', 'panel'])
+	})
+
+	it('detects normal subforum pages even if thread rows mount later', () => {
+		window.history.replaceState({}, '', '/foro/juegos')
+		document.body.innerHTML = ''
+
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['ignored-user-threads', 'editor-lite', 'panel'])
 	})
 
 	it('initializes only runnable modules', () => {

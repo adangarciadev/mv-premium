@@ -32,7 +32,6 @@ const POST_SELECTOR = '.post[data-num], .rep[data-num], div[id^="post-"]'
 const EDITOR_SELECTOR = 'textarea#cuerpo, textarea[name="cuerpo"], .editor-body textarea'
 const USER_CARD_SELECTOR = '#user-card, .f-card'
 const USER_MENU_SELECTOR = '#usermenu'
-const THREAD_LIST_ROWS_SELECTOR = 'tbody#temas tr, table#temas tbody tr'
 
 const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 	{
@@ -81,8 +80,7 @@ export function getMobileLiteContext(root: ParentNode = document): MobileLiteCon
 		hasUserMenu: Boolean(root.querySelector(USER_MENU_SELECTOR)),
 		hasIgnoredUsersImport: hasIgnoredUsersImportParam(window.location.search),
 		isForumRelated: pathname === '/' || pathname.startsWith('/foro'),
-		isNormalSubforumThreadList:
-			isNormalMobileLiteSubforumPath(pathname) && Boolean(root.querySelector(THREAD_LIST_ROWS_SELECTOR)),
+		isNormalSubforumThreadList: isNormalMobileLiteSubforumPath(pathname),
 		pathname,
 	}
 }
