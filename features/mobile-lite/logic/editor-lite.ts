@@ -43,11 +43,13 @@ const uploadControlStyles = {
 		'clear: both',
 		'position: relative',
 		'z-index: 1',
+		'box-sizing: border-box',
+		'max-width: 100%',
 		'margin: 0',
 		'padding: 0',
 		'font-size: 13px',
 	].join(';'),
-	button: ['white-space: nowrap', 'min-width: 126px'].join(';'),
+	button: ['white-space: nowrap', 'min-width: 126px', 'max-width: 100%'].join(';'),
 	status: [
 		'position: absolute',
 		'width: 1px',
@@ -385,6 +387,7 @@ function prepareOptionsRowUploadControl(wrapper: HTMLElement, row: HTMLElement):
 	wrapper.style.display = 'inline-flex'
 	wrapper.style.verticalAlign = 'middle'
 	wrapper.style.clear = 'none'
+	wrapper.style.marginTop = '4px'
 	wrapper.style.marginBottom = '4px'
 
 	if (row.id === EXTENDED_EDITOR_FAVORITES_SELECTOR.slice(1)) {
@@ -394,9 +397,9 @@ function prepareOptionsRowUploadControl(wrapper: HTMLElement, row: HTMLElement):
 		return
 	}
 
-	wrapper.style.cssFloat = 'right'
+	wrapper.style.cssFloat = 'none'
 	wrapper.style.marginLeft = '8px'
-	wrapper.style.marginRight = '12px'
+	wrapper.style.marginRight = '8px'
 }
 
 function placeUploadControlInOptionsRow(wrapper: HTMLElement, row: HTMLElement): void {

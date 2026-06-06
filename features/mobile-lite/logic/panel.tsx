@@ -21,6 +21,8 @@ const MENU_PREVIOUS_MAX_WIDTH_ATTR = 'data-mvp-mobile-lite-prev-max-width'
 const MENU_PREVIOUS_MIN_WIDTH_ATTR = 'data-mvp-mobile-lite-prev-min-width'
 const MENU_PREVIOUS_WIDTH_ATTR = 'data-mvp-mobile-lite-prev-width'
 const MENU_TITLE_PREVIOUS_DISPLAY_ATTR = 'data-mvp-mobile-lite-prev-display'
+const MENU_LINK_PREVIOUS_FONT_SIZE_ATTR = 'data-mvp-mobile-lite-prev-font-size'
+const MENU_ICON_PREVIOUS_FONT_SIZE_ATTR = 'data-mvp-mobile-lite-prev-icon-font-size'
 
 const NEW_THREAD_SUBFORUM_GROUPS = [SUBFORUMS, SUBFORUMS_JUEGOS, SUBFORUMS_TECNOLOGIA, SUBFORUMS_COMUNIDAD]
 const NEW_THREAD_COMPACT_MENU_WIDTH = '72px'
@@ -133,6 +135,18 @@ function setMenuCompactMode(menu: HTMLElement, enabled: boolean): void {
 		menu.style.setProperty('width', NEW_THREAD_COMPACT_MENU_WIDTH, 'important')
 		menu.style.setProperty('min-width', NEW_THREAD_COMPACT_MENU_WIDTH, 'important')
 		menu.style.setProperty('max-width', NEW_THREAD_COMPACT_MENU_WIDTH, 'important')
+		menu.querySelectorAll<HTMLElement>(':scope > li > a').forEach(link => {
+			if (!link.hasAttribute(MENU_LINK_PREVIOUS_FONT_SIZE_ATTR)) {
+				link.setAttribute(MENU_LINK_PREVIOUS_FONT_SIZE_ATTR, link.style.fontSize)
+			}
+			link.style.setProperty('font-size', '0', 'important')
+			link.querySelectorAll<HTMLElement>('i').forEach(icon => {
+				if (!icon.hasAttribute(MENU_ICON_PREVIOUS_FONT_SIZE_ATTR)) {
+					icon.setAttribute(MENU_ICON_PREVIOUS_FONT_SIZE_ATTR, icon.style.fontSize)
+				}
+				icon.style.setProperty('font-size', '18px', 'important')
+			})
+		})
 		menu.querySelectorAll<HTMLElement>(':scope > li > a .title').forEach(title => {
 			if (!title.hasAttribute(MENU_TITLE_PREVIOUS_DISPLAY_ATTR))
 				title.setAttribute(MENU_TITLE_PREVIOUS_DISPLAY_ATTR, title.style.display)
@@ -144,6 +158,12 @@ function setMenuCompactMode(menu: HTMLElement, enabled: boolean): void {
 	restoreStyleProperty(menu, MENU_PREVIOUS_WIDTH_ATTR, 'width')
 	restoreStyleProperty(menu, MENU_PREVIOUS_MIN_WIDTH_ATTR, 'min-width')
 	restoreStyleProperty(menu, MENU_PREVIOUS_MAX_WIDTH_ATTR, 'max-width')
+	menu.querySelectorAll<HTMLElement>(`[${MENU_LINK_PREVIOUS_FONT_SIZE_ATTR}]`).forEach(link => {
+		restoreStyleProperty(link, MENU_LINK_PREVIOUS_FONT_SIZE_ATTR, 'font-size')
+	})
+	menu.querySelectorAll<HTMLElement>(`[${MENU_ICON_PREVIOUS_FONT_SIZE_ATTR}]`).forEach(icon => {
+		restoreStyleProperty(icon, MENU_ICON_PREVIOUS_FONT_SIZE_ATTR, 'font-size')
+	})
 	menu.querySelectorAll<HTMLElement>(`[${MENU_TITLE_PREVIOUS_DISPLAY_ATTR}]`).forEach(title => {
 		restoreStyleProperty(title, MENU_TITLE_PREVIOUS_DISPLAY_ATTR, 'display')
 	})
@@ -151,13 +171,20 @@ function setMenuCompactMode(menu: HTMLElement, enabled: boolean): void {
 
 function positionSubforumPanel(menu: HTMLElement, panel: HTMLUListElement): void {
 	const menuRect = menu.getBoundingClientRect()
-	const viewportWidth = window.innerWidth || document.documentElement.clientWidth
+	const visualViewport = window.visualViewport
+	const viewportWidth = visualViewport?.width ?? window.innerWidth ?? document.documentElement.clientWidth
+	const viewportHeight = visualViewport?.height ?? window.innerHeight ?? document.documentElement.clientHeight
+	const viewportOffsetTop = visualViewport?.offsetTop ?? 0
+	const viewportOffsetLeft = visualViewport?.offsetLeft ?? 0
 	const rightOffset = Math.max(0, viewportWidth - menuRect.left)
+	const bottomOffset = Math.max(0, window.innerHeight - viewportOffsetTop - viewportHeight)
 
-	panel.style.left = '0'
+	panel.style.left = `${Math.max(0, viewportOffsetLeft)}px`
 	panel.style.right = `${rightOffset}px`
-	panel.style.top = `${Math.max(0, menuRect.top)}px`
-	panel.style.bottom = '0'
+	panel.style.top = `${Math.max(0, viewportOffsetTop, menuRect.top)}px`
+	panel.style.bottom = `calc(${bottomOffset}px + env(safe-area-inset-bottom))`
+	panel.style.paddingBottom = 'calc(8px + env(safe-area-inset-bottom))'
+	panel.style.maxHeight = `calc(${viewportHeight}px - ${Math.max(0, menuRect.top - viewportOffsetTop)}px - env(safe-area-inset-bottom))`
 }
 
 function createNewThreadMenuItem(): HTMLLIElement {

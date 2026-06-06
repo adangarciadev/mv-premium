@@ -1,23 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { editorPreserveStorage } from '@/features/editor/storage'
-import {
-	attachMobileLitePasteHandlers,
-	getMobileLiteEditorTextarea,
-	getMobileLitePasteReplacement,
-	handleMobileLiteTextareaBeforeInput,
-	handleMobileLiteTextareaPaste,
-	initMobileLiteEditorEnhancements,
-	injectMobileLiteUploadControl,
-	injectMobileLiteUploadControls,
-	insertMobileLiteImageTag,
-	teardownMobileLiteEditorEnhancements,
-	uploadMobileLiteImage,
-} from './editor-lite'
+
+const storageValues = vi.hoisted(() => new Map<string, unknown>())
 
 const mocks = vi.hoisted(() => ({
 	getPlatformKind: vi.fn(() => 'firefox-android'),
 	isFeatureEnabled: vi.fn(() => true),
 	uploadImage: vi.fn(),
+	editorPreservedContent: null as { content: string; timestamp: number } | null,
+}))
+
+vi.mock('#imports', () => ({
+	storage: {
+		defineItem: <T,>(key: string, options?: { defaultValue?: T }) => ({
+			getValue: vi.fn(() => Promise.resolve((storageValues.get(key) ?? options?.defaultValue) as T)),
+			setValue: vi.fn((value: T) => {
+				storageValues.set(key, value)
+				return Promise.resolve()
+			}),
+			removeValue: vi.fn(() => {
+				storageValues.delete(key)
+				return Promise.resolve()
+			}),
+			watch: vi.fn(() => vi.fn()),
+		}),
+	},
 }))
 
 vi.mock('@/lib/platform', () => ({
@@ -43,6 +49,56 @@ vi.mock('@/services/api/imgbb', () => {
 		uploadImage: mocks.uploadImage,
 	}
 })
+
+vi.mock('@/features/editor/storage', () => ({
+	MAX_RESTORE_AGE_MS: 30000,
+	editorPreserveStorage: {
+		getValue: vi.fn(() => Promise.resolve(mocks.editorPreservedContent)),
+		setValue: vi.fn((value: { content: string; timestamp: number } | null) => {
+			mocks.editorPreservedContent = value
+			return Promise.resolve()
+		}),
+		removeValue: vi.fn(() => {
+			mocks.editorPreservedContent = null
+			return Promise.resolve()
+		}),
+	},
+}))
+
+vi.mock('@/features/editor/logic/editor-content-preserve', () => ({
+	saveEditorContent: vi.fn((content: string) => {
+		if (content.trim()) {
+			mocks.editorPreservedContent = {
+				content,
+				timestamp: Date.now(),
+			}
+		}
+		return Promise.resolve()
+	}),
+	restoreEditorContent: vi.fn((textarea: HTMLTextAreaElement) => {
+		if (mocks.editorPreservedContent?.content && !textarea.value.trim()) {
+			textarea.value = mocks.editorPreservedContent.content
+			textarea.dispatchEvent(new Event('input', { bubbles: true }))
+			textarea.dispatchEvent(new Event('change', { bubbles: true }))
+		}
+		return Promise.resolve()
+	}),
+}))
+
+import { editorPreserveStorage } from '@/features/editor/storage'
+import {
+	attachMobileLitePasteHandlers,
+	getMobileLiteEditorTextarea,
+	getMobileLitePasteReplacement,
+	handleMobileLiteTextareaBeforeInput,
+	handleMobileLiteTextareaPaste,
+	initMobileLiteEditorEnhancements,
+	injectMobileLiteUploadControl,
+	injectMobileLiteUploadControls,
+	insertMobileLiteImageTag,
+	teardownMobileLiteEditorEnhancements,
+	uploadMobileLiteImage,
+} from './editor-lite'
 
 function renderEditor(value = ''): HTMLTextAreaElement {
 	document.body.innerHTML = `<form id="postform"><textarea id="cuerpo" name="cuerpo">${value}</textarea></form>`
@@ -162,6 +218,8 @@ describe('Mobile Lite editor enhancements', () => {
 		mocks.getPlatformKind.mockReturnValue('firefox-android')
 		mocks.isFeatureEnabled.mockReturnValue(true)
 		mocks.uploadImage.mockReset()
+		storageValues.clear()
+		mocks.editorPreservedContent = null
 		await editorPreserveStorage.removeValue()
 	})
 
@@ -257,7 +315,7 @@ describe('Mobile Lite editor enhancements', () => {
 		expect(control).toBeTruthy()
 		expect(control?.parentElement).toBe(favoriteRow)
 		expect(favoriteRow?.style.display).toBe('')
-		expect(control?.style.cssFloat).toBe('right')
+		expect(control?.style.cssFloat).toBe('none')
 	})
 
 	it('places the image upload control in the normal mobile editor metadata row before the extended editor link', () => {
@@ -271,8 +329,8 @@ describe('Mobile Lite editor enhancements', () => {
 		expect(control?.parentElement).toBe(editorMeta)
 		expect(control?.previousElementSibling).toBe(extendedEditorLink)
 		expect(editorMeta?.style.display).toBe('')
-		expect(control?.style.cssFloat).toBe('right')
-		expect(control?.style.marginRight).toBe('12px')
+		expect(control?.style.cssFloat).toBe('none')
+		expect(control?.style.marginRight).toBe('8px')
 	})
 
 	it('preserves mobile editor content before opening the extended editor link', async () => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import Search from 'lucide-react/dist/esm/icons/search'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
@@ -32,6 +32,10 @@ const USERNAME_MIN_LENGTH = 3
 const USERNAME_MAX_LENGTH = 13
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/
 const USERNAME_VALIDATION_ID = 'mvp-mobile-lite-username-validation'
+const DEFAULT_VIEWPORT_BOUNDS = {
+	height: 0,
+	offsetTop: 0,
+}
 
 interface FilteredUser {
 	username: string
@@ -56,6 +60,37 @@ function getFilteredUsers(data: UserCustomizationsData): FilteredUser[] {
 
 function normalizeUsername(username: string): string {
 	return username.trim()
+}
+
+function getVisualViewportBounds() {
+	const viewport = window.visualViewport
+	return {
+		height: viewport?.height ?? window.innerHeight,
+		offsetTop: viewport?.offsetTop ?? 0,
+	}
+}
+
+function useVisualViewportBounds(enabled: boolean) {
+	const [bounds, setBounds] = useState(DEFAULT_VIEWPORT_BOUNDS)
+
+	useEffect(() => {
+		if (!enabled) return
+
+		const updateBounds = () => setBounds(getVisualViewportBounds())
+		updateBounds()
+
+		window.addEventListener('resize', updateBounds)
+		window.visualViewport?.addEventListener('resize', updateBounds)
+		window.visualViewport?.addEventListener('scroll', updateBounds)
+
+		return () => {
+			window.removeEventListener('resize', updateBounds)
+			window.visualViewport?.removeEventListener('resize', updateBounds)
+			window.visualViewport?.removeEventListener('scroll', updateBounds)
+		}
+	}, [enabled])
+
+	return bounds
 }
 
 function getUsernameValidationMessage(username: string): string | null {
@@ -88,6 +123,7 @@ export function MobileLitePanel() {
 	const [savingUser, setSavingUser] = useState<string | null>(null)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 	const [statusMessage, setStatusMessage] = useState<string | null>(null)
+	const viewportBounds = useVisualViewportBounds(open)
 
 	useEffect(() => {
 		let mounted = true
@@ -202,13 +238,22 @@ export function MobileLitePanel() {
 
 	if (!open) return null
 
+	const overlayStyle: CSSProperties | undefined = viewportBounds.height
+		? {
+				height: `${viewportBounds.height}px`,
+				top: `${viewportBounds.offsetTop}px`,
+			}
+		: undefined
+
 	return (
-		<div className="fixed inset-0 z-[99999] bg-black/60">
+		<div className="fixed inset-x-0 top-0 z-[99999] h-[100dvh] overflow-hidden bg-black/60" style={overlayStyle}>
 			<button type="button" className="absolute inset-0 h-full w-full cursor-default" aria-label="Cerrar panel MVP" onClick={() => setOpen(false)} />
 
 			<section
-				className={`absolute inset-x-3 overflow-hidden border border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl ${
-					hasAnyFilteredUsers ? 'bottom-0 top-[14dvh] flex flex-col rounded-t-lg' : 'top-[24dvh] rounded-lg'
+				className={`absolute left-[max(12px,env(safe-area-inset-left))] right-[max(12px,env(safe-area-inset-right))] flex max-h-[calc(100%_-_max(12px,env(safe-area-inset-top))_-_max(12px,env(safe-area-inset-bottom)))] flex-col overflow-hidden border border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl ${
+					hasAnyFilteredUsers
+						? 'bottom-[max(0px,env(safe-area-inset-bottom))] top-[max(56px,calc(env(safe-area-inset-top)_+_12px))] rounded-t-lg'
+						: 'bottom-[max(12px,env(safe-area-inset-bottom))] top-auto rounded-lg'
 				}`}
 			>
 				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-4 py-3">
@@ -229,7 +274,7 @@ export function MobileLitePanel() {
 					</button>
 				</header>
 
-				<div className={`${hasAnyFilteredUsers ? 'flex-1 overflow-y-auto' : ''} bg-[#384149] px-4 py-4`}>
+				<div className="min-h-0 flex-1 overflow-y-auto bg-[#384149] px-4 py-4 pb-[max(16px,calc(env(safe-area-inset-bottom)_+_16px))]">
 					{errorMessage && (
 						<div role="alert" className="mb-3 rounded-md border border-[#8f3f3f] bg-[#4a2528] px-3 py-2 text-sm text-[#ffd7d7]">
 							{errorMessage}
@@ -274,14 +319,14 @@ export function MobileLitePanel() {
 									<button
 										key={option.id}
 										type="button"
-										className={`inline-flex h-9 min-w-0 items-center justify-center rounded-md border px-2 text-xs font-semibold ${
+										className={`inline-flex h-9 min-w-0 items-center justify-center rounded-md border px-1.5 text-xs font-semibold ${
 											isActive ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#56616b] bg-[#303840] text-[#d8dde2]'
 										}`}
 										aria-pressed={isActive}
 										onClick={() => setActiveFilter(option.id)}
 									>
 										<span className="truncate">{option.label}</span>
-										<span className="ml-1 rounded bg-[#252b31] px-1.5 py-0.5 text-[11px] leading-none text-[#eef1f3]">
+										<span className="ml-1 shrink-0 rounded bg-[#252b31] px-1.5 py-0.5 text-[11px] leading-none text-[#eef1f3]">
 											({option.count})
 										</span>
 									</button>
@@ -296,10 +341,10 @@ export function MobileLitePanel() {
 								<UserX className="h-4 w-4 text-[#b7bec6]" aria-hidden="true" />
 								<span className="min-w-0 truncate">{exactQueryDisplayName}</span>
 							</div>
-							<div className="mt-3 grid grid-cols-2 gap-2">
+							<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-2">
 								<button
 									type="button"
-									className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-3 text-sm font-semibold"
+									className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
 									disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
 									onClick={() => addQueryFilter('mute')}
 								>
@@ -308,7 +353,7 @@ export function MobileLitePanel() {
 								</button>
 								<button
 									type="button"
-									className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-3 text-sm font-semibold"
+									className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
 									disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
 									onClick={() => addQueryFilter('hide')}
 								>
@@ -344,10 +389,10 @@ export function MobileLitePanel() {
 											</div>
 										</div>
 
-										<div className="mt-3 grid grid-cols-2 gap-2">
+										<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-2">
 											<button
 												type="button"
-												className={`inline-flex h-10 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
+												className={`inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
 													ignoreType === 'mute' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#626b74] bg-[#545d66]'
 												}`}
 												disabled={isSaving}
@@ -358,7 +403,7 @@ export function MobileLitePanel() {
 											</button>
 											<button
 												type="button"
-												className={`inline-flex h-10 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
+												className={`inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
 													ignoreType === 'hide' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#626b74] bg-[#545d66]'
 												}`}
 												disabled={isSaving}
@@ -369,7 +414,7 @@ export function MobileLitePanel() {
 											</button>
 											<button
 												type="button"
-												className="col-span-2 inline-flex h-10 items-center justify-center gap-1 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
+												className="col-span-full inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
 												disabled={isSaving}
 												onClick={() => updateFilter(user.username, null)}
 											>

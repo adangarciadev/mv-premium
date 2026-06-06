@@ -88,7 +88,7 @@ describe('Mobile Lite registry', () => {
 
 		expect(mocks.initEditor).toHaveBeenCalledOnce()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
-		expect(mocks.initPanel).not.toHaveBeenCalled()
+		expect(mocks.initPanel).toHaveBeenCalledOnce()
 	})
 
 	it('does not initialize modules outside allowed Firefox Android Mobile Lite runtime', () => {

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 	getPlatformKind: vi.fn(() => 'firefox-android'),
 	isFeatureEnabled: vi.fn(() => true),
 	getUserCustomizations: vi.fn(() =>
-		Promise.resolve({
+		Promise.resolve<UserCustomizationsData>({
 			users: {},
 			globalSettings: {
 				adminColor: '',
@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 			},
 		})
 	),
-	saveUserCustomizations: vi.fn(() => Promise.resolve()),
+	saveUserCustomizations: vi.fn((_data: UserCustomizationsData) => Promise.resolve()),
 	watchUserCustomizations: vi.fn(() => vi.fn()),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
@@ -205,6 +205,8 @@ describe('Mobile Lite panel injection', () => {
 		expect(menu?.style.width).toBe('72px')
 		expect(menu?.style.minWidth).toBe('72px')
 		expect(menu?.style.maxWidth).toBe('72px')
+		expect(newThreadLink?.style.fontSize).toBe('0px')
+		expect(newThreadLink?.querySelector<HTMLElement>('i')?.style.fontSize).toBe('18px')
 		expect(newThreadLink?.querySelector<HTMLElement>('.title')?.style.display).toBe('none')
 
 		const subforumLinks = Array.from(subforumList?.querySelectorAll<HTMLAnchorElement>('a') ?? [])
@@ -230,7 +232,31 @@ describe('Mobile Lite panel injection', () => {
 		expect(stableNewThreadLink?.getAttribute('aria-expanded')).toBe('false')
 		expect(stableSubforumList?.style.display).toBe('none')
 		expect(menu?.style.width).toBe('')
+		expect(stableNewThreadLink?.style.fontSize).toBe('')
+		expect(stableNewThreadLink?.querySelector<HTMLElement>('i')?.style.fontSize).toBe('')
 		expect(stableNewThreadLink?.querySelector<HTMLElement>('.title')?.style.display).toBe('')
+	})
+
+	it('hides text-only menu labels while the new thread list compacts the side menu', async () => {
+		document.body.innerHTML = `
+			<ul id="usermenu">
+				<li><a href="/notificaciones"><i class="fa fa-exclamation-circle"></i><span class="title">Notificaciones</span></a></li>
+				<li class="logout dd"><a href="#" class="off dropdown-toggle">Más</a></li>
+				<li><a href="/configuracion"><i class="fa fa-cog"></i><span class="title">Configuración</span></a></li>
+			</ul>
+		`
+
+		initMobileLitePanel()
+		const newThreadLink = await waitFor(() => document.querySelector<HTMLAnchorElement>('[data-mvp-mobile-lite-new-thread-menu-item] > a'))
+		const textOnlyLink = document.querySelector<HTMLAnchorElement>('#usermenu .logout > a')
+
+		newThreadLink?.click()
+
+		expect(textOnlyLink?.style.fontSize).toBe('0px')
+
+		newThreadLink?.click()
+
+		expect(textOnlyLink?.style.fontSize).toBe('')
 	})
 
 	it('opens the panel from the injected menu entry', async () => {
@@ -341,7 +367,7 @@ describe('Mobile Lite panel injection', () => {
 		const user = userEvent.setup()
 		mocks.getUserCustomizations.mockResolvedValue(
 			createCustomizationData({
-				FraG: { adminColor: '#f0a020' },
+				FraG: { usernameColour: '#f0a020' },
 			})
 		)
 
