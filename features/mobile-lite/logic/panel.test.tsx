@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { UserCustomization, UserCustomizationsData } from '@/features/user-customizations/storage'
 import { MobileLitePanel, MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mobile-lite-panel'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 
@@ -63,12 +64,42 @@ vi.mock('@/components/shadow-wrapper', () => ({
 	ShadowWrapper: ({ children }: { children: ReactNode }) => <>{children}</>,
 }))
 
+function createCustomizationData(users: Record<string, UserCustomization>): UserCustomizationsData {
+	return {
+		users,
+		globalSettings: {
+			adminColor: '',
+			subadminColor: '',
+			modColor: '',
+			userColor: '',
+		},
+	}
+}
+
+function cloneCustomizationData(data: UserCustomizationsData): UserCustomizationsData {
+	return createCustomizationData(
+		Object.fromEntries(Object.entries(data.users).map(([username, customization]) => [username, { ...customization }]))
+	)
+}
+
+async function openPanel() {
+	await act(async () => {
+		window.dispatchEvent(new CustomEvent(MOBILE_LITE_PANEL_OPEN_EVENT))
+	})
+}
+
+function filterButtonName(label: string, count: number): RegExp {
+	return new RegExp(`^${label}\\s*\\(\\s*${count}\\s*\\)$`)
+}
+
 describe('Mobile Lite panel injection', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mocks.getPlatformKind.mockReturnValue('firefox-android')
 		mocks.isFeatureEnabled.mockReturnValue(true)
 		mocks.isFeatureMounted.mockReturnValue(false)
+		mocks.getUserCustomizations.mockResolvedValue(createCustomizationData({}))
+		mocks.saveUserCustomizations.mockResolvedValue(undefined)
 		document.body.innerHTML = `
 			<ul id="usermenu">
 				<li><a href="/notificaciones">Notificaciones</a></li>
@@ -172,7 +203,7 @@ describe('Mobile Lite panel injection', () => {
 		const user = userEvent.setup()
 
 		render(<MobileLitePanel />)
-		window.dispatchEvent(new CustomEvent(MOBILE_LITE_PANEL_OPEN_EVENT))
+		await openPanel()
 
 		const searchInput = await screen.findByPlaceholderText('Buscar o escribir nick exacto')
 		await user.type(searchInput, 'BrokenUser')
@@ -184,23 +215,123 @@ describe('Mobile Lite panel injection', () => {
 	})
 
 	it('labels active filtered-user buttons as applied states', async () => {
-		mocks.getUserCustomizations.mockResolvedValue({
-			users: {
+		mocks.getUserCustomizations.mockResolvedValue(
+			createCustomizationData({
 				MutedUser: { isIgnored: true, ignoreType: 'mute' },
 				HiddenUser: { isIgnored: true, ignoreType: 'hide' },
-			},
-			globalSettings: {
-				adminColor: '',
-				subadminColor: '',
-				modColor: '',
-				userColor: '',
-			},
-		})
+			})
+		)
 
 		render(<MobileLitePanel />)
-		window.dispatchEvent(new CustomEvent(MOBILE_LITE_PANEL_OPEN_EVENT))
+		await openPanel()
 
 		expect(await screen.findByRole('button', { name: 'Silenciado' })).toBeInTheDocument()
 		expect(await screen.findByRole('button', { name: 'Ocultado' })).toBeInTheDocument()
+	})
+
+	it('shows user filter counters for all, muted and hidden users', async () => {
+		mocks.getUserCustomizations.mockResolvedValue(
+			createCustomizationData({
+				MutedUser: { isIgnored: true, ignoreType: 'mute' },
+				HiddenUser: { isIgnored: true, ignoreType: 'hide' },
+				LegacyHiddenUser: { isIgnored: true },
+				VisibleUser: { isIgnored: false },
+			})
+		)
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		expect(await screen.findByRole('button', { name: filterButtonName('Todos', 3) })).toBeInTheDocument()
+		expect(screen.getByRole('button', { name: filterButtonName('Silenciados', 1) })).toBeInTheDocument()
+		expect(screen.getByRole('button', { name: filterButtonName('Ocultos', 2) })).toBeInTheDocument()
+	})
+
+	it('filters the list to muted users', async () => {
+		const user = userEvent.setup()
+		mocks.getUserCustomizations.mockResolvedValue(
+			createCustomizationData({
+				MutedUser: { isIgnored: true, ignoreType: 'mute' },
+				HiddenUser: { isIgnored: true, ignoreType: 'hide' },
+				LegacyHiddenUser: { isIgnored: true },
+			})
+		)
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await user.click(await screen.findByRole('button', { name: filterButtonName('Silenciados', 1) }))
+
+		expect(screen.getByText('MutedUser')).toBeInTheDocument()
+		expect(screen.queryByText('HiddenUser')).not.toBeInTheDocument()
+		expect(screen.queryByText('LegacyHiddenUser')).not.toBeInTheDocument()
+	})
+
+	it('filters the list to hidden users including legacy entries without ignoreType', async () => {
+		const user = userEvent.setup()
+		mocks.getUserCustomizations.mockResolvedValue(
+			createCustomizationData({
+				MutedUser: { isIgnored: true, ignoreType: 'mute' },
+				HiddenUser: { isIgnored: true, ignoreType: 'hide' },
+				LegacyHiddenUser: { isIgnored: true },
+			})
+		)
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await user.click(await screen.findByRole('button', { name: filterButtonName('Ocultos', 2) }))
+
+		expect(screen.queryByText('MutedUser')).not.toBeInTheDocument()
+		expect(screen.getByText('HiddenUser')).toBeInTheDocument()
+		expect(screen.getByText('LegacyHiddenUser')).toBeInTheDocument()
+	})
+
+	it('applies text search inside the active user filter', async () => {
+		const user = userEvent.setup()
+		mocks.getUserCustomizations.mockResolvedValue(
+			createCustomizationData({
+				MutedUser: { isIgnored: true, ignoreType: 'mute' },
+				HiddenUser: { isIgnored: true, ignoreType: 'hide' },
+				LegacyHiddenUser: { isIgnored: true },
+			})
+		)
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await user.click(await screen.findByRole('button', { name: filterButtonName('Ocultos', 2) }))
+		await user.type(screen.getByPlaceholderText('Buscar o escribir nick exacto'), 'legacy')
+
+		expect(screen.getByText('LegacyHiddenUser')).toBeInTheDocument()
+		expect(screen.queryByText('HiddenUser')).not.toBeInTheDocument()
+		expect(screen.queryByText('MutedUser')).not.toBeInTheDocument()
+		expect(screen.getByRole('button', { name: filterButtonName('Todos', 3) })).toBeInTheDocument()
+		expect(screen.getByRole('button', { name: filterButtonName('Ocultos', 2) })).toBeInTheDocument()
+	})
+
+	it('updates counters and visible results when changing a muted user to hidden', async () => {
+		const user = userEvent.setup()
+		let storedData = createCustomizationData({
+			MutedUser: { isIgnored: true, ignoreType: 'mute' },
+		})
+		mocks.getUserCustomizations.mockImplementation(() => Promise.resolve(cloneCustomizationData(storedData)))
+		mocks.saveUserCustomizations.mockImplementation((nextData: UserCustomizationsData) => {
+			storedData = nextData
+			return Promise.resolve()
+		})
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await user.click(await screen.findByRole('button', { name: filterButtonName('Silenciados', 1) }))
+		await user.click(screen.getByRole('button', { name: 'Ocultar' }))
+
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: filterButtonName('Silenciados', 0) })).toBeInTheDocument()
+		})
+		expect(screen.getByRole('button', { name: filterButtonName('Ocultos', 1) })).toBeInTheDocument()
+		expect(screen.queryByText('MutedUser')).not.toBeInTheDocument()
+		expect(screen.getByText('No hay resultados para este filtro.')).toBeInTheDocument()
 	})
 })

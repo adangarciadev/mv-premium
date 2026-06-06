@@ -34,6 +34,8 @@ interface FilteredUser {
 	customization: UserCustomization
 }
 
+type ActiveFilter = 'all' | MobileLiteIgnoreType
+
 function getEmptyData(): UserCustomizationsData {
 	return {
 		users: {},
@@ -70,6 +72,7 @@ export function MobileLitePanel() {
 	const [open, setOpen] = useState(false)
 	const [data, setData] = useState<UserCustomizationsData>(getEmptyData)
 	const [query, setQuery] = useState('')
+	const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all')
 	const [savingUser, setSavingUser] = useState<string | null>(null)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -125,19 +128,34 @@ export function MobileLitePanel() {
 		}
 	}, [open])
 
+	const allFilteredUsers = useMemo(() => getFilteredUsers(data), [data])
+	const mutedUsers = useMemo(
+		() => allFilteredUsers.filter(user => getIgnoreTypeFromCustomization(user.customization) === 'mute'),
+		[allFilteredUsers]
+	)
+	const hiddenUsers = useMemo(
+		() => allFilteredUsers.filter(user => getIgnoreTypeFromCustomization(user.customization) === 'hide'),
+		[allFilteredUsers]
+	)
+	const usersForActiveFilter = activeFilter === 'mute' ? mutedUsers : activeFilter === 'hide' ? hiddenUsers : allFilteredUsers
 	const filteredUsers = useMemo(() => {
 		const normalizedQuery = query.trim().toLowerCase()
-		const users = getFilteredUsers(data)
-		if (!normalizedQuery) return users
+		if (!normalizedQuery) return usersForActiveFilter
 
-		return users.filter(user => user.username.toLowerCase().includes(normalizedQuery))
-	}, [data, query])
+		return usersForActiveFilter.filter(user => user.username.toLowerCase().includes(normalizedQuery))
+	}, [query, usersForActiveFilter])
+	const filterOptions = [
+		{ id: 'all', label: 'Todos', count: allFilteredUsers.length },
+		{ id: 'mute', label: 'Silenciados', count: mutedUsers.length },
+		{ id: 'hide', label: 'Ocultos', count: hiddenUsers.length },
+	] satisfies Array<{ id: ActiveFilter; label: string; count: number }>
 
 	const exactQueryUsername = normalizeUsername(query)
 	const exactQueryCustomization = exactQueryUsername
 		? getCustomizationEntryForUser(data, exactQueryUsername)?.customization
 		: undefined
 	const canAddQueryUser = Boolean(exactQueryUsername && !exactQueryCustomization?.isIgnored)
+	const hasAnyFilteredUsers = allFilteredUsers.length > 0
 	const hasFilteredUsers = filteredUsers.length > 0
 
 	const updateFilter = async (username: string, ignoreType: MobileLiteIgnoreType | null) => {
@@ -164,7 +182,7 @@ export function MobileLitePanel() {
 
 			<section
 				className={`absolute inset-x-3 overflow-hidden border border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl ${
-					hasFilteredUsers ? 'bottom-0 top-[14dvh] flex flex-col rounded-t-lg' : 'top-[24dvh] rounded-lg'
+					hasAnyFilteredUsers ? 'bottom-0 top-[14dvh] flex flex-col rounded-t-lg' : 'top-[24dvh] rounded-lg'
 				}`}
 			>
 				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-4 py-3">
@@ -185,7 +203,7 @@ export function MobileLitePanel() {
 					</button>
 				</header>
 
-				<div className={`${hasFilteredUsers ? 'flex-1 overflow-y-auto' : ''} bg-[#384149] px-4 py-4`}>
+				<div className={`${hasAnyFilteredUsers ? 'flex-1 overflow-y-auto' : ''} bg-[#384149] px-4 py-4`}>
 					{errorMessage && (
 						<div role="alert" className="mb-3 rounded-md border border-[#8f3f3f] bg-[#4a2528] px-3 py-2 text-sm text-[#ffd7d7]">
 							{errorMessage}
@@ -202,6 +220,31 @@ export function MobileLitePanel() {
 							className="h-11 w-full rounded-md border border-[#505963] bg-[#262d34] pl-10 pr-3 text-base text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00]"
 						/>
 					</label>
+
+					{hasAnyFilteredUsers && (
+						<div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Filtrar usuarios">
+							{filterOptions.map(option => {
+								const isActive = activeFilter === option.id
+
+								return (
+									<button
+										key={option.id}
+										type="button"
+										className={`inline-flex h-9 min-w-0 items-center justify-center rounded-md border px-2 text-xs font-semibold ${
+											isActive ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#56616b] bg-[#303840] text-[#d8dde2]'
+										}`}
+										aria-pressed={isActive}
+										onClick={() => setActiveFilter(option.id)}
+									>
+										<span className="truncate">{option.label}</span>
+										<span className="ml-1 rounded bg-[#252b31] px-1.5 py-0.5 text-[11px] leading-none text-[#eef1f3]">
+											({option.count})
+										</span>
+									</button>
+								)
+							})}
+						</div>
+					)}
 
 					{canAddQueryUser && (
 						<div className="mt-3 rounded-md border border-dashed border-[#56616b] bg-[#303840] p-3">
@@ -235,7 +278,7 @@ export function MobileLitePanel() {
 					<div className="mt-4 space-y-2">
 						{filteredUsers.length === 0 ? (
 							<div className="rounded-md border border-[#4b545d] bg-[#303840] px-4 py-8 text-center text-sm text-[#b7bec6]">
-								No hay usuarios filtrados.
+								{hasAnyFilteredUsers ? 'No hay resultados para este filtro.' : 'No hay usuarios filtrados.'}
 							</div>
 						) : (
 							filteredUsers.map(user => {
