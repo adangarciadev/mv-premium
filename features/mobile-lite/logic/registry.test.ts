@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
 	teardownEditor: vi.fn(),
 	initIgnoredUsers: vi.fn(),
 	teardownIgnoredUsers: vi.fn(),
+	initIgnoredUsersImport: vi.fn(),
+	teardownIgnoredUsersImport: vi.fn(),
 	initPanel: vi.fn(),
 	teardownPanel: vi.fn(),
 }))
@@ -33,6 +35,12 @@ vi.mock('./ignored-users', () => ({
 	teardownMobileLiteIgnoredUsers: mocks.teardownIgnoredUsers,
 }))
 
+vi.mock('./ignored-users-import', () => ({
+	hasIgnoredUsersImportParam: vi.fn(() => false),
+	initMobileLiteIgnoredUsersImport: mocks.initIgnoredUsersImport,
+	teardownMobileLiteIgnoredUsersImport: mocks.teardownIgnoredUsersImport,
+}))
+
 vi.mock('./panel', () => ({
 	initMobileLitePanel: mocks.initPanel,
 	teardownMobileLitePanel: mocks.teardownPanel,
@@ -44,6 +52,7 @@ function context(overrides: Partial<MobileLiteContext> = {}): MobileLiteContext 
 		hasPosts: false,
 		hasUserCard: false,
 		hasUserMenu: false,
+		hasIgnoredUsersImport: false,
 		isForumRelated: false,
 		pathname: '/foro',
 		...overrides,
@@ -87,8 +96,22 @@ describe('Mobile Lite registry', () => {
 		)
 
 		expect(mocks.initEditor).toHaveBeenCalledOnce()
+		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
 		expect(mocks.initPanel).toHaveBeenCalledOnce()
+	})
+
+	it('initializes ignored users import only when the import param is present', () => {
+		initMobileLite(
+			context({
+				hasIgnoredUsersImport: true,
+			})
+		)
+
+		expect(mocks.initIgnoredUsersImport).toHaveBeenCalledOnce()
+		expect(mocks.initEditor).not.toHaveBeenCalled()
+		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
+		expect(mocks.initPanel).not.toHaveBeenCalled()
 	})
 
 	it('does not initialize modules outside allowed Firefox Android Mobile Lite runtime', () => {
@@ -103,6 +126,7 @@ describe('Mobile Lite registry', () => {
 		)
 
 		expect(mocks.initEditor).not.toHaveBeenCalled()
+		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
 		expect(mocks.initPanel).not.toHaveBeenCalled()
 	})
@@ -110,6 +134,7 @@ describe('Mobile Lite registry', () => {
 	it('tears down all registered modules', () => {
 		teardownMobileLite()
 
+		expect(mocks.teardownIgnoredUsersImport).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUsers).toHaveBeenCalledOnce()
 		expect(mocks.teardownEditor).toHaveBeenCalledOnce()
 		expect(mocks.teardownPanel).toHaveBeenCalledOnce()

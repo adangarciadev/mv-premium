@@ -253,7 +253,7 @@ export function MobileLitePanel() {
 				className={`absolute left-[max(12px,env(safe-area-inset-left))] right-[max(12px,env(safe-area-inset-right))] flex max-h-[calc(100%_-_max(12px,env(safe-area-inset-top))_-_max(12px,env(safe-area-inset-bottom)))] flex-col overflow-hidden border border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl ${
 					hasAnyFilteredUsers
 						? 'bottom-[max(0px,env(safe-area-inset-bottom))] top-[max(56px,calc(env(safe-area-inset-top)_+_12px))] rounded-t-lg'
-						: 'bottom-[max(12px,env(safe-area-inset-bottom))] top-auto rounded-lg'
+						: 'bottom-auto top-[max(132px,calc(env(safe-area-inset-top)_+_18dvh))] rounded-lg'
 				}`}
 			>
 				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-4 py-3">

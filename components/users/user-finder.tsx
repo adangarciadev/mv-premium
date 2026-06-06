@@ -27,9 +27,11 @@ import Search from 'lucide-react/dist/esm/icons/search'
 import UserX from 'lucide-react/dist/esm/icons/user-x'
 import Settings2 from 'lucide-react/dist/esm/icons/settings-2'
 import User from 'lucide-react/dist/esm/icons/user'
+import QrCode from 'lucide-react/dist/esm/icons/qr-code'
 
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/lib/lazy-toast'
 import { browser } from 'wxt/browser'
@@ -39,6 +41,7 @@ import { MV_ROLE_COLORS } from '@/constants'
 import { UserCard, CustomizedUserCard } from './user-cards'
 import { EditUserModal, EditCustomizedUserModal } from './edit-user-modal'
 import { GlobalSettingsTab } from './global-settings-tab'
+import { IgnoredUsersMobileExportDialog } from './ignored-users-mobile-export-dialog'
 
 export type { UserCustomization, GlobalRoleSettings }
 
@@ -77,6 +80,7 @@ export function UserFinder({ embedded = false }: UserFinderProps) {
 	// Modal state
 	const [editingUser, setEditingUser] = useState<SearchedUser | null>(null)
 	const [editingCustomizedUser, setEditingCustomizedUser] = useState<string | null>(null)
+	const [exportIgnoredOpen, setExportIgnoredOpen] = useState(false)
 
 	// Load initial data from storage
 	useEffect(() => {
@@ -172,6 +176,7 @@ export function UserFinder({ embedded = false }: UserFinderProps) {
 	}, [])
 
 	const customizedUserCount = Object.keys(userCustomizations).length
+	const ignoredUserCount = Object.values(userCustomizations).filter(customization => customization.isIgnored).length
 
 	return (
 		<div className={embedded ? 'w-full space-y-6' : 'w-full max-w-5xl mx-auto space-y-6 pb-20'}>
@@ -257,11 +262,22 @@ export function UserFinder({ embedded = false }: UserFinderProps) {
 
 				{/* Tab 2: Personalizados */}
 				<TabsContent value="customized" className="space-y-6">
-					<div className="space-y-2">
-						<h3 className="text-lg font-semibold">Usuarios Personalizados</h3>
-						<p className="text-sm text-muted-foreground">
-							Usuarios a los que les has aplicado personalizaciones. Haz hover para editar o eliminar.
-						</p>
+					<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+						<div className="space-y-2">
+							<h3 className="text-lg font-semibold">Usuarios Personalizados</h3>
+							<p className="text-sm text-muted-foreground">
+								Usuarios a los que les has aplicado personalizaciones. Haz hover para editar o eliminar.
+							</p>
+						</div>
+						<Button type="button" variant="outline" className="shrink-0" onClick={() => setExportIgnoredOpen(true)}>
+							<QrCode className="h-4 w-4" />
+							Exportar ignorados a móvil
+							{ignoredUserCount > 0 && (
+								<Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
+									{ignoredUserCount}
+								</Badge>
+							)}
+						</Button>
 					</div>
 
 					{customizedUserCount > 0 ? (
@@ -310,6 +326,12 @@ export function UserFinder({ embedded = false }: UserFinderProps) {
 					onSave={handleSaveUser}
 				/>
 			)}
+
+			<IgnoredUsersMobileExportDialog
+				open={exportIgnoredOpen}
+				onOpenChange={setExportIgnoredOpen}
+				users={userCustomizations}
+			/>
 		</div>
 	)
 }

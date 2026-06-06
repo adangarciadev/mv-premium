@@ -2,6 +2,7 @@ import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { getPlatformKind } from '@/lib/platform'
 import { initMobileLiteEditorEnhancements, teardownMobileLiteEditorEnhancements } from './editor-lite'
 import { initMobileLiteIgnoredUsers, teardownMobileLiteIgnoredUsers } from './ignored-users'
+import { hasIgnoredUsersImportParam, initMobileLiteIgnoredUsersImport, teardownMobileLiteIgnoredUsersImport } from './ignored-users-import'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 
 export interface MobileLiteContext {
@@ -9,6 +10,7 @@ export interface MobileLiteContext {
 	hasPosts: boolean
 	hasUserCard: boolean
 	hasUserMenu: boolean
+	hasIgnoredUsersImport: boolean
 	isForumRelated: boolean
 	pathname: string
 }
@@ -26,6 +28,12 @@ const USER_CARD_SELECTOR = '#user-card, .f-card'
 const USER_MENU_SELECTOR = '#usermenu'
 
 const MOBILE_LITE_MODULES: MobileLiteModule[] = [
+	{
+		id: 'ignored-users-import',
+		init: initMobileLiteIgnoredUsersImport,
+		teardown: teardownMobileLiteIgnoredUsersImport,
+		shouldRun: context => context.hasIgnoredUsersImport,
+	},
 	{
 		id: 'ignored-users',
 		init: initMobileLiteIgnoredUsers,
@@ -58,6 +66,7 @@ export function getMobileLiteContext(root: ParentNode = document): MobileLiteCon
 		hasPosts: Boolean(root.querySelector(POST_SELECTOR)),
 		hasUserCard: Boolean(root.querySelector(USER_CARD_SELECTOR)),
 		hasUserMenu: Boolean(root.querySelector(USER_MENU_SELECTOR)),
+		hasIgnoredUsersImport: hasIgnoredUsersImportParam(window.location.search),
 		isForumRelated: pathname === '/' || pathname.startsWith('/foro'),
 		pathname,
 	}
