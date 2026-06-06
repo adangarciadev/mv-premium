@@ -28,6 +28,10 @@ const EMPTY_GLOBAL_SETTINGS = {
 	modColor: '',
 	userColor: '',
 }
+const USERNAME_MIN_LENGTH = 3
+const USERNAME_MAX_LENGTH = 13
+const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/
+const USERNAME_VALIDATION_ID = 'mvp-mobile-lite-username-validation'
 
 interface FilteredUser {
 	username: string
@@ -54,6 +58,14 @@ function normalizeUsername(username: string): string {
 	return username.trim()
 }
 
+function getUsernameValidationMessage(username: string): string | null {
+	if (!username) return null
+	if (username.length < USERNAME_MIN_LENGTH) return 'Escribe al menos 3 caracteres para añadir un usuario.'
+	if (username.length > USERNAME_MAX_LENGTH) return 'El nick no puede tener más de 13 caracteres.'
+	if (!USERNAME_PATTERN.test(username)) return 'Usa solo letras, números, guiones y guiones bajos.'
+	return null
+}
+
 async function updateUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<UserCustomizationsData> {
 	const data = await getUserCustomizations()
 	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
@@ -75,6 +87,7 @@ export function MobileLitePanel() {
 	const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all')
 	const [savingUser, setSavingUser] = useState<string | null>(null)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
+	const [statusMessage, setStatusMessage] = useState<string | null>(null)
 
 	useEffect(() => {
 		let mounted = true
@@ -151,27 +164,40 @@ export function MobileLitePanel() {
 	] satisfies Array<{ id: ActiveFilter; label: string; count: number }>
 
 	const exactQueryUsername = normalizeUsername(query)
-	const exactQueryCustomization = exactQueryUsername
-		? getCustomizationEntryForUser(data, exactQueryUsername)?.customization
-		: undefined
-	const canAddQueryUser = Boolean(exactQueryUsername && !exactQueryCustomization?.isIgnored)
+	const exactQueryEntry = exactQueryUsername ? getCustomizationEntryForUser(data, exactQueryUsername) : null
+	const exactQueryCustomization = exactQueryEntry?.customization
+	const exactQueryDisplayName = exactQueryEntry?.storageKey ?? exactQueryUsername
+	const usernameValidationMessage = getUsernameValidationMessage(exactQueryUsername)
+	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
 	const hasFilteredUsers = filteredUsers.length > 0
 
 	const updateFilter = async (username: string, ignoreType: MobileLiteIgnoreType | null) => {
 		const normalizedUsername = normalizeUsername(username)
-		if (!normalizedUsername) return
+		if (!normalizedUsername) return false
 
 		setSavingUser(normalizedUsername)
 		setErrorMessage(null)
+		setStatusMessage(null)
 		try {
 			const nextData = await updateUserIgnore(normalizedUsername, ignoreType)
 			setData(nextData)
+			return true
 		} catch {
 			setErrorMessage('No se pudo guardar el filtro. Inténtalo de nuevo.')
+			return false
 		} finally {
 			setSavingUser(null)
 		}
+	}
+
+	const addQueryFilter = async (ignoreType: MobileLiteIgnoreType) => {
+		const username = exactQueryUsername
+		const saved = await updateFilter(username, ignoreType)
+		if (!saved) return
+
+		setQuery('')
+		setStatusMessage(ignoreType === 'mute' ? `${exactQueryDisplayName} silenciado.` : `${exactQueryDisplayName} ocultado.`)
 	}
 
 	if (!open) return null
@@ -215,11 +241,29 @@ export function MobileLitePanel() {
 						<input
 							type="search"
 							value={query}
-							onChange={event => setQuery(event.target.value)}
-							placeholder="Buscar o escribir nick exacto"
+							autoCapitalize="none"
+							spellCheck={false}
+							aria-describedby={usernameValidationMessage ? USERNAME_VALIDATION_ID : undefined}
+							onChange={event => {
+								setQuery(event.target.value)
+								setStatusMessage(null)
+							}}
+							placeholder="Buscar o añadir nick (3-13)"
 							className="h-11 w-full rounded-md border border-[#505963] bg-[#262d34] pl-10 pr-3 text-base text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00]"
 						/>
 					</label>
+
+					{usernameValidationMessage && (
+						<p id={USERNAME_VALIDATION_ID} className="mt-2 text-xs text-[#d8b36a]">
+							{usernameValidationMessage}
+						</p>
+					)}
+
+					{statusMessage && (
+						<div role="status" className="mt-3 rounded-md border border-[#556454] bg-[#2f3d34] px-3 py-2 text-sm text-[#d5ead5]">
+							{statusMessage}
+						</div>
+					)}
 
 					{hasAnyFilteredUsers && (
 						<div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Filtrar usuarios">
@@ -250,14 +294,14 @@ export function MobileLitePanel() {
 						<div className="mt-3 rounded-md border border-dashed border-[#56616b] bg-[#303840] p-3">
 							<div className="flex items-center gap-2 text-sm font-medium">
 								<UserX className="h-4 w-4 text-[#b7bec6]" aria-hidden="true" />
-								<span className="min-w-0 truncate">{exactQueryUsername}</span>
+								<span className="min-w-0 truncate">{exactQueryDisplayName}</span>
 							</div>
 							<div className="mt-3 grid grid-cols-2 gap-2">
 								<button
 									type="button"
 									className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-3 text-sm font-semibold"
-									disabled={savingUser === exactQueryUsername}
-									onClick={() => updateFilter(exactQueryUsername, 'mute')}
+									disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
+									onClick={() => addQueryFilter('mute')}
 								>
 									<VolumeX className="h-4 w-4" aria-hidden="true" />
 									Silenciar
@@ -265,8 +309,8 @@ export function MobileLitePanel() {
 								<button
 									type="button"
 									className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-3 text-sm font-semibold"
-									disabled={savingUser === exactQueryUsername}
-									onClick={() => updateFilter(exactQueryUsername, 'hide')}
+									disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
+									onClick={() => addQueryFilter('hide')}
 								>
 									<EyeOff className="h-4 w-4" aria-hidden="true" />
 									Ocultar

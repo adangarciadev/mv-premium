@@ -113,18 +113,20 @@ describe('Mobile Lite panel injection', () => {
 		teardownMobileLitePanel()
 	})
 
-	it('adds the Panel MVPremium entry before configuration', () => {
+	it('adds the new thread and Panel MVPremium entries before configuration', async () => {
 		initMobileLitePanel()
 
-		const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu > li > a')).map(link =>
-			link.textContent?.trim()
-		)
+		await waitFor(() => {
+			const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu > li > a')).map(link =>
+				link.textContent?.trim()
+			)
 
-		expect(links).toEqual(['Notificaciones', 'Panel MVPremium', 'Configuración', 'Salir'])
+			expect(links).toEqual(['Notificaciones', 'Nuevo hilo', 'Panel MVPremium', 'Configuración', 'Salir'])
+		})
 		expect(mocks.mountFeatureWithBoundary).toHaveBeenCalledOnce()
 	})
 
-	it('adds the Panel MVPremium entry to Mediavida mobile side user menu', () => {
+	it('adds the new thread and Panel MVPremium entries to Mediavida mobile side user menu', async () => {
 		document.body.innerHTML = `
 			<ul id="usermenu" class="m-side">
 				<li><a href="/notificaciones"><i class="fa fa-exclamation-circle"></i><span class="title">Notificaciones</span></a></li>
@@ -139,14 +141,16 @@ describe('Mobile Lite panel injection', () => {
 
 		initMobileLitePanel()
 
-		const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu > li > a')).map(link =>
-			link.textContent?.trim()
-		)
+		await waitFor(() => {
+			const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu > li > a')).map(link =>
+				link.textContent?.trim()
+			)
 
-		expect(links).toEqual(['Notificaciones', 'Favoritos', 'Mensajes', 'Marcadores', 'Menciones', 'Panel MVPremium', 'Configuración', 'Salir'])
+			expect(links).toEqual(['Notificaciones', 'Favoritos', 'Mensajes', 'Marcadores', 'Menciones', 'Nuevo hilo', 'Panel MVPremium', 'Configuración', 'Salir'])
+		})
 	})
 
-	it('adds the Panel MVPremium entry to the visible mobile menu instead of the hidden logout dropdown', () => {
+	it('adds the new thread and Panel MVPremium entries to the visible mobile menu instead of the hidden logout dropdown', async () => {
 		document.body.innerHTML = `
 			<ul id="usermenu">
 				<li><a href="/notificaciones"><span class="title">Notificaciones</span></a></li>
@@ -169,22 +173,99 @@ describe('Mobile Lite panel injection', () => {
 
 		initMobileLitePanel()
 
-		const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu > li > a')).map(link =>
-			link.textContent?.trim()
-		)
+		await waitFor(() => {
+			const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('#usermenu > li > a')).map(link =>
+				link.textContent?.trim()
+			)
 
-		expect(links).toEqual(['Notificaciones', 'Favoritos', 'Mensajes', 'Marcadores', 'Menciones', 'Panel MVPremium', 'Configuración', 'Más'])
+			expect(links).toEqual(['Notificaciones', 'Favoritos', 'Mensajes', 'Marcadores', 'Menciones', 'Nuevo hilo', 'Panel MVPremium', 'Configuración', 'Más'])
+		})
 		expect(document.querySelector('#usermenu .dropdown-menu [data-mvp-mobile-lite-panel-menu-item]')).toBeNull()
 	})
 
-	it('opens the panel from the injected menu entry', () => {
+	it('toggles the new thread subforum list and keeps it open after menu reinjection checks', async () => {
+		initMobileLitePanel()
+
+		const newThreadLink = await waitFor(() => document.querySelector<HTMLAnchorElement>('[data-mvp-mobile-lite-new-thread-menu-item] > a'))
+		expect(newThreadLink?.textContent?.trim()).toBe('Nuevo hilo')
+
+		const subforumList = document.querySelector<HTMLUListElement>('[data-mvp-mobile-lite-new-thread-menu-item] > ul')
+		const menu = document.querySelector<HTMLElement>('#usermenu')
+		expect(subforumList?.style.display).toBe('none')
+		expect(subforumList?.getAttribute('aria-hidden')).toBe('true')
+
+		newThreadLink?.click()
+
+		expect(newThreadLink?.getAttribute('aria-expanded')).toBe('true')
+		expect(subforumList?.getAttribute('aria-hidden')).toBe('false')
+		expect(subforumList?.style.display).toBe('grid')
+		expect(subforumList?.style.gridTemplateColumns).toContain('repeat(2')
+		expect(subforumList?.style.position).toBe('fixed')
+		expect(subforumList?.style.left).toBe('0px')
+		expect(menu?.style.width).toBe('72px')
+		expect(menu?.style.minWidth).toBe('72px')
+		expect(menu?.style.maxWidth).toBe('72px')
+		expect(newThreadLink?.querySelector<HTMLElement>('.title')?.style.display).toBe('none')
+
+		const subforumLinks = Array.from(subforumList?.querySelectorAll<HTMLAnchorElement>('a') ?? [])
+		expect(subforumLinks[0]?.textContent?.trim()).toBe('Off-topic')
+		expect(subforumLinks[0]?.getAttribute('href')).toBe('/foro/off-topic/nuevo-hilo')
+		expect(subforumLinks.some(link => link.textContent?.trim() === 'Juegos')).toBe(true)
+		const gameDevItem = subforumLinks.find(link => link.textContent?.trim() === 'Desarrollo de juegos')?.parentElement
+		expect(gameDevItem?.style.gridColumn).toBe('1 / -1')
+		const mediavidaItem = subforumLinks.find(link => link.textContent?.trim() === 'Mediavida')?.parentElement
+		expect(mediavidaItem?.style.gridColumn).toBe('1 / -1')
+		expect(subforumList?.querySelectorAll('[role="separator"]')).toHaveLength(3)
+
+		await new Promise(resolve => window.setTimeout(resolve, 180))
+
+		const stableNewThreadLink = document.querySelector<HTMLAnchorElement>('[data-mvp-mobile-lite-new-thread-menu-item] > a')
+		const stableSubforumList = document.querySelector<HTMLUListElement>('[data-mvp-mobile-lite-new-thread-menu-item] > ul')
+		expect(stableNewThreadLink).toBe(newThreadLink)
+		expect(stableNewThreadLink?.getAttribute('aria-expanded')).toBe('true')
+		expect(stableSubforumList?.style.display).toBe('grid')
+
+		stableNewThreadLink?.click()
+
+		expect(stableNewThreadLink?.getAttribute('aria-expanded')).toBe('false')
+		expect(stableSubforumList?.style.display).toBe('none')
+		expect(menu?.style.width).toBe('')
+		expect(stableNewThreadLink?.querySelector<HTMLElement>('.title')?.style.display).toBe('')
+	})
+
+	it('opens the panel from the injected menu entry', async () => {
 		const openSpy = vi.fn()
 		window.addEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, openSpy)
 
 		initMobileLitePanel()
-		document.querySelector<HTMLAnchorElement>('[data-mvp-mobile-lite-panel-menu-item] a')?.click()
+		const panelLink = await waitFor(() => document.querySelector<HTMLAnchorElement>('[data-mvp-mobile-lite-panel-menu-item] a'))
+		panelLink?.click()
 
 		expect(openSpy).toHaveBeenCalledOnce()
+
+		window.removeEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, openSpy)
+	})
+
+	it('closes the new thread panel and restores menu width before opening Panel MVPremium', async () => {
+		const openSpy = vi.fn()
+		window.addEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, openSpy)
+
+		initMobileLitePanel()
+		const newThreadLink = await waitFor(() => document.querySelector<HTMLAnchorElement>('[data-mvp-mobile-lite-new-thread-menu-item] > a'))
+		const panelLink = await waitFor(() => document.querySelector<HTMLAnchorElement>('[data-mvp-mobile-lite-panel-menu-item] a'))
+		const subforumList = document.querySelector<HTMLUListElement>('[data-mvp-mobile-lite-new-thread-menu-item] > ul')
+		const menu = document.querySelector<HTMLElement>('#usermenu')
+
+		newThreadLink?.click()
+		expect(subforumList?.style.display).toBe('grid')
+		expect(menu?.style.width).toBe('72px')
+
+		panelLink?.click()
+
+		expect(openSpy).toHaveBeenCalledOnce()
+		expect(subforumList?.style.display).toBe('none')
+		expect(subforumList?.getAttribute('aria-hidden')).toBe('true')
+		expect(menu?.style.width).toBe('')
 
 		window.removeEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, openSpy)
 	})
@@ -205,13 +286,78 @@ describe('Mobile Lite panel injection', () => {
 		render(<MobileLitePanel />)
 		await openPanel()
 
-		const searchInput = await screen.findByPlaceholderText('Buscar o escribir nick exacto')
+		const searchInput = await screen.findByPlaceholderText('Buscar o añadir nick (3-13)')
 		await user.type(searchInput, 'BrokenUser')
 		await user.click(screen.getByRole('button', { name: 'Ocultar' }))
 
 		await waitFor(() => {
 			expect(screen.getByRole('alert')).toHaveTextContent('No se pudo guardar el filtro. Inténtalo de nuevo.')
 		})
+	})
+
+	it('clears the search after adding an exact username filter', async () => {
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		const searchInput = await screen.findByPlaceholderText('Buscar o añadir nick (3-13)')
+		await user.type(searchInput, 'NewHiddenUser')
+		await user.click(screen.getByRole('button', { name: 'Ocultar' }))
+
+		await waitFor(() => {
+			expect(searchInput).toHaveValue('')
+		})
+		expect(screen.getByRole('status')).toHaveTextContent('NewHiddenUser ocultado.')
+	})
+
+	it('validates username length and allowed characters before adding a filter', async () => {
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		const searchInput = await screen.findByPlaceholderText('Buscar o añadir nick (3-13)')
+		await user.type(searchInput, 'ab')
+
+		expect(screen.getByText('Escribe al menos 3 caracteres para añadir un usuario.')).toBeInTheDocument()
+		expect(screen.queryByRole('button', { name: 'Silenciar' })).not.toBeInTheDocument()
+
+		await user.clear(searchInput)
+		await user.type(searchInput, 'bad user')
+
+		expect(screen.getByText('Usa solo letras, números, guiones y guiones bajos.')).toBeInTheDocument()
+		expect(screen.queryByRole('button', { name: 'Ocultar' })).not.toBeInTheDocument()
+
+		await user.clear(searchInput)
+		await user.type(searchInput, 'LongUserName123')
+
+		expect(searchInput).toHaveValue('LongUserName123')
+		expect(screen.getByText('El nick no puede tener más de 13 caracteres.')).toBeInTheDocument()
+		expect(screen.queryByRole('button', { name: 'Silenciar' })).not.toBeInTheDocument()
+	})
+
+	it('matches existing usernames case-insensitively while preserving stored casing', async () => {
+		const user = userEvent.setup()
+		mocks.getUserCustomizations.mockResolvedValue(
+			createCustomizationData({
+				FraG: { adminColor: '#f0a020' },
+			})
+		)
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		const searchInput = await screen.findByPlaceholderText('Buscar o añadir nick (3-13)')
+		await user.type(searchInput, 'frag')
+
+		expect(screen.getByText('FraG')).toBeInTheDocument()
+		await user.click(screen.getByRole('button', { name: 'Ocultar' }))
+
+		await waitFor(() => {
+			expect(searchInput).toHaveValue('')
+		})
+		expect(screen.getByRole('status')).toHaveTextContent('FraG ocultado.')
 	})
 
 	it('labels active filtered-user buttons as applied states', async () => {
@@ -301,7 +447,7 @@ describe('Mobile Lite panel injection', () => {
 		await openPanel()
 
 		await user.click(await screen.findByRole('button', { name: filterButtonName('Ocultos', 2) }))
-		await user.type(screen.getByPlaceholderText('Buscar o escribir nick exacto'), 'legacy')
+		await user.type(screen.getByPlaceholderText('Buscar o añadir nick (3-13)'), 'legacy')
 
 		expect(screen.getByText('LegacyHiddenUser')).toBeInTheDocument()
 		expect(screen.queryByText('HiddenUser')).not.toBeInTheDocument()
