@@ -182,4 +182,25 @@ describe('Mobile Lite panel injection', () => {
 			expect(screen.getByRole('alert')).toHaveTextContent('No se pudo guardar el filtro. Inténtalo de nuevo.')
 		})
 	})
+
+	it('labels active filtered-user buttons as applied states', async () => {
+		mocks.getUserCustomizations.mockResolvedValue({
+			users: {
+				MutedUser: { isIgnored: true, ignoreType: 'mute' },
+				HiddenUser: { isIgnored: true, ignoreType: 'hide' },
+			},
+			globalSettings: {
+				adminColor: '',
+				subadminColor: '',
+				modColor: '',
+				userColor: '',
+			},
+		})
+
+		render(<MobileLitePanel />)
+		window.dispatchEvent(new CustomEvent(MOBILE_LITE_PANEL_OPEN_EVENT))
+
+		expect(await screen.findByRole('button', { name: 'Silenciado' })).toBeInTheDocument()
+		expect(await screen.findByRole('button', { name: 'Ocultado' })).toBeInTheDocument()
+	})
 })

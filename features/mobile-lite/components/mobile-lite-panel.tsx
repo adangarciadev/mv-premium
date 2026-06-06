@@ -254,7 +254,6 @@ export function MobileLitePanel() {
 											</div>
 											<div className="min-w-0 flex-1">
 												<div className="truncate text-base font-semibold">{user.username}</div>
-												<div className="text-xs text-[#c0c6cc]">{ignoreType === 'mute' ? 'Silenciado' : 'Oculto'}</div>
 											</div>
 										</div>
 
@@ -268,7 +267,7 @@ export function MobileLitePanel() {
 												onClick={() => updateFilter(user.username, 'mute')}
 											>
 												<VolumeX className="h-4 w-4" aria-hidden="true" />
-												<span>Silenciar</span>
+												<span>{ignoreType === 'mute' ? 'Silenciado' : 'Silenciar'}</span>
 											</button>
 											<button
 												type="button"
@@ -279,7 +278,7 @@ export function MobileLitePanel() {
 												onClick={() => updateFilter(user.username, 'hide')}
 											>
 												<EyeOff className="h-4 w-4" aria-hidden="true" />
-												<span>Ocultar</span>
+												<span>{ignoreType === 'hide' ? 'Ocultado' : 'Ocultar'}</span>
 											</button>
 											<button
 												type="button"
