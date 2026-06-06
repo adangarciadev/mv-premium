@@ -51,6 +51,11 @@ const SAVE_BTN_CLASS = 'mvp-save-thread-btn'
 const SAVE_BTN_FEATURED_CLASS = 'mvp-save-featured-btn'
 const SAVE_BTN_ACTIVE_CLASS = 'mvp-save-thread-btn-active'
 const HIDE_BTN_CELL_CLASS = 'mvp-hide-thread-cell'
+const PROFILE_ACTIONS_CLASS = 'mvp-profile-thread-actions'
+const PROFILE_ACTIONS_HOST_CLASS = 'mvp-profile-thread-actions-host'
+const PROFILE_ACTIONS_VISIBLE_CLASS = 'mvp-profile-thread-actions-visible'
+const PROFILE_ACTIONS_ROW_ID_ATTR = 'data-mvp-profile-actions-row'
+const PROFILE_ACTIONS_ROW_MARKER = 'data-mvp-profile-row-id'
 const PREMIUM_MENU_BTN_CLASS = 'mvp-premium-thread-menu-btn'
 const PREMIUM_MENU_CLASS = 'mvp-premium-thread-menu'
 const PREMIUM_MENU_OPEN_CLASS = 'mvp-premium-thread-menu-open'
@@ -86,6 +91,7 @@ let savedThreadIds = new Set<string>()
 let forumListObserver: MutationObserver | null = null
 let forumListObserverTimer: ReturnType<typeof setTimeout> | null = null
 let premiumMenuIdCounter = 0
+let profileActionsRowIdCounter = 0
 
 function areHideThreadControlsEnabled(): boolean {
 	return useSettingsStore.getState().hideThreadEnabled !== false
@@ -113,6 +119,10 @@ function normalizeUsername(username: string): string {
 
 function isSpyThreadListPage(): boolean {
 	return !canExtractThreadCreatorFromPath(window.location.pathname)
+}
+
+function isUserProfilePage(): boolean {
+	return /^\/id\/[^/]+(?:\/.*)?$/.test(window.location.pathname)
 }
 
 function updateHiddenThreadsCache(): void {
@@ -323,6 +333,44 @@ function ensureHiddenThreadStyles(): void {
 			visibility: visible;
 			pointer-events: auto;
 		}
+		.${PROFILE_ACTIONS_CLASS} {
+			display: inline-flex;
+			position: fixed;
+			left: var(--mvp-profile-actions-left, -9999px);
+			top: var(--mvp-profile-actions-top, -9999px);
+			width: var(--mvp-profile-actions-width, 24px);
+			height: 24px;
+			align-items: center;
+			justify-content: center;
+			gap: 4px;
+			z-index: 2147483646;
+			opacity: 0;
+			visibility: hidden;
+			pointer-events: none;
+		}
+		.${PROFILE_ACTIONS_CLASS}.${PROFILE_ACTIONS_VISIBLE_CLASS},
+		.${PROFILE_ACTIONS_CLASS}.${PREMIUM_MENU_OPEN_CLASS} {
+			opacity: 1;
+			visibility: visible;
+			pointer-events: auto;
+		}
+		.${PROFILE_ACTIONS_CLASS} .${HIDE_BTN_CLASS},
+		.${PROFILE_ACTIONS_CLASS} .${SAVE_BTN_CLASS},
+		.${PROFILE_ACTIONS_CLASS} .${PREMIUM_MENU_BTN_CLASS} {
+			position: static;
+			right: auto;
+			top: auto;
+			transform: none;
+			opacity: 1;
+			visibility: visible;
+			pointer-events: auto;
+		}
+		td.${PROFILE_ACTIONS_HOST_CLASS} > .thread {
+			box-sizing: border-box;
+			padding-right: var(--mvp-profile-actions-space, 34px);
+			word-break: break-word;
+			overflow-wrap: break-word;
+		}
 		.${PREMIUM_MENU_CLASS} {
 			--mvp-premium-menu-surface: var(--popover, var(--card, #1f242b));
 			--mvp-premium-menu-foreground: var(--popover-foreground, var(--foreground, #dce2ea));
@@ -478,10 +526,81 @@ function removeThreadActionButtons(): void {
 	document.querySelectorAll<HTMLElement>(`.${PREMIUM_MENU_CLASS}`).forEach(menu => {
 		menu.remove()
 	})
+	document.querySelectorAll<HTMLElement>(`.${PROFILE_ACTIONS_CLASS}`).forEach(actions => {
+		actions.remove()
+	})
 
 	document.querySelectorAll<HTMLElement>(`td.${HIDE_BTN_CELL_CLASS}`).forEach(cell => {
 		cell.classList.remove(HIDE_BTN_CELL_CLASS)
 		cell.style.removeProperty('--mvp-thread-actions-padding')
+	})
+	document.querySelectorAll<HTMLElement>(`td.${PROFILE_ACTIONS_HOST_CLASS}`).forEach(cell => {
+		cell.classList.remove(PROFILE_ACTIONS_HOST_CLASS)
+		cell.style.removeProperty('--mvp-profile-actions-space')
+	})
+}
+
+function getProfileActionsRowId(row: HTMLTableRowElement): string {
+	const existing = row.getAttribute(PROFILE_ACTIONS_ROW_MARKER)
+	if (existing) return existing
+
+	const next = `mvp-profile-row-${++profileActionsRowIdCounter}`
+	row.setAttribute(PROFILE_ACTIONS_ROW_MARKER, next)
+	return next
+}
+
+function getProfileActionsRoot(row: HTMLTableRowElement): HTMLElement | null {
+	const rowId = getProfileActionsRowId(row)
+	return document.querySelector<HTMLElement>(
+		`.${PROFILE_ACTIONS_CLASS}[${PROFILE_ACTIONS_ROW_ID_ATTR}="${rowId}"]`
+	)
+}
+
+function positionProfileActions(cell: HTMLElement, actions: HTMLElement): void {
+	const rect = cell.getBoundingClientRect()
+	const width = actions.offsetWidth || (actions.querySelectorAll('button').length > 1 ? 52 : 24)
+	const left = Math.max(0, rect.right - width - 8)
+	const top = Math.max(0, rect.top + rect.height / 2 - 12)
+
+	actions.style.setProperty('--mvp-profile-actions-left', `${left}px`)
+	actions.style.setProperty('--mvp-profile-actions-top', `${top}px`)
+	actions.style.setProperty('--mvp-profile-actions-width', `${width}px`)
+}
+
+function bindProfileActionsHover(row: HTMLTableRowElement, cell: HTMLElement, actions: HTMLElement): void {
+	if (actions.dataset.mvpProfileHoverBound === 'true') return
+	actions.dataset.mvpProfileHoverBound = 'true'
+
+	const show = () => {
+		positionProfileActions(cell, actions)
+		actions.classList.add(PROFILE_ACTIONS_VISIBLE_CLASS)
+	}
+	const hide = () => {
+		if (actions.classList.contains(PREMIUM_MENU_OPEN_CLASS)) return
+		actions.classList.remove(PROFILE_ACTIONS_VISIBLE_CLASS)
+	}
+	const repositionIfVisible = () => {
+		if (actions.classList.contains(PROFILE_ACTIONS_VISIBLE_CLASS) || actions.classList.contains(PREMIUM_MENU_OPEN_CLASS)) {
+			positionProfileActions(cell, actions)
+		}
+	}
+
+	row.addEventListener('mouseenter', show)
+	row.addEventListener('mouseleave', hide)
+	actions.addEventListener('mouseenter', show)
+	actions.addEventListener('mouseleave', hide)
+	window.addEventListener('resize', repositionIfVisible)
+	window.addEventListener('scroll', repositionIfVisible, true)
+}
+
+function removeOrphanProfileActions(): void {
+	document.querySelectorAll<HTMLElement>(`.${PROFILE_ACTIONS_CLASS}[${PROFILE_ACTIONS_ROW_ID_ATTR}]`).forEach(actions => {
+		const rowId = actions.getAttribute(PROFILE_ACTIONS_ROW_ID_ATTR)
+		if (!rowId) return
+		if (!document.querySelector(`tr[${PROFILE_ACTIONS_ROW_MARKER}="${rowId}"]`)) {
+			getPremiumMenuForRoot(actions)?.remove()
+			actions.remove()
+		}
 	})
 }
 
@@ -609,6 +728,60 @@ function createPremiumMenu(url: string, row: HTMLTableRowElement): HTMLSpanEleme
 	return root
 }
 
+function ensureProfileActions(
+	row: HTMLTableRowElement,
+	cell: HTMLElement,
+	url: string,
+	{
+		premiumMenuEnabled,
+		hideEnabled,
+		saveEnabled,
+	}: {
+		premiumMenuEnabled: boolean
+		hideEnabled: boolean
+		saveEnabled: boolean
+	}
+): void {
+	const rowId = getProfileActionsRowId(row)
+	const existing = getProfileActionsRoot(row)
+	const existingIsPremiumMenu = existing?.hasAttribute(PREMIUM_MENU_MARKER) ?? false
+
+	if (existing && existingIsPremiumMenu !== premiumMenuEnabled) {
+		getPremiumMenuForRoot(existing)?.remove()
+		existing.remove()
+	}
+
+	let actions = getProfileActionsRoot(row)
+	if (!actions) {
+		if (premiumMenuEnabled) {
+			actions = createPremiumMenu(url, row)
+		} else {
+			actions = document.createElement('span')
+		}
+
+		actions.classList.add(PROFILE_ACTIONS_CLASS)
+		actions.setAttribute(PROFILE_ACTIONS_ROW_ID_ATTR, rowId)
+		document.body.appendChild(actions)
+	}
+
+	if (!premiumMenuEnabled) {
+		if (saveEnabled && !actions.querySelector(`[${SAVE_BTN_MARKER}]`)) {
+			const saveBtn = createSaveButton(url, false)
+			const threadId = saveBtn.getAttribute(THREAD_ID_ATTR)
+			if (threadId) {
+				applySaveButtonState(saveBtn, savedThreadIds.has(threadId))
+			}
+			actions.prepend(saveBtn)
+		}
+		if (hideEnabled && !actions.querySelector(`[${HIDE_BTN_MARKER}]`)) {
+			actions.appendChild(createHideButton(url, false))
+		}
+	}
+
+	bindProfileActionsHover(row, cell, actions)
+	positionProfileActions(cell, actions)
+}
+
 function injectHideButtons(): void {
 	const hideEnabled = areHideThreadControlsEnabled()
 	const saveEnabled = areSaveThreadControlsEnabled()
@@ -622,6 +795,7 @@ function injectHideButtons(): void {
 	})
 	const premiumMenuEnabled = actionPresentation === 'compact-menu'
 	const classicButtonsEnabled = actionPresentation === 'classic-buttons'
+	const profilePage = isUserProfilePage()
 
 	if (actionPresentation === 'none') {
 		removeThreadActionButtons()
@@ -654,6 +828,30 @@ function injectHideButtons(): void {
 
 		const url = threadLink.getAttribute('href')
 		if (!url) return
+
+		if (profilePage) {
+			const profileCell = row.querySelector<HTMLElement>('td.col-th') ?? threadDiv.closest<HTMLElement>('td')
+			if (!profileCell) return
+
+			profileCell.classList.add(PROFILE_ACTIONS_HOST_CLASS)
+			profileCell.classList.remove(HIDE_BTN_CELL_CLASS)
+			profileCell.style.removeProperty('--mvp-thread-actions-padding')
+			profileCell.style.setProperty(
+				'--mvp-profile-actions-space',
+				!premiumMenuEnabled && hideEnabled && saveEnabled ? '60px' : '34px'
+			)
+
+			const staleProfileButtons = row.querySelectorAll<HTMLElement>(
+				`[${HIDE_BTN_MARKER}], [${SAVE_BTN_MARKER}], [${PREMIUM_MENU_MARKER}]`
+			)
+			staleProfileButtons.forEach(btn => {
+				getPremiumMenuForRoot(btn)?.remove()
+				btn.remove()
+			})
+
+			ensureProfileActions(row, profileCell, url, { premiumMenuEnabled, hideEnabled, saveEnabled })
+			return
+		}
 
 		// Prefer td.col-th (normal subforum rows); fall back to the thread's direct parent
 		// td for spy compact rows that don't carry the col-th class.
@@ -704,6 +902,7 @@ function injectHideButtons(): void {
 			}
 		}
 	})
+	removeOrphanProfileActions()
 	removeOrphanPremiumMenus()
 
 	// Sidebar featured/news items
