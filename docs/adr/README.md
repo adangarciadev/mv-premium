@@ -24,6 +24,7 @@ An ADR is a document that captures an important architectural decision along wit
 | [ADR-012](ADR-012-api-security.md)                  | API Keys Security                        | ✅ Accepted | Jan 2026 |
 | [ADR-013](ADR-013-content-script-data-fetching.md)  | Data Fetching in Content Script          | ✅ Accepted | Jan 2026 |
 | [ADR-014](ADR-014-infinite-scroll-sliding-window.md) | Infinite Scroll Sliding Window         | ✅ Accepted | Jan 2026 |
+| [ADR-015](ADR-015-mobile-lite-bootstrap.md)         | Mobile Lite Bootstrap Separation         | ✅ Accepted | Jun 2026 |
 
 ## ADR Statuses
 

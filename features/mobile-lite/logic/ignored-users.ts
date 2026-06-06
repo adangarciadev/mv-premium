@@ -10,6 +10,14 @@ import { applyHideToPost, applyMuteToPost } from '@/features/user-customizations
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
+import {
+	getCustomizationEntryForUser,
+	getIgnoreTypeForUser,
+	hasMeaningfulCustomizationValue,
+	setUserIgnoreInData,
+	type MobileLiteIgnoreType,
+} from './ignore-helpers'
+import { MOBILE_LITE_IGNORED_USERS_SYNC_EVENT, type MobileLiteIgnoredUsersSyncDetail } from './ignored-users-sync-event'
 
 const POST_SELECTOR = `${MV_SELECTORS.THREAD.POST}, ${MV_SELECTORS.THREAD.POST_REPLY}, ${MV_SELECTORS.THREAD.POST_DIV}`
 const PRIMARY_POST_SELECTOR = `${MV_SELECTORS.THREAD.POST}, ${MV_SELECTORS.THREAD.POST_REPLY}`
@@ -31,8 +39,6 @@ const MANUAL_IGNORE_WATCH_SUPPRESS_MS = 800
 const MANUAL_IGNORE_STALE_DATA_TTL_MS = 60000
 const USER_CARD_INJECTION_DELAYS_MS = [0, 50, 120, 250, 500, 900] as const
 
-type UserIgnoreType = 'hide' | 'mute'
-
 let initialized = false
 let currentData: UserCustomizationsData | null = null
 let unwatchUserCustomizations: (() => void) | null = null
@@ -40,12 +46,13 @@ let contentObserver: MutationObserver | null = null
 let applyTimeout: ReturnType<typeof setTimeout> | null = null
 let documentUserCardClickListenerAttached = false
 let mutePlaceholderGuardAttached = false
+let syncEventListenerAttached = false
 let suppressWatchUntil = 0
 const recentManualIgnoreChanges = new Map<
 	string,
 	{
 		storageKey: string
-		ignoreType: UserIgnoreType | null
+		ignoreType: MobileLiteIgnoreType | null
 		expiresAt: number
 	}
 >()
@@ -80,38 +87,11 @@ export function getMobileLitePostAuthor(post: HTMLElement): string | null {
 	return null
 }
 
-function getCustomizationForUser(data: UserCustomizationsData, username: string): UserCustomization | undefined {
-	return getCustomizationEntryForUser(data, username)?.customization
-}
-
-function getCustomizationEntryForUser(
-	data: UserCustomizationsData,
-	username: string
-): { storageKey: string; customization: UserCustomization } | null {
-	const directCustomization = data.users[username]
-	if (directCustomization) return { storageKey: username, customization: directCustomization }
-	const matchingKey = Object.keys(data.users).find(key => key.toLowerCase() === username.toLowerCase())
-	return matchingKey ? { storageKey: matchingKey, customization: data.users[matchingKey] } : null
-}
-
-function hasMeaningfulCustomizationValue(customization: UserCustomization): boolean {
-	return Object.values(customization).some(value => value !== undefined && value !== '' && value !== false)
-}
-
 function normalizeUsernameKey(username: string): string {
 	return username.toLowerCase()
 }
 
-function getIgnoreTypeFromCustomization(customization: UserCustomization | undefined): UserIgnoreType | null {
-	if (!customization?.isIgnored) return null
-	return (customization.ignoreType || 'hide') as UserIgnoreType
-}
-
-function getIgnoreTypeForUser(data: UserCustomizationsData, username: string): UserIgnoreType | null {
-	return getIgnoreTypeFromCustomization(getCustomizationForUser(data, username))
-}
-
-function rememberManualIgnoreChange(storageKey: string, ignoreType: UserIgnoreType | null): void {
+function rememberManualIgnoreChange(storageKey: string, ignoreType: MobileLiteIgnoreType | null): void {
 	const now = Date.now()
 	recentManualIgnoreChanges.set(normalizeUsernameKey(storageKey), {
 		storageKey,
@@ -145,7 +125,7 @@ function hasRecentManualIgnoreConflict(data: UserCustomizationsData): boolean {
 function getRecentManualIgnoreChangeForUser(
 	data: UserCustomizationsData,
 	username: string
-): { storageKey: string; ignoreType: UserIgnoreType | null; expiresAt: number } | undefined {
+): { storageKey: string; ignoreType: MobileLiteIgnoreType | null; expiresAt: number } | undefined {
 	pruneExpiredManualIgnoreChanges()
 
 	const entry = getCustomizationEntryForUser(data, username)
@@ -426,6 +406,17 @@ function resetMobileLiteIgnoredUsers(): void {
 		post.querySelectorAll(`.${DOM_MARKERS.CLASSES.MUTE_PLACEHOLDER}`).forEach(placeholder => placeholder.remove())
 		delete post.dataset.mvpHasPlaceholder
 		delete post.dataset.mvpRevealed
+
+		const wrap = (post.querySelector('.wrap') || post.querySelector('.pm-content')) as HTMLElement | null
+		if (wrap) {
+			wrap.style.display = ''
+		} else {
+			Array.from(post.children).forEach(child => {
+				if (child instanceof HTMLElement && !child.classList.contains(DOM_MARKERS.CLASSES.MUTE_PLACEHOLDER)) {
+					child.style.display = ''
+				}
+			})
+		}
 	})
 }
 
@@ -456,30 +447,42 @@ export function applyMobileLiteIgnoredUsers(data: UserCustomizationsData, root: 
 	injectVisibleMobileLiteUserCards(data)
 }
 
-export async function setMobileLiteUserIgnore(username: string, ignoreType: UserIgnoreType | null): Promise<void> {
+export function syncMobileLiteIgnoredUsers(data: UserCustomizationsData): void {
+	currentData = data
+	resetMobileLiteIgnoredUsers()
+	if (!isMobileLiteIgnoredUsersAllowed()) return
+	applyMobileLiteIgnoredUsers(data)
+}
+
+export function markMobileLiteIgnoredUsersManualChange(storageKey: string, ignoreType: MobileLiteIgnoreType | null): void {
+	rememberManualIgnoreChange(storageKey, ignoreType)
+	suppressWatchUntil = Date.now() + MANUAL_IGNORE_WATCH_SUPPRESS_MS
+}
+
+function handleMobileLiteIgnoredUsersSync(event: Event): void {
+	const detail = event instanceof CustomEvent ? (event.detail as MobileLiteIgnoredUsersSyncDetail | undefined) : undefined
+	if (!detail?.data) return
+	if (detail.manualChange) {
+		markMobileLiteIgnoredUsersManualChange(detail.manualChange.storageKey, detail.manualChange.ignoreType)
+	}
+	syncMobileLiteIgnoredUsers(detail.data)
+}
+
+function ensureMobileLiteIgnoredUsersSyncListener(): void {
+	if (syncEventListenerAttached) return
+
+	window.addEventListener(MOBILE_LITE_IGNORED_USERS_SYNC_EVENT, handleMobileLiteIgnoredUsersSync)
+	syncEventListenerAttached = true
+}
+
+export async function setMobileLiteUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<void> {
 	if (!isMobileLiteIgnoredUsersAllowed()) return
 
 	const data = await getUserCustomizations()
-	const entry = getCustomizationEntryForUser(data, username)
-	const storageKey = entry?.storageKey ?? username
-	const existing = entry ? { ...entry.customization } : {}
+	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
 
-	if (ignoreType) {
-		data.users[storageKey] = { ...existing, isIgnored: true, ignoreType }
-	} else {
-		const { isIgnored: _isIgnored, ignoreType: _ignoreType, ...rest } = existing
-		if (hasMeaningfulCustomizationValue(rest)) {
-			data.users[storageKey] = rest
-		} else {
-			delete data.users[storageKey]
-		}
-	}
-
-	rememberManualIgnoreChange(storageKey, ignoreType)
-	suppressWatchUntil = Date.now() + MANUAL_IGNORE_WATCH_SUPPRESS_MS
-	currentData = data
-	resetMobileLiteIgnoredUsers()
-	applyMobileLiteIgnoredUsers(data)
+	markMobileLiteIgnoredUsersManualChange(storageKey, ignoreType)
+	syncMobileLiteIgnoredUsers(data)
 	dismissVisibleMobileLiteUserCards()
 	await saveUserCustomizations(data)
 }
@@ -524,6 +527,7 @@ export function initMobileLiteIgnoredUsers(): void {
 	initialized = true
 	ensureDocumentUserCardClickListener()
 	ensureMutePlaceholderGuard()
+	ensureMobileLiteIgnoredUsersSyncListener()
 
 	getUserCustomizations()
 		.then(data => {
@@ -555,7 +559,7 @@ export function initMobileLiteIgnoredUsers(): void {
 			injectVisibleMobileLiteUserCards(currentData)
 		}
 	})
-	contentObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] })
+	contentObserver.observe(document.body, { childList: true, subtree: true })
 }
 
 export function teardownMobileLiteIgnoredUsers(): void {
@@ -576,6 +580,11 @@ export function teardownMobileLiteIgnoredUsers(): void {
 		document.removeEventListener('click', handleMutePlaceholderPointer)
 		document.removeEventListener('touchstart', handleMutePlaceholderPointer)
 		mutePlaceholderGuardAttached = false
+	}
+
+	if (syncEventListenerAttached) {
+		window.removeEventListener(MOBILE_LITE_IGNORED_USERS_SYNC_EVENT, handleMobileLiteIgnoredUsersSync)
+		syncEventListenerAttached = false
 	}
 
 	unwatchUserCustomizations?.()

@@ -33,6 +33,10 @@ function isUserLoggedIn(): boolean {
 	return document.querySelector(MV_SELECTORS.GLOBAL.USERMENU) !== null
 }
 
+function getNewThreadContainer(usermenu: Element): HTMLLIElement | null {
+	return usermenu.querySelector<HTMLLIElement>(`#${BUTTON_CONTAINER_ID}`)
+}
+
 /**
  * Create a subforum list item for the dropdown
  * @param subforum - The subforum info
@@ -169,7 +173,7 @@ export async function injectNewThreadButton(): Promise<void> {
 	// DOM guard AFTER await to prevent async race condition
 	if (usermenu.querySelector(`[${INJECTED_MARKER}]`)) return
 
-	const existingContainer = document.getElementById(BUTTON_CONTAINER_ID) as HTMLLIElement | null
+	const existingContainer = getNewThreadContainer(usermenu)
 	const li = existingContainer ?? document.createElement('li')
 	li.id = BUTTON_CONTAINER_ID
 	li.className = 'dropdown'
@@ -177,10 +181,10 @@ export async function injectNewThreadButton(): Promise<void> {
 	li.removeAttribute(PLACEHOLDER_MARKER)
 
 	const existingButton = li.querySelector<HTMLAnchorElement>('a[aria-label="Crear nuevo hilo"]')
-	const button = existingButton ?? document.createElement('a')
+	const button = document.createElement('a')
 	button.href = '#'
-	button.className = 'flink dropdown-toggle'
-	button.setAttribute('data-toggle', 'dropdown')
+	button.className = 'flink'
+	button.removeAttribute('data-toggle')
 	button.setAttribute('title', 'Nuevo hilo')
 	button.setAttribute('aria-label', 'Crear nuevo hilo')
 	button.setAttribute('aria-haspopup', 'true')
@@ -197,6 +201,7 @@ export async function injectNewThreadButton(): Promise<void> {
 	button.addEventListener('click', e => {
 		e.preventDefault()
 		e.stopPropagation()
+		e.stopImmediatePropagation()
 		const isOpen = li.classList.toggle('open')
 		button.setAttribute('aria-expanded', String(isOpen))
 	})
@@ -220,7 +225,9 @@ export async function injectNewThreadButton(): Promise<void> {
 	document.addEventListener('keydown', escapeHandler)
 
 	// Assemble
-	if (!existingButton) {
+	if (existingButton) {
+		existingButton.replaceWith(button)
+	} else {
 		li.appendChild(button)
 	}
 	li.appendChild(currentDropdown)

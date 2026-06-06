@@ -68,6 +68,10 @@ function getDashboardIconHTML(iconType: DashboardIcon): string {
 /** CSS class defined in app.css */
 const BADGE_CLASS = 'mvp-whats-new-badge'
 
+function getDashboardContainer(usermenu: Element): HTMLLIElement | null {
+	return usermenu.querySelector<HTMLLIElement>(`#${BUTTON_CONTAINER_ID}`)
+}
+
 /**
  * Checks for user authentication by detecting the existence of the navbar user menu.
  * @returns True if the user is authenticated
@@ -111,7 +115,7 @@ export async function injectDashboardButton(): Promise<void> {
 	const settings = await getSettings()
 	const iconType = settings.dashboardIcon || 'logo'
 
-	const existingContainer = document.getElementById(BUTTON_CONTAINER_ID) as HTMLLIElement | null
+	const existingContainer = getDashboardContainer(usermenu)
 	const li = existingContainer ?? document.createElement('li')
 	li.id = BUTTON_CONTAINER_ID
 	li.className = 'mvp-dashboard-nav-item'

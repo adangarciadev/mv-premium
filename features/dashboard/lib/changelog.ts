@@ -9,6 +9,7 @@ export interface ChangeEntry {
 	type: 'feature' | 'fix' | 'improvement'
 	description: string
 	category?: string
+	surface?: 'desktop' | 'mobile-lite' | 'shared'
 }
 
 export interface ChangelogEntry {

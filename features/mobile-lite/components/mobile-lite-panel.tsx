@@ -12,6 +12,13 @@ import {
 	type UserCustomization,
 	type UserCustomizationsData,
 } from '@/features/user-customizations/storage'
+import {
+	getCustomizationEntryForUser,
+	getIgnoreTypeFromCustomization,
+	setUserIgnoreInData,
+	type MobileLiteIgnoreType,
+} from '../logic/ignore-helpers'
+import { dispatchMobileLiteIgnoredUsersSync } from '../logic/ignored-users-sync-event'
 
 export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
 
@@ -21,8 +28,6 @@ const EMPTY_GLOBAL_SETTINGS = {
 	modColor: '',
 	userColor: '',
 }
-
-type IgnoreType = 'hide' | 'mute'
 
 interface FilteredUser {
 	username: string
@@ -36,10 +41,6 @@ function getEmptyData(): UserCustomizationsData {
 	}
 }
 
-function hasMeaningfulCustomizationValue(customization: UserCustomization): boolean {
-	return Object.values(customization).some(value => value !== undefined && value !== '' && value !== false)
-}
-
 function getFilteredUsers(data: UserCustomizationsData): FilteredUser[] {
 	return Object.entries(data.users)
 		.filter(([, customization]) => customization.isIgnored)
@@ -47,36 +48,21 @@ function getFilteredUsers(data: UserCustomizationsData): FilteredUser[] {
 		.sort((a, b) => a.username.localeCompare(b.username, 'es', { sensitivity: 'base' }))
 }
 
-function getIgnoreType(customization: UserCustomization): IgnoreType {
-	return customization.ignoreType === 'mute' ? 'mute' : 'hide'
-}
-
 function normalizeUsername(username: string): string {
 	return username.trim()
 }
 
-async function updateUserIgnore(username: string, ignoreType: IgnoreType | null): Promise<UserCustomizationsData> {
+async function updateUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<UserCustomizationsData> {
 	const data = await getUserCustomizations()
-	const existingKey = Object.keys(data.users).find(key => key.toLowerCase() === username.toLowerCase())
-	const storageKey = existingKey ?? username
-	const existing = existingKey ? { ...data.users[existingKey] } : {}
-
-	if (ignoreType) {
-		data.users[storageKey] = {
-			...existing,
-			isIgnored: true,
-			ignoreType,
-		}
-	} else {
-		const { isIgnored: _isIgnored, ignoreType: _ignoreType, ...rest } = existing
-		if (hasMeaningfulCustomizationValue(rest)) {
-			data.users[storageKey] = rest
-		} else {
-			delete data.users[storageKey]
-		}
-	}
-
+	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
 	await saveUserCustomizations(data)
+	dispatchMobileLiteIgnoredUsersSync({
+		data,
+		manualChange: {
+			storageKey,
+			ignoreType,
+		},
+	})
 	return data
 }
 
@@ -85,6 +71,7 @@ export function MobileLitePanel() {
 	const [data, setData] = useState<UserCustomizationsData>(getEmptyData)
 	const [query, setQuery] = useState('')
 	const [savingUser, setSavingUser] = useState<string | null>(null)
+	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
 	useEffect(() => {
 		let mounted = true
@@ -120,10 +107,20 @@ export function MobileLitePanel() {
 	useEffect(() => {
 		if (!open) return
 
+		let mounted = true
 		const previousOverflow = document.body.style.overflow
 		document.body.style.overflow = 'hidden'
 
+		getUserCustomizations()
+			.then(nextData => {
+				if (mounted) setData(nextData)
+			})
+			.catch(() => {
+				if (mounted) setData(getEmptyData())
+			})
+
 		return () => {
+			mounted = false
 			document.body.style.overflow = previousOverflow
 		}
 	}, [open])
@@ -137,21 +134,23 @@ export function MobileLitePanel() {
 	}, [data, query])
 
 	const exactQueryUsername = normalizeUsername(query)
-	const exactQueryExistingKey = exactQueryUsername
-		? Object.keys(data.users).find(username => username.toLowerCase() === exactQueryUsername.toLowerCase())
+	const exactQueryCustomization = exactQueryUsername
+		? getCustomizationEntryForUser(data, exactQueryUsername)?.customization
 		: undefined
-	const exactQueryCustomization = exactQueryExistingKey ? data.users[exactQueryExistingKey] : undefined
 	const canAddQueryUser = Boolean(exactQueryUsername && !exactQueryCustomization?.isIgnored)
 	const hasFilteredUsers = filteredUsers.length > 0
 
-	const updateFilter = async (username: string, ignoreType: IgnoreType | null) => {
+	const updateFilter = async (username: string, ignoreType: MobileLiteIgnoreType | null) => {
 		const normalizedUsername = normalizeUsername(username)
 		if (!normalizedUsername) return
 
 		setSavingUser(normalizedUsername)
+		setErrorMessage(null)
 		try {
 			const nextData = await updateUserIgnore(normalizedUsername, ignoreType)
 			setData(nextData)
+		} catch {
+			setErrorMessage('No se pudo guardar el filtro. Inténtalo de nuevo.')
 		} finally {
 			setSavingUser(null)
 		}
@@ -187,6 +186,12 @@ export function MobileLitePanel() {
 				</header>
 
 				<div className={`${hasFilteredUsers ? 'flex-1 overflow-y-auto' : ''} bg-[#384149] px-4 py-4`}>
+					{errorMessage && (
+						<div role="alert" className="mb-3 rounded-md border border-[#8f3f3f] bg-[#4a2528] px-3 py-2 text-sm text-[#ffd7d7]">
+							{errorMessage}
+						</div>
+					)}
+
 					<label className="relative block">
 						<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#aeb6be]" aria-hidden="true" />
 						<input
@@ -234,7 +239,7 @@ export function MobileLitePanel() {
 							</div>
 						) : (
 							filteredUsers.map(user => {
-								const ignoreType = getIgnoreType(user.customization)
+								const ignoreType = getIgnoreTypeFromCustomization(user.customization) ?? 'hide'
 								const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
 
 								return (

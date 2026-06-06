@@ -181,7 +181,7 @@ function createNewThreadPlaceholder(): HTMLLIElement {
 
 	const button = document.createElement('a')
 	button.href = '#'
-	button.className = 'flink dropdown-toggle'
+	button.className = 'flink'
 	button.setAttribute('title', 'Nuevo hilo')
 	button.setAttribute('aria-label', 'Crear nuevo hilo')
 	button.innerHTML = `
@@ -191,6 +191,7 @@ function createNewThreadPlaceholder(): HTMLLIElement {
 	button.addEventListener('click', e => {
 		e.preventDefault()
 		e.stopPropagation()
+		e.stopImmediatePropagation()
 	})
 
 	li.appendChild(button)

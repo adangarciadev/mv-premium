@@ -13,7 +13,19 @@ let initialized = false
 let menuObserver: MutationObserver | null = null
 let userMenuClickListenerAttached = false
 
-function handleUserMenuClick(): void {
+function isUserMenuRelatedClick(event: MouseEvent): boolean {
+	const target = event.target
+	if (!(target instanceof Element)) return false
+
+	return Boolean(
+		target.closest(MV_SELECTORS.GLOBAL.USERMENU) ||
+			target.closest('.usermenu, .user-menu, .avatar, .dropdown-toggle, [href="#usermenu"]')
+	)
+}
+
+function handleUserMenuClick(event: MouseEvent): void {
+	if (!isUserMenuRelatedClick(event)) return
+
 	window.setTimeout(injectPanelMenuItem, 0)
 	window.setTimeout(injectPanelMenuItem, 150)
 }
@@ -102,6 +114,16 @@ function ensureUserMenuClickListener(): void {
 	userMenuClickListenerAttached = true
 }
 
+function ensureUserMenuObserver(): void {
+	if (menuObserver) return
+
+	const menu = document.querySelector<HTMLElement>(MV_SELECTORS.GLOBAL.USERMENU)
+	if (!menu) return
+
+	menuObserver = new MutationObserver(injectPanelMenuItem)
+	menuObserver.observe(menu, { childList: true })
+}
+
 export function initMobileLitePanel(): void {
 	if (!isMobileLitePanelAllowed()) return
 	if (initialized) {
@@ -113,9 +135,7 @@ export function initMobileLitePanel(): void {
 	ensurePanelRoot()
 	injectPanelMenuItem()
 	ensureUserMenuClickListener()
-
-	menuObserver = new MutationObserver(injectPanelMenuItem)
-	menuObserver.observe(document.body, { childList: true, subtree: true })
+	ensureUserMenuObserver()
 }
 
 export function teardownMobileLitePanel(): void {

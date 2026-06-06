@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
-import { MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mobile-lite-panel'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MobileLitePanel, MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mobile-lite-panel'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 
 const mocks = vi.hoisted(() => ({
@@ -19,6 +21,7 @@ const mocks = vi.hoisted(() => ({
 	),
 	saveUserCustomizations: vi.fn(() => Promise.resolve()),
 	watchUserCustomizations: vi.fn(() => vi.fn()),
+	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
 		const container = document.createElement('div')
 		if (options.id) container.id = options.id
@@ -50,6 +53,10 @@ vi.mock('@/features/user-customizations/storage', () => ({
 	getUserCustomizations: mocks.getUserCustomizations,
 	saveUserCustomizations: mocks.saveUserCustomizations,
 	watchUserCustomizations: mocks.watchUserCustomizations,
+}))
+
+vi.mock('./ignored-users-sync-event', () => ({
+	dispatchMobileLiteIgnoredUsersSync: mocks.dispatchMobileLiteIgnoredUsersSync,
 }))
 
 vi.mock('@/components/shadow-wrapper', () => ({
@@ -158,5 +165,21 @@ describe('Mobile Lite panel injection', () => {
 
 		expect(document.querySelector('[data-mvp-mobile-lite-panel-menu-item]')).toBeNull()
 		expect(mocks.mountFeatureWithBoundary).not.toHaveBeenCalled()
+	})
+
+	it('shows a visible error when saving a filter fails', async () => {
+		mocks.saveUserCustomizations.mockRejectedValueOnce(new Error('storage failed'))
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		window.dispatchEvent(new CustomEvent(MOBILE_LITE_PANEL_OPEN_EVENT))
+
+		const searchInput = await screen.findByPlaceholderText('Buscar o escribir nick exacto')
+		await user.type(searchInput, 'BrokenUser')
+		await user.click(screen.getByRole('button', { name: 'Ocultar' }))
+
+		await waitFor(() => {
+			expect(screen.getByRole('alert')).toHaveTextContent('No se pudo guardar el filtro. Inténtalo de nuevo.')
+		})
 	})
 })

@@ -19,7 +19,7 @@ import { CHANGELOG, type ChangelogEntry, type ChangeEntry } from '@/features/das
 import { markCurrentVersionAsSeen } from '@/features/dashboard/lib/whats-new-storage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 

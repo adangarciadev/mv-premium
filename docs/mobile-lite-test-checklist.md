@@ -34,9 +34,8 @@ Para desactivar:
 https://www.mediavida.com/foro#mvp_mobile_lite=disable
 ```
 
-También se puede desactivar desde el panel experimental. La variante antigua con query
-`?mvp_mobile_lite=enable|disable` se mantiene para pruebas técnicas, pero no es el método
-recomendado en móvil. Esta activación no aparece en opciones públicas.
+La variante antigua con query `?mvp_mobile_lite=enable|disable` se mantiene para pruebas técnicas,
+pero no es el método recomendado en móvil. Esta activación no aparece en opciones públicas.
 
 No se añade por ahora un gesto oculto de activación: sería más difícil de auditar y podría
 sobrevivir accidentalmente a una publicación Android. El método dev oficial para esta fase es el
@@ -55,32 +54,6 @@ Esto añade o actualiza estos usuarios en `mvp-user-customizations`:
 
 El hash se limpia después de procesarse. Este método es solo para pruebas internas.
 
-## Favoritos locales
-
-El botón `Guardar hilo` usa el mismo almacenamiento que los favoritos locales de escritorio:
-
-- Key WXT: `local:mvp-saved-threads`.
-- Key física en `browser.storage.local`: `mvp-saved-threads`.
-- Tipo: `SavedThread[]`.
-- Estructura actual:
-
-```ts
-interface SavedThread {
-	id: string
-	title: string
-	subforum: string
-	subforumId: string
-	savedAt: number
-	notes?: string
-}
-```
-
-`id` es la ruta normalizada del hilo sin página final ni `/live`, por ejemplo
-`/foro/cine/titulo-del-hilo-123456`. Mobile Lite llama a `saveThread()` desde
-`features/saved-threads/logic/storage.ts`, que evita duplicados por `id` y ordena por `savedAt`
-descendente. Esto significa que los favoritos guardados desde Firefox Android deberían aparecer
-en las vistas de escritorio que lean la misma key local del mismo perfil/instalación.
-
 ## Usuarios ignorados locales
 
 Mobile Lite reutiliza la configuración existente de usuarios ignorados:
@@ -91,7 +64,15 @@ Mobile Lite reutiliza la configuración existente de usuarios ignorados:
 - `ignoreType: "hide"` oculta el post completo.
 - `ignoreType: "mute"` colapsa el post con placeholder `Mostrar`.
 
-La edición de usuarios ignorados sigue siendo solo de escritorio por ahora.
+La edición básica de usuarios filtrados existe en Mobile Lite:
+
+- Entrada `Panel MVPremium` dentro del menú móvil de usuario.
+- Búsqueda local sobre usuarios ya filtrados.
+- Alta manual por nick exacto para `Silenciar` o `Ocultar`.
+- Cambio entre `Silenciar`, `Ocultar` y `Quitar`.
+- Acciones rápidas `Silenciar` y `Ocultar` dentro de la user card nativa de Mediavida.
+
+Mobile Lite no incluye por ahora búsqueda remota/autocompletado de usuarios de Mediavida.
 
 ## Editor móvil ligero
 
@@ -131,18 +112,20 @@ No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de 
 
 - Instalar el XPI local en Firefox Android Nightly/Beta o el entorno de pruebas disponible.
 - Confirmar que el manifest del build experimental contiene `browser_specific_settings.gecko_android`.
-- Confirmar que Chrome y Firefox Desktop no muestran el botón Mobile Lite.
+- Confirmar que Chrome y Firefox Desktop no muestran UI Mobile Lite ni entrada `Panel MVPremium`.
 - En Firefox Android con `mobileLiteEnabled=false`, abrir Mediavida y confirmar que no aparece UI de MV Premium.
 - Activar con `#mvp_mobile_lite=enable`.
-- Confirmar que aparece un botón flotante discreto abajo a la derecha.
-- Abrir el panel y confirmar el texto `MV Premium Mobile Lite experimental`.
-- En un hilo, pulsar `Guardar hilo` y comprobar que el botón cambia a `Guardado`.
-- Pulsar de nuevo o recargar y confirmar que no se crean duplicados en `mvp-saved-threads`.
+- Abrir el menú móvil de usuario y confirmar que aparece `Panel MVPremium`.
+- Abrir `Panel MVPremium` y confirmar que muestra `Usuarios filtrados`.
+- Escribir un nick exacto no filtrado y confirmar que aparecen acciones `Silenciar` y `Ocultar`.
+- Simular un fallo de guardado solo en entorno de prueba y confirmar que el panel muestra un error visible.
 - En escritorio, marcar un usuario como oculto (`hide`) y otro como ignorado/colapsado (`mute`).
 - En Firefox Android, abrir un hilo donde aparezcan esos usuarios.
 - Confirmar que el usuario en modo `hide` desaparece del hilo.
 - Confirmar que el usuario en modo `mute` aparece colapsado con botón `Mostrar`.
 - Pulsar `Mostrar` y confirmar que el post muteado se puede revelar temporalmente.
+- Abrir una user card nativa desde un nick y confirmar que Mobile Lite añade `Silenciar` y `Ocultar`.
+- Cambiar un filtro desde la user card y confirmar que se preservan otras personalizaciones del usuario.
 - Si no se puede editar el storage en Firefox Android, activar el seed dev con
   `#mvp_mobile_lite=enable&mvp_mobile_lite_ignored_test=enable` y probar con `ClauDeS` y `silentMike`.
 - Abrir el editor de respuesta en un hilo y confirmar que aparece `Subir imagen` junto al textarea del editor.
@@ -151,11 +134,8 @@ No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de 
 - Pegar una URL `.jpg`, `.jpeg`, `.png` o `.gif` y confirmar que se envuelve en `[img]`.
 - Pegar una URL de YouTube, Instagram, X/Twitter o Steam y confirmar que se envuelve en `[media]`.
 - Pegar texto normal o varias URLs y confirmar que el pegado nativo no se altera.
-- En una página que no sea hilo, comprobar que el guardado queda deshabilitado o muestra estado no disponible.
-- Probar `Arriba` y `Abajo` dentro de un hilo largo.
-- Recargar la página y confirmar que el botón sigue apareciendo mientras el flag siga activo.
-- Desactivar Mobile Lite desde el panel y confirmar que desaparece tras la acción o al recargar.
-- Activar otra vez y luego desactivar con `#mvp_mobile_lite=disable`.
+- Recargar la página y confirmar que la entrada `Panel MVPremium` sigue apareciendo mientras el flag siga activo.
+- Desactivar con `#mvp_mobile_lite=disable` y confirmar que desaparecen entrada de panel y mejoras móviles tras recargar.
 
 ## Checklist de regresión Fase 1.1
 
@@ -163,7 +143,7 @@ No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de 
 
 - Build normal sin `MVP_ENABLE_FIREFOX_ANDROID=true`.
 - Confirmar que no aparece `browser_specific_settings.gecko_android` en el manifest Chrome.
-- Abrir Mediavida y confirmar que no aparece el botón Mobile Lite.
+- Abrir Mediavida y confirmar que no aparece UI Mobile Lite ni entrada `Panel MVPremium`.
 - Confirmar que las features desktop existentes siguen disponibles.
 
 ### Firefox Desktop
@@ -184,14 +164,13 @@ No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de 
 ### Firefox Android con `mobileLiteEnabled=true`
 
 - Activar con `#mvp_mobile_lite=enable`.
-- Confirmar botón discreto abajo a la derecha con safe-area.
+- Confirmar entrada `Panel MVPremium` dentro del menú móvil de usuario.
 - Abrir panel en vertical y horizontal; no debe salirse de pantalla.
 - Confirmar que el panel tiene scroll interno si el viewport es bajo.
-- Guardar un hilo y confirmar estado `Guardado`.
 - Confirmar que usuarios ignorados de escritorio se aplican en hilos móviles.
 - Confirmar subida de imagen desde editor móvil.
 - Confirmar autoformateo de URLs pegadas en editor móvil.
-- Desactivar desde panel o `#mvp_mobile_lite=disable`.
+- Desactivar con `#mvp_mobile_lite=disable`.
 
 ## Comprobaciones de regresión
 
@@ -202,13 +181,12 @@ No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de 
 - No deben aparecer context menus nuevos.
 - No debe ejecutarse `scripting.executeScript`.
 - No debe pedirse ningún permiso nuevo.
-- No debe aparecer ningún control nuevo para editar usuarios ignorados desde móvil.
 - No debe aparecer toolbar/editor completo de escritorio en móvil.
 
 ## Criterios antes de ampliar Fase 1
 
 - Probar en al menos un hilo corto, un hilo largo, portada, listado de foro y página no soportada.
 - Revisar consola remota de Firefox Android sin errores recurrentes.
-- Verificar que el guardado local escribe en `mvp-saved-threads`.
+- Verificar que los cambios de usuarios filtrados escriben en `mvp-user-customizations`.
 - Confirmar que el panel no tapa controles críticos de Mediavida móvil.
 - Confirmar que la UI táctil es usable con una mano.
