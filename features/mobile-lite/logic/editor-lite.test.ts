@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { editorPreserveStorage } from '@/features/editor/storage'
 import {
 	attachMobileLitePasteHandlers,
 	getMobileLiteEditorTextarea,
@@ -157,10 +158,11 @@ function setInputFiles(input: HTMLInputElement, files: File[]): void {
 }
 
 describe('Mobile Lite editor enhancements', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		mocks.getPlatformKind.mockReturnValue('firefox-android')
 		mocks.isFeatureEnabled.mockReturnValue(true)
 		mocks.uploadImage.mockReset()
+		await editorPreserveStorage.removeValue()
 	})
 
 	afterEach(() => {
@@ -271,6 +273,35 @@ describe('Mobile Lite editor enhancements', () => {
 		expect(editorMeta?.style.display).toBe('')
 		expect(control?.style.cssFloat).toBe('right')
 		expect(control?.style.marginRight).toBe('12px')
+	})
+
+	it('preserves mobile editor content before opening the extended editor link', async () => {
+		renderNormalMediavidaEditor('Texto escrito en movil')
+		const extendedEditorLink = document.querySelector<HTMLAnchorElement>('#goext')
+		expect(extendedEditorLink).toBeTruthy()
+
+		initMobileLiteEditorEnhancements()
+		extendedEditorLink!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+
+		await vi.waitFor(async () => {
+			await expect(editorPreserveStorage.getValue()).resolves.toMatchObject({
+				content: 'Texto escrito en movil',
+			})
+		})
+	})
+
+	it('restores preserved mobile editor content on the extended editor page', async () => {
+		await editorPreserveStorage.setValue({
+			content: 'Texto recuperado',
+			timestamp: Date.now(),
+		})
+		const textarea = renderExtendedMediavidaEditor()
+
+		initMobileLiteEditorEnhancements()
+
+		await vi.waitFor(() => {
+			expect(textarea.value).toBe('Texto recuperado')
+		})
 	})
 
 	it('places the image upload control in the extended editor favorites row and keeps the help link at the end', () => {

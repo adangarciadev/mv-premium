@@ -1,6 +1,7 @@
 import { MV_SELECTORS } from '@/constants'
 import { isImageUrl } from '@/features/editor/logic/image-detector'
 import { isMediaUrl, normalizeMediaUrl } from '@/features/editor/logic/media-detector'
+import { restoreEditorContent, saveEditorContent } from '@/features/editor/logic/editor-content-preserve'
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
@@ -12,8 +13,11 @@ export type MobileLiteUploadResult =
 
 const TEXTAREA_SELECTOR = MV_SELECTORS.EDITOR.TEXTAREA_ALL
 const PASTE_MARKER = 'mvpMobileLitePaste'
+const PRESERVE_TEXTAREA_MARKER = 'mvpMobileLitePreserve'
+const PRESERVE_LINK_MARKER = 'mvpMobileLitePreserveLink'
 const UPLOAD_CONTROL_MARKER = 'mvpMobileLiteUploadControlMounted'
 const UPLOAD_CONTROL_SELECTOR = '[data-mvp-mobile-lite-upload-control="true"]'
+const EXTENDED_EDITOR_LINK_SELECTOR = 'a#goext[href], a[href*="responder"]'
 const PASTE_OBSERVER_DEBOUNCE_MS = 100
 const FAVORITE_ROW_TEXT_PATTERN = /favorit/i
 const NORMAL_EDITOR_FORM_ID = 'postform'
@@ -221,6 +225,34 @@ function attachPasteHandler(textarea: HTMLTextAreaElement): void {
 	})
 }
 
+function getEditorPreserveRoot(textarea: HTMLTextAreaElement): ParentNode {
+	return (
+		textarea.closest<HTMLElement>(
+			`${MV_SELECTORS.EDITOR.POSTFORM}, ${MV_SELECTORS.EDITOR.FORMBOX}, .control, form`
+		) ?? document
+	)
+}
+
+function attachEditorContentPreserveHandler(textarea: HTMLTextAreaElement): void {
+	if (textarea.dataset[PRESERVE_TEXTAREA_MARKER] !== 'true') {
+		textarea.dataset[PRESERVE_TEXTAREA_MARKER] = 'true'
+		void restoreEditorContent(textarea)
+	}
+
+	const root = getEditorPreserveRoot(textarea)
+	root.querySelectorAll<HTMLAnchorElement>(EXTENDED_EDITOR_LINK_SELECTOR).forEach(link => {
+		if (link.dataset[PRESERVE_LINK_MARKER] === 'true') return
+		link.dataset[PRESERVE_LINK_MARKER] = 'true'
+
+		link.addEventListener('click', () => {
+			if (!isMobileLiteEditorAllowed()) return
+			if (!textarea.isConnected || !textarea.value.trim()) return
+
+			void saveEditorContent(textarea.value)
+		})
+	})
+}
+
 function attachDocumentPasteHandler(): void {
 	if (documentPasteListenerAttached) return
 
@@ -240,7 +272,10 @@ function attachDocumentEditorDiscoveryHandler(): void {
 export function attachMobileLitePasteHandlers(root: ParentNode = document): void {
 	if (!isMobileLiteEditorAllowed()) return
 
-	root.querySelectorAll<HTMLTextAreaElement>(TEXTAREA_SELECTOR).forEach(attachPasteHandler)
+	root.querySelectorAll<HTMLTextAreaElement>(TEXTAREA_SELECTOR).forEach(textarea => {
+		attachPasteHandler(textarea)
+		attachEditorContentPreserveHandler(textarea)
+	})
 }
 
 function setUploadControlStatus(status: HTMLElement, message: string, state: 'idle' | 'error' = 'idle'): void {
@@ -550,7 +585,12 @@ export function teardownMobileLiteEditorEnhancements(): void {
 
 	document.querySelectorAll<HTMLTextAreaElement>(TEXTAREA_SELECTOR).forEach(textarea => {
 		delete textarea.dataset[PASTE_MARKER]
+		delete textarea.dataset[PRESERVE_TEXTAREA_MARKER]
 		delete textarea.dataset[UPLOAD_CONTROL_MARKER]
+	})
+
+	document.querySelectorAll<HTMLAnchorElement>(EXTENDED_EDITOR_LINK_SELECTOR).forEach(link => {
+		delete link.dataset[PRESERVE_LINK_MARKER]
 	})
 
 	initialized = false
