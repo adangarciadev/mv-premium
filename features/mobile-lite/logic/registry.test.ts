@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
 	teardownEditor: vi.fn(),
 	initIgnoredUsers: vi.fn(),
 	teardownIgnoredUsers: vi.fn(),
+	initIgnoredUserThreads: vi.fn(),
+	teardownIgnoredUserThreads: vi.fn(),
 	initIgnoredUsersImport: vi.fn(),
 	teardownIgnoredUsersImport: vi.fn(),
 	initPanel: vi.fn(),
@@ -41,6 +43,14 @@ vi.mock('./ignored-users-import', () => ({
 	teardownMobileLiteIgnoredUsersImport: mocks.teardownIgnoredUsersImport,
 }))
 
+vi.mock('./ignored-user-threads', () => ({
+	initMobileLiteIgnoredUserThreads: mocks.initIgnoredUserThreads,
+	isNormalMobileLiteSubforumPath: vi.fn(
+		(pathname: string) => pathname.startsWith('/foro/') && !pathname.startsWith('/foro/spy')
+	),
+	teardownMobileLiteIgnoredUserThreads: mocks.teardownIgnoredUserThreads,
+}))
+
 vi.mock('./panel', () => ({
 	initMobileLitePanel: mocks.initPanel,
 	teardownMobileLitePanel: mocks.teardownPanel,
@@ -54,6 +64,7 @@ function context(overrides: Partial<MobileLiteContext> = {}): MobileLiteContext 
 		hasUserMenu: false,
 		hasIgnoredUsersImport: false,
 		isForumRelated: false,
+		isNormalSubforumThreadList: false,
 		pathname: '/foro',
 		...overrides,
 	}
@@ -87,6 +98,17 @@ describe('Mobile Lite registry', () => {
 		).toEqual(['editor-lite', 'panel'])
 	})
 
+	it('runs ignored author thread filtering on normal subforum thread lists', () => {
+		expect(
+			getRunnableMobileLiteModuleIds(
+				context({
+					isForumRelated: true,
+					isNormalSubforumThreadList: true,
+				})
+			)
+		).toEqual(['ignored-user-threads', 'editor-lite', 'panel'])
+	})
+
 	it('initializes only runnable modules', () => {
 		initMobileLite(
 			context({
@@ -98,6 +120,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initEditor).toHaveBeenCalledOnce()
 		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
+		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
 		expect(mocks.initPanel).toHaveBeenCalledOnce()
 	})
 
@@ -111,6 +134,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initIgnoredUsersImport).toHaveBeenCalledOnce()
 		expect(mocks.initEditor).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
+		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
 		expect(mocks.initPanel).not.toHaveBeenCalled()
 	})
 
@@ -128,6 +152,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initEditor).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
+		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
 		expect(mocks.initPanel).not.toHaveBeenCalled()
 	})
 
@@ -136,6 +161,7 @@ describe('Mobile Lite registry', () => {
 
 		expect(mocks.teardownIgnoredUsersImport).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUsers).toHaveBeenCalledOnce()
+		expect(mocks.teardownIgnoredUserThreads).toHaveBeenCalledOnce()
 		expect(mocks.teardownEditor).toHaveBeenCalledOnce()
 		expect(mocks.teardownPanel).toHaveBeenCalledOnce()
 	})

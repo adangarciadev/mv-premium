@@ -3,6 +3,11 @@ import { getPlatformKind } from '@/lib/platform'
 import { initMobileLiteEditorEnhancements, teardownMobileLiteEditorEnhancements } from './editor-lite'
 import { initMobileLiteIgnoredUsers, teardownMobileLiteIgnoredUsers } from './ignored-users'
 import { hasIgnoredUsersImportParam, initMobileLiteIgnoredUsersImport, teardownMobileLiteIgnoredUsersImport } from './ignored-users-import'
+import {
+	initMobileLiteIgnoredUserThreads,
+	isNormalMobileLiteSubforumPath,
+	teardownMobileLiteIgnoredUserThreads,
+} from './ignored-user-threads'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 
 export interface MobileLiteContext {
@@ -12,6 +17,7 @@ export interface MobileLiteContext {
 	hasUserMenu: boolean
 	hasIgnoredUsersImport: boolean
 	isForumRelated: boolean
+	isNormalSubforumThreadList: boolean
 	pathname: string
 }
 
@@ -26,6 +32,7 @@ const POST_SELECTOR = '.post[data-num], .rep[data-num], div[id^="post-"]'
 const EDITOR_SELECTOR = 'textarea#cuerpo, textarea[name="cuerpo"], .editor-body textarea'
 const USER_CARD_SELECTOR = '#user-card, .f-card'
 const USER_MENU_SELECTOR = '#usermenu'
+const THREAD_LIST_ROWS_SELECTOR = 'tbody#temas tr, table#temas tbody tr'
 
 const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 	{
@@ -39,6 +46,12 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		init: initMobileLiteIgnoredUsers,
 		teardown: teardownMobileLiteIgnoredUsers,
 		shouldRun: context => context.hasPosts || context.hasUserCard,
+	},
+	{
+		id: 'ignored-user-threads',
+		init: initMobileLiteIgnoredUserThreads,
+		teardown: teardownMobileLiteIgnoredUserThreads,
+		shouldRun: context => context.isNormalSubforumThreadList,
 	},
 	{
 		id: 'editor-lite',
@@ -68,6 +81,8 @@ export function getMobileLiteContext(root: ParentNode = document): MobileLiteCon
 		hasUserMenu: Boolean(root.querySelector(USER_MENU_SELECTOR)),
 		hasIgnoredUsersImport: hasIgnoredUsersImportParam(window.location.search),
 		isForumRelated: pathname === '/' || pathname.startsWith('/foro'),
+		isNormalSubforumThreadList:
+			isNormalMobileLiteSubforumPath(pathname) && Boolean(root.querySelector(THREAD_LIST_ROWS_SELECTOR)),
 		pathname,
 	}
 }
