@@ -428,7 +428,7 @@ describe('Mobile Lite editor enhancements', () => {
 		const input = control?.querySelector<HTMLInputElement>('input[type="file"]')
 		expect(input).toBeTruthy()
 
-		setInputFiles(input!, [new File(['image'], 'mobile.png', { type: 'image/png' })])
+		setInputFiles(input!, [new File(['image'], 'mobile.gif', { type: 'image/gif' })])
 		input!.dispatchEvent(new Event('change', { bubbles: true }))
 
 		await vi.waitFor(() => {
@@ -448,7 +448,7 @@ describe('Mobile Lite editor enhancements', () => {
 		const input = control?.querySelector<HTMLInputElement>('input[type="file"]')
 		expect(input).toBeTruthy()
 
-		setInputFiles(input!, [new File(['image'], 'mobile.png', { type: 'image/png' })])
+		setInputFiles(input!, [new File(['image'], 'mobile.gif', { type: 'image/gif' })])
 		input!.dispatchEvent(new Event('change', { bubbles: true }))
 
 		await vi.waitFor(() => {
