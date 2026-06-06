@@ -26,6 +26,8 @@ const NORMAL_EDITOR_META_SELECTOR = '.editor-meta'
 const EXTENDED_EDITOR_FAVORITES_SELECTOR = '#tofavstuff'
 const UPLOAD_BUTTON_RESET_MS = 1000
 const INVISIBLE_CLIPBOARD_CHARS_PATTERN = /[\u200B-\u200D\uFEFF]/g
+const IMAGE_CROP_DIALOG_ATTR = 'data-mvp-mobile-lite-image-crop-dialog'
+const IMAGE_CROP_SUPPORTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 let initialized = false
 let textareaObserver: MutationObserver | null = null
@@ -72,6 +74,19 @@ const uploadControlStyles = {
 		'white-space: nowrap',
 		'border: 0',
 	].join(';'),
+}
+
+type CropDialogResult = File | 'original' | null
+
+interface CropTransform {
+	x: number
+	y: number
+	zoom: number
+}
+
+interface CropFrame {
+	width: number
+	height: number
 }
 
 function isMobileLiteEditorAllowed(): boolean {
@@ -310,6 +325,416 @@ function setTemporaryUploadButtonText(button: HTMLButtonElement, text: string, i
 	}, UPLOAD_BUTTON_RESET_MS)
 }
 
+function isMobileLiteCropSupported(file: File): boolean {
+	return (
+		IMAGE_CROP_SUPPORTED_TYPES.has(file.type) &&
+		typeof URL.createObjectURL === 'function' &&
+		typeof URL.revokeObjectURL === 'function' &&
+		typeof HTMLCanvasElement !== 'undefined'
+	)
+}
+
+function getCroppedFileName(fileName: string): string {
+	const extensionIndex = fileName.lastIndexOf('.')
+	if (extensionIndex <= 0) return `${fileName}-recortada`
+	return `${fileName.slice(0, extensionIndex)}-recortada${fileName.slice(extensionIndex)}`
+}
+
+function loadImageFromFile(file: File): Promise<{ image: HTMLImageElement; objectUrl: string }> {
+	return new Promise((resolve, reject) => {
+		const objectUrl = URL.createObjectURL(file)
+		const image = new Image()
+
+		image.onload = () => resolve({ image, objectUrl })
+		image.onerror = () => {
+			URL.revokeObjectURL(objectUrl)
+			reject(new Error('No se pudo cargar la imagen'))
+		}
+		image.src = objectUrl
+	})
+}
+
+function clampCropTransform(transform: CropTransform, image: HTMLImageElement, frame: CropFrame, baseScale: number): CropTransform {
+	const scale = baseScale * transform.zoom
+	const width = image.naturalWidth * scale
+	const height = image.naturalHeight * scale
+	const minX = Math.min(0, frame.width - width)
+	const minY = Math.min(0, frame.height - height)
+
+	return {
+		x: Math.min(0, Math.max(minX, transform.x)),
+		y: Math.min(0, Math.max(minY, transform.y)),
+		zoom: transform.zoom,
+	}
+}
+
+function renderCropImageTransform(
+	previewImage: HTMLImageElement,
+	image: HTMLImageElement,
+	baseScale: number,
+	transform: CropTransform
+): void {
+	const scale = baseScale * transform.zoom
+	previewImage.style.width = `${image.naturalWidth * scale}px`
+	previewImage.style.height = `${image.naturalHeight * scale}px`
+	previewImage.style.transform = `translate(${transform.x}px, ${transform.y}px)`
+}
+
+function createCroppedImageFile(file: File, image: HTMLImageElement, frame: CropFrame, baseScale: number, transform: CropTransform): Promise<File> {
+	return new Promise((resolve, reject) => {
+		const scale = baseScale * transform.zoom
+		const sourceWidth = Math.min(image.naturalWidth, frame.width / scale)
+		const sourceHeight = Math.min(image.naturalHeight, frame.height / scale)
+		const sourceX = Math.min(image.naturalWidth - sourceWidth, Math.max(0, -transform.x / scale))
+		const sourceY = Math.min(image.naturalHeight - sourceHeight, Math.max(0, -transform.y / scale))
+		const outputWidth = Math.max(1, Math.round(sourceWidth))
+		const outputHeight = Math.max(1, Math.round(sourceHeight))
+		const canvas = document.createElement('canvas')
+		canvas.width = outputWidth
+		canvas.height = outputHeight
+
+		const context = canvas.getContext('2d')
+		if (!context) {
+			reject(new Error('No se pudo recortar la imagen'))
+			return
+		}
+
+		context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, outputWidth, outputHeight)
+		canvas.toBlob(blob => {
+			if (!blob) {
+				reject(new Error('No se pudo recortar la imagen'))
+				return
+			}
+
+			resolve(new File([blob], getCroppedFileName(file.name), { type: blob.type || file.type }))
+		}, file.type)
+	})
+}
+
+export async function openMobileLiteImageCropDialog(file: File): Promise<CropDialogResult> {
+	if (!isMobileLiteCropSupported(file)) return 'original'
+
+	const { image, objectUrl } = await loadImageFromFile(file)
+	const existingDialog = document.querySelector(`[${IMAGE_CROP_DIALOG_ATTR}="true"]`)
+	existingDialog?.remove()
+
+	return new Promise(resolve => {
+		const dialog = document.createElement('div')
+		dialog.setAttribute(IMAGE_CROP_DIALOG_ATTR, 'true')
+		dialog.style.cssText = [
+			'position: fixed',
+			'inset: 0',
+			'z-index: 100000',
+			'display: flex',
+			'align-items: center',
+			'justify-content: center',
+			'box-sizing: border-box',
+			'padding: max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left))',
+			'background: rgba(0, 0, 0, 0.68)',
+			'color: #e5e8eb',
+			'font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+		].join(';')
+
+		const panel = document.createElement('section')
+		panel.style.cssText = [
+			'width: min(100%, 390px)',
+			'overflow: hidden',
+			'border: 1px solid #4b545d',
+			'border-radius: 10px',
+			'background: #343b41',
+			'box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45)',
+		].join(';')
+
+		const header = document.createElement('header')
+		header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: #30363d; border-bottom: 1px solid #46505a;'
+		const title = document.createElement('div')
+		title.innerHTML = '<div style="font-size: 16px; font-weight: 700; line-height: 1.2;">Recortar imagen</div><div style="margin-top: 2px; color: #b7bec6; font-size: 12px;">Opcional antes de subir</div>'
+		const closeButton = document.createElement('button')
+		closeButton.type = 'button'
+		closeButton.textContent = '×'
+		closeButton.setAttribute('aria-label', 'Cancelar recorte')
+		closeButton.style.cssText = 'width: 40px; height: 40px; border: 1px solid #56606a; border-radius: 7px; background: #444b54; color: #eef1f3; font-size: 26px; line-height: 1;'
+		header.append(title, closeButton)
+
+		const body = document.createElement('div')
+		body.style.cssText = 'padding: 16px; background: #384149;'
+
+		const maxFrameSize = Math.max(180, Math.min(280, window.innerWidth - 76, window.innerHeight - 360))
+		const minFrameSize = Math.max(120, Math.round(maxFrameSize * 0.52))
+		let frame: CropFrame = { width: maxFrameSize, height: maxFrameSize }
+		const cropBox = document.createElement('div')
+		cropBox.style.cssText = [
+			`width: ${frame.width}px`,
+			`height: ${frame.height}px`,
+			'margin: 0 auto',
+			'position: relative',
+			'overflow: hidden',
+			'touch-action: none',
+			'border: 2px solid #d06d00',
+			'border-radius: 8px',
+			'background: #20262c',
+		].join(';')
+
+		const previewImage = document.createElement('img')
+		previewImage.src = objectUrl
+		previewImage.alt = ''
+		previewImage.draggable = false
+		previewImage.style.cssText = 'position: absolute; left: 0; top: 0; max-width: none; max-height: none; user-select: none; will-change: transform; transform-origin: 0 0;'
+
+		const grid = document.createElement('div')
+		grid.setAttribute('aria-hidden', 'true')
+		grid.style.cssText = [
+			'position: absolute',
+			'inset: 0',
+			'pointer-events: none',
+			'box-shadow: inset 0 0 0 1px rgba(255,255,255,0.35)',
+			'background: linear-gradient(to right, transparent 33.33%, rgba(255,255,255,0.32) 33.33%, rgba(255,255,255,0.32) 34%, transparent 34%, transparent 66.66%, rgba(255,255,255,0.32) 66.66%, rgba(255,255,255,0.32) 67.33%, transparent 67.33%), linear-gradient(to bottom, transparent 33.33%, rgba(255,255,255,0.32) 33.33%, rgba(255,255,255,0.32) 34%, transparent 34%, transparent 66.66%, rgba(255,255,255,0.32) 66.66%, rgba(255,255,255,0.32) 67.33%, transparent 67.33%)',
+		].join(';')
+
+		cropBox.append(previewImage, grid)
+
+		const hint = document.createElement('p')
+		hint.textContent = 'Arrastra la imagen para encuadrar.'
+		hint.style.cssText = 'margin: 10px 0 0; color: #b7bec6; font-size: 12px; text-align: center;'
+
+		const modeGroup = document.createElement('div')
+		modeGroup.setAttribute('role', 'group')
+		modeGroup.setAttribute('aria-label', 'Formato de recorte')
+		modeGroup.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;'
+
+		const squareModeButton = document.createElement('button')
+		squareModeButton.type = 'button'
+		squareModeButton.textContent = 'Cuadrado'
+		squareModeButton.style.cssText = 'height: 36px; border: 1px solid #d06d00; border-radius: 7px; background: #7b4b08; color: white; font-weight: 700;'
+
+		const freeModeButton = document.createElement('button')
+		freeModeButton.type = 'button'
+		freeModeButton.textContent = 'Libre'
+		freeModeButton.style.cssText = 'height: 36px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; font-weight: 700;'
+
+		modeGroup.append(squareModeButton, freeModeButton)
+
+		const freeControls = document.createElement('div')
+		freeControls.style.cssText = 'display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;'
+
+		const widthLabel = document.createElement('label')
+		widthLabel.textContent = 'Ancho'
+		widthLabel.style.cssText = 'display: block; color: #d8dde2; font-size: 12px; font-weight: 600;'
+		const widthInput = document.createElement('input')
+		widthInput.type = 'range'
+		widthInput.min = String(minFrameSize)
+		widthInput.max = String(maxFrameSize)
+		widthInput.step = '1'
+		widthInput.value = String(frame.width)
+		widthInput.style.cssText = 'width: 100%; margin-top: 6px; accent-color: #d06d00;'
+		widthLabel.append(widthInput)
+
+		const heightLabel = document.createElement('label')
+		heightLabel.textContent = 'Alto'
+		heightLabel.style.cssText = 'display: block; color: #d8dde2; font-size: 12px; font-weight: 600;'
+		const heightInput = document.createElement('input')
+		heightInput.type = 'range'
+		heightInput.min = String(minFrameSize)
+		heightInput.max = String(maxFrameSize)
+		heightInput.step = '1'
+		heightInput.value = String(frame.height)
+		heightInput.style.cssText = 'width: 100%; margin-top: 6px; accent-color: #d06d00;'
+		heightLabel.append(heightInput)
+
+		freeControls.append(widthLabel, heightLabel)
+
+		const zoomLabel = document.createElement('label')
+		zoomLabel.textContent = 'Zoom'
+		zoomLabel.style.cssText = 'display: block; margin-top: 14px; color: #d8dde2; font-size: 13px; font-weight: 600;'
+
+		const zoomInput = document.createElement('input')
+		zoomInput.type = 'range'
+		zoomInput.min = '1'
+		zoomInput.max = '3'
+		zoomInput.step = '0.01'
+		zoomInput.value = '1'
+		zoomInput.style.cssText = 'width: 100%; margin-top: 8px; accent-color: #d06d00;'
+
+		body.append(cropBox, hint, modeGroup, freeControls, zoomLabel, zoomInput)
+
+		const footer = document.createElement('footer')
+		footer.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 16px; background: #30363d; border-top: 1px solid #46505a;'
+
+		const originalButton = document.createElement('button')
+		originalButton.type = 'button'
+		originalButton.textContent = 'Subir original'
+		originalButton.style.cssText = 'height: 40px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; padding: 0 12px; font-weight: 700;'
+
+		const cropButton = document.createElement('button')
+		cropButton.type = 'button'
+		cropButton.textContent = 'Recortar y subir'
+		cropButton.style.cssText = 'height: 40px; border: 1px solid #d06d00; border-radius: 7px; background: #7b4b08; color: white; padding: 0 12px; font-weight: 700;'
+
+		const cancelButton = document.createElement('button')
+		cancelButton.type = 'button'
+		cancelButton.textContent = 'Cancelar'
+		cancelButton.style.cssText = 'height: 40px; border: 1px solid #626b74; border-radius: 7px; background: transparent; color: #eef1f3; padding: 0 12px; font-weight: 700;'
+
+		footer.append(cancelButton, originalButton, cropButton)
+		panel.append(header, body, footer)
+		dialog.append(panel)
+		document.body.appendChild(dialog)
+
+		let baseScale = Math.max(frame.width / image.naturalWidth, frame.height / image.naturalHeight)
+		let transform = clampCropTransform(
+			{
+				x: (frame.width - image.naturalWidth * baseScale) / 2,
+				y: (frame.height - image.naturalHeight * baseScale) / 2,
+				zoom: 1,
+			},
+			image,
+			frame,
+			baseScale
+		)
+
+		const updatePreview = () => renderCropImageTransform(previewImage, image, baseScale, transform)
+		const updateFrame = (nextFrame: CropFrame) => {
+			const previousScale = baseScale * transform.zoom
+			const previousCenterX = frame.width / 2
+			const previousCenterY = frame.height / 2
+			const imageCenterX = (previousCenterX - transform.x) / previousScale
+			const imageCenterY = (previousCenterY - transform.y) / previousScale
+
+			frame = nextFrame
+			cropBox.style.width = `${frame.width}px`
+			cropBox.style.height = `${frame.height}px`
+			baseScale = Math.max(frame.width / image.naturalWidth, frame.height / image.naturalHeight)
+			const nextScale = baseScale * transform.zoom
+			transform = clampCropTransform(
+				{
+					...transform,
+					x: frame.width / 2 - imageCenterX * nextScale,
+					y: frame.height / 2 - imageCenterY * nextScale,
+				},
+				image,
+				frame,
+				baseScale
+			)
+			updatePreview()
+		}
+		const setModeButtonState = (mode: 'square' | 'free') => {
+			const activeStyle = 'height: 36px; border: 1px solid #d06d00; border-radius: 7px; background: #7b4b08; color: white; font-weight: 700;'
+			const idleStyle = 'height: 36px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; font-weight: 700;'
+			squareModeButton.style.cssText = mode === 'square' ? activeStyle : idleStyle
+			freeModeButton.style.cssText = mode === 'free' ? activeStyle : idleStyle
+			freeControls.style.display = mode === 'free' ? 'grid' : 'none'
+		}
+		updatePreview()
+
+		let dragging = false
+		let dragStartX = 0
+		let dragStartY = 0
+		let transformStartX = 0
+		let transformStartY = 0
+
+		const finish = (result: CropDialogResult) => {
+			URL.revokeObjectURL(objectUrl)
+			dialog.remove()
+			resolve(result)
+		}
+
+		cropBox.addEventListener('pointerdown', event => {
+			dragging = true
+			dragStartX = event.clientX
+			dragStartY = event.clientY
+			transformStartX = transform.x
+			transformStartY = transform.y
+			cropBox.setPointerCapture(event.pointerId)
+		})
+
+		cropBox.addEventListener('pointermove', event => {
+			if (!dragging) return
+
+			transform = clampCropTransform(
+				{
+					...transform,
+					x: transformStartX + event.clientX - dragStartX,
+					y: transformStartY + event.clientY - dragStartY,
+				},
+				image,
+				frame,
+				baseScale
+			)
+			updatePreview()
+		})
+
+		cropBox.addEventListener('pointerup', event => {
+			dragging = false
+			cropBox.releasePointerCapture(event.pointerId)
+		})
+		cropBox.addEventListener('pointercancel', event => {
+			dragging = false
+			cropBox.releasePointerCapture(event.pointerId)
+		})
+
+		zoomInput.addEventListener('input', () => {
+			const previousScale = baseScale * transform.zoom
+			const nextZoom = Number(zoomInput.value)
+			const nextScale = baseScale * nextZoom
+			const centerX = frame.width / 2
+			const centerY = frame.height / 2
+
+			transform = clampCropTransform(
+				{
+					x: centerX - ((centerX - transform.x) / previousScale) * nextScale,
+					y: centerY - ((centerY - transform.y) / previousScale) * nextScale,
+					zoom: nextZoom,
+				},
+				image,
+				frame,
+				baseScale
+			)
+			updatePreview()
+		})
+
+		squareModeButton.addEventListener('click', () => {
+			widthInput.value = String(maxFrameSize)
+			heightInput.value = String(maxFrameSize)
+			setModeButtonState('square')
+			updateFrame({ width: maxFrameSize, height: maxFrameSize })
+		})
+
+		freeModeButton.addEventListener('click', () => {
+			const naturalRatio = image.naturalWidth / image.naturalHeight
+			const freeWidth = naturalRatio >= 1 ? maxFrameSize : Math.max(minFrameSize, Math.round(maxFrameSize * naturalRatio))
+			const freeHeight = naturalRatio >= 1 ? Math.max(minFrameSize, Math.round(maxFrameSize / naturalRatio)) : maxFrameSize
+			widthInput.value = String(freeWidth)
+			heightInput.value = String(freeHeight)
+			setModeButtonState('free')
+			updateFrame({ width: freeWidth, height: freeHeight })
+		})
+
+		widthInput.addEventListener('input', () => {
+			setModeButtonState('free')
+			updateFrame({ width: Number(widthInput.value), height: frame.height })
+		})
+
+		heightInput.addEventListener('input', () => {
+			setModeButtonState('free')
+			updateFrame({ width: frame.width, height: Number(heightInput.value) })
+		})
+
+		closeButton.addEventListener('click', () => finish(null))
+		cancelButton.addEventListener('click', () => finish(null))
+		originalButton.addEventListener('click', () => finish('original'))
+		cropButton.addEventListener('click', () => {
+			cropButton.textContent = 'Recortando...'
+			cropButton.setAttribute('disabled', 'true')
+			void createCroppedImageFile(file, image, frame, baseScale, transform)
+				.then(croppedFile => finish(croppedFile))
+				.catch(error => {
+					logger.error('Mobile Lite image crop failed:', error)
+					finish('original')
+				})
+		})
+	})
+}
+
 function getEditorRoot(textarea: HTMLTextAreaElement): ParentNode {
 	return (
 		textarea.closest<HTMLElement>(
@@ -464,12 +889,31 @@ export function injectMobileLiteUploadControl(textarea: HTMLTextAreaElement): HT
 		input.value = ''
 		if (!file) return
 
-		button.disabled = true
-		setUploadButtonContent(button, 'Subiendo...', 'fa fa-spinner fa-spin')
-		setUploadControlStatus(status, 'Subiendo...')
+		const validation = validateImageFile(file)
+		if (!validation.valid) {
+			setUploadControlStatus(status, validation.error || 'Archivo no valido', 'error')
+			setTemporaryUploadButtonText(button, 'Error', 'fa fa-exclamation-triangle')
+			return
+		}
 
-		uploadMobileLiteImage(file, textarea)
+		button.disabled = true
+		setUploadButtonContent(button, 'Preparando...', 'fa fa-spinner fa-spin')
+		setUploadControlStatus(status, 'Preparando imagen...')
+
+		openMobileLiteImageCropDialog(file)
+			.then(cropResult => {
+				if (!cropResult) {
+					setUploadControlStatus(status, 'Subida cancelada')
+					setTemporaryUploadButtonText(button, 'Cancelada', 'fa fa-times')
+					return null
+				}
+
+				setUploadButtonContent(button, 'Subiendo...', 'fa fa-spinner fa-spin')
+				setUploadControlStatus(status, 'Subiendo...')
+				return uploadMobileLiteImage(cropResult === 'original' ? file : cropResult, textarea)
+			})
 			.then(result => {
+				if (!result) return
 				if (result.status === 'success') {
 					setUploadControlStatus(status, 'Imagen insertada')
 					setTemporaryUploadButtonText(button, 'Insertada', 'fa fa-check')
