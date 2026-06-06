@@ -9,7 +9,7 @@ export interface ChangeEntry {
 	type: 'feature' | 'fix' | 'improvement'
 	description: string
 	category?: string
-	surface?: 'desktop' | 'mobile-lite' | 'shared'
+	surface?: 'desktop' | 'mobile-lite' | 'shared' | Array<'desktop' | 'mobile-lite' | 'shared'>
 }
 
 export interface ChangelogEntry {
@@ -21,6 +21,127 @@ export interface ChangelogEntry {
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
+	{
+		version: '3.0.0',
+		date: '2026-06-07',
+		title: 'Mobile Lite, sincronización QR y recorte de imágenes',
+		summary:
+			'Mediavida Premium 3.0 estrena una experiencia Mobile Lite para Firefox Android, permite llevar usuarios ignorados al móvil mediante QR y añade herramientas móviles para gestionar filtros, crear hilos y subir imágenes con recorte opcional.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Mobile Lite para Firefox Android: Nueva experiencia ligera adaptada al móvil para usar Mediavida Premium desde Firefox Android sin permisos nuevos ni backend adicional.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Panel móvil de usuarios filtrados: Desde Mobile Lite puedes consultar, buscar, añadir, silenciar, ocultar o quitar usuarios ignorados con una interfaz pensada para pantallas pequeñas.',
+				category: 'Mobile Lite',
+				surface: ['mobile-lite', 'shared'],
+			},
+			{
+				type: 'feature',
+				description:
+					'Usuarios ocultos y silenciados en móvil: Los posts se ocultan por completo o se colapsan según el modo elegido, manteniendo la misma lógica de filtros que en escritorio.',
+				category: 'Mobile Lite',
+				surface: ['mobile-lite', 'shared'],
+			},
+			{
+				type: 'feature',
+				description:
+					'Ocultación de hilos por autor en subforos móviles: Si tienes a un usuario en modo Ocultar, sus hilos dejan de aparecer también en listados normales de subforo en Mobile Lite.',
+				category: 'Mobile Lite',
+				surface: ['mobile-lite', 'shared'],
+			},
+			{
+				type: 'feature',
+				description:
+					'Crear hilos desde Mobile Lite: El menú móvil incorpora acceso rápido a Nuevo hilo con selección de subforo en una vista compacta adaptada al viewport.',
+				category: 'Mobile Lite',
+				surface: ['mobile-lite', 'shared'],
+			},
+			{
+				type: 'feature',
+				description:
+					'Editor móvil mejorado: Mobile Lite reconoce enlaces de imagen y media al pegar texto, conserva mejor el contenido al cambiar de editor e incorpora subida directa de imágenes.',
+				category: 'Mobile Lite',
+				surface: ['mobile-lite', 'shared'],
+			},
+			{
+				type: 'feature',
+				description:
+					'Recorte opcional antes de subir imágenes desde móvil: Antes de enviar una imagen puedes recortarla en formato cuadrado o libre, hacer zoom, arrastrar el encuadre o subir el original.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Exportar ignorados a móvil: La gestión de usuarios ignorados en escritorio añade una acción para generar un QR o copiar un enlace de importación.',
+				category: 'Escritorio',
+				surface: ['desktop', 'shared'],
+			},
+			{
+				type: 'feature',
+				description:
+					'Backup seguro local: Nueva zona avanzada para crear copias de seguridad completas desde el dashboard, con selección de datos, resumen previo y restauración controlada.',
+				category: 'Copias de seguridad',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Backup opcional de claves personales: Las claves de API personales pueden incluirse en la copia de seguridad solo si el usuario lo activa expresamente.',
+				category: 'Copias de seguridad',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Importación manual por QR: Mobile Lite puede leer un enlace especial de Mediavida, mostrar resumen de usuarios ocultos y silenciados, pedir confirmación y fusionarlos con los existentes.',
+				category: 'Mobile Lite',
+				surface: ['mobile-lite', 'shared'],
+			},
+			{
+				type: 'improvement',
+				description:
+					'Sincronización sin cuenta ni servidor: La transferencia escritorio -> móvil se hace con un payload comprimido y versionado en la URL, con validación de nicks, límite de tamaño y limpieza del enlace tras procesarlo.',
+				category: 'Sincronización',
+				surface: ['desktop', 'mobile-lite', 'shared'],
+			},
+			{
+				type: 'improvement',
+				description:
+					'La importación de ignorados no borra filtros existentes: Los datos se fusionan, se evitan duplicados por nick y Ocultar gana sobre Silenciar cuando hay conflicto.',
+				category: 'Sincronización',
+				surface: ['desktop', 'mobile-lite', 'shared'],
+			},
+			{
+				type: 'improvement',
+				description:
+					'El panel móvil se adapta mejor a distintos viewports y teclados en pantalla, recolocándose para que el input y los estados vacíos queden más cómodos.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El importador móvil muestra confirmación, conteos de usuarios y un mensaje claro de importación completada antes de cerrar el panel.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'fix',
+				description:
+					'Perfiles de usuario: Corregidos los separadores visuales de las filas de hilos cuando se muestran acciones Premium en listados de perfil.',
+				category: 'Perfiles',
+				surface: 'desktop',
+			},
+		],
+	},
 	{
 		version: '2.0.0',
 		date: '2026-06-01',

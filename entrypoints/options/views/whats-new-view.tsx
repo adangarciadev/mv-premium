@@ -15,6 +15,9 @@ import Compass from 'lucide-react/dist/esm/icons/compass'
 import Film from 'lucide-react/dist/esm/icons/film'
 import Users from 'lucide-react/dist/esm/icons/users'
 import Brain from 'lucide-react/dist/esm/icons/brain'
+import Monitor from 'lucide-react/dist/esm/icons/monitor'
+import Smartphone from 'lucide-react/dist/esm/icons/smartphone'
+import Layers from 'lucide-react/dist/esm/icons/layers'
 import { CHANGELOG, type ChangelogEntry, type ChangeEntry } from '@/features/dashboard/lib/changelog'
 import { markCurrentVersionAsSeen } from '@/features/dashboard/lib/whats-new-storage'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +27,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 
 type ChangeType = ChangeEntry['type']
+type SurfaceFilter = 'desktop' | 'mobile-lite' | 'shared'
 
 /** Category icon mapping */
 const CATEGORY_ICONS: Record<string, { icon: typeof LayoutDashboard; color: string }> = {
@@ -38,8 +42,13 @@ const CATEGORY_ICONS: Record<string, { icon: typeof LayoutDashboard; color: stri
 	cine: { icon: Film, color: 'text-purple-500' },
 	comunidad: { icon: Users, color: 'text-green-500' },
 	usuarios: { icon: Users, color: 'text-green-500' },
+	perfiles: { icon: Users, color: 'text-green-500' },
 	inteligencia: { icon: Brain, color: 'text-pink-600' },
 	ia: { icon: Brain, color: 'text-pink-600' },
+	'mobile lite': { icon: Smartphone, color: 'text-amber-500' },
+	escritorio: { icon: Monitor, color: 'text-slate-500' },
+	'copias de seguridad': { icon: Layers, color: 'text-blue-500' },
+	sincronización: { icon: Layers, color: 'text-blue-500' },
 }
 
 /**
@@ -65,6 +74,20 @@ function groupByCategory(changes: ChangeEntry[]): Map<string, ChangeEntry[]> {
 		groups.get(cat)!.push(change)
 	})
 	return groups
+}
+
+function changeMatchesFilters(change: ChangeEntry, filter: ChangeType | null, surfaceFilter: SurfaceFilter | null): boolean {
+	if (filter && change.type !== filter) return false
+	if (surfaceFilter && !getChangeSurfaces(change).includes(surfaceFilter)) return false
+	return true
+}
+
+function getChangeSurfaces(change: ChangeEntry): SurfaceFilter[] {
+	if (Array.isArray(change.surface)) return change.surface
+	if (change.surface) return [change.surface]
+
+	// Entries created before Mobile Lite were desktop-only by definition.
+	return ['desktop']
 }
 
 /**
@@ -101,12 +124,14 @@ function VersionCard({
 	entry,
 	isLatest,
 	filter,
+	surfaceFilter,
 }: {
 	entry: ChangelogEntry
 	isLatest: boolean
 	filter: ChangeType | null
+	surfaceFilter: SurfaceFilter | null
 }) {
-	const filteredChanges = filter ? entry.changes.filter(c => c.type === filter) : entry.changes
+	const filteredChanges = entry.changes.filter(change => changeMatchesFilters(change, filter, surfaceFilter))
 
 	// Don't render if no changes match the filter
 	if (filteredChanges.length === 0) return null
@@ -145,6 +170,7 @@ function VersionCard({
 export function WhatsNewView() {
 	const [marked, setMarked] = useState(false)
 	const [filter, setFilter] = useState<ChangeType | null>(null)
+	const [surfaceFilter, setSurfaceFilter] = useState<SurfaceFilter | null>(null)
 
 	// Mark as seen when mounting the view
 	useEffect(() => {
@@ -165,6 +191,17 @@ export function WhatsNewView() {
 		})
 		return acc
 	}, {} as Record<ChangeType, number>)
+	const countBySurface = CHANGELOG.reduce((acc, entry) => {
+		entry.changes.forEach(change => {
+			getChangeSurfaces(change).forEach(surface => {
+				acc[surface] = (acc[surface] || 0) + 1
+			})
+		})
+		return acc
+	}, {} as Record<SurfaceFilter, number>)
+	const hasVisibleChanges = CHANGELOG.some(entry =>
+		entry.changes.some(change => changeMatchesFilters(change, filter, surfaceFilter))
+	)
 
 	return (
 		<div className="flex-1 flex flex-col h-full">
@@ -190,8 +227,8 @@ export function WhatsNewView() {
 			</div>
 
 			{/* Filter Buttons */}
-			<div className="flex items-center gap-2 mb-4 flex-wrap">
-				<span className="text-sm text-muted-foreground mr-1">Filtrar:</span>
+			<div className="flex items-center gap-2 mb-3 flex-wrap">
+				<span className="text-sm text-muted-foreground mr-1">Tipo:</span>
 				<Button
 					variant={filter === null ? 'secondary' : 'ghost'}
 					size="sm"
@@ -244,12 +281,83 @@ export function WhatsNewView() {
 				</Button>
 			</div>
 
+			<div className="flex items-center gap-2 mb-4 flex-wrap">
+				<span className="text-sm text-muted-foreground mr-1">Vista:</span>
+				<Button
+					variant={surfaceFilter === null ? 'secondary' : 'ghost'}
+					size="sm"
+					className="h-7 text-xs"
+					onClick={() => setSurfaceFilter(null)}
+				>
+					Todo
+				</Button>
+				<Button
+					variant={surfaceFilter === 'desktop' ? 'secondary' : 'ghost'}
+					size="sm"
+					className={cn(
+						'h-7 text-xs gap-1.5',
+						surfaceFilter === 'desktop' && 'bg-slate-500/10 text-slate-700 dark:text-slate-300'
+					)}
+					onClick={() => setSurfaceFilter(surfaceFilter === 'desktop' ? null : 'desktop')}
+				>
+					<Monitor className="h-3 w-3" />
+					Escritorio
+					<Badge variant="outline" className="h-4 px-1 text-[10px] ml-0.5">
+						{countBySurface.desktop || 0}
+					</Badge>
+				</Button>
+				<Button
+					variant={surfaceFilter === 'mobile-lite' ? 'secondary' : 'ghost'}
+					size="sm"
+					className={cn(
+						'h-7 text-xs gap-1.5',
+						surfaceFilter === 'mobile-lite' && 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+					)}
+					onClick={() => setSurfaceFilter(surfaceFilter === 'mobile-lite' ? null : 'mobile-lite')}
+				>
+					<Smartphone className="h-3 w-3" />
+					Mobile Lite
+					<Badge variant="outline" className="h-4 px-1 text-[10px] ml-0.5">
+						{countBySurface['mobile-lite'] || 0}
+					</Badge>
+				</Button>
+				<Button
+					variant={surfaceFilter === 'shared' ? 'secondary' : 'ghost'}
+					size="sm"
+					className={cn(
+						'h-7 text-xs gap-1.5',
+						surfaceFilter === 'shared' && 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
+					)}
+					onClick={() => setSurfaceFilter(surfaceFilter === 'shared' ? null : 'shared')}
+				>
+					<Layers className="h-3 w-3" />
+					Compartido
+					<Badge variant="outline" className="h-4 px-1 text-[10px] ml-0.5">
+						{countBySurface.shared || 0}
+					</Badge>
+				</Button>
+			</div>
+
 			{/* Changelog List */}
 			<ScrollArea className="flex-1">
 				<div className="space-y-4 pr-4 pb-8">
 					{CHANGELOG.map((entry, index) => (
-						<VersionCard key={entry.version} entry={entry} isLatest={index === 0} filter={filter} />
+						<VersionCard
+							key={entry.version}
+							entry={entry}
+							isLatest={index === 0}
+							filter={filter}
+							surfaceFilter={surfaceFilter}
+						/>
 					))}
+
+					{!hasVisibleChanges && (
+						<Card>
+							<CardContent className="py-8 text-center text-sm text-muted-foreground">
+								No hay cambios para los filtros seleccionados.
+							</CardContent>
+						</Card>
+					)}
 
 					{/* Footer hint */}
 					<p className="text-center text-sm text-muted-foreground pt-4">🎉 Gracias por usar MVPremium</p>
