@@ -271,11 +271,19 @@ function getMobileLiteUserCardUsername(card: HTMLElement): string | null {
 	return username || null
 }
 
+function getMobileLiteUserCardAvatarUrl(card: HTMLElement): string | undefined {
+	const avatar = card.querySelector<HTMLImageElement>(
+		'.user-info img.avatar, .user-info img, .post-avatar img, img.avatar, img'
+	)
+	return avatar?.src || undefined
+}
+
 function injectMobileLiteUserCardActions(card: HTMLElement, data: UserCustomizationsData): void {
 	const username = getMobileLiteUserCardUsername(card)
 	if (!username) return
 	if (!card.querySelector('.user-info, .user-controls')) return
 
+	const avatarUrl = getMobileLiteUserCardAvatarUrl(card)
 	const customizationEntry = getEffectiveCustomizationEntryForUser(data, username)
 	const storageKey = customizationEntry?.storageKey ?? username
 	const customization = customizationEntry?.customization
@@ -292,10 +300,10 @@ function injectMobileLiteUserCardActions(card: HTMLElement, data: UserCustomizat
 	actions.setAttribute(MOBILE_LITE_USER_CARD_ACTIONS_KEY_ATTR, actionsKey)
 	actions.append(
 		createUserCardActionButton(isMuted ? 'Silenciado' : 'Silenciar', 'fa-user-times', isMuted, () =>
-			setMobileLiteUserIgnore(storageKey, isMuted ? null : 'mute')
+			setMobileLiteUserIgnore(storageKey, isMuted ? null : 'mute', avatarUrl)
 		),
 		createUserCardActionButton(isHidden ? 'Oculto' : 'Ocultar', 'fa-eye-slash', isHidden, () =>
-			setMobileLiteUserIgnore(storageKey, isHidden ? null : 'hide')
+			setMobileLiteUserIgnore(storageKey, isHidden ? null : 'hide', avatarUrl)
 		)
 	)
 
@@ -475,11 +483,18 @@ function ensureMobileLiteIgnoredUsersSyncListener(): void {
 	syncEventListenerAttached = true
 }
 
-export async function setMobileLiteUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<void> {
+export async function setMobileLiteUserIgnore(
+	username: string,
+	ignoreType: MobileLiteIgnoreType | null,
+	avatarUrl?: string
+): Promise<void> {
 	if (!isMobileLiteIgnoredUsersAllowed()) return
 
 	const data = await getUserCustomizations()
 	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
+	if (ignoreType && avatarUrl) {
+		data.users[storageKey] = { ...data.users[storageKey], avatarUrl }
+	}
 
 	markMobileLiteIgnoredUsersManualChange(storageKey, ignoreType)
 	syncMobileLiteIgnoredUsers(data)

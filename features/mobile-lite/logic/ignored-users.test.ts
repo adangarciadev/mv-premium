@@ -107,12 +107,13 @@ function renderThreadWithPostWrapper(): void {
 	`
 }
 
-function renderNativeUserCard(username = 'HiddenUser', id = 'user-card'): void {
+function renderNativeUserCard(username = 'HiddenUser', id = 'user-card', avatarUrl?: string): void {
 	document.body.insertAdjacentHTML(
 		'beforeend',
 		`
 			<div ${id ? `id="${id}"` : ''} class="f-card show">
 				<div class="user-info">
+					${avatarUrl ? `<img class="avatar" src="${avatarUrl}" alt="${username}">` : ''}
 					<h4><a href="/id/${username}">${username}</a></h4>
 				</div>
 				<div class="user-controls">
@@ -433,6 +434,33 @@ describe('Mobile Lite ignored users', () => {
 				},
 			})
 		)
+	})
+
+	it('stores the native user-card avatar when saving a manual action from the card', async () => {
+		renderThread()
+		renderNativeUserCard('HiddenUser', 'user-card', 'https://www.mediavida.com/img/users/avatar/hidden-user.png')
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+
+		applyMobileLiteIgnoredUsers(userCustomizations({}))
+
+		const muteButton = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-mvp-mobile-lite-user-card-actions="true"] button')).find(
+			button => button.textContent?.includes('Silenciar')
+		)
+		expect(muteButton).not.toBeNull()
+
+		muteButton!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+		await vi.waitFor(() => {
+			expect(mocks.saveUserCustomizations).toHaveBeenCalledWith(
+				userCustomizations({
+					HiddenUser: {
+						isIgnored: true,
+						ignoreType: 'mute',
+						avatarUrl: 'https://www.mediavida.com/img/users/avatar/hidden-user.png',
+					},
+				})
+			)
+		})
 	})
 
 	it('removes only the manual ignore fields when clearing a filtered user', async () => {
