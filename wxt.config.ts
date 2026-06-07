@@ -32,6 +32,10 @@ export default defineConfig({
 	imports: false, // Disable auto-imports to avoid duplicated imports warnings
 	hooks: {
 		'build:manifestGenerated': (_, manifest) => {
+			if (manifest.browser_action) {
+				manifest.browser_action.default_title = 'MV Premium'
+			}
+
 			if (!ENABLE_FIREFOX_ANDROID) return
 
 			delete manifest.options_page
