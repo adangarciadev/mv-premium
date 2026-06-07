@@ -11,6 +11,7 @@ import UserX from 'lucide-react/dist/esm/icons/user-x'
 import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
 import X from 'lucide-react/dist/esm/icons/x'
 import { browser } from 'wxt/browser'
+import { sendMessage } from '@/lib/messaging'
 import {
 	getUserCustomizations,
 	saveUserCustomizations,
@@ -109,9 +110,37 @@ function getUsernameValidationMessage(username: string): string | null {
 	return null
 }
 
+function findVisibleUserAvatar(username: string): string | undefined {
+	const normalizedUsername = username.toLowerCase()
+	const userLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.user-card[href^="/id/"]'))
+
+	for (const link of userLinks) {
+		const linkUsername = link.textContent?.trim() || link.querySelector('img')?.alt?.trim() || link.getAttribute('href')?.split('/').pop()?.trim() || ''
+		if (linkUsername.toLowerCase() !== normalizedUsername) continue
+
+		const avatarUrl = link.querySelector<HTMLImageElement>('img.avatar, img')?.src
+		if (avatarUrl) return avatarUrl
+	}
+
+	return undefined
+}
+
+async function resolveUserAvatar(username: string): Promise<string | undefined> {
+	const visibleAvatar = findVisibleUserAvatar(username)
+	if (visibleAvatar) return visibleAvatar
+
+	const result = await sendMessage('resolveMvUserAvatar', { username })
+	return result.success ? result.avatarUrl : undefined
+}
+
 async function updateUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<UserCustomizationsData> {
 	const data = await getUserCustomizations()
 	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
+	const avatarUrl = ignoreType ? await resolveUserAvatar(storageKey) : undefined
+	if (avatarUrl) {
+		data.users[storageKey] = { ...data.users[storageKey], avatarUrl }
+	}
+
 	await saveUserCustomizations(data)
 	dispatchMobileLiteIgnoredUsersSync({
 		data,

@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { UserCustomization, UserCustomizationsData } from '@/features/user-customizations/storage'
+import type { MvUserAvatarResult } from '@/lib/messaging'
 import { MobileLitePanel, MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mobile-lite-panel'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 
@@ -23,6 +24,7 @@ const mocks = vi.hoisted(() => ({
 	saveUserCustomizations: vi.fn((_data: UserCustomizationsData) => Promise.resolve()),
 	watchUserCustomizations: vi.fn(() => vi.fn()),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
+	sendMessage: vi.fn<() => Promise<MvUserAvatarResult>>(() => Promise.resolve({ success: false })),
 	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
 		const container = document.createElement('div')
 		if (options.id) container.id = options.id
@@ -58,6 +60,10 @@ vi.mock('@/features/user-customizations/storage', () => ({
 
 vi.mock('./ignored-users-sync-event', () => ({
 	dispatchMobileLiteIgnoredUsersSync: mocks.dispatchMobileLiteIgnoredUsersSync,
+}))
+
+vi.mock('@/lib/messaging', () => ({
+	sendMessage: mocks.sendMessage,
 }))
 
 vi.mock('@/components/shadow-wrapper', () => ({
@@ -100,6 +106,7 @@ describe('Mobile Lite panel injection', () => {
 		mocks.isFeatureMounted.mockReturnValue(false)
 		mocks.getUserCustomizations.mockResolvedValue(createCustomizationData({}))
 		mocks.saveUserCustomizations.mockResolvedValue(undefined)
+		mocks.sendMessage.mockResolvedValue({ success: false })
 		document.body.innerHTML = `
 			<ul id="usermenu">
 				<li><a href="/notificaciones">Notificaciones</a></li>
@@ -335,6 +342,63 @@ describe('Mobile Lite panel injection', () => {
 			expect(searchInput).toHaveValue('')
 		})
 		expect(screen.getByRole('status')).toHaveTextContent('NewHiddenUser ocultado.')
+	})
+
+	it('stores the visible page avatar when adding a user from the search', async () => {
+		const user = userEvent.setup()
+		document.body.insertAdjacentHTML(
+			'beforeend',
+			`
+				<a class="user-card" href="/id/AvatarUser">
+					<img class="avatar" alt="AvatarUser" src="https://www.mediavida.com/img/users/avatar/avatar-user.png">
+				</a>
+			`
+		)
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		const searchInput = await screen.findByPlaceholderText('Buscar o añadir nick (3-13)')
+		await user.type(searchInput, 'AvatarUser')
+		await user.click(screen.getByRole('button', { name: 'Silenciar' }))
+
+		await waitFor(() => {
+			expect(mocks.saveUserCustomizations).toHaveBeenCalled()
+		})
+		const savedData = mocks.saveUserCustomizations.mock.calls[mocks.saveUserCustomizations.mock.calls.length - 1][0]
+		expect(savedData.users.AvatarUser).toMatchObject({
+			isIgnored: true,
+			ignoreType: 'mute',
+			avatarUrl: 'https://www.mediavida.com/img/users/avatar/avatar-user.png',
+		})
+		expect(mocks.sendMessage).not.toHaveBeenCalled()
+	})
+
+	it('stores a resolved avatar when adding a user that is not visible on the page', async () => {
+		const user = userEvent.setup()
+		mocks.sendMessage.mockResolvedValueOnce({
+			success: true,
+			username: 'RemoteUser',
+			avatarUrl: 'https://www.mediavida.com/img/users/avatar/remote-user.png',
+		})
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		const searchInput = await screen.findByPlaceholderText('Buscar o añadir nick (3-13)')
+		await user.type(searchInput, 'RemoteUser')
+		await user.click(screen.getByRole('button', { name: 'Ocultar' }))
+
+		await waitFor(() => {
+			expect(mocks.saveUserCustomizations).toHaveBeenCalled()
+		})
+		expect(mocks.sendMessage).toHaveBeenCalledWith('resolveMvUserAvatar', { username: 'RemoteUser' })
+		const savedData = mocks.saveUserCustomizations.mock.calls[mocks.saveUserCustomizations.mock.calls.length - 1][0]
+		expect(savedData.users.RemoteUser).toMatchObject({
+			isIgnored: true,
+			ignoreType: 'hide',
+			avatarUrl: 'https://www.mediavida.com/img/users/avatar/remote-user.png',
+		})
 	})
 
 	it('validates username length and allowed characters before adding a filter', async () => {

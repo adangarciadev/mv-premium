@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { runContentMain } from './main'
+import type { MobileLiteDevActivation } from '@/features/mobile-lite/logic/dev-activation'
 
 const mocks = vi.hoisted(() => ({
 	getPlatformKind: vi.fn(() => 'firefox-android'),
@@ -7,7 +8,7 @@ const mocks = vi.hoisted(() => ({
 	waitForHydration: vi.fn(() => Promise.resolve()),
 	setSetting: vi.fn(),
 	getState: vi.fn(),
-	getMobileLiteDevActivation: vi.fn(() => null),
+	getMobileLiteDevActivation: vi.fn<() => MobileLiteDevActivation | null>(() => null),
 	getUrlWithoutMobileLiteDevParam: vi.fn(() => '/foro'),
 	hasMobileLiteIgnoredUsersDevSeed: vi.fn(() => false),
 	seedMobileLiteIgnoredUsersForDev: vi.fn(() => Promise.resolve()),

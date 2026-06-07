@@ -106,6 +106,13 @@ export interface ThreadPageHtmlFetchResult {
 	finalUrl?: string
 }
 
+export interface MvUserAvatarResult {
+	success: boolean
+	username?: string
+	avatarUrl?: string
+	error?: string
+}
+
 // =============================================================================
 // Protocol Map - Define all RPC messages here
 // =============================================================================
@@ -146,6 +153,11 @@ interface ProtocolMap {
 	 * Keeps thread-page network requests out of content scripts.
 	 */
 	fetchThreadPageHtml: (data: { url: string }) => ThreadPageHtmlFetchResult
+
+	/**
+	 * Resolve a Mediavida user's avatar by username via background script.
+	 */
+	resolveMvUserAvatar: (data: { username: string }) => MvUserAvatarResult
 
 	/**
 	 * Fetch Steam game details (CORS proxy)

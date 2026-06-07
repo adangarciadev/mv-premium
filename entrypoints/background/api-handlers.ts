@@ -8,11 +8,12 @@ import { logger } from '@/lib/logger'
 import { fetchSteamBundleDetails, fetchSteamGameDetails, searchSteamApps } from '@/services/api/steam'
 import {
 	onMessage,
+	type MvUserAvatarResult,
 	type ThreadPageHtmlFetchResult,
 	type TweetLiteData,
 	type TweetLiteResult,
 } from '@/lib/messaging'
-import { API_URLS } from '@/constants'
+import { API_URLS, MV_BASE_URL, MV_URLS } from '@/constants'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import { normalizeTweetUrl as normalizeTweetUrlBase } from '@/lib/content-modules/twitter-lite/utils'
 import { uploadBase64ImageToBestProvider } from './upload-handlers'
@@ -33,6 +34,7 @@ const ANILIST_IMAGE_HOST = 's4.anilist.co'
 const MAX_REHOST_IMAGE_BYTES = 8 * 1024 * 1024
 const TWITTER_FETCH_TIMEOUT_MS = 3500
 const MEDIAVIDA_THREAD_HOSTS = new Set(['www.mediavida.com', 'mediavida.com'])
+const MV_USERNAME_PATTERN = /^[A-Za-z0-9_-]{3,13}$/
 
 interface GiphyApiResponse {
 	data: Array<{
@@ -305,6 +307,80 @@ function isAllowedMediavidaThreadUrl(rawUrl: string): boolean {
 		return url.pathname.startsWith('/foro/')
 	} catch {
 		return false
+	}
+}
+
+function normalizeMediavidaAvatarUrl(rawAvatar: string): string | undefined {
+	const avatar = rawAvatar.trim()
+	if (!avatar) return undefined
+	if (/^https?:\/\//i.test(avatar)) return avatar
+	if (avatar.startsWith('//')) return `https:${avatar}`
+	if (avatar.startsWith('/')) return `${MV_BASE_URL}${avatar}`
+	return `${MV_URLS.AVATAR_BASE}/${avatar}`
+}
+
+function isRecordArray(value: unknown): value is Record<string, unknown>[] {
+	return Array.isArray(value) && value.every(isRecord)
+}
+
+function getStringValue(value: unknown): string {
+	return typeof value === 'string' ? value.trim() : ''
+}
+
+function extractMvUserSuggestions(payload: unknown): Record<string, unknown>[] {
+	if (isRecord(payload) && isRecordArray(payload.suggestions)) return payload.suggestions
+	if (isRecordArray(payload)) return payload
+	return []
+}
+
+function getSuggestionUsername(suggestion: Record<string, unknown>): string {
+	const data = isRecord(suggestion.data) ? suggestion.data : null
+	return (
+		getStringValue(data?.nombre) ||
+		getStringValue(suggestion.nombre) ||
+		getStringValue(suggestion.value) ||
+		getStringValue(suggestion.username)
+	)
+}
+
+function getSuggestionAvatar(suggestion: Record<string, unknown>): string {
+	const data = isRecord(suggestion.data) ? suggestion.data : null
+	return getStringValue(data?.avatar) || getStringValue(suggestion.avatar)
+}
+
+async function resolveMvUserAvatar(username: string): Promise<MvUserAvatarResult> {
+	const normalizedUsername = username.trim()
+	if (!MV_USERNAME_PATTERN.test(normalizedUsername)) {
+		return { success: false, error: 'Nick no valido' }
+	}
+
+	const url = `${MV_URLS.USERS_LIST}?query=${encodeURIComponent(normalizedUsername)}`
+	const response = await fetch(url, {
+		credentials: 'include',
+		headers: {
+			Accept: 'application/json, text/javascript, */*; q=0.01',
+			'X-Requested-With': 'XMLHttpRequest',
+		},
+	})
+
+	if (!response.ok) {
+		return { success: false, error: `HTTP ${response.status}` }
+	}
+
+	const payload = (await response.json()) as unknown
+	const exactSuggestion = extractMvUserSuggestions(payload).find(
+		suggestion => getSuggestionUsername(suggestion).toLowerCase() === normalizedUsername.toLowerCase()
+	)
+	if (!exactSuggestion) {
+		return { success: false, error: 'Usuario no encontrado' }
+	}
+
+	const avatarUrl = normalizeMediavidaAvatarUrl(getSuggestionAvatar(exactSuggestion))
+	return {
+		success: Boolean(avatarUrl),
+		username: getSuggestionUsername(exactSuggestion) || normalizedUsername,
+		avatarUrl,
+		error: avatarUrl ? undefined : 'Avatar no encontrado',
 	}
 }
 
@@ -812,6 +888,17 @@ export function setupMediavidaThreadFetchHandler(): void {
 	})
 }
 
+export function setupMvUserAvatarHandler(): void {
+	onMessage('resolveMvUserAvatar', async ({ data }): Promise<MvUserAvatarResult> => {
+		try {
+			return await resolveMvUserAvatar(data.username)
+		} catch (error) {
+			logger.warn('Mediavida user avatar resolve failed:', error)
+			return { success: false, error: error instanceof Error ? error.message : 'Fetch failed' }
+		}
+	})
+}
+
 /**
  * Merges syndication metadata (avatar, verified, media, quoted tweet) into the base oEmbed data.
  */
@@ -1021,6 +1108,7 @@ export function setupTwitterLiteHandler(): void {
 export function setupApiHandlers(): void {
 	setupOptionsHandler()
 	setupMediavidaThreadFetchHandler()
+	setupMvUserAvatarHandler()
 	setupSteamHandler()
 	setupTmdbKeyCheckHandler()
 	setupTmdbRequestHandler()
