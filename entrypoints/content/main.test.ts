@@ -66,11 +66,22 @@ describe('content main platform bootstrap', () => {
 		})
 	})
 
-	it('does not import or run desktop initialization on disabled Firefox Android Mobile Lite', async () => {
+	it('auto-enables Mobile Lite on Firefox Android without running desktop initialization', async () => {
 		await runContentMain({ source: 'test' })
 
 		expect(mocks.rehydrate).toHaveBeenCalledOnce()
 		expect(mocks.waitForHydration).toHaveBeenCalledOnce()
+		expect(mocks.setSetting).toHaveBeenCalledWith('mobileLiteEnabled', true)
+		expect(mocks.initMobileLite).toHaveBeenCalledOnce()
+		expect(mocks.runDesktopContentMain).not.toHaveBeenCalled()
+	})
+
+	it('respects explicit Mobile Lite dev disable on Firefox Android', async () => {
+		mocks.getMobileLiteDevActivation.mockReturnValue('disable')
+
+		await runContentMain({ source: 'test' })
+
+		expect(mocks.setSetting).toHaveBeenCalledWith('mobileLiteEnabled', false)
 		expect(mocks.initMobileLite).not.toHaveBeenCalled()
 		expect(mocks.runDesktopContentMain).not.toHaveBeenCalled()
 	})

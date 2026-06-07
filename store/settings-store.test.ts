@@ -64,9 +64,9 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().infiniteScrollEnabled).toBe(false)
 		})
 
-		it('has mobile lite disabled by default', () => {
-			expect(useSettingsStore.getState().mobileLiteEnabled).toBe(false)
-			expect(DEFAULT_SETTINGS.mobileLiteEnabled).toBe(false)
+		it('has mobile lite enabled by default', () => {
+			expect(useSettingsStore.getState().mobileLiteEnabled).toBe(true)
+			expect(DEFAULT_SETTINGS.mobileLiteEnabled).toBe(true)
 		})
 
 		it('has live thread disabled by default', () => {
