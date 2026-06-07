@@ -113,7 +113,7 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 							<p className="text-sm text-muted-foreground mt-1.5 max-w-[350px]">
 								{imgbbApiKey ? (
 									<>
-										Personalizado con <strong>ImgBB</strong> (hasta 32MB)
+										Subidas con <strong>ImgBB</strong> (hasta 32MB)
 									</>
 								) : (
 									<>
@@ -149,6 +149,7 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 							onChange={setImgbbApiKey}
 							placeholder="Dejar vacío para usar freeimage.host"
 							label="ImgBB"
+							allowCopy
 						/>
 					</div>
 				</div>
@@ -169,7 +170,10 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 							de forma automática. Almacenamiento permanente y gratuito.
 						</p>
 						<p>
-							<strong>Si prefieres ImgBB:</strong>
+							Si configuras una API key de ImgBB, MVPremium subirá las imágenes usando ImgBB en lugar de freeimage.host.
+						</p>
+						<p>
+							<strong>Para configurar ImgBB:</strong>
 						</p>
 						<ol className="list-decimal list-inside space-y-1.5">
 							<li>

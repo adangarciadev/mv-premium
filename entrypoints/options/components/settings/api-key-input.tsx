@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react'
 import Eye from 'lucide-react/dist/esm/icons/eye'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
+import Clipboard from 'lucide-react/dist/esm/icons/clipboard'
 import X from 'lucide-react/dist/esm/icons/x'
 import Check from 'lucide-react/dist/esm/icons/check'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
@@ -20,9 +21,10 @@ export interface ApiKeyInputProps {
 	placeholder?: string
 	label?: string
 	onVerify?: (key: string) => Promise<boolean>
+	allowCopy?: boolean
 }
 
-export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: ApiKeyInputProps) {
+export function ApiKeyInput({ value, onChange, placeholder, label, onVerify, allowCopy = false }: ApiKeyInputProps) {
 	const [showKey, setShowKey] = useState(false)
 	const [localValue, setLocalValue] = useState(value)
 	const [hasChanges, setHasChanges] = useState(false)
@@ -82,6 +84,16 @@ export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: A
 		setHasChanges(false)
 	}
 
+	const handleCopy = async () => {
+		if (!localValue) return
+		try {
+			await navigator.clipboard.writeText(localValue)
+			toast.success('API Key copiada')
+		} catch {
+			toast.error('No se pudo copiar la API Key')
+		}
+	}
+
 	return (
 		<div className="flex items-center gap-2">
 			<div className="relative">
@@ -109,6 +121,20 @@ export function ApiKeyInput({ value, onChange, placeholder, label, onVerify }: A
 			>
 				{showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
 			</Button>
+
+			{allowCopy && (
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={handleCopy}
+					disabled={!localValue}
+					className="h-9 w-9"
+					title="Copiar"
+					aria-label="Copiar clave API"
+				>
+					<Clipboard className="h-4 w-4" />
+				</Button>
+			)}
 
 			{/* Save/Cancel buttons - show when there are changes or loading */}
 			{hasChanges || verifyState === 'loading' ? (

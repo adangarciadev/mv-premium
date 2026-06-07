@@ -145,7 +145,10 @@ export function useUploadState({ dialogs, onInsertImage }: UseUploadStateOptions
 						onInsertImage(`[img]${result.url}[/img]\n`)
 						successCount++
 						logger.debug(`Image inserted, successCount: ${successCount}`)
-					} else if (result.error === 'API_KEY_REQUIRED') {
+					} else if (result.error === 'API_KEY_REQUIRED' || result.errorCode === 'invalid_api_key') {
+						toast.error(`Error al subir ${file.name}`, {
+							description: result.error || 'Revisa la API key de ImgBB',
+						})
 						dialogs.open('apiKey')
 						break
 					} else {

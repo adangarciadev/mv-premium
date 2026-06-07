@@ -16,6 +16,7 @@ import type { SteamGameDetails, SteamBundleDetails, SteamAppSearchResult } from 
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import type { ItadGamePriceOverview, ItadGamePrices, ItadGameSearchResult } from '@/services/api/itad'
 import type { ChatMessage } from '@/types/ai'
+import type { UploadAttemptInfo, UploadErrorCode, UploadProvider } from '@/lib/upload-errors'
 
 // =============================================================================
 // Response Types
@@ -26,8 +27,18 @@ export interface UploadResult {
 	url?: string
 	deleteUrl?: string
 	error?: string
+	errorCode?: UploadErrorCode
+	provider?: UploadProvider
+	attempts?: UploadAttemptInfo[]
 	/** Size in bytes (for stats tracking) */
 	size?: number
+}
+
+export interface UploadPayload {
+	base64: string
+	fileName?: string
+	mimeType?: string
+	fileSize?: number
 }
 
 export interface GeminiResult {
@@ -163,7 +174,7 @@ interface ProtocolMap {
 	 * @param data - Base64 image data and optional filename
 	 * @returns Upload result with URL or error
 	 */
-	uploadImageToImgbb: (data: { base64: string; fileName?: string }) => UploadResult
+	uploadImageToImgbb: (data: UploadPayload) => UploadResult
 
 	/**
 	 * Upload image to freeimage.host via background script
@@ -171,7 +182,7 @@ interface ProtocolMap {
 	 * @param data - Base64 image data and optional filename
 	 * @returns Upload result with URL or error
 	 */
-	uploadImageToFreeimage: (data: { base64: string; fileName?: string }) => UploadResult
+	uploadImageToFreeimage: (data: UploadPayload) => UploadResult
 
 	/**
 	 * Check if TMDB API key is configured in the background script

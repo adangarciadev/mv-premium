@@ -466,11 +466,20 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 		const maxFrameSize = Math.max(180, Math.min(280, window.innerWidth - 76, window.innerHeight - 360))
 		const minFrameSize = Math.max(120, Math.round(maxFrameSize * 0.52))
 		let frame: CropFrame = { width: maxFrameSize, height: maxFrameSize }
+		const cropViewport = document.createElement('div')
+		cropViewport.style.cssText = [
+			`height: ${maxFrameSize}px`,
+			'display: flex',
+			'align-items: center',
+			'justify-content: center',
+			'overflow: hidden',
+		].join(';')
+
 		const cropBox = document.createElement('div')
 		cropBox.style.cssText = [
 			`width: ${frame.width}px`,
 			`height: ${frame.height}px`,
-			'margin: 0 auto',
+			'box-sizing: border-box',
 			'position: relative',
 			'overflow: hidden',
 			'touch-action: none',
@@ -496,6 +505,7 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 		].join(';')
 
 		cropBox.append(previewImage, grid)
+		cropViewport.append(cropBox)
 
 		const hint = document.createElement('p')
 		hint.textContent = 'Arrastra la imagen para encuadrar.'
@@ -504,19 +514,24 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 		const modeGroup = document.createElement('div')
 		modeGroup.setAttribute('role', 'group')
 		modeGroup.setAttribute('aria-label', 'Formato de recorte')
-		modeGroup.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px;'
+		modeGroup.style.cssText = 'display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px;'
 
 		const squareModeButton = document.createElement('button')
 		squareModeButton.type = 'button'
 		squareModeButton.textContent = 'Cuadrado'
 		squareModeButton.style.cssText = 'height: 36px; border: 1px solid #d06d00; border-radius: 7px; background: #7b4b08; color: white; font-weight: 700;'
 
+		const originalModeButton = document.createElement('button')
+		originalModeButton.type = 'button'
+		originalModeButton.textContent = 'Original'
+		originalModeButton.style.cssText = 'height: 36px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; font-weight: 700;'
+
 		const freeModeButton = document.createElement('button')
 		freeModeButton.type = 'button'
 		freeModeButton.textContent = 'Libre'
 		freeModeButton.style.cssText = 'height: 36px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; font-weight: 700;'
 
-		modeGroup.append(squareModeButton, freeModeButton)
+		modeGroup.append(squareModeButton, originalModeButton, freeModeButton)
 
 		const freeControls = document.createElement('div')
 		freeControls.style.cssText = 'display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;'
@@ -559,7 +574,7 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 		zoomInput.value = '1'
 		zoomInput.style.cssText = 'width: 100%; margin-top: 8px; accent-color: #d06d00;'
 
-		body.append(cropBox, hint, modeGroup, freeControls, zoomLabel, zoomInput)
+		body.append(cropViewport, hint, modeGroup, freeControls, zoomLabel, zoomInput)
 
 		const footer = document.createElement('footer')
 		footer.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 16px; background: #30363d; border-top: 1px solid #46505a;'
@@ -621,10 +636,42 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 			)
 			updatePreview()
 		}
-		const setModeButtonState = (mode: 'square' | 'free') => {
+		const resetFrameToFit = (nextFrame: CropFrame) => {
+			frame = nextFrame
+			cropBox.style.width = `${frame.width}px`
+			cropBox.style.height = `${frame.height}px`
+			baseScale = Math.max(frame.width / image.naturalWidth, frame.height / image.naturalHeight)
+			transform = clampCropTransform(
+				{
+					x: (frame.width - image.naturalWidth * baseScale * transform.zoom) / 2,
+					y: (frame.height - image.naturalHeight * baseScale * transform.zoom) / 2,
+					zoom: transform.zoom,
+				},
+				image,
+				frame,
+				baseScale
+			)
+			updatePreview()
+		}
+		const getOriginalFrame = (): CropFrame => {
+			const naturalRatio = image.naturalWidth / image.naturalHeight
+			return {
+				width: naturalRatio >= 1 ? maxFrameSize : Math.round(maxFrameSize * naturalRatio),
+				height: naturalRatio >= 1 ? Math.round(maxFrameSize / naturalRatio) : maxFrameSize,
+			}
+		}
+		const getFreeFrame = (): CropFrame => {
+			const originalFrame = getOriginalFrame()
+			return {
+				width: Math.max(minFrameSize, originalFrame.width),
+				height: Math.max(minFrameSize, originalFrame.height),
+			}
+		}
+		const setModeButtonState = (mode: 'square' | 'original' | 'free') => {
 			const activeStyle = 'height: 36px; border: 1px solid #d06d00; border-radius: 7px; background: #7b4b08; color: white; font-weight: 700;'
 			const idleStyle = 'height: 36px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; font-weight: 700;'
 			squareModeButton.style.cssText = mode === 'square' ? activeStyle : idleStyle
+			originalModeButton.style.cssText = mode === 'original' ? activeStyle : idleStyle
 			freeModeButton.style.cssText = mode === 'free' ? activeStyle : idleStyle
 			freeControls.style.display = mode === 'free' ? 'grid' : 'none'
 		}
@@ -703,14 +750,24 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 			updateFrame({ width: maxFrameSize, height: maxFrameSize })
 		})
 
+		originalModeButton.addEventListener('click', () => {
+			const originalFrame = getOriginalFrame()
+			widthInput.value = String(originalFrame.width)
+			heightInput.value = String(originalFrame.height)
+			zoomInput.value = '1'
+			transform.zoom = 1
+			setModeButtonState('original')
+			resetFrameToFit(originalFrame)
+		})
+
 		freeModeButton.addEventListener('click', () => {
-			const naturalRatio = image.naturalWidth / image.naturalHeight
-			const freeWidth = naturalRatio >= 1 ? maxFrameSize : Math.max(minFrameSize, Math.round(maxFrameSize * naturalRatio))
-			const freeHeight = naturalRatio >= 1 ? Math.max(minFrameSize, Math.round(maxFrameSize / naturalRatio)) : maxFrameSize
-			widthInput.value = String(freeWidth)
-			heightInput.value = String(freeHeight)
+			const freeFrame = getFreeFrame()
+			widthInput.value = String(freeFrame.width)
+			heightInput.value = String(freeFrame.height)
+			zoomInput.value = '1'
+			transform.zoom = 1
 			setModeButtonState('free')
-			updateFrame({ width: freeWidth, height: freeHeight })
+			resetFrameToFit(freeFrame)
 		})
 
 		widthInput.addEventListener('input', () => {
