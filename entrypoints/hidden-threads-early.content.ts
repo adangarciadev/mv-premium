@@ -8,14 +8,28 @@
  * the main content script applies the canonical hidden-thread filter.
  */
 import { defineContentScript } from '#imports'
-import { DOM_MARKERS, EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS } from '@/constants'
+import { browser } from 'wxt/browser'
+import { DOM_MARKERS, EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
+import { getThreadActionsPresentation, type ThreadActionsPresentation } from '@/features/hidden-threads/logic/thread-actions'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 const CACHE_KEY = RUNTIME_CACHE_KEYS.HIDDEN_THREADS
+const THREAD_ACTIONS_CACHE_KEY = RUNTIME_CACHE_KEYS.THREAD_ACTIONS_PRESENTATION
 const EARLY_STYLE_ID = EARLY_STYLE_IDS.HIDDEN_THREADS
 const FALLBACK_STYLE_ID = EARLY_STYLE_IDS.HIDDEN_THREADS_FALLBACK
+const ACTIONS_LAYOUT_STYLE_ID = EARLY_STYLE_IDS.THREAD_ACTIONS_LAYOUT
 const HIDDEN_CLASS = DOM_MARKERS.CLASSES.HIDDEN_THREAD
 const THREAD_LINK_SELECTOR = 'td.col-th .thread a[href*="/foro/"]'
 const THREAD_ROW_SELECTOR = 'tbody#temas tr, table#temas tbody tr'
+
+interface SettingsState {
+	state?: {
+		hideThreadEnabled?: boolean
+		saveThreadEnabled?: boolean
+		contentRulesEnabled?: boolean
+		classicThreadActionsEnabled?: boolean
+	}
+}
 
 function isListLikeForumPage(): boolean {
 	const pathname = window.location.pathname
@@ -54,6 +68,62 @@ function readHiddenIdsFromCache(): Set<string> {
 	} catch {
 		return new Set()
 	}
+}
+
+function parseThreadActionsPresentation(raw: unknown): ThreadActionsPresentation {
+	if (!raw) return 'compact-menu'
+
+	try {
+		const parsed: SettingsState = typeof raw === 'string' ? JSON.parse(raw) : (raw as SettingsState)
+		const state = parsed?.state ?? {}
+
+		return getThreadActionsPresentation({
+			hideEnabled: state.hideThreadEnabled !== false,
+			saveEnabled: state.saveThreadEnabled !== false,
+			contentRulesEnabled: state.contentRulesEnabled !== false,
+			classicActionsEnabled: state.classicThreadActionsEnabled === true,
+		})
+	} catch {
+		return 'compact-menu'
+	}
+}
+
+function readThreadActionsPresentationFromCache(): ThreadActionsPresentation | null {
+	try {
+		const cached = localStorage.getItem(THREAD_ACTIONS_CACHE_KEY)
+		if (cached === 'compact-menu' || cached === 'classic-buttons' || cached === 'none') return cached
+		return null
+	} catch {
+		return null
+	}
+}
+
+function writeThreadActionsPresentationCache(presentation: ThreadActionsPresentation): void {
+	try {
+		localStorage.setItem(THREAD_ACTIONS_CACHE_KEY, presentation)
+	} catch {
+		// localStorage can fail in restricted contexts; ignore.
+	}
+}
+
+function injectThreadActionsLayoutStyle(presentation: ThreadActionsPresentation): void {
+	document.getElementById(ACTIONS_LAYOUT_STYLE_ID)?.remove()
+	if (presentation === 'none') return
+
+	const style = document.createElement('style')
+	style.id = ACTIONS_LAYOUT_STYLE_ID
+	style.textContent = `
+		tbody#temas td.col-th > .thread,
+		table#temas tbody td.col-th > .thread,
+		tbody#temas td > .thread,
+		table#temas tbody td > .thread {
+			margin-right: 70px !important;
+			word-break: break-word;
+			overflow-wrap: break-word;
+		}
+	`
+
+	appendStyleElement(style)
 }
 
 function supportsHasSelector(): boolean {
@@ -130,6 +200,19 @@ function ensureFallbackClassStyle(): void {
 	appendStyleElement(style)
 }
 
+function verifyThreadActionsPresentation(): void {
+	browser.storage.local
+		.get(STORAGE_KEYS.SETTINGS)
+		.then(data => {
+			const presentation = parseThreadActionsPresentation(data[STORAGE_KEYS.SETTINGS])
+			writeThreadActionsPresentationCache(presentation)
+			injectThreadActionsLayoutStyle(presentation)
+		})
+		.catch(() => {
+			// Keep cache-based decision if storage read fails.
+		})
+}
+
 function extractThreadNumericIdFromRow(row: HTMLTableRowElement): string | null {
 	const threadLink = row.querySelector<HTMLAnchorElement>(THREAD_LINK_SELECTOR)
 	if (!threadLink) return null
@@ -187,7 +270,15 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		if (!isListLikeForumPage()) return
+
+		const cachedActionsPresentation = readThreadActionsPresentationFromCache()
+		if (cachedActionsPresentation) {
+			injectThreadActionsLayoutStyle(cachedActionsPresentation)
+		}
+		verifyThreadActionsPresentation()
 
 		const hiddenIds = readHiddenIdsFromCache()
 		if (hiddenIds.size === 0) return

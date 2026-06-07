@@ -30,6 +30,7 @@ import User from 'lucide-react/dist/esm/icons/user'
 
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from '@/lib/lazy-toast'
 import { browser } from 'wxt/browser'
@@ -310,6 +311,7 @@ export function UserFinder({ embedded = false }: UserFinderProps) {
 					onSave={handleSaveUser}
 				/>
 			)}
+
 		</div>
 	)
 }

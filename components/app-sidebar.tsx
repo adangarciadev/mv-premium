@@ -16,6 +16,7 @@ import ListFilter from 'lucide-react/dist/esm/icons/list-filter'
 import StickyNote from 'lucide-react/dist/esm/icons/sticky-note'
 import Layout from 'lucide-react/dist/esm/icons/layout'
 import Palette from 'lucide-react/dist/esm/icons/palette'
+import QrCode from 'lucide-react/dist/esm/icons/qr-code'
 import { getDrafts, draftsStorage } from '@/features/drafts/storage'
 import { getContentRules, watchContentRules } from '@/features/content-rules'
 import { getHiddenThreads, watchHiddenThreads } from '@/features/hidden-threads/logic/storage'
@@ -101,6 +102,11 @@ const platformItems: NavItem[] = [
 ]
 
 const settingsItems: NavItem[] = [
+	{
+		title: 'QR Mobile Lite',
+		path: '/mobile-lite-qr',
+		icon: QrCode,
+	},
 	{
 		title: 'Tema de Mediavida',
 		path: '/mv-theme',

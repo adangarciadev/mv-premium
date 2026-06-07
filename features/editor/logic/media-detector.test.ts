@@ -129,6 +129,11 @@ describe('media-detector', () => {
 				expect(isMediaUrl('https://redd.it/abc123')).toBe(true)
 			})
 
+			it('should not detect Reddit mobile share redirects because Mediavida does not preview them', () => {
+				expect(isMediaUrl('https://www.reddit.com/r/gaming/s/abc123_DEF')).toBe(false)
+				expect(isMediaUrl('https://reddit.com/r/gaming/s/abc123')).toBe(false)
+			})
+
 			it('should detect Reddit URLs without trailing title', () => {
 				expect(isMediaUrl('https://www.reddit.com/r/gaming/comments/abc123')).toBe(true)
 			})

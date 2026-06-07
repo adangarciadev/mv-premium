@@ -10,6 +10,7 @@
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
 import { EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 const STYLE_ID = EARLY_STYLE_IDS.HIDE_HEADER
 const CACHE_KEY = RUNTIME_CACHE_KEYS.HIDE_HEADER
@@ -58,6 +59,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		// STEP 1: Read from localStorage SYNCHRONOUSLY (instant, no flash)
 		try {
 			const cached = localStorage.getItem(CACHE_KEY)

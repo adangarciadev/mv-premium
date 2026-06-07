@@ -716,6 +716,8 @@ export function setupAniListRequestHandler(): void {
 			return uploadBase64ImageToBestProvider({
 				base64: arrayBufferToBase64(buffer),
 				fileName: getSafeAniListImageFileName(url.toString(), contentType),
+				mimeType: contentType,
+				fileSize: buffer.byteLength,
 			})
 		} catch (error) {
 			logger.error('AniList image rehost error:', error)

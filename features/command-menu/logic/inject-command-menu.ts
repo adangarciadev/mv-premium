@@ -10,6 +10,7 @@
  */
 
 import { DOM_MARKERS, FEATURE_IDS, MV_SELECTORS } from '@/constants'
+import { RUNTIME_CACHE_KEYS } from '@/constants/runtime-cache'
 import { getSettings } from '@/store/settings-store'
 import { enhanceSearchResultsPage } from './search-results-page'
 
@@ -17,6 +18,7 @@ const FEATURE_ID = FEATURE_IDS.COMMAND_MENU
 const CONTAINER_ID = DOM_MARKERS.IDS.COMMAND_MENU
 const EVENT_TRIGGER = DOM_MARKERS.EVENTS.COMMAND_MENU_TRIGGER
 const EVENT_OPEN = DOM_MARKERS.EVENTS.COMMAND_MENU_OPEN
+const SEARCH_TRIGGER_BOUND_ATTR = 'data-mvp-command-menu-trigger-bound'
 let initialized = false
 let commandMenuLoaded = false
 let loadPromise: Promise<void> | null = null
@@ -111,9 +113,18 @@ export async function injectCommandMenu(): Promise<void> {
 	// 3. Replace native search with our trigger button (only if enabled)
 	const settings = await getSettings()
 	const navbarSearchEnabled = settings.navbarSearchEnabled ?? true
+	writeNavbarSearchCache(navbarSearchEnabled)
 
 	if (navbarSearchEnabled) {
 		injectHeaderSearchTrigger()
+	}
+}
+
+function writeNavbarSearchCache(enabled: boolean): void {
+	try {
+		localStorage.setItem(RUNTIME_CACHE_KEYS.NAVBAR_SEARCH_ENABLED, String(enabled))
+	} catch {
+		// localStorage can fail in restricted contexts; the normal settings path still works.
 	}
 }
 
@@ -153,7 +164,16 @@ export function cleanupCommandMenu(): void {
  */
 function injectHeaderSearchTrigger(): void {
 	const nativeSearch = document.querySelector(MV_SELECTORS.GLOBAL.SEARCH)
-	if (!nativeSearch || nativeSearch.hasAttribute(DOM_MARKERS.INJECTION.SEARCH_REPLACED)) return
+	if (!nativeSearch) return
+
+	const existingTrigger = document.getElementById(DOM_MARKERS.IDS.COMMAND_MENU_TRIGGER) as HTMLButtonElement | null
+	if (existingTrigger) {
+		nativeSearch.setAttribute(DOM_MARKERS.INJECTION.SEARCH_REPLACED, 'true')
+		bindHeaderSearchTrigger(existingTrigger)
+		return
+	}
+
+	if (nativeSearch.hasAttribute(DOM_MARKERS.INJECTION.SEARCH_REPLACED)) return
 
 	nativeSearch.setAttribute(DOM_MARKERS.INJECTION.SEARCH_REPLACED, 'true')
 
@@ -162,7 +182,14 @@ function injectHeaderSearchTrigger(): void {
 		;(child as HTMLElement).style.display = 'none'
 	})
 
-	// Create our trigger button
+	const trigger = createHeaderSearchTrigger()
+	bindHeaderSearchTrigger(trigger)
+
+	// Append to the search container
+	nativeSearch.appendChild(trigger)
+}
+
+function createHeaderSearchTrigger(): HTMLButtonElement {
 	const trigger = document.createElement('button')
 	trigger.id = DOM_MARKERS.IDS.COMMAND_MENU_TRIGGER
 	trigger.type = 'button'
@@ -199,6 +226,13 @@ function injectHeaderSearchTrigger(): void {
 		color: 'rgba(255,255,255,0.6)',
 	})
 
+	return trigger
+}
+
+function bindHeaderSearchTrigger(trigger: HTMLButtonElement): void {
+	if (trigger.hasAttribute(SEARCH_TRIGGER_BOUND_ATTR)) return
+	trigger.setAttribute(SEARCH_TRIGGER_BOUND_ATTR, 'true')
+
 	// Hover effect
 	trigger.addEventListener('mouseenter', () => {
 		trigger.style.background = 'rgba(0,0,0,0.3)'
@@ -218,7 +252,4 @@ function injectHeaderSearchTrigger(): void {
 		// Use trigger event instead of direct open event
 		window.dispatchEvent(new CustomEvent(EVENT_TRIGGER))
 	})
-
-	// Append to the search container
-	nativeSearch.appendChild(trigger)
 }

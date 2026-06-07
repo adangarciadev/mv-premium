@@ -12,8 +12,9 @@
  * API Documentation: https://api.imgbb.com/
  */
 import { logger } from '@/lib/logger'
-import { sendMessage, type UploadResult } from '@/lib/messaging'
+import { sendMessage, type UploadPayload, type UploadResult } from '@/lib/messaging'
 import { getSettings } from '@/store/settings-store'
+import { browser } from 'wxt/browser'
 
 // Re-export types for external use
 export type { UploadResult } from '@/lib/messaging'
@@ -25,6 +26,10 @@ export type { UploadResult } from '@/lib/messaging'
 const MAX_FILE_SIZE_IMGBB = 32 * 1024 * 1024 // 32MB (ImgBB limit)
 const MAX_FILE_SIZE_FREEIMAGE = 64 * 1024 * 1024 // 64MB (freeimage.host limit)
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+const RAW_UPLOAD_MESSAGE_TYPES = {
+	imgbb: 'mvp-upload-image-to-imgbb',
+	freeimage: 'mvp-upload-image-to-freeimage',
+} as const
 
 // =============================================================================
 // API Key Management (reads from Settings store)
@@ -87,6 +92,21 @@ function fileToBase64(file: File | Blob): Promise<string> {
 	})
 }
 
+async function sendUploadMessage(
+	provider: keyof typeof RAW_UPLOAD_MESSAGE_TYPES,
+	data: UploadPayload
+): Promise<UploadResult> {
+	try {
+		return await sendMessage(provider === 'imgbb' ? 'uploadImageToImgbb' : 'uploadImageToFreeimage', data)
+	} catch (error) {
+		logger.warn('Typed upload messaging failed, trying raw runtime message fallback', error)
+		return await browser.runtime.sendMessage({
+			type: RAW_UPLOAD_MESSAGE_TYPES[provider],
+			data,
+		}) as UploadResult
+	}
+}
+
 // =============================================================================
 // Upload Function (via Background Script)
 // =============================================================================
@@ -95,8 +115,8 @@ function fileToBase64(file: File | Blob): Promise<string> {
  * Upload an image to the best available provider
  *
  * STRATEGY:
- * - If user has configured ImgBB API key AND file is under 32MB → Use ImgBB
- * - Otherwise → Use freeimage.host (permanent storage, 64MB limit)
+ * - If the user has configured ImgBB under 32MB → use ImgBB
+ * - Otherwise → use freeimage.host (permanent storage, 64MB limit)
  *
  * @param file - File or Blob to upload
  * @returns Upload result with URL or error
@@ -106,46 +126,37 @@ export async function uploadImage(file: File | Blob): Promise<UploadResult> {
 		// Convert to Base64
 		const base64 = await fileToBase64(file)
 		const fileName = file instanceof File ? file.name : `image_${Date.now()}.jpg`
-
-		// Check if user has ImgBB API key configured (from Settings store)
-		const imgbbKey = await getApiKey()
-		const useImgBB = imgbbKey && file.size <= MAX_FILE_SIZE_IMGBB
-
-		let result: UploadResult
-
-		if (useImgBB) {
-			// Use ImgBB first (user-configured), fallback to freeimage on failure.
-			try {
-				result = await sendMessage('uploadImageToImgbb', { base64, fileName })
-			} catch (error) {
-				logger.warn('ImgBB upload request failed, falling back to freeimage.host', error)
-				result = {
-					success: false,
-					error: error instanceof Error ? error.message : 'ImgBB upload failed',
-				}
-			}
-
-			if (!result.success) {
-				logger.warn('ImgBB upload failed, trying freeimage.host fallback', result.error)
-				const fallback = await sendMessage('uploadImageToFreeimage', { base64, fileName })
-				if (fallback.success) return fallback
-
-				return {
-					success: false,
-					error: fallback.error || result.error || 'Upload failed',
-				}
-			}
-		} else {
-			// Use freeimage.host (default, permanent storage)
-			result = await sendMessage('uploadImageToFreeimage', { base64, fileName })
+		const mimeType = file.type || 'image/jpeg'
+		const payload: UploadPayload = {
+			base64,
+			fileName,
+			mimeType,
+			fileSize: file.size,
 		}
 
-		return result
+		const imgbbKey = await getApiKey()
+		if (imgbbKey) {
+			if (file.size > MAX_FILE_SIZE_IMGBB) {
+				return {
+					success: false,
+					error: 'La imagen es demasiado grande para ImgBB. Máximo 32MB.',
+					errorCode: 'payload_too_large',
+					provider: 'imgbb',
+				}
+			}
+
+			logger.debug('Uploading image with configured ImgBB API key')
+			return await sendUploadMessage('imgbb', payload)
+		}
+
+		logger.debug('Uploading image with freeimage.host because ImgBB is not configured')
+		return await sendUploadMessage('freeimage', payload)
 	} catch (error) {
 		logger.error('Upload error:', error)
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : 'Upload failed',
+			error: 'No se pudo preparar o subir la imagen. Revisa la conexión e inténtalo de nuevo.',
+			errorCode: 'network_error',
 		}
 	}
 }

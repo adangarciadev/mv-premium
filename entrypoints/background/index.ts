@@ -57,58 +57,67 @@ async function cleanupLegacyApiCache(): Promise<void> {
 // Background Entry Point
 // =============================================================================
 
-export default defineBackground(() => {
-	// ==========================================================================
-	// Extension Install/Update Handler
-	// ==========================================================================
+export default defineBackground({
+	persistent: {
+		firefox: false,
+	},
+	main() {
+		// ==========================================================================
+		// Extension Install/Update Handler
+		// ==========================================================================
 
-	browser.runtime.onInstalled.addListener(async () => {
-		// Create context menus on install/update
-		await createContextMenus()
+		browser.runtime.onInstalled.addListener(async () => {
+			// Create context menus on install/update
+			await createContextMenus()
 
-		// Clean up legacy API cache entries (now uses memory-only cache)
-		await cleanupLegacyApiCache()
-	})
+			// Clean up legacy API cache entries (now uses memory-only cache)
+			await cleanupLegacyApiCache()
+		})
 
-	// ==========================================================================
-	// Setup All Handlers
-	// ==========================================================================
+		// ==========================================================================
+		// Setup All Handlers
+		// ==========================================================================
 
-	// Context menus (save thread, hide thread, mute word)
-	createContextMenus().catch(() => {
-		// Ignore startup menu creation errors; onInstalled will retry on updates.
-	})
-	setupContextMenuListener()
-	setupContextMenuRefreshHandler()
-	setupThreadClipperTrayListener()
+		// Upload handlers (ImgBB, Freeimage)
+		setupUploadHandlers()
 
-	// Upload handlers (ImgBB, Freeimage)
-	setupUploadHandlers()
+		// Context menus (save thread, hide thread, mute word)
+		try {
+			createContextMenus().catch(() => {
+				// Ignore startup menu creation errors; onInstalled will retry on updates.
+			})
+			setupContextMenuListener()
+			setupContextMenuRefreshHandler()
+			setupThreadClipperTrayListener()
+		} catch {
+			// Firefox Android can lack full contextMenus support. Keep non-menu handlers alive.
+		}
 
-	// API handlers (Steam, TMDB, GIPHY, options page)
-	setupApiHandlers()
+		// API handlers (Steam, TMDB, GIPHY, options page)
+		setupApiHandlers()
 
-	// AI handlers (Gemini)
-	setupAiHandlers()
+		// AI handlers (Gemini)
+		setupAiHandlers()
 
-	// IGDB handlers (game database)
-	setupIgdbHandlers()
+		// IGDB handlers (game database)
+		setupIgdbHandlers()
 
-	// IsThereAnyDeal handlers (game prices)
-	setupItadHandlers()
+		// IsThereAnyDeal handlers (game prices)
+		setupItadHandlers()
 
-	// Strict Twitter Lite network guard (blocks native Twitter embeds until explicit user action)
-	setupTwitterLiteNetworkGuard()
+		// Strict Twitter Lite network guard (blocks native Twitter embeds until explicit user action)
+		setupTwitterLiteNetworkGuard()
 
-	// ==========================================================================
-	// Code Highlighting Handler
-	// ==========================================================================
+		// ==========================================================================
+		// Code Highlighting Handler
+		// ==========================================================================
 
-	/**
-	 * Syntax highlight code using PrismJS
-	 * Keeps the heavy Prism library out of the content script bundle
-	 */
-	onMessage('highlightCode', async ({ data }) => {
-		return await highlightCode(data.code, data.language)
-	})
+		/**
+		 * Syntax highlight code using PrismJS
+		 * Keeps the heavy Prism library out of the content script bundle
+		 */
+		onMessage('highlightCode', async ({ data }) => {
+			return await highlightCode(data.code, data.language)
+		})
+	},
 })

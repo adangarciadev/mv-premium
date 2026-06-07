@@ -18,6 +18,7 @@ import { getFavoriteSubforums } from '@/features/favorite-subforums/logic/storag
 import { DOM_MARKERS, MV_SELECTORS } from '@/constants'
 
 const INJECTED_MARKER = DOM_MARKERS.INJECTION.NEW_THREAD
+const PLACEHOLDER_MARKER = DOM_MARKERS.INJECTION.NEW_THREAD_PLACEHOLDER
 const BUTTON_CONTAINER_ID = DOM_MARKERS.IDS.NEW_THREAD_BUTTON
 
 // Store handlers for cleanup
@@ -30,6 +31,10 @@ let favoritesChangeHandler: (() => void) | null = null
  */
 function isUserLoggedIn(): boolean {
 	return document.querySelector(MV_SELECTORS.GLOBAL.USERMENU) !== null
+}
+
+function getNewThreadContainer(usermenu: Element): HTMLLIElement | null {
+	return usermenu.querySelector<HTMLLIElement>(`#${BUTTON_CONTAINER_ID}`)
 }
 
 /**
@@ -166,20 +171,20 @@ export async function injectNewThreadButton(): Promise<void> {
 	const dropdown = await buildDropdownMenu()
 
 	// DOM guard AFTER await to prevent async race condition
-	if (document.getElementById(BUTTON_CONTAINER_ID)) return
 	if (usermenu.querySelector(`[${INJECTED_MARKER}]`)) return
 
-	// Create the button container
-	const li = document.createElement('li')
+	const existingContainer = getNewThreadContainer(usermenu)
+	const li = existingContainer ?? document.createElement('li')
 	li.id = BUTTON_CONTAINER_ID
 	li.className = 'dropdown'
 	li.setAttribute(INJECTED_MARKER, 'true')
+	li.removeAttribute(PLACEHOLDER_MARKER)
 
-	// Create the button
+	const existingButton = li.querySelector<HTMLAnchorElement>('a[aria-label="Crear nuevo hilo"]')
 	const button = document.createElement('a')
 	button.href = '#'
-	button.className = 'flink dropdown-toggle'
-	button.setAttribute('data-toggle', 'dropdown')
+	button.className = 'flink'
+	button.removeAttribute('data-toggle')
 	button.setAttribute('title', 'Nuevo hilo')
 	button.setAttribute('aria-label', 'Crear nuevo hilo')
 	button.setAttribute('aria-haspopup', 'true')
@@ -196,6 +201,7 @@ export async function injectNewThreadButton(): Promise<void> {
 	button.addEventListener('click', e => {
 		e.preventDefault()
 		e.stopPropagation()
+		e.stopImmediatePropagation()
 		const isOpen = li.classList.toggle('open')
 		button.setAttribute('aria-expanded', String(isOpen))
 	})
@@ -219,11 +225,17 @@ export async function injectNewThreadButton(): Promise<void> {
 	document.addEventListener('keydown', escapeHandler)
 
 	// Assemble
-	li.appendChild(button)
+	if (existingButton) {
+		existingButton.replaceWith(button)
+	} else {
+		li.appendChild(button)
+	}
 	li.appendChild(currentDropdown)
 
 	// Insert after avatar
-	avatarItem.insertAdjacentElement('afterend', li)
+	if (!existingContainer) {
+		avatarItem.insertAdjacentElement('afterend', li)
+	}
 
 	// Listen for favorites changes and rebuild dropdown
 	favoritesChangeHandler = async () => {

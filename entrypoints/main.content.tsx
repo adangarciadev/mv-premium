@@ -1,8 +1,8 @@
 /**
  * Main Content Script
  *
- * Single content script that loads on all Mediavida pages.
- * Contains React ecosystem + all features (~1.5MB).
+ * Single content script that loads on all Mediavida pages and delegates to
+ * the platform-specific bootstrap.
  */
 import { defineContentScript } from '#imports'
 import { runContentMain } from './content/main'

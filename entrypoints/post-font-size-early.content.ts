@@ -18,6 +18,7 @@
 import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
 import { RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 const CACHE_KEY = RUNTIME_CACHE_KEYS.POST_FONT_SIZE
 const DATA_ATTR = 'data-mvp-font-scaled'
@@ -60,6 +61,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		// STEP 1: Read from localStorage SYNCHRONOUSLY (instant, no flash)
 		try {
 			const cached = localStorage.getItem(CACHE_KEY)

@@ -32,6 +32,7 @@ export const FeatureFlag = {
 	Favorites: 'favorites',
 
 	// User-controlled Features (via settings)
+	MobileLite: 'mobile-lite',
 	InfiniteScroll: 'infinite-scroll',
 	LiveThread: 'live-thread',
 	NewHomepage: 'new-homepage',
@@ -82,6 +83,7 @@ const FEATURE_CONFIG: Record<FeatureFlagKey, FeatureConfig> = {
 	[FeatureFlag.Favorites]: { alwaysEnabled: true },
 
 	// User-controlled Features
+	[FeatureFlag.MobileLite]: { settingsKey: 'mobileLiteEnabled' },
 	[FeatureFlag.InfiniteScroll]: { settingsKey: 'infiniteScrollEnabled' },
 	[FeatureFlag.LiveThread]: { settingsKey: 'liveThreadEnabled' },
 	[FeatureFlag.NewHomepage]: { settingsKey: 'newHomepageEnabled' },

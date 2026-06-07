@@ -17,7 +17,7 @@ const PRESERVE_MARKER = DOM_MARKERS.DATA_ATTRS.PRESERVE
  * Used for preserving content when navigating from quick reply to extended editor.
  * @param content - The text to preserve
  */
-async function saveEditorContent(content: string): Promise<void> {
+export async function saveEditorContent(content: string): Promise<void> {
 	if (content.trim()) {
 		// Save to editor preserve storage (for immediate restore on next page)
 		const data: EditorPreservedContent = {
@@ -33,7 +33,7 @@ async function saveEditorContent(content: string): Promise<void> {
  * Implements a retry mechanism to overcome race conditions with native page scripts.
  * @param textarea - The element to populate
  */
-async function restoreEditorContent(textarea: HTMLTextAreaElement): Promise<void> {
+export async function restoreEditorContent(textarea: HTMLTextAreaElement): Promise<void> {
 	try {
 		const stored = await editorPreserveStorage.getValue()
 

@@ -16,6 +16,7 @@ import { defineContentScript } from '#imports'
 import { browser } from 'wxt/browser'
 import { EARLY_STYLE_IDS, RUNTIME_CACHE_KEYS, STORAGE_KEYS } from '@/constants'
 import { isCenteredPostsSupportedPage } from '@/lib/content-modules/utils/page-detection'
+import { isFirefoxAndroidRuntime } from '@/lib/platform'
 
 interface SettingsState {
 	state: {
@@ -176,6 +177,8 @@ export default defineContentScript({
 	runAt: 'document_start',
 
 	main() {
+		if (isFirefoxAndroidRuntime()) return
+
 		if (!isCenteredPostsSupportedPage()) {
 			return
 		}

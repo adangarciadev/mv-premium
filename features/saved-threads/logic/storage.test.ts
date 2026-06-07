@@ -1,7 +1,38 @@
 /**
  * Tests for Saved Threads storage types and structures
  */
-import { describe, it, expect } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+
+const storageTestState = vi.hoisted(() => {
+	let values: Record<string, unknown> = {}
+	const storageMock = {
+		getItem: vi.fn(async <T,>(key: string): Promise<T | null> => (values[key] as T) ?? null),
+		setItem: vi.fn(async (key: string, value: unknown): Promise<void> => {
+			values[key] = value
+		}),
+		removeItem: vi.fn(async (key: string): Promise<void> => {
+			delete values[key]
+		}),
+		watch: vi.fn(() => () => undefined),
+	}
+
+	return {
+		storageMock,
+		reset: () => {
+			values = {}
+			storageMock.getItem.mockClear()
+			storageMock.setItem.mockClear()
+			storageMock.removeItem.mockClear()
+			storageMock.watch.mockClear()
+		},
+	}
+})
+
+vi.mock('#imports', () => ({
+	storage: storageTestState.storageMock,
+}))
+
+import { getSavedThreads, isThreadSaved, saveThread, type SavedThread as SavedThreadRecord } from './storage'
 
 // Re-define types for testing
 interface SavedThread {
@@ -17,6 +48,10 @@ interface SavedThread {
 }
 
 describe('saved-threads storage', () => {
+	beforeEach(() => {
+		storageTestState.reset()
+	})
+
 	describe('SavedThread interface', () => {
 		it('should require core fields', () => {
 			const thread: SavedThread = {
@@ -75,6 +110,23 @@ describe('saved-threads storage', () => {
 	})
 
 	describe('thread operations', () => {
+		it('stores saved threads in local:mvp-saved-threads without duplicates', async () => {
+			const thread: SavedThreadRecord = {
+				id: '/foro/cine/hilo-de-prueba-123456',
+				title: 'Hilo de prueba',
+				subforum: 'Cine',
+				subforumId: '/foro/cine',
+				savedAt: 1000,
+			}
+
+			await saveThread(thread)
+			await saveThread(thread)
+
+			expect(storageTestState.storageMock.setItem).toHaveBeenLastCalledWith('local:mvp-saved-threads', expect.any(Array))
+			await expect(getSavedThreads()).resolves.toHaveLength(1)
+			await expect(isThreadSaved(thread.id)).resolves.toBe(true)
+		})
+
 		it('should detect duplicates by id', () => {
 			const threads: SavedThread[] = [
 				{ id: '100', title: 'A', url: '/a', savedAt: 1000 },
