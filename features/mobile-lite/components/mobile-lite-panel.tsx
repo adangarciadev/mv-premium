@@ -10,6 +10,7 @@ import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import UserX from 'lucide-react/dist/esm/icons/user-x'
 import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
 import X from 'lucide-react/dist/esm/icons/x'
+import { browser } from 'wxt/browser'
 import {
 	getUserCustomizations,
 	saveUserCustomizations,
@@ -231,7 +232,7 @@ export function MobileLitePanel() {
 	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
-	const panelSubtitle = activeTab === 'images' ? 'API key de ImgBB' : 'Usuarios filtrados'
+	const logoUrl = browser.runtime.getURL('/icon/48.png')
 
 	const updateFilter = async (username: string, ignoreType: MobileLiteIgnoreType | null) => {
 		const normalizedUsername = normalizeUsername(username)
@@ -311,12 +312,15 @@ export function MobileLitePanel() {
 				}`}
 			>
 				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-4 py-3">
-					<div className="min-w-0">
-						<h2 className="text-lg font-semibold leading-tight">
-							<span>Panel MV</span>
-							<span className="text-[#f0a020]">Premium</span>
-						</h2>
-						<p className="mt-0.5 text-xs text-[#b7bec6]">{panelSubtitle}</p>
+					<div className="flex min-w-0 items-center gap-3">
+						<img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-contain" aria-hidden="true" />
+						<div className="min-w-0">
+							<h2 className="truncate text-lg font-black uppercase italic leading-none tracking-tight">
+								<span>MV</span>
+								<span className="text-[#f0a020]"> Premium</span>
+							</h2>
+							<p className="mt-1 text-[10px] font-bold uppercase tracking-[0.32em] text-[#b7bec6]">Dashboard</p>
+						</div>
 					</div>
 					<button
 						type="button"
