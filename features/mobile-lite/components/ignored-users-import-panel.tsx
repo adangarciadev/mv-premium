@@ -1,31 +1,52 @@
 import { useMemo, useState } from 'react'
 import CircleCheck from 'lucide-react/dist/esm/icons/circle-check'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
+import KeyRound from 'lucide-react/dist/esm/icons/key-round'
 import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
 import X from 'lucide-react/dist/esm/icons/x'
 import {
-	summarizeIgnoredUsers,
-	type IgnoredUsersSyncPayload,
-	type IgnoredUsersSyncSummary,
+	summarizeMobileLiteTransfer,
+	type MobileLiteTransferPayload,
+	type MobileLiteTransferSummary,
 } from '@/features/ignored-users-mobile-sync'
 
 interface IgnoredUsersImportPanelProps {
-	payload: IgnoredUsersSyncPayload | null
+	payload: MobileLiteTransferPayload | null
 	errorMessage?: string | null
 	onCancel: () => void
 	onImport: () => Promise<void>
 }
 
-function getEmptySummary(): IgnoredUsersSyncSummary {
-	return { total: 0, hide: 0, mute: 0 }
+function getEmptySummary(): MobileLiteTransferSummary {
+	return { total: 0, hide: 0, mute: 0, hasImgbbApiKey: false }
+}
+
+function getImportMessage(summary: MobileLiteTransferSummary): string {
+	if (summary.total > 0 && summary.hasImgbbApiKey) {
+		return 'Se fusionarán los usuarios con los existentes y se guardará la API key de ImgBB.'
+	}
+	if (summary.hasImgbbApiKey) {
+		return 'Se guardará la API key de ImgBB en este dispositivo.'
+	}
+	return 'Se fusionarán con los usuarios existentes. No se borrará ningún filtro actual.'
+}
+
+function getSuccessMessage(summary: MobileLiteTransferSummary): string {
+	if (summary.total > 0 && summary.hasImgbbApiKey) {
+		return `Se han importado ${summary.total} usuarios y la API key de ImgBB. Ya puedes cerrar este panel.`
+	}
+	if (summary.hasImgbbApiKey) {
+		return 'Se ha importado la API key de ImgBB. Ya puedes cerrar este panel.'
+	}
+	return `Se han importado ${summary.total} usuarios. Ya puedes cerrar este panel.`
 }
 
 export function IgnoredUsersImportPanel({ payload, errorMessage, onCancel, onImport }: IgnoredUsersImportPanelProps) {
 	const [isImporting, setIsImporting] = useState(false)
 	const [imported, setImported] = useState(false)
 	const [importError, setImportError] = useState<string | null>(null)
-	const summary = useMemo(() => (payload ? summarizeIgnoredUsers(payload.users) : getEmptySummary()), [payload])
-	const canImport = Boolean(payload && !errorMessage && summary.total > 0 && !imported)
+	const summary = useMemo(() => (payload ? summarizeMobileLiteTransfer(payload) : getEmptySummary()), [payload])
+	const canImport = Boolean(payload && !errorMessage && (summary.total > 0 || summary.hasImgbbApiKey) && !imported)
 
 	const handleImport = async () => {
 		if (!canImport) return
@@ -47,7 +68,7 @@ export function IgnoredUsersImportPanel({ payload, errorMessage, onCancel, onImp
 			<section className="w-full max-w-sm overflow-hidden rounded-lg border border-[#4b545d] bg-[#343b41] shadow-2xl">
 				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-4 py-3">
 					<div className="min-w-0">
-						<h2 className="text-base font-semibold leading-tight">Importar ignorados</h2>
+						<h2 className="text-base font-semibold leading-tight">Importar Mobile Lite</h2>
 						<p className="mt-0.5 text-xs text-[#b7bec6]">Mobile Lite</p>
 					</div>
 					<button
@@ -88,8 +109,18 @@ export function IgnoredUsersImportPanel({ payload, errorMessage, onCancel, onImp
 								</div>
 							</div>
 
+							<div className="flex items-center gap-3 rounded-md border border-[#4b545d] bg-[#303840] px-3 py-3">
+								<KeyRound className="h-4 w-4 text-[#d8dde2]" aria-hidden="true" />
+								<div className="min-w-0">
+									<div className="text-sm font-semibold">API key de ImgBB</div>
+									<div className="text-xs text-[#b7bec6]">
+										{summary.hasImgbbApiKey ? 'Incluida en este QR' : 'No incluida'}
+									</div>
+								</div>
+							</div>
+
 							<p className="rounded-md border border-[#56616b] bg-[#303840] px-3 py-2 text-sm text-[#d8dde2]">
-								Se fusionarán con los usuarios existentes. No se borrará ningún filtro actual.
+								{getImportMessage(summary)}
 							</p>
 
 							{imported && (
@@ -98,9 +129,7 @@ export function IgnoredUsersImportPanel({ payload, errorMessage, onCancel, onImp
 										<CircleCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
 										<div>
 											<p className="font-semibold">Importación completada</p>
-											<p className="mt-1 text-[#c6dfbd]">
-												Se han importado {summary.total} usuarios. Ya puedes cerrar este panel.
-											</p>
+											<p className="mt-1 text-[#c6dfbd]">{getSuccessMessage(summary)}</p>
 										</div>
 									</div>
 								</div>

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import type { UserCustomizationsData } from '@/features/user-customizations/storage'
 import {
-	buildIgnoredUsersImportUrl,
-	createIgnoredUsersSyncPayload,
-	decodeIgnoredUsersSyncPayload,
-	encodeIgnoredUsersSyncPayload,
-	IGNORED_USERS_IMPORT_PARAM,
-	mergeIgnoredUsersIntoData,
-	validateIgnoredUsersSyncPayload,
-	type IgnoredUsersSyncPayload,
+	buildMobileLiteImportUrl,
+	createMobileLiteTransferPayload,
+	decodeMobileLiteTransferPayload,
+	encodeMobileLiteTransferPayload,
+	MOBILE_LITE_IMPORT_PARAM,
+	mergeMobileLiteIgnoredUsersIntoData,
+	validateMobileLiteTransferPayload,
+	type MobileLiteTransferPayload,
 } from './payload'
 
 const GLOBAL_SETTINGS = {
@@ -25,118 +25,131 @@ function data(users: UserCustomizationsData['users']): UserCustomizationsData {
 	}
 }
 
-describe('ignored users mobile sync payload', () => {
+describe('Mobile Lite transfer payload', () => {
 	it('encodes and decodes a valid payload', () => {
-		const payload: IgnoredUsersSyncPayload = {
-			type: 'mvp-ignored-users',
+		const payload: MobileLiteTransferPayload = {
+			type: 'mvp-mobile-lite-transfer',
 			version: 1,
-			users: [
+			ignoredUsers: [
 				{ nick: 'MutedUser', ignoreType: 'mute' },
 				{ nick: 'HiddenUser', ignoreType: 'hide' },
 			],
+			imgbbApiKey: 'abc_123',
 		}
 
-		const encoded = encodeIgnoredUsersSyncPayload(payload)
+		const encoded = encodeMobileLiteTransferPayload(payload)
 
-		expect(decodeIgnoredUsersSyncPayload(encoded)).toEqual({
-			type: 'mvp-ignored-users',
+		expect(decodeMobileLiteTransferPayload(encoded)).toEqual({
+			type: 'mvp-mobile-lite-transfer',
 			version: 1,
-			users: [
+			ignoredUsers: [
 				{ nick: 'HiddenUser', ignoreType: 'hide' },
 				{ nick: 'MutedUser', ignoreType: 'mute' },
 			],
+			imgbbApiKey: 'abc_123',
 		})
 	})
 
 	it('rejects invalid type and version', () => {
 		expect(() =>
-			validateIgnoredUsersSyncPayload({
+			validateMobileLiteTransferPayload({
 				type: 'other',
 				version: 1,
-				users: [],
+				ignoredUsers: [],
 			})
-		).toThrow('Invalid ignored users payload')
+		).toThrow('Invalid Mobile Lite payload')
 
 		expect(() =>
-			validateIgnoredUsersSyncPayload({
-				type: 'mvp-ignored-users',
+			validateMobileLiteTransferPayload({
+				type: 'mvp-mobile-lite-transfer',
 				version: 2,
-				users: [],
+				ignoredUsers: [],
 			})
-		).toThrow('Invalid ignored users payload')
+		).toThrow('Invalid Mobile Lite payload')
 	})
 
-	it('rejects invalid nicks', () => {
+	it('rejects invalid nicks and API keys', () => {
 		expect(() =>
-			validateIgnoredUsersSyncPayload({
-				type: 'mvp-ignored-users',
+			validateMobileLiteTransferPayload({
+				type: 'mvp-mobile-lite-transfer',
 				version: 1,
-				users: [{ nick: 'ab', ignoreType: 'hide' }],
+				ignoredUsers: [{ nick: 'ab', ignoreType: 'hide' }],
 			})
-		).toThrow('Invalid ignored users payload')
+		).toThrow('Invalid Mobile Lite payload')
 
 		expect(() =>
-			validateIgnoredUsersSyncPayload({
-				type: 'mvp-ignored-users',
+			validateMobileLiteTransferPayload({
+				type: 'mvp-mobile-lite-transfer',
 				version: 1,
-				users: [{ nick: '<script>', ignoreType: 'mute' }],
+				ignoredUsers: [{ nick: '<script>', ignoreType: 'mute' }],
 			})
-		).toThrow('Invalid ignored users payload')
+		).toThrow('Invalid Mobile Lite payload')
+
+		expect(() =>
+			validateMobileLiteTransferPayload({
+				type: 'mvp-mobile-lite-transfer',
+				version: 1,
+				ignoredUsers: [],
+				imgbbApiKey: 'bad key',
+			})
+		).toThrow('Invalid Mobile Lite payload')
 	})
 
 	it('builds an import URL with the expected query param', () => {
-		const url = buildIgnoredUsersImportUrl({
-			type: 'mvp-ignored-users',
+		const url = buildMobileLiteImportUrl({
+			type: 'mvp-mobile-lite-transfer',
 			version: 1,
-			users: [{ nick: 'HiddenUser', ignoreType: 'hide' }],
+			ignoredUsers: [{ nick: 'HiddenUser', ignoreType: 'hide' }],
 		})
 
 		expect(url).toContain('https://www.mediavida.com/')
-		expect(new URL(url).searchParams.get(IGNORED_USERS_IMPORT_PARAM)).toBeTruthy()
+		expect(new URL(url).searchParams.get(MOBILE_LITE_IMPORT_PARAM)).toBeTruthy()
 	})
 
 	it('rejects oversized encoded payloads', () => {
-		expect(() => decodeIgnoredUsersSyncPayload('a'.repeat(2001))).toThrow('Invalid ignored users payload')
+		expect(() => decodeMobileLiteTransferPayload('a'.repeat(2001))).toThrow('Invalid Mobile Lite payload')
 	})
 
 	it('deduplicates by normalized nick and keeps hide as most restrictive', () => {
-		const payload = validateIgnoredUsersSyncPayload({
-			type: 'mvp-ignored-users',
+		const payload = validateMobileLiteTransferPayload({
+			type: 'mvp-mobile-lite-transfer',
 			version: 1,
-			users: [
+			ignoredUsers: [
 				{ nick: 'SameUser', ignoreType: 'mute' },
 				{ nick: 'sameuser', ignoreType: 'hide' },
 			],
 		})
 
-		expect(payload.users).toEqual([{ nick: 'SameUser', ignoreType: 'hide' }])
+		expect(payload.ignoredUsers).toEqual([{ nick: 'SameUser', ignoreType: 'hide' }])
 	})
 
-	it('exports only ignored users from storage data', () => {
-		const payload = createIgnoredUsersSyncPayload(
+	it('exports only ignored users and optionally includes the ImgBB API key', () => {
+		const payload = createMobileLiteTransferPayload(
 			data({
 				HiddenUser: { isIgnored: true, ignoreType: 'hide', note: 'keep me' },
 				MutedUser: { isIgnored: true, ignoreType: 'mute' },
 				StyledUser: { usernameColour: '#fff' },
-			})
+			}),
+			' key_123 '
 		)
 
-		expect(payload.users).toEqual([
+		expect(payload.ignoredUsers).toEqual([
 			{ nick: 'HiddenUser', ignoreType: 'hide' },
 			{ nick: 'MutedUser', ignoreType: 'mute' },
 		])
+		expect(payload.imgbbApiKey).toBe('key_123')
 	})
 
 	it('merges without duplicates and preserves existing customizations', () => {
-		const result = mergeIgnoredUsersIntoData(
+		const result = mergeMobileLiteIgnoredUsersIntoData(
 			data({
 				ExistingUser: { isIgnored: true, ignoreType: 'mute', note: 'preserve' },
 				OtherUser: { usernameColour: '#fff' },
 			}),
 			{
-				type: 'mvp-ignored-users',
+				type: 'mvp-mobile-lite-transfer',
 				version: 1,
-				users: [
+				ignoredUsers: [
 					{ nick: 'existinguser', ignoreType: 'hide' },
 					{ nick: 'NewUser', ignoreType: 'mute' },
 				],

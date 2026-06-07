@@ -34,6 +34,7 @@ import { DraftEditorView } from './views/draft-editor-view'
 import { SettingsView } from './views/settings-view'
 import { FiltersView } from './views/filters-view'
 import { WhatsNewView } from './views/whats-new-view'
+import { MobileLiteQrView } from './views/mobile-lite-qr-view'
 
 const MvThemeView = lazy(() =>
 	import('@/features/mv-theme/components/mv-theme-view').then(module => ({
@@ -67,6 +68,7 @@ const routeLabels: Record<string, string> = {
 	favorites: 'Subforos Favoritos',
 	subforums: 'Subforos',
 	users: 'Usuarios',
+	'mobile-lite-qr': 'QR Mobile Lite',
 	settings: 'Ajustes',
 
 	'mv-theme': 'Tema de Mediavida',
@@ -273,6 +275,7 @@ export default function OptionsApp() {
 							<Route path="/hidden-threads" element={<Navigate to="/filters?tab=hidden-threads" replace />} />
 							<Route path="/hidden-subforums" element={<Navigate to="/filters?tab=hidden-subforums" replace />} />
 							<Route path="/users" element={<Navigate to="/filters?tab=users" replace />} />
+							<Route path="/mobile-lite-qr" element={<MobileLiteQrView />} />
 							<Route path="/settings" element={<SettingsView />} />
 
 							<Route path="/whats-new" element={<WhatsNewView />} />

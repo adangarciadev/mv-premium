@@ -24,9 +24,9 @@ export const CHANGELOG: ChangelogEntry[] = [
 	{
 		version: '3.0.0',
 		date: '2026-06-07',
-		title: 'Mobile Lite, sincronización QR y recorte de imágenes',
+		title: 'Mobile Lite, QR unificado, ImgBB y recorte de imágenes',
 		summary:
-			'Mediavida Premium 3.0 estrena una experiencia Mobile Lite para Firefox Android, permite llevar usuarios ignorados al móvil mediante QR y añade herramientas móviles para gestionar filtros, crear hilos y subir imágenes con recorte opcional.',
+			'Mediavida Premium 3.0 estrena una experiencia Mobile Lite para Firefox Android, permite llevar usuarios ignorados y la API key de ImgBB al móvil mediante QR, mejora las subidas de imágenes y añade herramientas móviles para gestionar filtros, crear hilos y recortar imágenes.',
 		changes: [
 			{
 				type: 'feature',
@@ -80,8 +80,22 @@ export const CHANGELOG: ChangelogEntry[] = [
 			{
 				type: 'feature',
 				description:
-					'Exportar ignorados a móvil: La gestión de usuarios ignorados en escritorio añade una acción para generar un QR o copiar un enlace de importación.',
-				category: 'Escritorio',
+					'Vista original en el recorte móvil: El editor de imágenes permite alternar entre Original, Cuadrado y Libre para revisar la imagen completa antes de decidir si recortarla o subirla sin cambios.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'API key de ImgBB en Mobile Lite: El panel móvil incorpora una pestaña dedicada para pegar, guardar y ver claramente si ImgBB está configurado en el dispositivo.',
+				category: 'ImgBB',
+				surface: ['mobile-lite', 'shared'],
+			},
+			{
+				type: 'feature',
+				description:
+					'QR Mobile Lite en el dashboard: Nueva zona dedicada para generar un QR o copiar un enlace con usuarios ignorados y la API key de ImgBB si está configurada, con resumen visual antes de transferirlo al móvil.',
+				category: 'QR Mobile Lite',
 				surface: ['desktop', 'shared'],
 			},
 			{
@@ -101,7 +115,7 @@ export const CHANGELOG: ChangelogEntry[] = [
 			{
 				type: 'feature',
 				description:
-					'Importación manual por QR: Mobile Lite puede leer un enlace especial de Mediavida, mostrar resumen de usuarios ocultos y silenciados, pedir confirmación y fusionarlos con los existentes.',
+					'Importación manual por QR: Mobile Lite puede leer un enlace especial de Mediavida, mostrar resumen de usuarios ocultos, silenciados y API key de ImgBB, pedir confirmación y guardar los datos en el móvil.',
 				category: 'Mobile Lite',
 				surface: ['mobile-lite', 'shared'],
 			},
@@ -109,6 +123,13 @@ export const CHANGELOG: ChangelogEntry[] = [
 				type: 'improvement',
 				description:
 					'Sincronización sin cuenta ni servidor: La transferencia escritorio -> móvil se hace con un payload comprimido y versionado en la URL, con validación de nicks, límite de tamaño y limpieza del enlace tras procesarlo.',
+				category: 'Sincronización',
+				surface: ['desktop', 'mobile-lite', 'shared'],
+			},
+			{
+				type: 'improvement',
+				description:
+					'QR Mobile Lite unificado: La transferencia manual agrupa usuarios ignorados e ImgBB en un único QR, con confirmación en el móvil y sin mantener accesos duplicados en la gestión de usuarios.',
 				category: 'Sincronización',
 				surface: ['desktop', 'mobile-lite', 'shared'],
 			},
@@ -132,6 +153,27 @@ export const CHANGELOG: ChangelogEntry[] = [
 					'El importador móvil muestra confirmación, conteos de usuarios y un mensaje claro de importación completada antes de cerrar el panel.',
 				category: 'Mobile Lite',
 				surface: 'mobile-lite',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Subidas de imágenes más fiables: Si configuras ImgBB se usará como proveedor principal, y si usas el servicio gratuito se muestran mensajes más claros cuando hay límites temporales, errores de red o archivos demasiado grandes.',
+				category: 'ImgBB',
+				surface: ['desktop', 'mobile-lite', 'shared'],
+			},
+			{
+				type: 'improvement',
+				description:
+					'Recorte móvil más estable: El modal mantiene mejor su altura al ajustar el recorte libre y mejora la lectura visual del encuadre durante el zoom y el arrastre.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Errores de subida más entendibles: La extensión distingue límites de uso, claves inválidas, fallos temporales del proveedor, problemas de red y errores genéricos para explicar mejor qué puede hacer el usuario.',
+				category: 'Subida de imágenes',
+				surface: ['desktop', 'mobile-lite', 'shared'],
 			},
 			{
 				type: 'fix',

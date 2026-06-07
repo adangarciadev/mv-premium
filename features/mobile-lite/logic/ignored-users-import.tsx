@@ -5,14 +5,15 @@ import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
 import { getUserCustomizations, saveUserCustomizations } from '@/features/user-customizations/storage'
 import {
-	decodeIgnoredUsersSyncPayload,
-	getUrlWithoutIgnoredUsersImportParam,
-	IGNORED_USERS_IMPORT_PARAM,
-	mergeIgnoredUsersIntoData,
-	type IgnoredUsersSyncPayload,
+	decodeMobileLiteTransferPayload,
+	getUrlWithoutMobileLiteImportParam,
+	MOBILE_LITE_IMPORT_PARAM,
+	mergeMobileLiteIgnoredUsersIntoData,
+	type MobileLiteTransferPayload,
 } from '@/features/ignored-users-mobile-sync'
 import { IgnoredUsersImportPanel } from '../components/ignored-users-import-panel'
 import { dispatchMobileLiteIgnoredUsersSync } from './ignored-users-sync-event'
+import { saveMobileLiteImgbbApiKey } from './imgbb-api-key-storage'
 
 const FEATURE_ID = 'mobile-lite-ignored-users-import'
 const CONTAINER_ID = 'mvp-mobile-lite-ignored-users-import-root'
@@ -22,20 +23,20 @@ function isMobileLiteIgnoredUsersImportAllowed(): boolean {
 }
 
 export function hasIgnoredUsersImportParam(search: string = window.location.search): boolean {
-	return new URLSearchParams(search).has(IGNORED_USERS_IMPORT_PARAM)
+	return new URLSearchParams(search).has(MOBILE_LITE_IMPORT_PARAM)
 }
 
-export function readIgnoredUsersImportPayload(search: string = window.location.search): IgnoredUsersSyncPayload | null {
-	const encoded = new URLSearchParams(search).get(IGNORED_USERS_IMPORT_PARAM)
+export function readIgnoredUsersImportPayload(search: string = window.location.search): MobileLiteTransferPayload | null {
+	const encoded = new URLSearchParams(search).get(MOBILE_LITE_IMPORT_PARAM)
 	if (!encoded) return null
-	return decodeIgnoredUsersSyncPayload(encoded)
+	return decodeMobileLiteTransferPayload(encoded)
 }
 
 function cleanIgnoredUsersImportParamFromUrl(): void {
 	window.history.replaceState(
 		window.history.state,
 		document.title,
-		getUrlWithoutIgnoredUsersImportParam(window.location.href)
+		getUrlWithoutMobileLiteImportParam(window.location.href)
 	)
 }
 
@@ -44,16 +45,22 @@ function closeIgnoredUsersImportPanel(): void {
 	document.getElementById(CONTAINER_ID)?.remove()
 }
 
-export async function confirmIgnoredUsersImport(payload: IgnoredUsersSyncPayload): Promise<void> {
-	const currentData = await getUserCustomizations()
-	const result = mergeIgnoredUsersIntoData(currentData, payload)
-	await saveUserCustomizations(result.data)
-	dispatchMobileLiteIgnoredUsersSync({
-		data: result.data,
-	})
+export async function confirmIgnoredUsersImport(payload: MobileLiteTransferPayload): Promise<void> {
+	if (payload.ignoredUsers.length > 0) {
+		const currentData = await getUserCustomizations()
+		const result = mergeMobileLiteIgnoredUsersIntoData(currentData, payload)
+		await saveUserCustomizations(result.data)
+		dispatchMobileLiteIgnoredUsersSync({
+			data: result.data,
+		})
+	}
+
+	if (payload.imgbbApiKey) {
+		await saveMobileLiteImgbbApiKey(payload.imgbbApiKey)
+	}
 }
 
-function mountIgnoredUsersImportPanel(payload: IgnoredUsersSyncPayload | null, errorMessage: string | null): void {
+function mountIgnoredUsersImportPanel(payload: MobileLiteTransferPayload | null, errorMessage: string | null): void {
 	const existingContainer = document.getElementById(CONTAINER_ID)
 	const container =
 		existingContainer ??
@@ -82,17 +89,17 @@ export function initMobileLiteIgnoredUsersImport(): void {
 	if (!hasIgnoredUsersImportParam()) return
 	if (isFeatureMounted(FEATURE_ID)) return
 
-	let payload: IgnoredUsersSyncPayload | null = null
+	let payload: MobileLiteTransferPayload | null = null
 	let errorMessage: string | null = null
 
 	try {
 		payload = readIgnoredUsersImportPayload()
-		if (!payload || payload.users.length === 0) {
-			errorMessage = 'El enlace no contiene usuarios ignorados para importar.'
+		if (!payload || (payload.ignoredUsers.length === 0 && !payload.imgbbApiKey)) {
+			errorMessage = 'El enlace no contiene datos de Mobile Lite para importar.'
 		}
 	} catch (error) {
-		logger.warn('Invalid Mobile Lite ignored users import payload:', error)
-		errorMessage = 'El enlace de importación no es válido.'
+		logger.warn('Invalid Mobile Lite import payload:', error)
+		errorMessage = 'El enlace de importación de Mobile Lite no es válido.'
 	}
 
 	cleanIgnoredUsersImportParamFromUrl()

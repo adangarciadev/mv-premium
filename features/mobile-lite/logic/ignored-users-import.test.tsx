@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-	buildIgnoredUsersImportUrl,
-	type IgnoredUsersSyncPayload,
+	buildMobileLiteImportUrl,
+	type MobileLiteTransferPayload,
 } from '@/features/ignored-users-mobile-sync'
 import type { UserCustomizationsData } from '@/features/user-customizations/storage'
 import {
@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 	isFeatureEnabled: vi.fn(() => true),
 	getUserCustomizations: vi.fn(),
 	saveUserCustomizations: vi.fn(),
+	saveMobileLiteImgbbApiKey: vi.fn(),
 	mountFeatureWithBoundary: vi.fn(),
 	unmountFeature: vi.fn(),
 	isFeatureMounted: vi.fn(() => false),
@@ -53,6 +54,10 @@ vi.mock('@/features/user-customizations/storage', async importOriginal => {
 	}
 })
 
+vi.mock('./imgbb-api-key-storage', () => ({
+	saveMobileLiteImgbbApiKey: mocks.saveMobileLiteImgbbApiKey,
+}))
+
 const GLOBAL_SETTINGS = {
 	adminColor: '',
 	subadminColor: '',
@@ -60,13 +65,14 @@ const GLOBAL_SETTINGS = {
 	userColor: '',
 }
 
-const payload: IgnoredUsersSyncPayload = {
-	type: 'mvp-ignored-users',
+const payload: MobileLiteTransferPayload = {
+	type: 'mvp-mobile-lite-transfer',
 	version: 1,
-	users: [
+	ignoredUsers: [
 		{ nick: 'HiddenUser', ignoreType: 'hide' },
 		{ nick: 'MutedUser', ignoreType: 'mute' },
 	],
+	imgbbApiKey: 'abc_123',
 }
 
 function data(users: UserCustomizationsData['users']): UserCustomizationsData {
@@ -84,16 +90,17 @@ describe('Mobile Lite ignored users import', () => {
 		mocks.isFeatureMounted.mockReturnValue(false)
 		mocks.getUserCustomizations.mockResolvedValue(data({}))
 		mocks.saveUserCustomizations.mockResolvedValue(undefined)
+		mocks.saveMobileLiteImgbbApiKey.mockResolvedValue(undefined)
 		window.history.replaceState({}, '', '/')
 	})
 
 	it('detects the import query param', () => {
-		expect(hasIgnoredUsersImportParam('?mvp_import_ignored=abc')).toBe(true)
+		expect(hasIgnoredUsersImportParam('?mvp_import_mobile_lite=abc')).toBe(true)
 		expect(hasIgnoredUsersImportParam('?other=abc')).toBe(false)
 	})
 
 	it('does not initialize outside Firefox Android Mobile Lite', () => {
-		const url = buildIgnoredUsersImportUrl(payload)
+		const url = buildMobileLiteImportUrl(payload)
 		window.history.replaceState({}, '', `/${new URL(url).search}`)
 		mocks.getPlatformKind.mockReturnValue('firefox-desktop')
 
@@ -101,11 +108,11 @@ describe('Mobile Lite ignored users import', () => {
 
 		expect(mocks.mountFeatureWithBoundary).not.toHaveBeenCalled()
 		expect(mocks.getUserCustomizations).not.toHaveBeenCalled()
-		expect(window.location.search).toContain('mvp_import_ignored')
+		expect(window.location.search).toContain('mvp_import_mobile_lite')
 	})
 
 	it('cleans the query param after reading it', () => {
-		const url = buildIgnoredUsersImportUrl(payload)
+		const url = buildMobileLiteImportUrl(payload)
 		window.history.replaceState({}, '', `/${new URL(url).search}&keep=1`)
 
 		initMobileLiteIgnoredUsersImport()
@@ -131,6 +138,7 @@ describe('Mobile Lite ignored users import', () => {
 				MutedUser: { isIgnored: true, ignoreType: 'mute' },
 			})
 		)
+		expect(mocks.saveMobileLiteImgbbApiKey).toHaveBeenCalledWith('abc_123')
 	})
 
 	it('tears down the import panel', () => {
