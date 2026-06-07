@@ -51,7 +51,19 @@ const uploadControlStyles = {
 		'padding: 0',
 		'font-size: 13px',
 	].join(';'),
-	button: ['white-space: nowrap', 'min-width: 126px', 'max-width: 100%'].join(';'),
+	button: [
+		'display: inline-flex',
+		'align-items: center',
+		'justify-content: center',
+		'gap: 6px',
+		'box-sizing: border-box',
+		'white-space: nowrap',
+		'min-width: 132px',
+		'min-height: 40px',
+		'max-width: 100%',
+		'touch-action: manipulation',
+		'transition: opacity 120ms ease, filter 120ms ease',
+	].join(';'),
 	status: [
 		'position: absolute',
 		'width: 1px',
@@ -308,7 +320,7 @@ function setUploadButtonContent(button: HTMLButtonElement, label: string, iconCl
 	const icon = document.createElement('i')
 	icon.className = iconClass
 	icon.setAttribute('aria-hidden', 'true')
-	icon.style.marginRight = '5px'
+	icon.style.marginRight = '0'
 
 	const text = document.createElement('span')
 	text.textContent = label
@@ -318,11 +330,28 @@ function setUploadButtonContent(button: HTMLButtonElement, label: string, iconCl
 
 function setUploadButtonIdle(button: HTMLButtonElement): void {
 	button.disabled = false
+	button.removeAttribute('aria-busy')
+	button.style.opacity = ''
+	button.style.cursor = ''
+	button.style.filter = ''
 	setUploadButtonContent(button, 'Subir imagen', 'fa fa-picture-o')
+}
+
+function setUploadButtonBusy(button: HTMLButtonElement, label: string): void {
+	button.disabled = true
+	button.setAttribute('aria-busy', 'true')
+	button.style.opacity = '0.82'
+	button.style.cursor = 'progress'
+	button.style.filter = 'saturate(0.9)'
+	setUploadButtonContent(button, label, 'fa fa-spinner fa-spin')
 }
 
 function setTemporaryUploadButtonText(button: HTMLButtonElement, text: string, iconClass: string): void {
 	button.disabled = false
+	button.removeAttribute('aria-busy')
+	button.style.opacity = ''
+	button.style.cursor = ''
+	button.style.filter = ''
 	setUploadButtonContent(button, text, iconClass)
 	window.setTimeout(() => {
 		setUploadButtonIdle(button)
@@ -873,12 +902,12 @@ function prepareOptionsRowUploadControl(wrapper: HTMLElement, row: HTMLElement):
 	wrapper.style.display = 'inline-flex'
 	wrapper.style.verticalAlign = 'middle'
 	wrapper.style.clear = 'none'
-	wrapper.style.marginTop = '4px'
-	wrapper.style.marginBottom = '4px'
+	wrapper.style.marginTop = '5px'
+	wrapper.style.marginBottom = '5px'
 
 	if (row.id === EXTENDED_EDITOR_FAVORITES_SELECTOR.slice(1)) {
 		wrapper.style.cssFloat = 'none'
-		wrapper.style.marginLeft = '12px'
+		wrapper.style.marginLeft = '10px'
 		wrapper.style.marginRight = '0'
 		return
 	}
@@ -907,7 +936,7 @@ function placeUploadControl(wrapper: HTMLElement, textarea: HTMLTextAreaElement)
 		return
 	}
 
-	wrapper.style.marginBottom = '8px'
+	wrapper.style.marginBottom = '10px'
 	const fallbackTarget =
 		textarea.closest<HTMLElement>(`${MV_SELECTORS.EDITOR.TEXT_WRAP}, ${MV_SELECTORS.EDITOR.EDITOR_BODY}`) ??
 		textarea
@@ -957,8 +986,7 @@ export function injectMobileLiteUploadControl(textarea: HTMLTextAreaElement): HT
 			return
 		}
 
-		button.disabled = true
-		setUploadButtonContent(button, 'Preparando...', 'fa fa-spinner fa-spin')
+		setUploadButtonBusy(button, 'Preparando...')
 		setUploadControlStatus(status, 'Preparando imagen...')
 
 		openMobileLiteImageCropDialog(file)
@@ -969,7 +997,7 @@ export function injectMobileLiteUploadControl(textarea: HTMLTextAreaElement): HT
 					return null
 				}
 
-				setUploadButtonContent(button, 'Subiendo...', 'fa fa-spinner fa-spin')
+				setUploadButtonBusy(button, 'Subiendo...')
 				setUploadControlStatus(status, 'Subiendo...')
 				return uploadMobileLiteImage(cropResult === 'original' ? file : cropResult, textarea)
 			})
