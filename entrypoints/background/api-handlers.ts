@@ -327,10 +327,74 @@ function getStringValue(value: unknown): string {
 	return typeof value === 'string' ? value.trim() : ''
 }
 
+function safeDecodeURIComponent(value: string): string {
+	try {
+		return decodeURIComponent(value)
+	} catch {
+		return value
+	}
+}
+
 function extractMvUserSuggestions(payload: unknown): Record<string, unknown>[] {
 	if (isRecord(payload) && isRecordArray(payload.suggestions)) return payload.suggestions
 	if (isRecordArray(payload)) return payload
 	return []
+}
+
+function extractAttribute(html: string, attributeName: string): string {
+	const pattern = new RegExp(`${attributeName}\\s*=\\s*["']([^"']+)["']`, 'i')
+	return decodeHtmlEntities(pattern.exec(html)?.[1] || '')
+}
+
+function extractAvatarSourceFromHtml(html: string): string {
+	const imageMatches = html.matchAll(/<img\b[^>]*>/gi)
+	for (const match of imageMatches) {
+		const src = extractAttribute(match[0], 'src')
+		if (src && /\/img\/users\/avatar\//i.test(src)) return src
+	}
+
+	return ''
+}
+
+function extractMvUserSuggestionsFromHtml(html: string): Record<string, unknown>[] {
+	const suggestions: Record<string, unknown>[] = []
+	const seenUsernames = new Set<string>()
+	const userLinkMatches = html.matchAll(/<a\b[^>]*href\s*=\s*["']\/id\/([^"'/?#]+)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi)
+
+	for (const match of userLinkMatches) {
+		const username = safeDecodeURIComponent(match[1] || '').trim()
+		const usernameKey = username.toLowerCase()
+		if (!username || seenUsernames.has(usernameKey)) continue
+
+		seenUsernames.add(usernameKey)
+		const linkHtml = match[0]
+		const matchIndex = match.index ?? 0
+		const nearbyHtml = html.slice(Math.max(0, matchIndex - 400), matchIndex + linkHtml.length + 400)
+		const avatar = extractAvatarSourceFromHtml(linkHtml) || extractAvatarSourceFromHtml(nearbyHtml)
+
+		suggestions.push({
+			value: username,
+			data: {
+				nombre: username,
+				avatar,
+			},
+		})
+	}
+
+	return suggestions
+}
+
+function parseMvUserSuggestionsPayload(text: string): unknown {
+	const trimmed = text.trim()
+	if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+		try {
+			return JSON.parse(trimmed)
+		} catch {
+			// Fall through to the HTML parser; MV can return non-standard responses.
+		}
+	}
+
+	return extractMvUserSuggestionsFromHtml(text)
 }
 
 function getSuggestionUsername(suggestion: Record<string, unknown>): string {
@@ -367,7 +431,7 @@ async function resolveMvUserAvatar(username: string): Promise<MvUserAvatarResult
 		return { success: false, error: `HTTP ${response.status}` }
 	}
 
-	const payload = (await response.json()) as unknown
+	const payload = parseMvUserSuggestionsPayload(await response.text())
 	const exactSuggestion = extractMvUserSuggestions(payload).find(
 		suggestion => getSuggestionUsername(suggestion).toLowerCase() === normalizedUsername.toLowerCase()
 	)

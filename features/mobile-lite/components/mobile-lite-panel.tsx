@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
 import Check from 'lucide-react/dist/esm/icons/check'
 import Clipboard from 'lucide-react/dist/esm/icons/clipboard'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
@@ -86,6 +86,14 @@ function normalizeUsername(username: string): string {
 	return username.trim()
 }
 
+function safeDecodeURIComponent(value: string): string {
+	try {
+		return decodeURIComponent(value)
+	} catch {
+		return value
+	}
+}
+
 function getVisualViewportBounds() {
 	const viewport = window.visualViewport
 	return {
@@ -127,14 +135,23 @@ function getUsernameValidationMessage(username: string): string | null {
 
 function findVisibleUserAvatar(username: string): string | undefined {
 	const normalizedUsername = username.toLowerCase()
-	const userLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('a.user-card[href^="/id/"]'))
+	const userLinks = Array.from(
+		document.querySelectorAll<HTMLAnchorElement>('a.user-card[href^="/id/"], a.autor[href^="/id/"], a[href^="/id/"]')
+	)
 
 	for (const link of userLinks) {
-		const linkUsername = link.textContent?.trim() || link.querySelector('img')?.alt?.trim() || link.getAttribute('href')?.split('/').pop()?.trim() || ''
+		const hrefUsername = link.getAttribute('href')?.match(/\/id\/([^/?#]+)/)?.[1] || ''
+		const linkUsername = safeDecodeURIComponent(hrefUsername || link.querySelector('img')?.alt?.trim() || link.textContent?.trim() || '')
 		if (linkUsername.toLowerCase() !== normalizedUsername) continue
 
 		const avatarUrl = link.querySelector<HTMLImageElement>('img.avatar, img')?.src
 		if (avatarUrl) return avatarUrl
+
+		const postContainer = link.closest('.post, .respuesta, .msg, article, li, div[id^="post"], div[id^="respuesta"]')
+		const postAvatarUrl = postContainer
+			?.querySelector<HTMLImageElement>('img.avatar, .avatar img, .post-avatar img, .user-avatar img, img[src*="/img/users/avatar/"]')
+			?.src
+		if (postAvatarUrl) return postAvatarUrl
 	}
 
 	return undefined
@@ -182,6 +199,7 @@ export function MobileLitePanel() {
 	const [imgbbStatusMessage, setImgbbStatusMessage] = useState<string | null>(null)
 	const [imgbbErrorMessage, setImgbbErrorMessage] = useState<string | null>(null)
 	const viewportBounds = useVisualViewportBounds(open)
+	const avatarHydrationInFlight = useRef<Set<string>>(new Set())
 
 	useEffect(() => {
 		let mounted = true
@@ -278,6 +296,68 @@ export function MobileLitePanel() {
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
 	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
 	const logoUrl = browser.runtime.getURL('/icon/48.png')
+
+	useEffect(() => {
+		if (!open || allFilteredUsers.length === 0) return
+
+		let cancelled = false
+		const missingAvatarUsers = allFilteredUsers.filter(user => {
+			if (user.customization.avatarUrl) return false
+			const key = user.username.toLowerCase()
+			if (avatarHydrationInFlight.current.has(key)) return false
+			avatarHydrationInFlight.current.add(key)
+			return true
+		})
+		if (missingAvatarUsers.length === 0) return
+
+		async function hydrateMissingAvatars() {
+			const resolvedAvatars: Array<{ username: string; avatarUrl: string }> = []
+
+			for (const user of missingAvatarUsers) {
+				if (cancelled) break
+
+				try {
+					const avatarUrl = await resolveUserAvatar(user.username)
+					if (avatarUrl) {
+						resolvedAvatars.push({ username: user.username, avatarUrl })
+					}
+				} catch {
+					// Avatar hydration is opportunistic; failing should not block panel usage.
+				} finally {
+					avatarHydrationInFlight.current.delete(user.username.toLowerCase())
+				}
+			}
+
+			if (cancelled || resolvedAvatars.length === 0) return
+
+			const nextData = await getUserCustomizations()
+			let changed = false
+			for (const { username, avatarUrl } of resolvedAvatars) {
+				const entry = getCustomizationEntryForUser(nextData, username)
+				if (!entry?.customization.isIgnored || entry.customization.avatarUrl) continue
+
+				nextData.users[entry.storageKey] = { ...entry.customization, avatarUrl }
+				changed = true
+			}
+
+			if (!changed || cancelled) return
+
+			await saveUserCustomizations(nextData)
+			setData(nextData)
+			dispatchMobileLiteIgnoredUsersSync({ data: nextData })
+		}
+
+		void hydrateMissingAvatars().catch(() => {
+			// Avatar hydration is opportunistic; failing should not block panel usage.
+		})
+
+		return () => {
+			cancelled = true
+			for (const user of missingAvatarUsers) {
+				avatarHydrationInFlight.current.delete(user.username.toLowerCase())
+			}
+		}
+	}, [allFilteredUsers, open])
 
 	const updateFilter = async (username: string, ignoreType: MobileLiteIgnoreType | null) => {
 		const normalizedUsername = normalizeUsername(username)

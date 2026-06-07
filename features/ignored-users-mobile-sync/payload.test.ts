@@ -126,7 +126,7 @@ describe('Mobile Lite transfer payload', () => {
 	it('exports only ignored users and optionally includes the ImgBB API key', () => {
 		const payload = createMobileLiteTransferPayload(
 			data({
-				HiddenUser: { isIgnored: true, ignoreType: 'hide', note: 'keep me' },
+				HiddenUser: { isIgnored: true, ignoreType: 'hide', note: 'keep me', avatarUrl: 'https://www.mediavida.com/img/users/avatar/hidden-user.png' },
 				MutedUser: { isIgnored: true, ignoreType: 'mute' },
 				StyledUser: { usernameColour: '#fff' },
 			}),

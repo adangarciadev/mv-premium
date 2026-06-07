@@ -401,6 +401,79 @@ describe('Mobile Lite panel injection', () => {
 		})
 	})
 
+	it('hydrates missing avatars for already filtered users when the panel opens', async () => {
+		const importedData = createCustomizationData({
+			ImportedUser: { isIgnored: true, ignoreType: 'hide' },
+		})
+		mocks.getUserCustomizations.mockResolvedValue(importedData)
+		mocks.sendMessage.mockResolvedValueOnce({
+			success: true,
+			username: 'ImportedUser',
+			avatarUrl: 'https://www.mediavida.com/img/users/avatar/imported-user.png',
+		})
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await waitFor(() => {
+			expect(mocks.saveUserCustomizations).toHaveBeenCalledWith(
+				createCustomizationData({
+					ImportedUser: {
+						isIgnored: true,
+						ignoreType: 'hide',
+						avatarUrl: 'https://www.mediavida.com/img/users/avatar/imported-user.png',
+					},
+				})
+			)
+		})
+	})
+
+	it('retries avatar hydration after a failed resolve when the panel opens again', async () => {
+		const user = userEvent.setup()
+		const importedData = createCustomizationData({
+			RetryUser: { isIgnored: true, ignoreType: 'hide' },
+		})
+		mocks.getUserCustomizations.mockResolvedValue(importedData)
+		mocks.sendMessage
+			.mockResolvedValueOnce({ success: false })
+			.mockResolvedValueOnce({
+				success: true,
+				username: 'RetryUser',
+				avatarUrl: 'https://www.mediavida.com/img/users/avatar/retry-user.png',
+			})
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await waitFor(() => {
+			expect(mocks.sendMessage).toHaveBeenCalledWith('resolveMvUserAvatar', { username: 'RetryUser' })
+		})
+		expect(mocks.saveUserCustomizations).not.toHaveBeenCalledWith(
+			createCustomizationData({
+				RetryUser: {
+					isIgnored: true,
+					ignoreType: 'hide',
+					avatarUrl: 'https://www.mediavida.com/img/users/avatar/retry-user.png',
+				},
+			})
+		)
+
+		await user.click(screen.getByRole('button', { name: 'Cerrar' }))
+		await openPanel()
+
+		await waitFor(() => {
+			expect(mocks.saveUserCustomizations).toHaveBeenCalledWith(
+				createCustomizationData({
+					RetryUser: {
+						isIgnored: true,
+						ignoreType: 'hide',
+						avatarUrl: 'https://www.mediavida.com/img/users/avatar/retry-user.png',
+					},
+				})
+			)
+		})
+	})
+
 	it('validates username length and allowed characters before adding a filter', async () => {
 		const user = userEvent.setup()
 
