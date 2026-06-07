@@ -44,6 +44,21 @@ const DEFAULT_VIEWPORT_BOUNDS = {
 	height: 0,
 	offsetTop: 0,
 }
+const TAB_BASE_CLASS =
+	'inline-flex h-11 items-center justify-center gap-2 rounded-md border px-2 text-sm font-semibold transition-colors'
+const TAB_ACTIVE_CLASS = 'border-[#d06d00] bg-[#805604] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+const TAB_IDLE_CLASS = 'border-[#4a535e] bg-[#333a45] text-[#d8dde2]'
+const FILTER_BASE_CLASS =
+	'inline-flex h-10 min-w-0 items-center justify-center rounded-md border px-1.5 text-xs font-semibold transition-colors'
+const FILTER_ACTIVE_CLASS = 'border-[#d06d00] bg-[#805604] text-white'
+const FILTER_IDLE_CLASS = 'border-[#4c5560] bg-[#333a45] text-[#d8dde2]'
+const ACTION_BUTTON_BASE_CLASS =
+	'inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 text-sm font-semibold transition-colors disabled:opacity-60'
+const ACTION_IDLE_CLASS = 'border-[#626b74] bg-[#5b646e] text-[#eef1f3]'
+const ACTION_MUTE_ACTIVE_CLASS = 'border-[#c69422] bg-[#73570b] text-white'
+const ACTION_HIDE_ACTIVE_CLASS = 'border-[#d06d00] bg-[#8a5b00] text-white'
+const STATUS_SUCCESS_CLASS = 'rounded-md border border-[#556454] bg-[#2f3d34] px-3 py-2 text-sm text-[#d5ead5]'
+const STATUS_ERROR_CLASS = 'rounded-md border border-[#8f3f3f] bg-[#4a2528] px-3 py-2 text-sm text-[#ffd7d7]'
 
 interface FilteredUser {
 	username: string
@@ -261,6 +276,7 @@ export function MobileLitePanel() {
 	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
+	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
 	const logoUrl = browser.runtime.getURL('/icon/48.png')
 
 	const updateFilter = async (username: string, ignoreType: MobileLiteIgnoreType | null) => {
@@ -330,7 +346,7 @@ export function MobileLitePanel() {
 		: undefined
 
 	return (
-		<div className="fixed inset-x-0 top-0 z-[99999] h-[100dvh] overflow-hidden bg-black/60" style={overlayStyle}>
+		<div className="fixed inset-x-0 top-0 z-[99999] h-[100dvh] overflow-hidden bg-black/65" style={overlayStyle}>
 			<button type="button" className="absolute inset-0 h-full w-full cursor-default" aria-label="Cerrar panel MVP" onClick={() => setOpen(false)} />
 
 			<section
@@ -353,7 +369,7 @@ export function MobileLitePanel() {
 					</div>
 					<button
 						type="button"
-						className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#56606a] bg-[#444b54] text-[#eef1f3]"
+						className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#56606a] bg-[#4a525d] text-[#eef1f3] transition-colors active:bg-[#59626d]"
 						aria-label="Cerrar"
 						onClick={() => setOpen(false)}
 					>
@@ -362,14 +378,12 @@ export function MobileLitePanel() {
 				</header>
 
 				<div className="min-h-0 flex-1 overflow-y-auto bg-[#384149] px-4 py-4 pb-[max(16px,calc(env(safe-area-inset-bottom)_+_16px))]">
-					<div className="mb-4 grid grid-cols-2 gap-2" role="tablist" aria-label="Secciones del panel MVPremium">
+					<div className="mb-4 grid grid-cols-2 gap-2 rounded-lg bg-[#323942] p-1" role="tablist" aria-label="Secciones del panel MVPremium">
 						<button
 							type="button"
 							role="tab"
 							aria-selected={activeTab === 'users'}
-							className={`inline-flex h-10 items-center justify-center gap-2 rounded-md border px-2 text-sm font-semibold ${
-								activeTab === 'users' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#56616b] bg-[#303840] text-[#d8dde2]'
-							}`}
+							className={`${TAB_BASE_CLASS} ${activeTab === 'users' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
 							onClick={() => setActiveTab('users')}
 						>
 							<UserX className="h-4 w-4" aria-hidden="true" />
@@ -379,9 +393,7 @@ export function MobileLitePanel() {
 							type="button"
 							role="tab"
 							aria-selected={activeTab === 'images'}
-							className={`inline-flex h-10 items-center justify-center gap-2 rounded-md border px-2 text-sm font-semibold ${
-								activeTab === 'images' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#56616b] bg-[#303840] text-[#d8dde2]'
-							}`}
+							className={`${TAB_BASE_CLASS} ${activeTab === 'images' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
 							onClick={() => setActiveTab('images')}
 						>
 							<Image className="h-4 w-4" aria-hidden="true" />
@@ -392,7 +404,7 @@ export function MobileLitePanel() {
 					{activeTab === 'users' ? (
 						<>
 							{errorMessage && (
-								<div role="alert" className="mb-3 rounded-md border border-[#8f3f3f] bg-[#4a2528] px-3 py-2 text-sm text-[#ffd7d7]">
+								<div role="alert" className={`mb-3 ${STATUS_ERROR_CLASS}`}>
 									{errorMessage}
 								</div>
 							)}
@@ -410,7 +422,7 @@ export function MobileLitePanel() {
 										setStatusMessage(null)
 									}}
 									placeholder="Buscar o añadir nick (3-13)"
-									className="h-11 w-full rounded-md border border-[#505963] bg-[#262d34] pl-10 pr-3 text-base text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00]"
+									className="h-11 w-full rounded-md border border-[#505963] bg-[#282f38] pl-10 pr-3 text-base text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
 								/>
 							</label>
 
@@ -421,7 +433,7 @@ export function MobileLitePanel() {
 							)}
 
 							{statusMessage && (
-								<div role="status" className="mt-3 rounded-md border border-[#556454] bg-[#2f3d34] px-3 py-2 text-sm text-[#d5ead5]">
+								<div role="status" className={`mt-3 ${STATUS_SUCCESS_CLASS}`}>
 									{statusMessage}
 								</div>
 							)}
@@ -435,14 +447,12 @@ export function MobileLitePanel() {
 											<button
 												key={option.id}
 												type="button"
-												className={`inline-flex h-9 min-w-0 items-center justify-center rounded-md border px-1.5 text-xs font-semibold ${
-													isActive ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#56616b] bg-[#303840] text-[#d8dde2]'
-												}`}
+												className={`${FILTER_BASE_CLASS} ${isActive ? FILTER_ACTIVE_CLASS : FILTER_IDLE_CLASS}`}
 												aria-pressed={isActive}
 												onClick={() => setActiveFilter(option.id)}
 											>
 												<span className="truncate">{option.label}</span>
-												<span className="ml-1 shrink-0 rounded bg-[#252b31] px-1.5 py-0.5 text-[11px] leading-none text-[#eef1f3]">
+												<span className="ml-1 shrink-0 rounded bg-[#252b31]/80 px-1.5 py-0.5 text-[11px] leading-none text-[#eef1f3]">
 													({option.count})
 												</span>
 											</button>
@@ -452,7 +462,7 @@ export function MobileLitePanel() {
 							)}
 
 							{canAddQueryUser && (
-								<div className="mt-3 rounded-md border border-dashed border-[#56616b] bg-[#303840] p-3">
+								<div className="mt-3 rounded-md border border-dashed border-[#65707b] bg-[#323b45] p-3">
 									<div className="flex items-center gap-2 text-sm font-medium">
 										<UserX className="h-4 w-4 text-[#b7bec6]" aria-hidden="true" />
 										<span className="min-w-0 truncate">{exactQueryDisplayName}</span>
@@ -460,7 +470,7 @@ export function MobileLitePanel() {
 									<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-2">
 										<button
 											type="button"
-											className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
+											className={`${ACTION_BUTTON_BASE_CLASS} ${ACTION_IDLE_CLASS}`}
 											disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
 											onClick={() => addQueryFilter('mute')}
 										>
@@ -469,7 +479,7 @@ export function MobileLitePanel() {
 										</button>
 										<button
 											type="button"
-											className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
+											className={`${ACTION_BUTTON_BASE_CLASS} ${ACTION_IDLE_CLASS}`}
 											disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
 											onClick={() => addQueryFilter('hide')}
 										>
@@ -482,8 +492,16 @@ export function MobileLitePanel() {
 
 							<div className="mt-4 space-y-2">
 								{filteredUsers.length === 0 ? (
-									<div className="rounded-md border border-[#4b545d] bg-[#303840] px-4 py-8 text-center text-sm text-[#b7bec6]">
-										{hasAnyFilteredUsers ? 'No hay resultados para este filtro.' : 'No hay usuarios filtrados.'}
+									<div className="rounded-md border border-[#4b545d] bg-[#333b46] px-4 py-7 text-center text-sm text-[#c5cbd2]">
+										<UserX className="mx-auto mb-3 h-5 w-5 text-[#9fa8b2]" aria-hidden="true" />
+										<p className="font-semibold text-[#d8dde2]">
+											{hasAnyFilteredUsers ? 'No hay resultados para este filtro.' : 'No hay usuarios filtrados.'}
+										</p>
+										{!hasAnyFilteredUsers && (
+											<p className="mx-auto mt-1 max-w-[22rem] text-xs leading-relaxed text-[#aeb6be]">
+												Escribe un nick exacto para silenciarlo u ocultarlo desde este panel.
+											</p>
+										)}
 									</div>
 								) : (
 									filteredUsers.map(user => {
@@ -491,7 +509,7 @@ export function MobileLitePanel() {
 										const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
 
 										return (
-											<article key={user.username} className="rounded-md border border-[#4b545d] bg-[#3e4750] p-3">
+											<article key={user.username} className="rounded-md border border-[#4b545d] bg-[#3f4853] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
 												<div className="flex items-center gap-3">
 													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#252b31] text-sm font-bold">
 														{user.customization.avatarUrl ? (
@@ -508,8 +526,8 @@ export function MobileLitePanel() {
 												<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-2">
 													<button
 														type="button"
-														className={`inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
-															ignoreType === 'mute' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#626b74] bg-[#545d66]'
+														className={`${ACTION_BUTTON_BASE_CLASS} ${
+															ignoreType === 'mute' ? ACTION_MUTE_ACTIVE_CLASS : ACTION_IDLE_CLASS
 														}`}
 														disabled={isSaving}
 														onClick={() => updateFilter(user.username, 'mute')}
@@ -519,8 +537,8 @@ export function MobileLitePanel() {
 													</button>
 													<button
 														type="button"
-														className={`inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
-															ignoreType === 'hide' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#626b74] bg-[#545d66]'
+														className={`${ACTION_BUTTON_BASE_CLASS} ${
+															ignoreType === 'hide' ? ACTION_HIDE_ACTIVE_CLASS : ACTION_IDLE_CLASS
 														}`}
 														disabled={isSaving}
 														onClick={() => updateFilter(user.username, 'hide')}
@@ -530,7 +548,7 @@ export function MobileLitePanel() {
 													</button>
 													<button
 														type="button"
-														className="col-span-full inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
+														className="col-span-full inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-md border border-[#5a646f] bg-[#4b535d] px-2 text-sm font-semibold text-[#e3e7eb] transition-colors disabled:opacity-60"
 														disabled={isSaving}
 														onClick={() => updateFilter(user.username, null)}
 													>
@@ -546,7 +564,7 @@ export function MobileLitePanel() {
 						</>
 					) : (
 						<div className="space-y-3">
-							<div className="rounded-md border border-[#4b545d] bg-[#303840] p-3">
+							<div className="rounded-md border border-[#4b545d] bg-[#333b46] p-3">
 								<div className="flex items-start gap-3">
 									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#252b31] text-[#f0a020]">
 										<KeyRound className="h-5 w-5" aria-hidden="true" />
@@ -556,7 +574,7 @@ export function MobileLitePanel() {
 											<div className="text-base font-semibold">ImgBB</div>
 											<span
 												className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold ${
-													isImgbbConfigured ? 'bg-[#274532] text-[#bdf2c7]' : 'bg-[#4b3b25] text-[#f6d28b]'
+													isImgbbConfigured ? 'bg-[#274532] text-[#bdf2c7]' : 'bg-[#403a2c] text-[#e7c77f]'
 												}`}
 											>
 												{isImgbbConfigured && <Check className="h-3 w-3" aria-hidden="true" />}
@@ -587,13 +605,13 @@ export function MobileLitePanel() {
 										setImgbbErrorMessage(null)
 									}}
 									placeholder="Pega tu API key de ImgBB"
-									className="mt-2 h-11 w-full rounded-md border border-[#505963] bg-[#262d34] px-3 font-mono text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00]"
+									className="mt-2 h-11 w-full rounded-md border border-[#505963] bg-[#282f38] px-3 font-mono text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
 								/>
 
 								<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(116px,1fr))] gap-2">
 									<button
 										type="button"
-										className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
+										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#5b646e] px-2 text-sm font-semibold transition-colors active:bg-[#66717c]"
 										onClick={pasteImgbbApiKey}
 									>
 										<Clipboard className="h-4 w-4" aria-hidden="true" />
@@ -601,8 +619,8 @@ export function MobileLitePanel() {
 									</button>
 									<button
 										type="button"
-										className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d06d00] bg-[#9a6500] px-2 text-sm font-semibold text-white disabled:opacity-60"
-										disabled={savingImgbbApiKey || imgbbApiKeyDraft.trim() === imgbbApiKey}
+										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#d06d00] bg-[#8a5b00] px-2 text-sm font-semibold text-white transition-colors disabled:border-[#5a646f] disabled:bg-[#4b535d] disabled:text-[#b7bec6]"
+										disabled={savingImgbbApiKey || !isImgbbDirty}
 										onClick={saveImgbbApiKey}
 									>
 										<Check className="h-4 w-4" aria-hidden="true" />
@@ -612,13 +630,13 @@ export function MobileLitePanel() {
 							</div>
 
 							{imgbbStatusMessage && (
-								<div role="status" className="rounded-md border border-[#556454] bg-[#2f3d34] px-3 py-2 text-sm text-[#d5ead5]">
+								<div role="status" className={STATUS_SUCCESS_CLASS}>
 									{imgbbStatusMessage}
 								</div>
 							)}
 
 							{imgbbErrorMessage && (
-								<div role="alert" className="rounded-md border border-[#8f3f3f] bg-[#4a2528] px-3 py-2 text-sm text-[#ffd7d7]">
+								<div role="alert" className={STATUS_ERROR_CLASS}>
 									{imgbbErrorMessage}
 								</div>
 							)}
@@ -627,7 +645,7 @@ export function MobileLitePanel() {
 								href="https://api.imgbb.com/"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#56616b] bg-[#303840] px-3 text-sm font-semibold text-[#eef1f3]"
+								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#56616b] bg-[#333a45] px-3 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#3d4651]"
 							>
 								<ExternalLink className="h-4 w-4" aria-hidden="true" />
 								Obtener API key
