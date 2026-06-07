@@ -30,6 +30,14 @@ function getBrowserSpecificSettings() {
 export default defineConfig({
 	modules: ['@wxt-dev/module-react'],
 	imports: false, // Disable auto-imports to avoid duplicated imports warnings
+	hooks: {
+		'build:manifestGenerated': (_, manifest) => {
+			if (!ENABLE_FIREFOX_ANDROID) return
+
+			delete manifest.options_page
+			delete manifest.options_ui
+		},
+	},
 
 	manifest: {
 		permissions: ['storage', 'activeTab', 'contextMenus', 'scripting', 'declarativeNetRequest'],
