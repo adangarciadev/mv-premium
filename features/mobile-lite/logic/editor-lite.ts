@@ -59,7 +59,6 @@ const uploadControlStyles = {
 		'box-sizing: border-box',
 		'white-space: nowrap',
 		'min-width: 132px',
-		'min-height: 40px',
 		'max-width: 100%',
 		'touch-action: manipulation',
 		'transition: opacity 120ms ease, filter 120ms ease',
