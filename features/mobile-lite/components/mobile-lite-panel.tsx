@@ -344,9 +344,9 @@ export function MobileLitePanel() {
 					<div className="flex min-w-0 items-center gap-3">
 						<img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-contain" aria-hidden="true" />
 						<div className="min-w-0">
-							<h2 className="truncate text-lg font-black uppercase italic leading-none tracking-tight">
+							<h2 className="truncate text-lg font-black uppercase leading-none tracking-tight">
 								<span>MV</span>
-								<span className="text-[#f0a020]"> Premium</span>
+								<span className="italic text-[#f0a020]">Premium</span>
 							</h2>
 							<p className="mt-1 text-[10px] font-bold uppercase tracking-[0.32em] text-[#b7bec6]">Dashboard</p>
 						</div>
