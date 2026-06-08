@@ -56,9 +56,9 @@ const DEFAULT_VIEWPORT_BOUNDS = {
 	offsetTop: 0,
 }
 const TAB_BASE_CLASS =
-	'inline-flex h-11 items-center justify-center gap-2 rounded-md border px-2 text-sm font-semibold transition-colors'
-const TAB_ACTIVE_CLASS = 'border-[#d06d00] bg-[#805604] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
-const TAB_IDLE_CLASS = 'border-[#4a535e] bg-[#333a45] text-[#d8dde2]'
+	'inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-md border px-1.5 text-sm font-semibold transition-colors'
+const TAB_ACTIVE_CLASS = 'border-[#d89016] bg-[#856100] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+const TAB_IDLE_CLASS = 'border-[#4f5965] bg-[#333a45] text-[#eef1f3]'
 const FILTER_BASE_CLASS =
 	'inline-flex h-10 min-w-0 items-center justify-center rounded-md border px-1.5 text-xs font-semibold transition-colors'
 const FILTER_ACTIVE_CLASS = 'border-[#d06d00] bg-[#805604] text-white'
@@ -129,12 +129,27 @@ function getVisualViewportBounds() {
 
 function useVisualViewportBounds(enabled: boolean) {
 	const [bounds, setBounds] = useState(DEFAULT_VIEWPORT_BOUNDS)
+	const initialBoundsRef = useRef<typeof DEFAULT_VIEWPORT_BOUNDS | null>(null)
 
 	useEffect(() => {
-		if (!enabled) return
+		if (!enabled) {
+			initialBoundsRef.current = null
+			setBounds(DEFAULT_VIEWPORT_BOUNDS)
+			return
+		}
 
-		const updateBounds = () => setBounds(getVisualViewportBounds())
-		updateBounds()
+		const initialBounds = getVisualViewportBounds()
+		initialBoundsRef.current = initialBounds
+		setBounds(initialBounds)
+
+		const updateBounds = () => {
+			const nextBounds = getVisualViewportBounds()
+			const lockedBounds = initialBoundsRef.current
+			setBounds({
+				height: lockedBounds ? Math.min(nextBounds.height, lockedBounds.height) : nextBounds.height,
+				offsetTop: nextBounds.offsetTop,
+			})
+		}
 
 		window.addEventListener('resize', updateBounds)
 		window.visualViewport?.addEventListener('resize', updateBounds)
@@ -144,6 +159,7 @@ function useVisualViewportBounds(enabled: boolean) {
 			window.removeEventListener('resize', updateBounds)
 			window.visualViewport?.removeEventListener('resize', updateBounds)
 			window.visualViewport?.removeEventListener('scroll', updateBounds)
+			initialBoundsRef.current = null
 		}
 	}, [enabled])
 
@@ -233,6 +249,7 @@ export function MobileLitePanel() {
 	const [imgbbErrorMessage, setImgbbErrorMessage] = useState<string | null>(null)
 	const viewportBounds = useVisualViewportBounds(open)
 	const avatarHydrationInFlight = useRef<Set<string>>(new Set())
+	const panelBodyRef = useRef<HTMLDivElement>(null)
 
 	useEffect(() => {
 		let mounted = true
@@ -353,7 +370,7 @@ export function MobileLitePanel() {
 	const usernameValidationMessage = getUsernameValidationMessage(exactQueryUsername)
 	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
-	const hasPanelListContent = hasAnyFilteredUsers || hiddenThreads.length > 0
+	const hasScrollablePanelContent = activeTab === 'users' ? hasAnyFilteredUsers : activeTab === 'threads' ? hiddenThreads.length > 0 : false
 	const missingAvatarCount = allFilteredUsers.filter(user => !user.customization.avatarUrl).length
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
 	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
@@ -475,6 +492,37 @@ export function MobileLitePanel() {
 		}
 	}
 
+	const removeUserFilter = async (username: string) => {
+		const previousData = data
+		const previousScrollTop = panelBodyRef.current?.scrollTop
+		const optimisticData: UserCustomizationsData = {
+			...data,
+			users: { ...data.users },
+		}
+		setUserIgnoreInData(optimisticData, username, null)
+
+		setSavingUser(username)
+		setErrorMessage(null)
+		setStatusMessage(null)
+		setData(optimisticData)
+		try {
+			const nextData = await updateUserIgnore(username, null)
+			setData(nextData)
+			if (previousScrollTop !== undefined) {
+				window.requestAnimationFrame(() => {
+					if (panelBodyRef.current) panelBodyRef.current.scrollTop = previousScrollTop
+				})
+			}
+			return true
+		} catch {
+			setData(previousData)
+			setErrorMessage('No se pudo guardar el filtro. Inténtalo de nuevo.')
+			return false
+		} finally {
+			setSavingUser(null)
+		}
+	}
+
 	const addQueryFilter = async (ignoreType: MobileLiteIgnoreType) => {
 		const username = exactQueryUsername
 		const saved = await updateFilter(username, ignoreType)
@@ -514,15 +562,23 @@ export function MobileLitePanel() {
 	}
 
 	const restoreHiddenThread = async (thread: HiddenThread) => {
+		const previousThreads = hiddenThreads
+		const previousScrollTop = panelBodyRef.current?.scrollTop
 		setRestoringThread(thread.id)
 		setHiddenThreadsStatusMessage(null)
 		setHiddenThreadsErrorMessage(null)
+		setHiddenThreads(currentThreads => currentThreads.filter(currentThread => currentThread.id !== thread.id))
 		try {
 			await unhideThread(thread.id)
 			const nextThreads = await getHiddenThreads()
 			setHiddenThreads(nextThreads)
-			setHiddenThreadsStatusMessage(nextThreads.length > 0 ? `${thread.title} vuelve a mostrarse.` : null)
+			if (previousScrollTop !== undefined) {
+				window.requestAnimationFrame(() => {
+					if (panelBodyRef.current) panelBodyRef.current.scrollTop = previousScrollTop
+				})
+			}
 		} catch {
+			setHiddenThreads(previousThreads)
 			setHiddenThreadsErrorMessage('No se pudo restaurar el hilo. Inténtalo de nuevo.')
 		} finally {
 			setRestoringThread(null)
@@ -553,32 +609,34 @@ export function MobileLitePanel() {
 				top: `${viewportBounds.offsetTop}px`,
 			}
 		: undefined
+	const panelShellClass = `absolute inset-x-0 top-0 mx-auto flex w-full max-w-[34rem] flex-col overflow-hidden border-y border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl sm:left-1/2 sm:right-auto sm:w-[calc(100%_-_24px)] sm:-translate-x-1/2 sm:border ${
+		hasScrollablePanelContent
+			? 'bottom-0 max-h-full sm:bottom-[max(12px,env(safe-area-inset-bottom))] sm:top-[max(12px,env(safe-area-inset-top))] sm:rounded-lg'
+			: 'max-h-[calc(100%_-_max(12px,env(safe-area-inset-bottom)))] rounded-b-lg sm:top-[max(12px,env(safe-area-inset-top))] sm:rounded-lg'
+	}`
+	const panelBodyClass = `overflow-y-auto overscroll-contain bg-[#384149] px-3 pb-[max(16px,calc(env(safe-area-inset-bottom)_+_16px))] ${
+		hasScrollablePanelContent ? 'min-h-0 flex-1' : ''
+	}`
 
 	return (
-		<div className="fixed inset-x-0 top-0 z-[99999] h-[100dvh] overflow-hidden bg-black/65" style={overlayStyle}>
+		<div className="fixed inset-x-0 top-0 z-[99999] h-[100dvh] overflow-hidden overscroll-none bg-black/65" style={overlayStyle}>
 			<button type="button" className="absolute inset-0 h-full w-full cursor-default" aria-label="Cerrar panel MVP" onClick={() => setOpen(false)} />
 
-			<section
-				className={`absolute left-[max(12px,env(safe-area-inset-left))] right-[max(12px,env(safe-area-inset-right))] flex max-h-[calc(100%_-_max(12px,env(safe-area-inset-top))_-_max(12px,env(safe-area-inset-bottom)))] flex-col overflow-hidden border border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl ${
-					hasPanelListContent
-						? 'bottom-[max(12px,env(safe-area-inset-bottom))] top-[max(56px,calc(env(safe-area-inset-top)_+_12px))] rounded-lg'
-						: 'bottom-auto top-[max(132px,calc(env(safe-area-inset-top)_+_18dvh))] rounded-lg'
-				}`}
-			>
-				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-4 py-3">
-					<div className="flex min-w-0 items-center gap-3">
-						<img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-contain" aria-hidden="true" />
-						<div className="min-w-0">
-							<h2 className="truncate text-lg font-black uppercase leading-none tracking-tight">
+			<section className={panelShellClass}>
+				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-3 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
+					<div className="flex min-w-0 items-center gap-2.5">
+						<img src={logoUrl} alt="" className="h-8 w-8 shrink-0 rounded-md object-contain" aria-hidden="true" />
+						<div className="flex min-w-0 items-baseline gap-2">
+							<h2 className="truncate text-[17px] font-black uppercase leading-none tracking-tight">
 								<span>MV</span>
 								<span className="italic text-[#f0a020]">Premium</span>
 							</h2>
-							<p className="mt-1 text-[10px] font-bold uppercase tracking-[0.32em] text-[#b7bec6]">Dashboard</p>
+							<p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-[#c5cbd2]">Dashboard</p>
 						</div>
 					</div>
 					<button
 						type="button"
-						className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#56606a] bg-[#4a525d] text-[#eef1f3] transition-colors active:bg-[#59626d]"
+						className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-[#56606a] bg-[#4a525d] text-[#eef1f3] transition-colors active:bg-[#59626d]"
 						aria-label="Cerrar"
 						onClick={() => setOpen(false)}
 					>
@@ -586,8 +644,9 @@ export function MobileLitePanel() {
 					</button>
 				</header>
 
-				<div className="min-h-0 flex-1 overflow-y-auto bg-[#384149] px-4 py-4 pb-[max(16px,calc(env(safe-area-inset-bottom)_+_16px))]">
-					<div className="mb-4 grid grid-cols-3 gap-2 rounded-lg bg-[#323942] p-1" role="tablist" aria-label="Secciones del panel MVPremium">
+				<div ref={panelBodyRef} className={panelBodyClass}>
+					<div className="sticky top-0 z-20 -mx-3 mb-3 bg-[#384149] px-3 pb-2 pt-3 shadow-[0_10px_18px_rgba(24,28,34,0.22)]">
+						<div className="grid grid-cols-3 gap-1 rounded-lg border border-[#3f4853] bg-[#323942] p-1" role="tablist" aria-label="Secciones del panel MVPremium">
 						<button
 							type="button"
 							role="tab"
@@ -602,11 +661,22 @@ export function MobileLitePanel() {
 							type="button"
 							role="tab"
 							aria-selected={activeTab === 'threads'}
+							aria-label="Hilos"
 							className={`${TAB_BASE_CLASS} ${activeTab === 'threads' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
 							onClick={() => setActiveTab('threads')}
 						>
 							<EyeOff className="h-4 w-4" aria-hidden="true" />
-							Hilos
+							<span>Hilos</span>
+							{hiddenThreads.length > 0 && (
+								<span
+									aria-hidden="true"
+									className={`ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-5 ${
+										activeTab === 'threads' ? 'bg-[#252b31]/85 text-white' : 'bg-[#252b31] text-[#d8dde2]'
+									}`}
+								>
+									{hiddenThreads.length}
+								</span>
+							)}
 						</button>
 						<button
 							type="button"
@@ -618,6 +688,7 @@ export function MobileLitePanel() {
 							<Image className="h-4 w-4" aria-hidden="true" />
 							ImgBB
 						</button>
+						</div>
 					</div>
 
 					{activeTab === 'users' ? (
@@ -787,7 +858,7 @@ export function MobileLitePanel() {
 														type="button"
 														className="col-span-full inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-md border border-[#5a646f] bg-[#4b535d] px-2 text-sm font-semibold text-[#e3e7eb] transition-colors disabled:opacity-60"
 														disabled={isSaving}
-														onClick={() => updateFilter(user.username, null)}
+														onClick={() => removeUserFilter(user.username)}
 													>
 														<Trash2 className="h-4 w-4" aria-hidden="true" />
 														<span>Quitar</span>
@@ -823,7 +894,7 @@ export function MobileLitePanel() {
 								</div>
 							) : (
 								<>
-									<div className="space-y-2">
+									<div className="sticky top-[70px] z-10 -mx-3 space-y-2 bg-[#384149] px-3 pb-2 pt-1 shadow-[0_10px_18px_rgba(24,28,34,0.18)]">
 										<label className="relative block min-w-0">
 											<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#aeb6be]" aria-hidden="true" />
 											<input
@@ -833,13 +904,13 @@ export function MobileLitePanel() {
 												spellCheck={false}
 												onChange={event => setHiddenThreadQuery(event.target.value)}
 												placeholder="Buscar hilo o subforo"
-												className="h-10 w-full rounded-md border border-[#505963] bg-[#282f38] pl-10 pr-3 text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
+												className="h-11 w-full rounded-md border border-[#505963] bg-[#282f38] pl-10 pr-3 text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
 											/>
 										</label>
 										<button
 											type="button"
 											aria-label="Mostrar todos"
-											className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#66736a] bg-[#405347] px-3 text-sm font-semibold text-[#dff2e4] transition-colors active:bg-[#4a6252] disabled:opacity-60"
+											className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border border-[#66736a] bg-[#405347] px-3 text-sm font-semibold text-[#e8f6eb] transition-colors active:bg-[#4a6252] disabled:opacity-60"
 											disabled={clearingHiddenThreads}
 											onClick={() => setConfirmClearHiddenThreads(true)}
 										>
@@ -848,40 +919,13 @@ export function MobileLitePanel() {
 										</button>
 									</div>
 
-									{confirmClearHiddenThreads && (
-										<div className="rounded-md border border-[#7d6a3a] bg-[#443d2d] p-3 text-sm text-[#f1e3bd]">
-											<p className="font-semibold text-[#fff2cc]">Se mostrarán todos los hilos ocultos.</p>
-											<p className="mt-1 text-xs leading-relaxed text-[#d8cda9]">
-												Esto vaciará tu lista de hilos ocultos en este dispositivo.
-											</p>
-											<div className="mt-3 grid grid-cols-2 gap-2">
-												<button
-													type="button"
-													className="inline-flex h-10 items-center justify-center rounded-md border border-[#6a6250] bg-[#393a3f] px-2 text-sm font-semibold text-[#e5e8eb]"
-													onClick={() => setConfirmClearHiddenThreads(false)}
-												>
-													Cancelar
-												</button>
-												<button
-													type="button"
-													className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#8b742d] bg-[#7a5b08] px-2 text-sm font-semibold text-white disabled:opacity-60"
-													disabled={clearingHiddenThreads}
-													onClick={restoreAllHiddenThreads}
-												>
-													<RotateCcw className="h-4 w-4" aria-hidden="true" />
-													{clearingHiddenThreads ? 'Restaurando' : 'Continuar'}
-												</button>
-											</div>
-										</div>
-									)}
-
 									{filteredHiddenThreads.length === 0 ? (
 										<div className="rounded-md border border-[#4b545d] bg-[#333b46] px-4 py-7 text-center text-sm text-[#c5cbd2]">
 											<EyeOff className="mx-auto mb-3 h-5 w-5 text-[#9fa8b2]" aria-hidden="true" />
 											<p className="font-semibold text-[#d8dde2]">No hay resultados.</p>
 										</div>
 									) : (
-										<div className="space-y-2">
+										<div className="space-y-2.5">
 											{filteredHiddenThreads.map(thread => {
 												const isRestoring = restoringThread === thread.id
 												const subforumSlug = getSubforumSlugFromId(thread.subforumId)
@@ -889,7 +933,7 @@ export function MobileLitePanel() {
 												const hiddenAtLabel = formatHiddenThreadDate(thread.hiddenAt)
 
 												return (
-													<article key={thread.id} className="grid grid-cols-[minmax(0,1fr)_56px] overflow-hidden rounded-md border border-[#596272] bg-[#424b5b] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+													<article key={thread.id} className="grid grid-cols-[minmax(0,1fr)_52px] overflow-hidden rounded-md border border-[#596272] bg-[#424b5b] shadow-[0_1px_0_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)]">
 														<div className="min-w-0 px-3 py-3">
 															<div className="flex min-w-0 items-start gap-3">
 																{subforumIconId !== null && (
@@ -898,18 +942,18 @@ export function MobileLitePanel() {
 																	</div>
 																)}
 																<div className="min-w-0 flex-1">
-																	<div className="truncate text-base font-bold leading-snug text-[#f2f4f7]">{thread.title}</div>
-																	<div className="mt-1 flex min-w-0 items-center justify-between gap-3 text-xs font-semibold text-[#c2cad3]">
+																	<div className="line-clamp-2 text-base font-bold leading-snug text-[#f2f4f7]">{thread.title}</div>
+																	<div className="mt-1 flex min-w-0 items-center justify-between gap-3 text-xs font-semibold text-[#c4ccd5]">
 																		<span className="min-w-0 truncate">{thread.subforum}</span>
-																		{hiddenAtLabel && <span className="shrink-0 tabular-nums text-[#d9bd76]">{hiddenAtLabel}</span>}
+																		{hiddenAtLabel && <span className="shrink-0 tabular-nums font-medium text-[#aeb6be]">{hiddenAtLabel}</span>}
 																	</div>
 																</div>
 															</div>
 														</div>
-														<div className="flex items-stretch border-l border-[#596272] bg-[#394353] p-2">
+														<div className="flex items-center justify-center border-l border-[#596272] bg-[#394353] p-1">
 															<button
 																type="button"
-																className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-[#607666] bg-[#465f4e] text-[#e8f6eb] transition-colors active:bg-[#52705b] disabled:opacity-60"
+																className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-[#607666] bg-[#465f4e] text-[#e8f6eb] transition-colors active:bg-[#52705b] disabled:opacity-60"
 																aria-label="Mostrar"
 																title="Mostrar"
 																disabled={isRestoring}
@@ -1018,6 +1062,49 @@ export function MobileLitePanel() {
 					)}
 				</div>
 			</section>
+
+			{confirmClearHiddenThreads && (
+				<div className="absolute inset-0 z-30 flex items-end justify-center bg-black/50 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))]">
+					<button
+						type="button"
+						className="absolute inset-0 h-full w-full cursor-default"
+						aria-label="Cancelar restauración de hilos"
+						onClick={() => setConfirmClearHiddenThreads(false)}
+					/>
+					<div
+						role="alertdialog"
+						aria-modal="true"
+						aria-labelledby="mvp-mobile-lite-clear-hidden-threads-title"
+						aria-describedby="mvp-mobile-lite-clear-hidden-threads-description"
+						className="relative w-full max-w-[32rem] rounded-lg border border-[#4b545d] bg-[#333b46] p-4 text-sm text-[#e5e8eb] shadow-2xl"
+					>
+						<p id="mvp-mobile-lite-clear-hidden-threads-title" className="text-base font-semibold text-[#f2f4f7]">
+							Se mostrarán todos los hilos ocultos.
+						</p>
+						<p id="mvp-mobile-lite-clear-hidden-threads-description" className="mt-1 text-sm leading-relaxed text-[#c4cad0]">
+							Esto vaciará tu lista de hilos ocultos en este dispositivo.
+						</p>
+						<div className="mt-4 grid grid-cols-2 gap-2">
+							<button
+								type="button"
+								className="inline-flex h-11 items-center justify-center rounded-md border border-[#626b74] bg-[#4b535d] px-2 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#59636e]"
+								onClick={() => setConfirmClearHiddenThreads(false)}
+							>
+								Cancelar
+							</button>
+							<button
+								type="button"
+								className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#ff7a1f] bg-[#b7470d] px-2 text-sm font-semibold text-white transition-colors active:bg-[#d0500f] disabled:opacity-60"
+								disabled={clearingHiddenThreads}
+								onClick={restoreAllHiddenThreads}
+							>
+								<RotateCcw className="h-4 w-4" aria-hidden="true" />
+								{clearingHiddenThreads ? 'Restaurando' : 'Continuar'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }

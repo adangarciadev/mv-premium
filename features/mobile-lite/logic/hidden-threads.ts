@@ -61,36 +61,45 @@ function ensureStyles(): void {
 			overflow: visible;
 		}
 		td.${ACTION_CELL_CLASS} > .thread {
-			margin-right: 36px;
+			margin-right: 42px;
 			word-break: break-word;
 			overflow-wrap: break-word;
 		}
 		.${HIDE_BUTTON_CLASS} {
 			align-items: center;
-			background: rgba(47, 54, 59, 0.88);
-			border: 1px solid rgba(255, 255, 255, 0.14);
-			border-radius: 6px;
-			color: #dce2ea;
+			background: transparent;
+			border: 1px solid transparent;
+			border-radius: 8px;
+			color: rgba(220, 226, 234, 0.72);
 			cursor: pointer;
 			display: inline-flex;
-			height: 28px;
+			height: 40px;
 			justify-content: center;
 			line-height: 1;
 			margin: 0;
 			padding: 0;
 			position: absolute;
-			right: 6px;
+			right: 0;
 			top: 50%;
 			transform: translateY(-50%);
-			width: 28px;
+			width: 40px;
 			z-index: 5;
+		}
+		.${HIDE_BUTTON_CLASS} i {
+			font-size: 15px;
+			opacity: 0.78;
 		}
 		.${HIDE_BUTTON_CLASS}:active,
 		.${HIDE_BUTTON_CLASS}:focus-visible {
-			background: #805604;
-			border-color: #d06d00;
+			background: rgba(128, 86, 4, 0.86);
+			border-color: rgba(208, 109, 0, 0.84);
 			color: #fff;
 			outline: none;
+			opacity: 1;
+		}
+		.${HIDE_BUTTON_CLASS}:active i,
+		.${HIDE_BUTTON_CLASS}:focus-visible i {
+			opacity: 1;
 		}
 	`
 	document.head.appendChild(style)
