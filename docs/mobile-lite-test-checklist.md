@@ -124,6 +124,7 @@ No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de 
 - Confirmar que el usuario en modo `hide` desaparece del hilo.
 - Confirmar que el usuario en modo `mute` aparece colapsado con botón `Mostrar`.
 - Pulsar `Mostrar` y confirmar que el post muteado se puede revelar temporalmente.
+- En un listado normal de subforo, pulsar `Ocultar hilo` en una fila y confirmar que desaparece y queda en `mvp-hidden-threads`.
 - Abrir una user card nativa desde un nick y confirmar que Mobile Lite añade `Silenciar` y `Ocultar`.
 - Cambiar un filtro desde la user card y confirmar que se preservan otras personalizaciones del usuario.
 - Si no se puede editar el storage en Firefox Android, activar el seed dev con

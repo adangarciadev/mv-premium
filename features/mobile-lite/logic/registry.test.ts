@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
 	teardownIgnoredUsers: vi.fn(),
 	initIgnoredUserThreads: vi.fn(),
 	teardownIgnoredUserThreads: vi.fn(),
+	initHiddenThreads: vi.fn(),
+	teardownHiddenThreads: vi.fn(),
 	initIgnoredUsersImport: vi.fn(),
 	teardownIgnoredUsersImport: vi.fn(),
 	initPanel: vi.fn(),
@@ -49,6 +51,11 @@ vi.mock('./ignored-user-threads', () => ({
 		(pathname: string) => pathname.startsWith('/foro/') && !pathname.startsWith('/foro/spy')
 	),
 	teardownMobileLiteIgnoredUserThreads: mocks.teardownIgnoredUserThreads,
+}))
+
+vi.mock('./hidden-threads', () => ({
+	initMobileLiteHiddenThreads: mocks.initHiddenThreads,
+	teardownMobileLiteHiddenThreads: mocks.teardownHiddenThreads,
 }))
 
 vi.mock('./panel', () => ({
@@ -108,14 +115,14 @@ describe('Mobile Lite registry', () => {
 					isNormalSubforumThreadList: true,
 				})
 			)
-		).toEqual(['ignored-user-threads', 'editor-lite', 'panel'])
+		).toEqual(['ignored-user-threads', 'hidden-threads', 'editor-lite', 'panel'])
 	})
 
 	it('detects normal subforum pages even if thread rows mount later', () => {
 		window.history.replaceState({}, '', '/foro/juegos')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['ignored-user-threads', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['ignored-user-threads', 'hidden-threads', 'editor-lite', 'panel'])
 	})
 
 	it('initializes only runnable modules', () => {
@@ -130,6 +137,21 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
+		expect(mocks.initHiddenThreads).not.toHaveBeenCalled()
+		expect(mocks.initPanel).toHaveBeenCalledOnce()
+	})
+
+	it('initializes thread filtering modules on normal subforum pages', () => {
+		initMobileLite(
+			context({
+				isForumRelated: true,
+				isNormalSubforumThreadList: true,
+			})
+		)
+
+		expect(mocks.initIgnoredUserThreads).toHaveBeenCalledOnce()
+		expect(mocks.initHiddenThreads).toHaveBeenCalledOnce()
+		expect(mocks.initEditor).toHaveBeenCalledOnce()
 		expect(mocks.initPanel).toHaveBeenCalledOnce()
 	})
 
@@ -144,6 +166,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initEditor).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
+		expect(mocks.initHiddenThreads).not.toHaveBeenCalled()
 		expect(mocks.initPanel).not.toHaveBeenCalled()
 	})
 
@@ -162,6 +185,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
+		expect(mocks.initHiddenThreads).not.toHaveBeenCalled()
 		expect(mocks.initPanel).not.toHaveBeenCalled()
 	})
 
@@ -171,6 +195,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.teardownIgnoredUsersImport).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUsers).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUserThreads).toHaveBeenCalledOnce()
+		expect(mocks.teardownHiddenThreads).toHaveBeenCalledOnce()
 		expect(mocks.teardownEditor).toHaveBeenCalledOnce()
 		expect(mocks.teardownPanel).toHaveBeenCalledOnce()
 	})
