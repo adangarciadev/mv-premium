@@ -26,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 	watchUserCustomizations: vi.fn(() => vi.fn()),
 	getHiddenThreads: vi.fn(() => Promise.resolve<HiddenThread[]>([])),
 	unhideThread: vi.fn((_threadId: string) => Promise.resolve()),
+	clearHiddenThreads: vi.fn(() => Promise.resolve()),
 	watchHiddenThreads: vi.fn(() => vi.fn()),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	sendMessage: vi.fn<() => Promise<MvUserAvatarResult>>(() => Promise.resolve({ success: false })),
@@ -63,6 +64,7 @@ vi.mock('@/features/user-customizations/storage', () => ({
 }))
 
 vi.mock('@/features/hidden-threads/logic/storage', () => ({
+	clearHiddenThreads: mocks.clearHiddenThreads,
 	getHiddenThreads: mocks.getHiddenThreads,
 	unhideThread: mocks.unhideThread,
 	watchHiddenThreads: mocks.watchHiddenThreads,
@@ -118,6 +120,7 @@ describe('Mobile Lite panel injection', () => {
 		mocks.saveUserCustomizations.mockResolvedValue(undefined)
 		mocks.getHiddenThreads.mockResolvedValue([])
 		mocks.unhideThread.mockResolvedValue(undefined)
+		mocks.clearHiddenThreads.mockResolvedValue(undefined)
 		mocks.watchHiddenThreads.mockReturnValue(vi.fn())
 		mocks.sendMessage.mockResolvedValue({ success: false })
 		document.body.innerHTML = `
@@ -718,5 +721,60 @@ describe('Mobile Lite panel injection', () => {
 		})
 		expect(await screen.findByText('No hay hilos ocultos.')).toBeInTheDocument()
 		expect(screen.queryByRole('status')).not.toBeInTheDocument()
+	})
+
+	it('filters hidden threads by title or subforum in the panel', async () => {
+		const user = userEvent.setup()
+		mocks.getHiddenThreads.mockResolvedValue([
+			{
+				id: '/foro/cine/supergirl-2026-dc-studios-729454',
+				title: 'Supergirl (2026) | DC Studios',
+				subforum: 'Cine',
+				subforumId: '/foro/cine',
+				hiddenAt: 1,
+			},
+			{
+				id: '/foro/juegos/doom-the-dark-ages-123456',
+				title: 'DOOM: The Dark Ages',
+				subforum: 'Juegos',
+				subforumId: '/foro/juegos',
+				hiddenAt: 1,
+			},
+		])
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Hilos' }))
+		await user.type(await screen.findByPlaceholderText('Buscar hilo o subforo'), 'juegos')
+
+		expect(screen.getByText('DOOM: The Dark Ages')).toBeInTheDocument()
+		expect(screen.queryByText('Supergirl (2026) | DC Studios')).not.toBeInTheDocument()
+	})
+
+	it('restores all hidden threads from the panel', async () => {
+		const user = userEvent.setup()
+		mocks.getHiddenThreads.mockResolvedValue([
+			{
+				id: '/foro/cine/supergirl-2026-dc-studios-729454',
+				title: 'Supergirl (2026) | DC Studios',
+				subforum: 'Cine',
+				subforumId: '/foro/cine',
+				hiddenAt: 1,
+			},
+		])
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Hilos' }))
+		await user.click(await screen.findByRole('button', { name: 'Mostrar todos' }))
+
+		expect(screen.getByText('Se mostrarán todos los hilos ocultos.')).toBeInTheDocument()
+		expect(mocks.clearHiddenThreads).not.toHaveBeenCalled()
+		await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+		await waitFor(() => {
+			expect(mocks.clearHiddenThreads).toHaveBeenCalledOnce()
+		})
+		expect(await screen.findByText('No hay hilos ocultos.')).toBeInTheDocument()
 	})
 })

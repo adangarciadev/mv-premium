@@ -6,6 +6,7 @@ import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Image from 'lucide-react/dist/esm/icons/image'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
+import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import Search from 'lucide-react/dist/esm/icons/search'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import UserX from 'lucide-react/dist/esm/icons/user-x'
@@ -16,6 +17,7 @@ import { NativeFidIcon } from '@/components/native-fid-icon'
 import { sendMessage } from '@/lib/messaging'
 import { getSubforumIconId } from '@/lib/subforums'
 import {
+	clearHiddenThreads,
 	getHiddenThreads,
 	unhideThread,
 	watchHiddenThreads,
@@ -219,7 +221,10 @@ export function MobileLitePanel() {
 	const [imgbbApiKey, setImgbbApiKey] = useState('')
 	const [imgbbApiKeyDraft, setImgbbApiKeyDraft] = useState('')
 	const [hiddenThreads, setHiddenThreads] = useState<HiddenThread[]>([])
+	const [hiddenThreadQuery, setHiddenThreadQuery] = useState('')
 	const [restoringThread, setRestoringThread] = useState<string | null>(null)
+	const [clearingHiddenThreads, setClearingHiddenThreads] = useState(false)
+	const [confirmClearHiddenThreads, setConfirmClearHiddenThreads] = useState(false)
 	const [savingImgbbApiKey, setSavingImgbbApiKey] = useState(false)
 	const [refreshingAvatars, setRefreshingAvatars] = useState(false)
 	const [hiddenThreadsStatusMessage, setHiddenThreadsStatusMessage] = useState<string | null>(null)
@@ -329,6 +334,18 @@ export function MobileLitePanel() {
 		{ id: 'mute', label: 'Silenciados', count: mutedUsers.length },
 		{ id: 'hide', label: 'Ocultos', count: hiddenUsers.length },
 	] satisfies Array<{ id: ActiveFilter; label: string; count: number }>
+	const filteredHiddenThreads = useMemo(() => {
+		const normalizedQuery = hiddenThreadQuery.trim().toLowerCase()
+		if (!normalizedQuery) return hiddenThreads
+
+		return hiddenThreads.filter(thread => {
+			return (
+				thread.title.toLowerCase().includes(normalizedQuery) ||
+				thread.subforum.toLowerCase().includes(normalizedQuery) ||
+				getSubforumSlugFromId(thread.subforumId).toLowerCase().includes(normalizedQuery)
+			)
+		})
+	}, [hiddenThreadQuery, hiddenThreads])
 	const exactQueryUsername = normalizeUsername(query)
 	const exactQueryEntry = exactQueryUsername ? getCustomizationEntryForUser(data, exactQueryUsername) : null
 	const exactQueryCustomization = exactQueryEntry?.customization
@@ -509,6 +526,22 @@ export function MobileLitePanel() {
 			setHiddenThreadsErrorMessage('No se pudo restaurar el hilo. Inténtalo de nuevo.')
 		} finally {
 			setRestoringThread(null)
+		}
+	}
+
+	const restoreAllHiddenThreads = async () => {
+		setClearingHiddenThreads(true)
+		setHiddenThreadsStatusMessage(null)
+		setHiddenThreadsErrorMessage(null)
+		try {
+			await clearHiddenThreads()
+			setHiddenThreads([])
+			setHiddenThreadQuery('')
+			setConfirmClearHiddenThreads(false)
+		} catch {
+			setHiddenThreadsErrorMessage('No se pudieron restaurar todos los hilos. Inténtalo de nuevo.')
+		} finally {
+			setClearingHiddenThreads(false)
 		}
 	}
 
@@ -789,40 +822,108 @@ export function MobileLitePanel() {
 									</p>
 								</div>
 							) : (
-								<div className="space-y-2">
-									{hiddenThreads.map(thread => {
-										const isRestoring = restoringThread === thread.id
-										const subforumSlug = getSubforumSlugFromId(thread.subforumId)
-										const subforumIconId = getSubforumIconId(subforumSlug)
-										const hiddenAtLabel = formatHiddenThreadDate(thread.hiddenAt)
+								<>
+									<div className="space-y-2">
+										<label className="relative block min-w-0">
+											<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#aeb6be]" aria-hidden="true" />
+											<input
+												type="search"
+												value={hiddenThreadQuery}
+												autoCapitalize="none"
+												spellCheck={false}
+												onChange={event => setHiddenThreadQuery(event.target.value)}
+												placeholder="Buscar hilo o subforo"
+												className="h-10 w-full rounded-md border border-[#505963] bg-[#282f38] pl-10 pr-3 text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
+											/>
+										</label>
+										<button
+											type="button"
+											aria-label="Mostrar todos"
+											className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#66736a] bg-[#405347] px-3 text-sm font-semibold text-[#dff2e4] transition-colors active:bg-[#4a6252] disabled:opacity-60"
+											disabled={clearingHiddenThreads}
+											onClick={() => setConfirmClearHiddenThreads(true)}
+										>
+											<RotateCcw className="h-4 w-4" aria-hidden="true" />
+											<span>Mostrar todos los hilos</span>
+										</button>
+									</div>
 
-										return (
-											<article key={thread.id} className="rounded-md border border-[#4b545d] bg-[#3f4853] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-												<div className="flex min-w-0 items-start gap-3">
-													{subforumIconId !== null && (
-														<NativeFidIcon iconId={subforumIconId} className="mt-0.5 h-6 w-6 shrink-0" />
-													)}
-													<div className="min-w-0 flex-1">
-														<div className="truncate text-base font-semibold">{thread.title}</div>
-														<div className="mt-1 flex min-w-0 items-center justify-between gap-3 text-xs font-medium text-[#b7bec6]">
-															<span className="min-w-0 truncate">{thread.subforum}</span>
-															{hiddenAtLabel && <span className="shrink-0 tabular-nums text-[#aeb6be]">{hiddenAtLabel}</span>}
-														</div>
-													</div>
-												</div>
+									{confirmClearHiddenThreads && (
+										<div className="rounded-md border border-[#7d6a3a] bg-[#443d2d] p-3 text-sm text-[#f1e3bd]">
+											<p className="font-semibold text-[#fff2cc]">Se mostrarán todos los hilos ocultos.</p>
+											<p className="mt-1 text-xs leading-relaxed text-[#d8cda9]">
+												Esto vaciará tu lista de hilos ocultos en este dispositivo.
+											</p>
+											<div className="mt-3 grid grid-cols-2 gap-2">
 												<button
 													type="button"
-													className="mt-3 inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#5b646e] px-2 text-sm font-semibold text-[#eef1f3] transition-colors disabled:opacity-60"
-													disabled={isRestoring}
-													onClick={() => restoreHiddenThread(thread)}
+													className="inline-flex h-10 items-center justify-center rounded-md border border-[#6a6250] bg-[#393a3f] px-2 text-sm font-semibold text-[#e5e8eb]"
+													onClick={() => setConfirmClearHiddenThreads(false)}
 												>
-													<EyeOff className="h-4 w-4" aria-hidden="true" />
-													<span>{isRestoring ? 'Restaurando' : 'Mostrar'}</span>
+													Cancelar
 												</button>
-											</article>
-										)
-									})}
-								</div>
+												<button
+													type="button"
+													className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#8b742d] bg-[#7a5b08] px-2 text-sm font-semibold text-white disabled:opacity-60"
+													disabled={clearingHiddenThreads}
+													onClick={restoreAllHiddenThreads}
+												>
+													<RotateCcw className="h-4 w-4" aria-hidden="true" />
+													{clearingHiddenThreads ? 'Restaurando' : 'Continuar'}
+												</button>
+											</div>
+										</div>
+									)}
+
+									{filteredHiddenThreads.length === 0 ? (
+										<div className="rounded-md border border-[#4b545d] bg-[#333b46] px-4 py-7 text-center text-sm text-[#c5cbd2]">
+											<EyeOff className="mx-auto mb-3 h-5 w-5 text-[#9fa8b2]" aria-hidden="true" />
+											<p className="font-semibold text-[#d8dde2]">No hay resultados.</p>
+										</div>
+									) : (
+										<div className="space-y-2">
+											{filteredHiddenThreads.map(thread => {
+												const isRestoring = restoringThread === thread.id
+												const subforumSlug = getSubforumSlugFromId(thread.subforumId)
+												const subforumIconId = getSubforumIconId(subforumSlug)
+												const hiddenAtLabel = formatHiddenThreadDate(thread.hiddenAt)
+
+												return (
+													<article key={thread.id} className="grid grid-cols-[minmax(0,1fr)_56px] overflow-hidden rounded-md border border-[#596272] bg-[#424b5b] shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+														<div className="min-w-0 px-3 py-3">
+															<div className="flex min-w-0 items-start gap-3">
+																{subforumIconId !== null && (
+																	<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#687383] bg-[#343c49] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+																		<NativeFidIcon iconId={subforumIconId} className="h-6 w-6 shrink-0" />
+																	</div>
+																)}
+																<div className="min-w-0 flex-1">
+																	<div className="truncate text-base font-bold leading-snug text-[#f2f4f7]">{thread.title}</div>
+																	<div className="mt-1 flex min-w-0 items-center justify-between gap-3 text-xs font-semibold text-[#c2cad3]">
+																		<span className="min-w-0 truncate">{thread.subforum}</span>
+																		{hiddenAtLabel && <span className="shrink-0 tabular-nums text-[#d9bd76]">{hiddenAtLabel}</span>}
+																	</div>
+																</div>
+															</div>
+														</div>
+														<div className="flex items-stretch border-l border-[#596272] bg-[#394353] p-2">
+															<button
+																type="button"
+																className="inline-flex min-h-11 w-full items-center justify-center rounded-md border border-[#607666] bg-[#465f4e] text-[#e8f6eb] transition-colors active:bg-[#52705b] disabled:opacity-60"
+																aria-label="Mostrar"
+																title="Mostrar"
+																disabled={isRestoring}
+																onClick={() => restoreHiddenThread(thread)}
+															>
+																<RotateCcw className="h-5 w-5" aria-hidden="true" />
+															</button>
+														</div>
+													</article>
+												)
+											})}
+										</div>
+									)}
+								</>
 							)}
 						</div>
 					) : (
