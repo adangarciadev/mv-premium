@@ -1,10 +1,11 @@
-import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Check from 'lucide-react/dist/esm/icons/check'
 import Clipboard from 'lucide-react/dist/esm/icons/clipboard'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Image from 'lucide-react/dist/esm/icons/image'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
 import Search from 'lucide-react/dist/esm/icons/search'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import UserX from 'lucide-react/dist/esm/icons/user-x'
@@ -196,6 +197,7 @@ export function MobileLitePanel() {
 	const [imgbbApiKey, setImgbbApiKey] = useState('')
 	const [imgbbApiKeyDraft, setImgbbApiKeyDraft] = useState('')
 	const [savingImgbbApiKey, setSavingImgbbApiKey] = useState(false)
+	const [refreshingAvatars, setRefreshingAvatars] = useState(false)
 	const [imgbbStatusMessage, setImgbbStatusMessage] = useState<string | null>(null)
 	const [imgbbErrorMessage, setImgbbErrorMessage] = useState<string | null>(null)
 	const viewportBounds = useVisualViewportBounds(open)
@@ -293,71 +295,107 @@ export function MobileLitePanel() {
 	const usernameValidationMessage = getUsernameValidationMessage(exactQueryUsername)
 	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
+	const missingAvatarCount = allFilteredUsers.filter(user => !user.customization.avatarUrl).length
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
 	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
 	const logoUrl = browser.runtime.getURL('/icon/48.png')
+
+	const hydrateMissingAvatars = useCallback(
+		async (users: FilteredUser[], options: { cancelled?: () => boolean; showStatus?: boolean } = {}) => {
+			const missingAvatarUsers = users.filter(user => {
+				if (user.customization.avatarUrl) return false
+				const key = user.username.toLowerCase()
+				if (avatarHydrationInFlight.current.has(key)) return false
+				avatarHydrationInFlight.current.add(key)
+				return true
+			})
+			if (missingAvatarUsers.length === 0) {
+				if (options.showStatus) setStatusMessage('No hay avatares pendientes de actualizar.')
+				return
+			}
+
+			const resolvedAvatars: Array<{ username: string; avatarUrl: string }> = []
+
+			try {
+				for (const user of missingAvatarUsers) {
+					if (options.cancelled?.()) break
+
+					try {
+						const avatarUrl = await resolveUserAvatar(user.username)
+						if (avatarUrl) {
+							resolvedAvatars.push({ username: user.username, avatarUrl })
+						}
+					} catch {
+						// Avatar hydration is opportunistic; failing should not block panel usage.
+					} finally {
+						avatarHydrationInFlight.current.delete(user.username.toLowerCase())
+					}
+				}
+
+				if (options.cancelled?.() || resolvedAvatars.length === 0) {
+					if (options.showStatus && !options.cancelled?.()) setStatusMessage('No se encontraron avatares nuevos.')
+					return
+				}
+
+				const nextData = await getUserCustomizations()
+				let changed = false
+				for (const { username, avatarUrl } of resolvedAvatars) {
+					const entry = getCustomizationEntryForUser(nextData, username)
+					if (!entry?.customization.isIgnored || entry.customization.avatarUrl) continue
+
+					nextData.users[entry.storageKey] = { ...entry.customization, avatarUrl }
+					changed = true
+				}
+
+				if (!changed || options.cancelled?.()) {
+					if (options.showStatus && !options.cancelled?.()) setStatusMessage('No se encontraron avatares nuevos.')
+					return
+				}
+
+				await saveUserCustomizations(nextData)
+				setData(nextData)
+				dispatchMobileLiteIgnoredUsersSync({ data: nextData })
+				if (options.showStatus) {
+					setStatusMessage(
+						resolvedAvatars.length === 1
+							? 'Avatar actualizado.'
+							: `${resolvedAvatars.length} avatares actualizados.`
+					)
+				}
+			} finally {
+				for (const user of missingAvatarUsers) {
+					avatarHydrationInFlight.current.delete(user.username.toLowerCase())
+				}
+			}
+		},
+		[]
+	)
 
 	useEffect(() => {
 		if (!open || allFilteredUsers.length === 0) return
 
 		let cancelled = false
-		const missingAvatarUsers = allFilteredUsers.filter(user => {
-			if (user.customization.avatarUrl) return false
-			const key = user.username.toLowerCase()
-			if (avatarHydrationInFlight.current.has(key)) return false
-			avatarHydrationInFlight.current.add(key)
-			return true
-		})
-		if (missingAvatarUsers.length === 0) return
-
-		async function hydrateMissingAvatars() {
-			const resolvedAvatars: Array<{ username: string; avatarUrl: string }> = []
-
-			for (const user of missingAvatarUsers) {
-				if (cancelled) break
-
-				try {
-					const avatarUrl = await resolveUserAvatar(user.username)
-					if (avatarUrl) {
-						resolvedAvatars.push({ username: user.username, avatarUrl })
-					}
-				} catch {
-					// Avatar hydration is opportunistic; failing should not block panel usage.
-				} finally {
-					avatarHydrationInFlight.current.delete(user.username.toLowerCase())
-				}
-			}
-
-			if (cancelled || resolvedAvatars.length === 0) return
-
-			const nextData = await getUserCustomizations()
-			let changed = false
-			for (const { username, avatarUrl } of resolvedAvatars) {
-				const entry = getCustomizationEntryForUser(nextData, username)
-				if (!entry?.customization.isIgnored || entry.customization.avatarUrl) continue
-
-				nextData.users[entry.storageKey] = { ...entry.customization, avatarUrl }
-				changed = true
-			}
-
-			if (!changed || cancelled) return
-
-			await saveUserCustomizations(nextData)
-			setData(nextData)
-			dispatchMobileLiteIgnoredUsersSync({ data: nextData })
-		}
-
-		void hydrateMissingAvatars().catch(() => {
+		void hydrateMissingAvatars(allFilteredUsers, { cancelled: () => cancelled }).catch(() => {
 			// Avatar hydration is opportunistic; failing should not block panel usage.
 		})
 
 		return () => {
 			cancelled = true
-			for (const user of missingAvatarUsers) {
-				avatarHydrationInFlight.current.delete(user.username.toLowerCase())
-			}
 		}
-	}, [allFilteredUsers, open])
+	}, [allFilteredUsers, hydrateMissingAvatars, open])
+
+	const refreshMissingAvatars = async () => {
+		setRefreshingAvatars(true)
+		setErrorMessage(null)
+		setStatusMessage(null)
+		try {
+			await hydrateMissingAvatars(allFilteredUsers, { showStatus: true })
+		} catch {
+			setErrorMessage('No se pudieron actualizar los avatares. Inténtalo de nuevo.')
+		} finally {
+			setRefreshingAvatars(false)
+		}
+	}
 
 	const updateFilter = async (username: string, ignoreType: MobileLiteIgnoreType | null) => {
 		const normalizedUsername = normalizeUsername(username)
@@ -539,6 +577,24 @@ export function MobileLitePanel() {
 										)
 									})}
 								</div>
+							)}
+
+							{hasAnyFilteredUsers && (
+								<button
+									type="button"
+									className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#5a646f] bg-[#4b535d] px-3 text-sm font-semibold text-[#e3e7eb] transition-colors disabled:opacity-60"
+									disabled={refreshingAvatars || missingAvatarCount === 0}
+									onClick={refreshMissingAvatars}
+								>
+									<RefreshCw className={`h-4 w-4 ${refreshingAvatars ? 'animate-spin' : ''}`} aria-hidden="true" />
+									<span>
+										{refreshingAvatars
+											? 'Actualizando avatares'
+											: missingAvatarCount > 0
+												? `Actualizar avatares (${missingAvatarCount})`
+												: 'Avatares actualizados'}
+									</span>
+								</button>
 							)}
 
 							{canAddQueryUser && (

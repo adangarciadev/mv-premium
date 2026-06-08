@@ -428,6 +428,41 @@ describe('Mobile Lite panel injection', () => {
 		})
 	})
 
+	it('lets users manually refresh missing avatars after an automatic hydration miss', async () => {
+		const user = userEvent.setup()
+		const importedData = createCustomizationData({
+			LegacyUser: { isIgnored: true, ignoreType: 'hide' },
+		})
+		mocks.getUserCustomizations.mockResolvedValue(importedData)
+		mocks.sendMessage
+			.mockResolvedValueOnce({ success: false })
+			.mockResolvedValueOnce({
+				success: true,
+				username: 'LegacyUser',
+				avatarUrl: 'https://www.mediavida.com/img/users/avatar/legacy-user.png',
+			})
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await waitFor(() => {
+			expect(mocks.sendMessage).toHaveBeenCalledWith('resolveMvUserAvatar', { username: 'LegacyUser' })
+		})
+		await user.click(await screen.findByRole('button', { name: /Actualizar avatares \(1\)/ }))
+
+		await waitFor(() => {
+			expect(mocks.saveUserCustomizations).toHaveBeenCalledWith(
+				createCustomizationData({
+					LegacyUser: {
+						isIgnored: true,
+						ignoreType: 'hide',
+						avatarUrl: 'https://www.mediavida.com/img/users/avatar/legacy-user.png',
+					},
+				})
+			)
+		})
+	})
+
 	it('retries avatar hydration after a failed resolve when the panel opens again', async () => {
 		const user = userEvent.setup()
 		const importedData = createCustomizationData({
