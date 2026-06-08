@@ -561,7 +561,7 @@ export function MobileLitePanel() {
 			<section
 				className={`absolute left-[max(12px,env(safe-area-inset-left))] right-[max(12px,env(safe-area-inset-right))] flex max-h-[calc(100%_-_max(12px,env(safe-area-inset-top))_-_max(12px,env(safe-area-inset-bottom)))] flex-col overflow-hidden border border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl ${
 					hasPanelListContent
-						? 'bottom-[max(0px,env(safe-area-inset-bottom))] top-[max(56px,calc(env(safe-area-inset-top)_+_12px))] rounded-t-lg'
+						? 'bottom-[max(12px,env(safe-area-inset-bottom))] top-[max(56px,calc(env(safe-area-inset-top)_+_12px))] rounded-lg'
 						: 'bottom-auto top-[max(132px,calc(env(safe-area-inset-top)_+_18dvh))] rounded-lg'
 				}`}
 			>
