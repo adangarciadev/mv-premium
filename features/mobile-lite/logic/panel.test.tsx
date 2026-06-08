@@ -28,6 +28,15 @@ const mocks = vi.hoisted(() => ({
 	unhideThread: vi.fn((_threadId: string) => Promise.resolve()),
 	clearHiddenThreads: vi.fn(() => Promise.resolve()),
 	watchHiddenThreads: vi.fn(() => vi.fn()),
+	getMobileLiteBoldColorSettings: vi.fn(() => Promise.resolve({ color: '#ffffff', enabled: false })),
+	saveMobileLiteBoldColorSettings: vi.fn((settings: { color?: string; enabled?: boolean }) =>
+		Promise.resolve({ color: settings.color ?? '#ffffff', enabled: settings.enabled ?? false })
+	),
+	normalizeMobileLiteBoldColor: vi.fn((color: string | null | undefined) =>
+		color && /^#[0-9a-f]{6}$/i.test(color) ? color.toLowerCase() : '#ffffff'
+	),
+	getMobileLiteImgbbApiKey: vi.fn(() => Promise.resolve('')),
+	saveMobileLiteImgbbApiKey: vi.fn((_apiKey: string) => Promise.resolve()),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	sendMessage: vi.fn<() => Promise<MvUserAvatarResult>>(() => Promise.resolve({ success: false })),
 	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
@@ -72,6 +81,17 @@ vi.mock('@/features/hidden-threads/logic/storage', () => ({
 
 vi.mock('./ignored-users-sync-event', () => ({
 	dispatchMobileLiteIgnoredUsersSync: mocks.dispatchMobileLiteIgnoredUsersSync,
+}))
+
+vi.mock('../logic/bold-color', () => ({
+	getMobileLiteBoldColorSettings: mocks.getMobileLiteBoldColorSettings,
+	normalizeMobileLiteBoldColor: mocks.normalizeMobileLiteBoldColor,
+	saveMobileLiteBoldColorSettings: mocks.saveMobileLiteBoldColorSettings,
+}))
+
+vi.mock('../logic/imgbb-api-key-storage', () => ({
+	getMobileLiteImgbbApiKey: mocks.getMobileLiteImgbbApiKey,
+	saveMobileLiteImgbbApiKey: mocks.saveMobileLiteImgbbApiKey,
 }))
 
 vi.mock('@/lib/messaging', () => ({
@@ -122,6 +142,12 @@ describe('Mobile Lite panel injection', () => {
 		mocks.unhideThread.mockResolvedValue(undefined)
 		mocks.clearHiddenThreads.mockResolvedValue(undefined)
 		mocks.watchHiddenThreads.mockReturnValue(vi.fn())
+		mocks.getMobileLiteBoldColorSettings.mockResolvedValue({ color: '#ffffff', enabled: false })
+		mocks.saveMobileLiteBoldColorSettings.mockImplementation((settings: { color?: string; enabled?: boolean }) =>
+			Promise.resolve({ color: settings.color ?? '#ffffff', enabled: settings.enabled ?? false })
+		)
+		mocks.getMobileLiteImgbbApiKey.mockResolvedValue('')
+		mocks.saveMobileLiteImgbbApiKey.mockResolvedValue(undefined)
 		mocks.sendMessage.mockResolvedValue({ success: false })
 		document.body.innerHTML = `
 			<ul id="usermenu">
@@ -776,5 +802,48 @@ describe('Mobile Lite panel injection', () => {
 			expect(mocks.clearHiddenThreads).toHaveBeenCalledOnce()
 		})
 		expect(await screen.findByText('No hay hilos ocultos.')).toBeInTheDocument()
+	})
+
+	it('saves the Mobile Lite bold color from settings', async () => {
+		const user = userEvent.setup()
+		mocks.getMobileLiteBoldColorSettings.mockResolvedValue({ color: '#ff8800', enabled: true })
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+
+		expect(await screen.findByText('Color de negrita')).toBeInTheDocument()
+		const colorTextInput = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="text"]')).find(
+			input => input.value === '#ff8800'
+		)
+		expect(colorTextInput).toBeTruthy()
+
+		await user.clear(colorTextInput!)
+		await user.type(colorTextInput!, '#00ff88')
+		await user.click(screen.getByRole('button', { name: 'Guardar' }))
+
+		await waitFor(() => {
+			expect(mocks.saveMobileLiteBoldColorSettings).toHaveBeenCalledWith({
+				color: '#00ff88',
+				enabled: true,
+			})
+		})
+		expect(await screen.findByText('Color de negrita guardado.')).toBeInTheDocument()
+	})
+
+	it('toggles the Mobile Lite bold color setting', async () => {
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+		await user.click(await screen.findByRole('switch', { name: 'Color personalizado' }))
+
+		await waitFor(() => {
+			expect(mocks.saveMobileLiteBoldColorSettings).toHaveBeenCalledWith({
+				enabled: true,
+			})
+		})
+		expect(await screen.findByText('Color personalizado activado.')).toBeInTheDocument()
 	})
 })

@@ -4,6 +4,8 @@ import { getRunnableMobileLiteModuleIds, initMobileLite, teardownMobileLite, typ
 const mocks = vi.hoisted(() => ({
 	getPlatformKind: vi.fn(() => 'firefox-android'),
 	isFeatureEnabled: vi.fn(() => true),
+	initBoldColor: vi.fn(),
+	teardownBoldColor: vi.fn(),
 	initEditor: vi.fn(),
 	teardownEditor: vi.fn(),
 	initIgnoredUsers: vi.fn(),
@@ -27,6 +29,11 @@ vi.mock('@/lib/feature-flags', () => ({
 		MobileLite: 'mobile-lite',
 	},
 	isFeatureEnabled: mocks.isFeatureEnabled,
+}))
+
+vi.mock('./bold-color', () => ({
+	initMobileLiteBoldColor: mocks.initBoldColor,
+	teardownMobileLiteBoldColor: mocks.teardownBoldColor,
 }))
 
 vi.mock('./editor-lite', () => ({
@@ -100,7 +107,7 @@ describe('Mobile Lite registry', () => {
 					hasUserMenu: true,
 				})
 			)
-		).toEqual(['ignored-users', 'panel'])
+		).toEqual(['bold-color', 'ignored-users', 'panel'])
 	})
 
 	it('runs the panel on forum pages even if the user menu is mounted later', () => {
@@ -110,7 +117,7 @@ describe('Mobile Lite registry', () => {
 					isForumRelated: true,
 				})
 			)
-		).toEqual(['editor-lite', 'panel'])
+		).toEqual(['bold-color', 'editor-lite', 'panel'])
 	})
 
 	it('runs ignored author thread filtering on normal subforum pages', () => {
@@ -121,21 +128,21 @@ describe('Mobile Lite registry', () => {
 					isNormalSubforumThreadList: true,
 				})
 			)
-		).toEqual(['ignored-user-threads', 'hidden-threads', 'editor-lite', 'panel'])
+		).toEqual(['bold-color', 'ignored-user-threads', 'hidden-threads', 'editor-lite', 'panel'])
 	})
 
 	it('detects normal subforum pages even if thread rows mount later', () => {
 		window.history.replaceState({}, '', '/foro/juegos')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['ignored-user-threads', 'hidden-threads', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'ignored-user-threads', 'hidden-threads', 'editor-lite', 'panel'])
 	})
 
 	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
 		window.history.replaceState({}, '', '/foro/spy')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['hidden-threads', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'hidden-threads', 'editor-lite', 'panel'])
 	})
 
 	it('initializes only runnable modules', () => {
@@ -146,6 +153,7 @@ describe('Mobile Lite registry', () => {
 			})
 		)
 
+		expect(mocks.initBoldColor).toHaveBeenCalledOnce()
 		expect(mocks.initEditor).toHaveBeenCalledOnce()
 		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
@@ -162,6 +170,7 @@ describe('Mobile Lite registry', () => {
 			})
 		)
 
+		expect(mocks.initBoldColor).toHaveBeenCalledOnce()
 		expect(mocks.initIgnoredUserThreads).toHaveBeenCalledOnce()
 		expect(mocks.initHiddenThreads).toHaveBeenCalledOnce()
 		expect(mocks.initEditor).toHaveBeenCalledOnce()
@@ -176,6 +185,7 @@ describe('Mobile Lite registry', () => {
 		)
 
 		expect(mocks.initIgnoredUsersImport).toHaveBeenCalledOnce()
+		expect(mocks.initBoldColor).not.toHaveBeenCalled()
 		expect(mocks.initEditor).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
@@ -196,6 +206,7 @@ describe('Mobile Lite registry', () => {
 
 		expect(mocks.initEditor).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
+		expect(mocks.initBoldColor).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
 		expect(mocks.initHiddenThreads).not.toHaveBeenCalled()
@@ -206,6 +217,7 @@ describe('Mobile Lite registry', () => {
 		teardownMobileLite()
 
 		expect(mocks.teardownIgnoredUsersImport).toHaveBeenCalledOnce()
+		expect(mocks.teardownBoldColor).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUsers).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUserThreads).toHaveBeenCalledOnce()
 		expect(mocks.teardownHiddenThreads).toHaveBeenCalledOnce()

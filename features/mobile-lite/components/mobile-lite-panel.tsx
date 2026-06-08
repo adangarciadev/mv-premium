@@ -1,13 +1,16 @@
 import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Bold from 'lucide-react/dist/esm/icons/bold'
 import Check from 'lucide-react/dist/esm/icons/check'
 import Clipboard from 'lucide-react/dist/esm/icons/clipboard'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Image from 'lucide-react/dist/esm/icons/image'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
+import Palette from 'lucide-react/dist/esm/icons/palette'
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import Search from 'lucide-react/dist/esm/icons/search'
+import Settings from 'lucide-react/dist/esm/icons/settings'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import UserX from 'lucide-react/dist/esm/icons/user-x'
 import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
@@ -37,6 +40,11 @@ import {
 	type MobileLiteIgnoreType,
 } from '../logic/ignore-helpers'
 import { dispatchMobileLiteIgnoredUsersSync } from '../logic/ignored-users-sync-event'
+import {
+	getMobileLiteBoldColorSettings,
+	normalizeMobileLiteBoldColor,
+	saveMobileLiteBoldColorSettings,
+} from '../logic/bold-color'
 import { getMobileLiteImgbbApiKey, saveMobileLiteImgbbApiKey } from '../logic/imgbb-api-key-storage'
 
 export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
@@ -51,12 +59,13 @@ const USERNAME_MIN_LENGTH = 3
 const USERNAME_MAX_LENGTH = 13
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/
 const USERNAME_VALIDATION_ID = 'mvp-mobile-lite-username-validation'
+const DEFAULT_BOLD_COLOR = '#ffffff'
 const DEFAULT_VIEWPORT_BOUNDS = {
 	height: 0,
 	offsetTop: 0,
 }
 const TAB_BASE_CLASS =
-	'inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-md border px-1.5 text-sm font-semibold transition-colors'
+	'inline-flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-md border px-1.5 text-sm font-semibold transition-colors'
 const TAB_ACTIVE_CLASS = 'border-[#d89016] bg-[#856100] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
 const TAB_IDLE_CLASS = 'border-[#4f5965] bg-[#333a45] text-[#eef1f3]'
 const FILTER_BASE_CLASS =
@@ -77,7 +86,7 @@ interface FilteredUser {
 }
 
 type ActiveFilter = 'all' | MobileLiteIgnoreType
-type PanelTab = 'users' | 'threads' | 'images'
+type PanelTab = 'users' | 'threads' | 'images' | 'settings'
 
 function getEmptyData(): UserCustomizationsData {
 	return {
@@ -236,6 +245,9 @@ export function MobileLitePanel() {
 	const [statusMessage, setStatusMessage] = useState<string | null>(null)
 	const [imgbbApiKey, setImgbbApiKey] = useState('')
 	const [imgbbApiKeyDraft, setImgbbApiKeyDraft] = useState('')
+	const [boldColor, setBoldColor] = useState(DEFAULT_BOLD_COLOR)
+	const [boldColorDraft, setBoldColorDraft] = useState(DEFAULT_BOLD_COLOR)
+	const [boldColorEnabled, setBoldColorEnabled] = useState(false)
 	const [hiddenThreads, setHiddenThreads] = useState<HiddenThread[]>([])
 	const [hiddenThreadQuery, setHiddenThreadQuery] = useState('')
 	const [restoringThread, setRestoringThread] = useState<string | null>(null)
@@ -247,6 +259,9 @@ export function MobileLitePanel() {
 	const [hiddenThreadsErrorMessage, setHiddenThreadsErrorMessage] = useState<string | null>(null)
 	const [imgbbStatusMessage, setImgbbStatusMessage] = useState<string | null>(null)
 	const [imgbbErrorMessage, setImgbbErrorMessage] = useState<string | null>(null)
+	const [savingBoldColor, setSavingBoldColor] = useState(false)
+	const [boldColorStatusMessage, setBoldColorStatusMessage] = useState<string | null>(null)
+	const [boldColorErrorMessage, setBoldColorErrorMessage] = useState<string | null>(null)
 	const viewportBounds = useVisualViewportBounds(open)
 	const avatarHydrationInFlight = useRef<Set<string>>(new Set())
 	const panelBodyRef = useRef<HTMLDivElement>(null)
@@ -316,6 +331,18 @@ export function MobileLitePanel() {
 			.catch(() => {
 				if (mounted) setImgbbErrorMessage('No se pudo cargar la API key de ImgBB.')
 			})
+		getMobileLiteBoldColorSettings()
+			.then(settings => {
+				if (!mounted) return
+				setBoldColor(settings.color)
+				setBoldColorDraft(settings.color)
+				setBoldColorEnabled(settings.enabled)
+				setBoldColorStatusMessage(null)
+				setBoldColorErrorMessage(null)
+			})
+			.catch(() => {
+				if (mounted) setBoldColorErrorMessage('No se pudo cargar el color de negrita.')
+			})
 		getHiddenThreads()
 			.then(nextThreads => {
 				if (mounted) setHiddenThreads(nextThreads)
@@ -374,6 +401,8 @@ export function MobileLitePanel() {
 	const missingAvatarCount = allFilteredUsers.filter(user => !user.customization.avatarUrl).length
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
 	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
+	const normalizedBoldColorDraft = normalizeMobileLiteBoldColor(boldColorDraft)
+	const isBoldColorDirty = normalizedBoldColorDraft !== boldColor
 	const logoUrl = browser.runtime.getURL('/icon/48.png')
 
 	const hydrateMissingAvatars = useCallback(
@@ -561,6 +590,66 @@ export function MobileLitePanel() {
 		}
 	}
 
+	const saveBoldColor = async () => {
+		setSavingBoldColor(true)
+		setBoldColorErrorMessage(null)
+		setBoldColorStatusMessage(null)
+		try {
+			const nextSettings = await saveMobileLiteBoldColorSettings({
+				color: normalizedBoldColorDraft,
+				enabled: boldColorEnabled,
+			})
+			setBoldColor(nextSettings.color)
+			setBoldColorDraft(nextSettings.color)
+			setBoldColorEnabled(nextSettings.enabled)
+			setBoldColorStatusMessage('Color de negrita guardado.')
+		} catch {
+			setBoldColorErrorMessage('No se pudo guardar el color de negrita.')
+		} finally {
+			setSavingBoldColor(false)
+		}
+	}
+
+	const toggleBoldColor = async () => {
+		const nextEnabled = !boldColorEnabled
+		setSavingBoldColor(true)
+		setBoldColorErrorMessage(null)
+		setBoldColorStatusMessage(null)
+		try {
+			const nextSettings = await saveMobileLiteBoldColorSettings({
+				enabled: nextEnabled,
+			})
+			setBoldColor(nextSettings.color)
+			setBoldColorDraft(nextSettings.color)
+			setBoldColorEnabled(nextSettings.enabled)
+			setBoldColorStatusMessage(nextSettings.enabled ? 'Color personalizado activado.' : 'Color personalizado desactivado.')
+		} catch {
+			setBoldColorErrorMessage('No se pudo cambiar el color de negrita.')
+		} finally {
+			setSavingBoldColor(false)
+		}
+	}
+
+	const resetBoldColor = async () => {
+		setSavingBoldColor(true)
+		setBoldColorErrorMessage(null)
+		setBoldColorStatusMessage(null)
+		try {
+			const nextSettings = await saveMobileLiteBoldColorSettings({
+				color: DEFAULT_BOLD_COLOR,
+				enabled: boldColorEnabled,
+			})
+			setBoldColor(nextSettings.color)
+			setBoldColorDraft(nextSettings.color)
+			setBoldColorEnabled(nextSettings.enabled)
+			setBoldColorStatusMessage('Color de negrita restaurado.')
+		} catch {
+			setBoldColorErrorMessage('No se pudo restaurar el color de negrita.')
+		} finally {
+			setSavingBoldColor(false)
+		}
+	}
+
 	const restoreHiddenThread = async (thread: HiddenThread) => {
 		const previousThreads = hiddenThreads
 		const previousScrollTop = panelBodyRef.current?.scrollTop
@@ -646,7 +735,7 @@ export function MobileLitePanel() {
 
 				<div ref={panelBodyRef} className={panelBodyClass}>
 					<div className="sticky top-0 z-20 -mx-3 mb-3 bg-[#384149] px-3 pb-2 pt-3 shadow-[0_10px_18px_rgba(24,28,34,0.22)]">
-						<div className="grid grid-cols-3 gap-1 rounded-lg border border-[#3f4853] bg-[#323942] p-1" role="tablist" aria-label="Secciones del panel MVPremium">
+						<div className="grid grid-cols-2 gap-1 rounded-lg border border-[#3f4853] bg-[#323942] p-1 sm:grid-cols-4" role="tablist" aria-label="Secciones del panel MVPremium">
 						<button
 							type="button"
 							role="tab"
@@ -687,6 +776,16 @@ export function MobileLitePanel() {
 						>
 							<Image className="h-4 w-4" aria-hidden="true" />
 							ImgBB
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'settings'}
+							className={`${TAB_BASE_CLASS} ${activeTab === 'settings' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
+							onClick={() => setActiveTab('settings')}
+						>
+							<Settings className="h-4 w-4" aria-hidden="true" />
+							Ajustes
 						</button>
 						</div>
 					</div>
@@ -970,7 +1069,7 @@ export function MobileLitePanel() {
 								</>
 							)}
 						</div>
-					) : (
+					) : activeTab === 'images' ? (
 						<div className="space-y-3">
 							<div className="rounded-md border border-[#4b545d] bg-[#333b46] p-3">
 								<div className="flex items-start gap-3">
@@ -1058,6 +1157,127 @@ export function MobileLitePanel() {
 								<ExternalLink className="h-4 w-4" aria-hidden="true" />
 								Obtener API key
 							</a>
+						</div>
+					) : (
+						<div className="space-y-3">
+							<section className="rounded-md border border-[#4b545d] bg-[#333b46] p-3">
+								<div className="flex items-start gap-3">
+									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#252b31] text-[#f0a020]">
+										<Palette className="h-5 w-5" aria-hidden="true" />
+									</div>
+									<div className="min-w-0 flex-1">
+										<div className="text-xs font-semibold uppercase tracking-wide text-[#b7bec6]">Lectura</div>
+										<div className="mt-0.5 text-base font-semibold text-[#f2f4f7]">Color de negrita</div>
+										<p className="mt-1 text-sm leading-relaxed text-[#c4cad0]">
+											Usa un color propio para el texto en negrita de los posts.
+										</p>
+									</div>
+								</div>
+
+								<div
+									className={`mt-4 flex items-center justify-between gap-3 rounded-md border px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+										boldColorEnabled
+											? 'border-[#7d672a] bg-[#343225]'
+											: 'border-[#596272] bg-[#2b333d]'
+									}`}
+								>
+									<div className="min-w-0">
+										<div className="text-sm font-semibold text-[#eef1f3]">Color personalizado</div>
+										<div className="mt-0.5 text-xs text-[#aeb6be]">
+											{boldColorEnabled ? 'Activo en Mediavida' : 'Sin aplicar; se usa el color nativo'}
+										</div>
+									</div>
+									<button
+										type="button"
+										role="switch"
+										aria-label="Color personalizado"
+										aria-checked={boldColorEnabled}
+										className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors disabled:opacity-60 ${
+											boldColorEnabled ? 'border-[#d89016] bg-[#9a6d00]' : 'border-[#5a646f] bg-[#4b535d]'
+										}`}
+										disabled={savingBoldColor}
+										onClick={toggleBoldColor}
+									>
+										<span
+											className={`pointer-events-none absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+												boldColorEnabled ? 'translate-x-6' : 'translate-x-0'
+											}`}
+										/>
+									</button>
+								</div>
+
+								<label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-[#b7bec6]" htmlFor="mvp-mobile-lite-bold-color">
+									Color
+								</label>
+								<div className="mt-2 grid grid-cols-[56px_minmax(0,1fr)] gap-2">
+									<input
+										id="mvp-mobile-lite-bold-color"
+										type="color"
+										value={normalizedBoldColorDraft}
+										disabled={savingBoldColor}
+										onChange={event => {
+											setBoldColorDraft(event.target.value)
+											setBoldColorStatusMessage(null)
+											setBoldColorErrorMessage(null)
+										}}
+										className="h-11 w-full rounded-md border border-[#505963] bg-[#282f38] p-1"
+									/>
+									<input
+										type="text"
+										value={boldColorDraft}
+										autoCapitalize="none"
+										autoCorrect="off"
+										spellCheck={false}
+										disabled={savingBoldColor}
+										onChange={event => {
+											setBoldColorDraft(event.target.value)
+											setBoldColorStatusMessage(null)
+											setBoldColorErrorMessage(null)
+										}}
+										className="h-11 w-full rounded-md border border-[#505963] bg-[#282f38] px-3 font-mono text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
+									/>
+								</div>
+
+								<div className="mt-3 rounded-md border border-[#4b545d] bg-[#2d3540] px-3 py-3 text-sm leading-relaxed text-[#d8dde2]">
+									Texto normal y{' '}
+									<strong style={{ color: boldColorEnabled ? normalizedBoldColorDraft : 'inherit' }}>
+										texto en negrita
+									</strong>
+								</div>
+
+								<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(116px,1fr))] gap-2">
+									<button
+										type="button"
+										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#657080] bg-[#353d49] px-2 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#424b59] disabled:border-[#4d5662] disabled:bg-[#303842] disabled:text-[#8f98a5]"
+										disabled={savingBoldColor || (boldColor === DEFAULT_BOLD_COLOR && normalizedBoldColorDraft === DEFAULT_BOLD_COLOR)}
+										onClick={resetBoldColor}
+									>
+										<RotateCcw className="h-4 w-4" aria-hidden="true" />
+										Restaurar
+									</button>
+									<button
+										type="button"
+										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#d89016] bg-[#9a6d00] px-2 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-colors active:bg-[#b07900] disabled:border-[#555f6b] disabled:bg-[#454d59] disabled:text-[#aeb6be] disabled:shadow-none"
+										disabled={savingBoldColor || !isBoldColorDirty}
+										onClick={saveBoldColor}
+									>
+										<Bold className="h-4 w-4" aria-hidden="true" />
+										{savingBoldColor ? 'Guardando' : 'Guardar'}
+									</button>
+								</div>
+							</section>
+
+							{boldColorStatusMessage && (
+								<div role="status" className={STATUS_SUCCESS_CLASS}>
+									{boldColorStatusMessage}
+								</div>
+							)}
+
+							{boldColorErrorMessage && (
+								<div role="alert" className={STATUS_ERROR_CLASS}>
+									{boldColorErrorMessage}
+								</div>
+							)}
 						</div>
 					)}
 				</div>

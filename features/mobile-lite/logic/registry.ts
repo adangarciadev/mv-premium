@@ -1,5 +1,6 @@
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { getPlatformKind } from '@/lib/platform'
+import { initMobileLiteBoldColor, teardownMobileLiteBoldColor } from './bold-color'
 import { initMobileLiteEditorEnhancements, teardownMobileLiteEditorEnhancements } from './editor-lite'
 import { initMobileLiteHiddenThreads, isMobileLiteHiddenThreadsPath, teardownMobileLiteHiddenThreads } from './hidden-threads'
 import { initMobileLiteIgnoredUsers, teardownMobileLiteIgnoredUsers } from './ignored-users'
@@ -35,6 +36,12 @@ const USER_CARD_SELECTOR = '#user-card, .f-card'
 const USER_MENU_SELECTOR = '#usermenu'
 
 const MOBILE_LITE_MODULES: MobileLiteModule[] = [
+	{
+		id: 'bold-color',
+		init: initMobileLiteBoldColor,
+		teardown: teardownMobileLiteBoldColor,
+		shouldRun: context => context.isForumRelated || context.hasPosts,
+	},
 	{
 		id: 'ignored-users-import',
 		init: initMobileLiteIgnoredUsersImport,
