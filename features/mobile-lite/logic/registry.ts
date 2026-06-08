@@ -1,7 +1,7 @@
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { getPlatformKind } from '@/lib/platform'
 import { initMobileLiteEditorEnhancements, teardownMobileLiteEditorEnhancements } from './editor-lite'
-import { initMobileLiteHiddenThreads, teardownMobileLiteHiddenThreads } from './hidden-threads'
+import { initMobileLiteHiddenThreads, isMobileLiteHiddenThreadsPath, teardownMobileLiteHiddenThreads } from './hidden-threads'
 import { initMobileLiteIgnoredUsers, teardownMobileLiteIgnoredUsers } from './ignored-users'
 import { hasIgnoredUsersImportParam, initMobileLiteIgnoredUsersImport, teardownMobileLiteIgnoredUsersImport } from './ignored-users-import'
 import {
@@ -57,7 +57,7 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		id: 'hidden-threads',
 		init: initMobileLiteHiddenThreads,
 		teardown: teardownMobileLiteHiddenThreads,
-		shouldRun: context => context.isNormalSubforumThreadList,
+		shouldRun: context => isMobileLiteHiddenThreadsPath(context.pathname),
 	},
 	{
 		id: 'editor-lite',

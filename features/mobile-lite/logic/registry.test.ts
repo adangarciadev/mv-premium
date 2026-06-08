@@ -55,6 +55,12 @@ vi.mock('./ignored-user-threads', () => ({
 
 vi.mock('./hidden-threads', () => ({
 	initMobileLiteHiddenThreads: mocks.initHiddenThreads,
+	isMobileLiteHiddenThreadsPath: vi.fn(
+		(pathname: string) =>
+			pathname === '/foro/spy' ||
+			pathname.startsWith('/foro/spy/') ||
+			(pathname.startsWith('/foro/') && !/-\d+$/.test(pathname.split('/').filter(Boolean)[2] || ''))
+	),
 	teardownMobileLiteHiddenThreads: mocks.teardownHiddenThreads,
 }))
 
@@ -123,6 +129,13 @@ describe('Mobile Lite registry', () => {
 		document.body.innerHTML = ''
 
 		expect(getRunnableMobileLiteModuleIds()).toEqual(['ignored-user-threads', 'hidden-threads', 'editor-lite', 'panel'])
+	})
+
+	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
+		window.history.replaceState({}, '', '/foro/spy')
+		document.body.innerHTML = ''
+
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['hidden-threads', 'editor-lite', 'panel'])
 	})
 
 	it('initializes only runnable modules', () => {

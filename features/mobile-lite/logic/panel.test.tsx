@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { HiddenThread } from '@/features/hidden-threads/logic/storage'
 import type { UserCustomization, UserCustomizationsData } from '@/features/user-customizations/storage'
 import type { MvUserAvatarResult } from '@/lib/messaging'
 import { MobileLitePanel, MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mobile-lite-panel'
@@ -23,6 +24,9 @@ const mocks = vi.hoisted(() => ({
 	),
 	saveUserCustomizations: vi.fn((_data: UserCustomizationsData) => Promise.resolve()),
 	watchUserCustomizations: vi.fn(() => vi.fn()),
+	getHiddenThreads: vi.fn(() => Promise.resolve<HiddenThread[]>([])),
+	unhideThread: vi.fn((_threadId: string) => Promise.resolve()),
+	watchHiddenThreads: vi.fn(() => vi.fn()),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	sendMessage: vi.fn<() => Promise<MvUserAvatarResult>>(() => Promise.resolve({ success: false })),
 	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
@@ -56,6 +60,12 @@ vi.mock('@/features/user-customizations/storage', () => ({
 	getUserCustomizations: mocks.getUserCustomizations,
 	saveUserCustomizations: mocks.saveUserCustomizations,
 	watchUserCustomizations: mocks.watchUserCustomizations,
+}))
+
+vi.mock('@/features/hidden-threads/logic/storage', () => ({
+	getHiddenThreads: mocks.getHiddenThreads,
+	unhideThread: mocks.unhideThread,
+	watchHiddenThreads: mocks.watchHiddenThreads,
 }))
 
 vi.mock('./ignored-users-sync-event', () => ({
@@ -106,6 +116,9 @@ describe('Mobile Lite panel injection', () => {
 		mocks.isFeatureMounted.mockReturnValue(false)
 		mocks.getUserCustomizations.mockResolvedValue(createCustomizationData({}))
 		mocks.saveUserCustomizations.mockResolvedValue(undefined)
+		mocks.getHiddenThreads.mockResolvedValue([])
+		mocks.unhideThread.mockResolvedValue(undefined)
+		mocks.watchHiddenThreads.mockReturnValue(vi.fn())
 		mocks.sendMessage.mockResolvedValue({ success: false })
 		document.body.innerHTML = `
 			<ul id="usermenu">
@@ -677,5 +690,33 @@ describe('Mobile Lite panel injection', () => {
 		expect(screen.getByRole('button', { name: filterButtonName('Ocultos', 1) })).toBeInTheDocument()
 		expect(screen.queryByText('MutedUser')).not.toBeInTheDocument()
 		expect(screen.getByText('No hay resultados para este filtro.')).toBeInTheDocument()
+	})
+
+	it('lists hidden threads and lets users restore them from the panel', async () => {
+		const user = userEvent.setup()
+		const hiddenThread: HiddenThread = {
+			id: '/foro/cine/supergirl-2026-dc-studios-729454',
+			title: 'Supergirl (2026) | DC Studios',
+			subforum: 'Cine',
+			subforumId: '/foro/cine',
+			hiddenAt: new Date('2026-06-09T12:00:00Z').getTime(),
+		}
+		mocks.getHiddenThreads.mockResolvedValueOnce([hiddenThread]).mockResolvedValueOnce([])
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Hilos' }))
+
+		expect(await screen.findByText('Supergirl (2026) | DC Studios')).toBeInTheDocument()
+		expect(screen.getByText('Cine')).toBeInTheDocument()
+		expect(screen.getByText('09/06/26')).toBeInTheDocument()
+
+		await user.click(screen.getByRole('button', { name: 'Mostrar' }))
+
+		await waitFor(() => {
+			expect(mocks.unhideThread).toHaveBeenCalledWith('/foro/cine/supergirl-2026-dc-studios-729454')
+		})
+		expect(await screen.findByText('No hay hilos ocultos.')).toBeInTheDocument()
+		expect(screen.queryByRole('status')).not.toBeInTheDocument()
 	})
 })

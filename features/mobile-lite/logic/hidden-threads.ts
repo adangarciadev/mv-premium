@@ -11,7 +11,6 @@ import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
 import { useSettingsStore } from '@/store/settings-store'
-import { isNormalMobileLiteSubforumPath } from './ignored-user-threads'
 
 const STYLE_ID = 'mvp-mobile-lite-hidden-threads-styles'
 const THREAD_ROWS_SELECTOR = 'tbody#temas tr, table#temas tbody tr'
@@ -35,6 +34,17 @@ function isMobileLiteHiddenThreadsAllowed(): boolean {
 
 function areHiddenThreadsEnabled(): boolean {
 	return useSettingsStore.getState().hideThreadEnabled !== false
+}
+
+export function isMobileLiteHiddenThreadsPath(pathname: string): boolean {
+	if (pathname === '/foro/spy' || pathname.startsWith('/foro/spy/')) return true
+	if (!pathname.startsWith('/foro/')) return false
+
+	const segments = pathname.split('/').filter(Boolean)
+	if (segments.length < 2) return false
+
+	const maybeThreadSlug = segments[2]
+	return !maybeThreadSlug || !/-\d+$/.test(maybeThreadSlug)
 }
 
 function ensureStyles(): void {
@@ -145,7 +155,7 @@ export function resetMobileLiteHiddenThreads(): void {
 export function applyMobileLiteHiddenThreads(): void {
 	ensureStyles()
 
-	if (!areHiddenThreadsEnabled() || !isNormalMobileLiteSubforumPath(window.location.pathname)) {
+	if (!areHiddenThreadsEnabled() || !isMobileLiteHiddenThreadsPath(window.location.pathname)) {
 		resetMobileLiteHiddenThreads()
 		removeHideButtons()
 		return

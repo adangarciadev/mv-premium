@@ -12,7 +12,15 @@ import UserX from 'lucide-react/dist/esm/icons/user-x'
 import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
 import X from 'lucide-react/dist/esm/icons/x'
 import { browser } from 'wxt/browser'
+import { NativeFidIcon } from '@/components/native-fid-icon'
 import { sendMessage } from '@/lib/messaging'
+import { getSubforumIconId } from '@/lib/subforums'
+import {
+	getHiddenThreads,
+	unhideThread,
+	watchHiddenThreads,
+	type HiddenThread,
+} from '@/features/hidden-threads/logic/storage'
 import {
 	getUserCustomizations,
 	saveUserCustomizations,
@@ -67,7 +75,7 @@ interface FilteredUser {
 }
 
 type ActiveFilter = 'all' | MobileLiteIgnoreType
-type PanelTab = 'users' | 'images'
+type PanelTab = 'users' | 'threads' | 'images'
 
 function getEmptyData(): UserCustomizationsData {
 	return {
@@ -85,6 +93,20 @@ function getFilteredUsers(data: UserCustomizationsData): FilteredUser[] {
 
 function normalizeUsername(username: string): string {
 	return username.trim()
+}
+
+function getSubforumSlugFromId(subforumId: string): string {
+	return subforumId.replace(/^\/foro\//, '').replace(/^foro\//, '').trim()
+}
+
+function formatHiddenThreadDate(hiddenAt: number): string {
+	if (!Number.isFinite(hiddenAt) || hiddenAt <= 0) return ''
+
+	return new Intl.DateTimeFormat('es-ES', {
+		day: '2-digit',
+		month: '2-digit',
+		year: '2-digit',
+	}).format(new Date(hiddenAt))
 }
 
 function safeDecodeURIComponent(value: string): string {
@@ -196,8 +218,12 @@ export function MobileLitePanel() {
 	const [statusMessage, setStatusMessage] = useState<string | null>(null)
 	const [imgbbApiKey, setImgbbApiKey] = useState('')
 	const [imgbbApiKeyDraft, setImgbbApiKeyDraft] = useState('')
+	const [hiddenThreads, setHiddenThreads] = useState<HiddenThread[]>([])
+	const [restoringThread, setRestoringThread] = useState<string | null>(null)
 	const [savingImgbbApiKey, setSavingImgbbApiKey] = useState(false)
 	const [refreshingAvatars, setRefreshingAvatars] = useState(false)
+	const [hiddenThreadsStatusMessage, setHiddenThreadsStatusMessage] = useState<string | null>(null)
+	const [hiddenThreadsErrorMessage, setHiddenThreadsErrorMessage] = useState<string | null>(null)
 	const [imgbbStatusMessage, setImgbbStatusMessage] = useState<string | null>(null)
 	const [imgbbErrorMessage, setImgbbErrorMessage] = useState<string | null>(null)
 	const viewportBounds = useVisualViewportBounds(open)
@@ -205,6 +231,14 @@ export function MobileLitePanel() {
 
 	useEffect(() => {
 		let mounted = true
+
+		const handleOpen = () => setOpen(true)
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') setOpen(false)
+		}
+
+		window.addEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
+		window.addEventListener('keydown', handleKeyDown)
 
 		getUserCustomizations()
 			.then(nextData => {
@@ -217,18 +251,19 @@ export function MobileLitePanel() {
 		const unwatch = watchUserCustomizations(nextData => {
 			setData(nextData)
 		})
-
-		const handleOpen = () => setOpen(true)
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') setOpen(false)
+		let unwatchHiddenThreads: (() => void) | null = null
+		try {
+			unwatchHiddenThreads = watchHiddenThreads(nextThreads => {
+				setHiddenThreads(nextThreads)
+			})
+		} catch {
+			// Hidden-thread management should not prevent the panel from opening.
 		}
-
-		window.addEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
-		window.addEventListener('keydown', handleKeyDown)
 
 		return () => {
 			mounted = false
 			unwatch()
+			unwatchHiddenThreads?.()
 			window.removeEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
 			window.removeEventListener('keydown', handleKeyDown)
 		}
@@ -259,6 +294,13 @@ export function MobileLitePanel() {
 			.catch(() => {
 				if (mounted) setImgbbErrorMessage('No se pudo cargar la API key de ImgBB.')
 			})
+		getHiddenThreads()
+			.then(nextThreads => {
+				if (mounted) setHiddenThreads(nextThreads)
+			})
+			.catch(() => {
+				if (mounted) setHiddenThreadsErrorMessage('No se pudieron cargar los hilos ocultos.')
+			})
 
 		return () => {
 			mounted = false
@@ -287,7 +329,6 @@ export function MobileLitePanel() {
 		{ id: 'mute', label: 'Silenciados', count: mutedUsers.length },
 		{ id: 'hide', label: 'Ocultos', count: hiddenUsers.length },
 	] satisfies Array<{ id: ActiveFilter; label: string; count: number }>
-
 	const exactQueryUsername = normalizeUsername(query)
 	const exactQueryEntry = exactQueryUsername ? getCustomizationEntryForUser(data, exactQueryUsername) : null
 	const exactQueryCustomization = exactQueryEntry?.customization
@@ -295,6 +336,7 @@ export function MobileLitePanel() {
 	const usernameValidationMessage = getUsernameValidationMessage(exactQueryUsername)
 	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
+	const hasPanelListContent = hasAnyFilteredUsers || hiddenThreads.length > 0
 	const missingAvatarCount = allFilteredUsers.filter(user => !user.customization.avatarUrl).length
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
 	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
@@ -454,6 +496,22 @@ export function MobileLitePanel() {
 		}
 	}
 
+	const restoreHiddenThread = async (thread: HiddenThread) => {
+		setRestoringThread(thread.id)
+		setHiddenThreadsStatusMessage(null)
+		setHiddenThreadsErrorMessage(null)
+		try {
+			await unhideThread(thread.id)
+			const nextThreads = await getHiddenThreads()
+			setHiddenThreads(nextThreads)
+			setHiddenThreadsStatusMessage(nextThreads.length > 0 ? `${thread.title} vuelve a mostrarse.` : null)
+		} catch {
+			setHiddenThreadsErrorMessage('No se pudo restaurar el hilo. Inténtalo de nuevo.')
+		} finally {
+			setRestoringThread(null)
+		}
+	}
+
 	if (!open) return null
 
 	const overlayStyle: CSSProperties | undefined = viewportBounds.height
@@ -469,7 +527,7 @@ export function MobileLitePanel() {
 
 			<section
 				className={`absolute left-[max(12px,env(safe-area-inset-left))] right-[max(12px,env(safe-area-inset-right))] flex max-h-[calc(100%_-_max(12px,env(safe-area-inset-top))_-_max(12px,env(safe-area-inset-bottom)))] flex-col overflow-hidden border border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl ${
-					hasAnyFilteredUsers
+					hasPanelListContent
 						? 'bottom-[max(0px,env(safe-area-inset-bottom))] top-[max(56px,calc(env(safe-area-inset-top)_+_12px))] rounded-t-lg'
 						: 'bottom-auto top-[max(132px,calc(env(safe-area-inset-top)_+_18dvh))] rounded-lg'
 				}`}
@@ -496,7 +554,7 @@ export function MobileLitePanel() {
 				</header>
 
 				<div className="min-h-0 flex-1 overflow-y-auto bg-[#384149] px-4 py-4 pb-[max(16px,calc(env(safe-area-inset-bottom)_+_16px))]">
-					<div className="mb-4 grid grid-cols-2 gap-2 rounded-lg bg-[#323942] p-1" role="tablist" aria-label="Secciones del panel MVPremium">
+					<div className="mb-4 grid grid-cols-3 gap-2 rounded-lg bg-[#323942] p-1" role="tablist" aria-label="Secciones del panel MVPremium">
 						<button
 							type="button"
 							role="tab"
@@ -506,6 +564,16 @@ export function MobileLitePanel() {
 						>
 							<UserX className="h-4 w-4" aria-hidden="true" />
 							Usuarios
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'threads'}
+							className={`${TAB_BASE_CLASS} ${activeTab === 'threads' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
+							onClick={() => setActiveTab('threads')}
+						>
+							<EyeOff className="h-4 w-4" aria-hidden="true" />
+							Hilos
 						</button>
 						<button
 							type="button"
@@ -698,6 +766,65 @@ export function MobileLitePanel() {
 								)}
 							</div>
 						</>
+					) : activeTab === 'threads' ? (
+						<div className="space-y-3">
+							{hiddenThreadsStatusMessage && (
+								<div role="status" className={STATUS_SUCCESS_CLASS}>
+									{hiddenThreadsStatusMessage}
+								</div>
+							)}
+
+							{hiddenThreadsErrorMessage && (
+								<div role="alert" className={STATUS_ERROR_CLASS}>
+									{hiddenThreadsErrorMessage}
+								</div>
+							)}
+
+							{hiddenThreads.length === 0 ? (
+								<div className="rounded-md border border-[#4b545d] bg-[#333b46] px-4 py-7 text-center text-sm text-[#c5cbd2]">
+									<EyeOff className="mx-auto mb-3 h-5 w-5 text-[#9fa8b2]" aria-hidden="true" />
+									<p className="font-semibold text-[#d8dde2]">No hay hilos ocultos.</p>
+									<p className="mx-auto mt-1 max-w-[22rem] text-xs leading-relaxed text-[#aeb6be]">
+										Los hilos que ocultes desde los listados aparecerán aquí.
+									</p>
+								</div>
+							) : (
+								<div className="space-y-2">
+									{hiddenThreads.map(thread => {
+										const isRestoring = restoringThread === thread.id
+										const subforumSlug = getSubforumSlugFromId(thread.subforumId)
+										const subforumIconId = getSubforumIconId(subforumSlug)
+										const hiddenAtLabel = formatHiddenThreadDate(thread.hiddenAt)
+
+										return (
+											<article key={thread.id} className="rounded-md border border-[#4b545d] bg-[#3f4853] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+												<div className="flex min-w-0 items-start gap-3">
+													{subforumIconId !== null && (
+														<NativeFidIcon iconId={subforumIconId} className="mt-0.5 h-6 w-6 shrink-0" />
+													)}
+													<div className="min-w-0 flex-1">
+														<div className="truncate text-base font-semibold">{thread.title}</div>
+														<div className="mt-1 flex min-w-0 items-center justify-between gap-3 text-xs font-medium text-[#b7bec6]">
+															<span className="min-w-0 truncate">{thread.subforum}</span>
+															{hiddenAtLabel && <span className="shrink-0 tabular-nums text-[#aeb6be]">{hiddenAtLabel}</span>}
+														</div>
+													</div>
+												</div>
+												<button
+													type="button"
+													className="mt-3 inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#5b646e] px-2 text-sm font-semibold text-[#eef1f3] transition-colors disabled:opacity-60"
+													disabled={isRestoring}
+													onClick={() => restoreHiddenThread(thread)}
+												>
+													<EyeOff className="h-4 w-4" aria-hidden="true" />
+													<span>{isRestoring ? 'Restaurando' : 'Mostrar'}</span>
+												</button>
+											</article>
+										)
+									})}
+								</div>
+							)}
+						</div>
 					) : (
 						<div className="space-y-3">
 							<div className="rounded-md border border-[#4b545d] bg-[#333b46] p-3">

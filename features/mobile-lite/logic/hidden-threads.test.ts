@@ -3,6 +3,7 @@ import type { HiddenThread } from '@/features/hidden-threads/logic/storage'
 import {
 	applyMobileLiteHiddenThreads,
 	initMobileLiteHiddenThreads,
+	isMobileLiteHiddenThreadsPath,
 	teardownMobileLiteHiddenThreads,
 } from './hidden-threads'
 
@@ -95,6 +96,13 @@ describe('Mobile Lite hidden threads', () => {
 
 		expect(document.querySelectorAll('[data-mvp-mobile-lite-hide-thread]')).toHaveLength(2)
 		expect(document.querySelector('#t1 [data-mvp-mobile-lite-hide-thread]')?.getAttribute('aria-label')).toBe('Ocultar hilo')
+	})
+
+	it('allows individual hidden-thread controls on spy pages', () => {
+		expect(isMobileLiteHiddenThreadsPath('/foro/spy')).toBe(true)
+		expect(isMobileLiteHiddenThreadsPath('/foro/spy/live')).toBe(true)
+		expect(isMobileLiteHiddenThreadsPath('/foro/cine')).toBe(true)
+		expect(isMobileLiteHiddenThreadsPath('/foro/cine/supergirl-2026-dc-studios-729454')).toBe(false)
 	})
 
 	it('hides rows already present in hidden thread storage', async () => {
