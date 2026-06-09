@@ -12,6 +12,14 @@ import {
 	injectPasteHandler,
 } from '@/features/editor/logic/editor-toolbar'
 
+// Decoupled signal (no direct polling import → keeps this module test-loadable):
+// live-thread-polling listens and pauses/resumes while the user is composing.
+const LIVE_COMPOSE_EVENT = 'mvp:live-compose'
+
+function setLiveComposing(composing: boolean): void {
+	window.dispatchEvent(new CustomEvent(LIVE_COMPOSE_EVENT, { detail: { composing } }))
+}
+
 // =============================================================================
 // STATE
 // =============================================================================
@@ -20,14 +28,80 @@ let originalFormParent: HTMLElement | null = null
 let originalFormNextSibling: Node | null = null
 let replyStateCallback: ((isOpen: boolean) => void) | null = null
 let postReplyClickHandler: ((event: Event) => void) | null = null
+let mobileLiteEditorReadyPromise: Promise<void> | null = null
 const LIVE_EDITOR_PREPARED_ATTR = `data-${DOM_MARKERS.DATA_ATTRS.LIVE_EDITOR_PREPARED}`
+const MOBILE_LITE_EDITOR_WAIT_MS = 900
+
+export type LiveThreadVariant = 'desktop' | 'mobile-lite'
+
+interface LiveThreadDomOptions {
+	variant?: LiveThreadVariant
+}
+
+function getVariant(options?: LiveThreadDomOptions): LiveThreadVariant {
+	return options?.variant ?? 'desktop'
+}
+
+function getPostEditor(): HTMLElement | null {
+	return document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
+}
+
+function getPostEditorTextarea(): HTMLTextAreaElement | null {
+	// On mobile the live input is OUR textarea placed OUTSIDE #post-editor (so the
+	// Android keyboard works), so check for it first. Otherwise the "is there an
+	// editor?" checks fail and fall back to Mediavida's native reply / extended editor.
+	const own = document.querySelector('.mvp-live-own-textarea') as HTMLTextAreaElement | null
+	if (own) return own
+	return getPostEditor()?.querySelector(MV_SELECTORS.EDITOR.TEXTAREA_ALL) as HTMLTextAreaElement | null
+}
+
+// Mediavida's bbstyle(n) numbers → BBCode tags, so we can drive the toolbar
+// ourselves on our own textarea (MV's bbstyle can't find it outside the form).
+const MOBILE_LITE_BBCODE_TAGS: Record<string, [string, string]> = {
+	'0': ['[b]', '[/b]'],
+	'2': ['[i]', '[/i]'],
+	'8': ['[url]', '[/url]'],
+	'10': ['[img]', '[/img]'],
+	'12': ['[media]', '[/media]'],
+	'26': ['[twitter]', '[/twitter]'],
+	'24': ['[quote]', '[/quote]'],
+	'14': ['[spoiler]', '[/spoiler]'],
+	'18': ['[nsfw]', '[/nsfw]'],
+	'20': ['[code]', '[/code]'],
+}
+
+function wrapMobileLiteSelection(textarea: HTMLTextAreaElement, before: string, after: string): void {
+	const start = textarea.selectionStart ?? textarea.value.length
+	const end = textarea.selectionEnd ?? textarea.value.length
+	const selected = textarea.value.slice(start, end)
+	textarea.value = textarea.value.slice(0, start) + before + selected + after + textarea.value.slice(end)
+	const cursor = start + before.length + selected.length
+	textarea.focus()
+	textarea.setSelectionRange(cursor, cursor)
+	textarea.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+function wireMobileLiteToolbar(toolbar: HTMLElement, textarea: HTMLTextAreaElement): void {
+	toolbar.querySelectorAll<HTMLElement>('button[onclick]').forEach(button => {
+		const match = (button.getAttribute('onclick') || '').match(/bbstyle\((\d+)\)/)
+		const tags = match ? MOBILE_LITE_BBCODE_TAGS[match[1]] : undefined
+		if (!tags) return
+		button.removeAttribute('onclick')
+		// Keep the field focused when tapping a toolbar button (don't blur on mobile).
+		button.addEventListener('pointerdown', event => event.preventDefault())
+		button.addEventListener('click', event => {
+			event.preventDefault()
+			wrapMobileLiteSelection(textarea, tags[0], tags[1])
+		})
+	})
+}
 
 export function setReplyStateCallback(cb: ((isOpen: boolean) => void) | null): void {
 	replyStateCallback = cb
 }
 
 function appendReplyReferenceToEditor(postNum: string): void {
-	const textarea = document.querySelector(MV_SELECTORS.EDITOR.TEXTAREA) as HTMLTextAreaElement | null
+	const textarea = document.querySelector(MV_SELECTORS.EDITOR.TEXTAREA_ALL) as HTMLTextAreaElement | null
 	if (!textarea) return
 
 	const currentValue = textarea.value
@@ -48,12 +122,13 @@ function getReplyPostNum(replyButton: Element): string | null {
 	return postEl?.getAttribute('data-num')?.trim() || null
 }
 
-export function setupPostReplyHandler(): void {
-	if (postReplyClickHandler) return
+export function setupPostReplyHandler(options: LiveThreadDomOptions = {}): void {
+	cleanupPostReplyHandler()
 
 	const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID)
 	if (!postsWrap) return
 
+	const variant = getVariant(options)
 	postReplyClickHandler = (event: Event) => {
 		const target = event.target
 		if (!(target instanceof Element)) return
@@ -68,7 +143,17 @@ export function setupPostReplyHandler(): void {
 		const postNum = getReplyPostNum(replyButton)
 		if (!postNum) return
 
-		toggleFormVisibility(true)
+		if (variant === 'mobile-lite' && !getPostEditorTextarea()) {
+			void ensureMobileLiteNativeEditorReady().then(() => {
+				if (!getPostEditorTextarea()) return
+				moveFormToTop({ variant })
+				toggleFormVisibility(true, { variant })
+				appendReplyReferenceToEditor(postNum)
+			})
+			return
+		}
+
+		toggleFormVisibility(true, { variant })
 		appendReplyReferenceToEditor(postNum)
 	}
 
@@ -127,8 +212,212 @@ export function showNativeElements(): void {
 // FORM POSITIONING
 // =============================================================================
 
-export function moveFormToTop(): void {
-	const postEditor = document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
+function waitForMobileLiteEditor(timeoutMs = MOBILE_LITE_EDITOR_WAIT_MS): Promise<HTMLTextAreaElement | null> {
+	const existingTextarea = getPostEditorTextarea()
+	if (existingTextarea) return Promise.resolve(existingTextarea)
+
+	return new Promise(resolve => {
+		let resolved = false
+		let observer: MutationObserver
+		let timeout: ReturnType<typeof setTimeout>
+		const finish = (textarea: HTMLTextAreaElement | null) => {
+			if (resolved) return
+			resolved = true
+			observer.disconnect()
+			clearTimeout(timeout)
+			resolve(textarea)
+		}
+
+		observer = new MutationObserver(() => {
+			const textarea = getPostEditorTextarea()
+			if (textarea) finish(textarea)
+		})
+		timeout = setTimeout(() => finish(getPostEditorTextarea()), timeoutMs)
+
+		observer.observe(document.body, { childList: true, subtree: true })
+	})
+}
+
+export async function ensureMobileLiteNativeEditorReady(): Promise<void> {
+	if (getPostEditorTextarea()) return
+	if (mobileLiteEditorReadyPromise) return mobileLiteEditorReadyPromise
+
+	mobileLiteEditorReadyPromise = (async () => {
+		const nativeReplyButton = document.querySelector<HTMLElement>(
+			`${MV_SELECTORS.THREAD.QUICK_REPLY_ALL}, a[href$="/responder"], a[href*="/responder"]`
+		)
+		if (!nativeReplyButton) return
+
+		nativeReplyButton.click()
+		await waitForMobileLiteEditor()
+	})().finally(() => {
+		mobileLiteEditorReadyPromise = null
+	})
+
+	return mobileLiteEditorReadyPromise
+}
+
+function isLiveGeneratedFooterElement(node: ChildNode): boolean {
+	return (
+		node instanceof HTMLElement &&
+		(node.classList.contains(DOM_MARKERS.LIVE_THREAD.BTN_SUBMIT) ||
+			node.classList.contains(DOM_MARKERS.LIVE_THREAD.LINK_EXTENDED))
+	)
+}
+
+function restoreNativeEditorMetaElement(element: HTMLElement): void {
+	element.style.removeProperty('display')
+	element.style.removeProperty('visibility')
+	element.style.removeProperty('opacity')
+	element.style.removeProperty('width')
+	element.style.removeProperty('height')
+	element.style.removeProperty('padding')
+	element.style.removeProperty('margin')
+	element.style.removeProperty('pointer-events')
+}
+
+function cleanupLiveEditorAdditions(postEditor: HTMLElement): void {
+	const liveFooter = postEditor.querySelector(`.${DOM_MARKERS.LIVE_THREAD.FOOTER}`) as HTMLElement | null
+	if (!liveFooter) return
+
+	const nativeFooter = postEditor.querySelector(MV_SELECTORS.EDITOR.EDITOR_META) as HTMLElement | null
+	if (nativeFooter) {
+		Array.from(liveFooter.childNodes).forEach(node => {
+			if (isLiveGeneratedFooterElement(node)) {
+				node.remove()
+				return
+			}
+
+			if (node instanceof HTMLElement) {
+				restoreNativeEditorMetaElement(node)
+			}
+			nativeFooter.appendChild(node)
+		})
+	}
+
+	liveFooter.remove()
+}
+
+function setMobileLiteEditorDisplay(postEditor: HTMLElement, display: 'block' | 'none'): void {
+	postEditor.style.setProperty('display', display, 'important')
+}
+
+function prepareMobileLiteEditor(postEditor: HTMLElement): void {
+	// Idempotency guard: if the editor is already prepared, do NOT re-apply the
+	// full inline-style pass. Re-styling on every tap was blurring the textarea
+	// (focus jumped to <body>), making it impossible to type. Just make sure it
+	// stays visible and bail out.
+	if (postEditor.getAttribute(LIVE_EDITOR_PREPARED_ATTR) === 'mobile-lite' && getPostEditorTextarea()) {
+		setMobileLiteEditorDisplay(postEditor, 'block')
+		return
+	}
+
+	cleanupLiveEditorAdditions(postEditor)
+	postEditor.classList.add('mvp-live-mobile-editor')
+	postEditor.classList.remove('live')
+	postEditor.classList.remove('hidden')
+	postEditor.removeAttribute(LIVE_EDITOR_PREPARED_ATTR)
+	postEditor.style.removeProperty('background')
+	postEditor.style.removeProperty('border-radius')
+	postEditor.style.removeProperty('box-shadow')
+	postEditor.style.setProperty('position', 'static', 'important')
+	postEditor.style.setProperty('float', 'none', 'important')
+	postEditor.style.setProperty('clear', 'both', 'important')
+	postEditor.style.setProperty('width', '100%', 'important')
+	postEditor.style.setProperty('height', 'auto', 'important')
+	postEditor.style.setProperty('margin', '0', 'important')
+	postEditor.style.setProperty('visibility', 'visible', 'important')
+	postEditor.style.setProperty('opacity', '1', 'important')
+	setMobileLiteEditorDisplay(postEditor, 'block')
+	postEditor.setAttribute(LIVE_EDITOR_PREPARED_ATTR, 'mobile-lite')
+
+	postEditor
+		.querySelectorAll<HTMLElement>(
+			[
+				MV_SELECTORS.EDITOR.CONTROL,
+				MV_SELECTORS.EDITOR.EDITOR_CONTROLS,
+				MV_SELECTORS.EDITOR.EDITOR_META,
+				MV_SELECTORS.EDITOR.TEXT_WRAP,
+				MV_SELECTORS.EDITOR.EDITOR_BODY,
+				MV_SELECTORS.EDITOR.POSTFORM,
+			].join(', ')
+		)
+		.forEach(element => {
+			element.classList.remove('hidden')
+			element.style.removeProperty('display')
+			element.style.removeProperty('background')
+			element.style.removeProperty('color')
+			element.style.removeProperty('height')
+			element.style.removeProperty('max-height')
+			element.style.removeProperty('min-height')
+			element.style.removeProperty('overflow')
+			element.style.removeProperty('position')
+			element.style.removeProperty('top')
+			element.style.removeProperty('z-index')
+			element.style.setProperty('visibility', 'visible', 'important')
+			element.style.setProperty('opacity', '1', 'important')
+			element.style.setProperty('pointer-events', 'auto', 'important')
+		})
+
+	const mvTextarea = postEditor.querySelector(MV_SELECTORS.EDITOR.TEXTAREA_ALL) as HTMLTextAreaElement | null
+	const liveEditorHost = postEditor.parentElement
+	if (mvTextarea && liveEditorHost && !liveEditorHost.querySelector('.mvp-live-own-textarea')) {
+		// ROOT CAUSE FIX: anything INSIDE Mediavida's #post-editor (its `ios` class /
+		// delegated handlers) refuses the Android soft keyboard once relocated — even a
+		// brand-new textarea. A vanilla textarea placed OUTSIDE #post-editor works
+		// perfectly (verified live). So we use OUR OWN textarea, placed just before the
+		// editor block, as the real #cuerpo. The toolbar (bbstyle → #cuerpo) and the
+		// submit (live-thread-editor copies #cuerpo into the POST body) operate on it.
+		const own = document.createElement('textarea')
+		own.placeholder = mvTextarea.getAttribute('placeholder') || 'Escribe aquí tu mensaje…'
+		own.value = mvTextarea.value
+		own.rows = 4
+		own.className = 'mvp-live-own-textarea'
+		own.id = 'cuerpo'
+		own.name = 'cuerpo'
+
+		// Hide MV's native text area (now empty) and drop its broken textarea.
+		const textWrap = postEditor.querySelector(MV_SELECTORS.EDITOR.TEXT_WRAP)
+		if (textWrap instanceof HTMLElement) textWrap.style.setProperty('display', 'none', 'important')
+		mvTextarea.remove()
+
+		// Insert OUTSIDE #post-editor (inside the live editor wrapper).
+		postEditor.insertAdjacentElement('beforebegin', own)
+
+		// Layout: toolbar ABOVE the textarea (move it out of #post-editor too), then the
+		// textarea, then the native footer (Enviar / Subir imagen) which stays inside
+		// #post-editor so it keeps submitting the form.
+		const toolbar = postEditor.querySelector(MV_SELECTORS.EDITOR.EDITOR_CONTROLS)
+		if (toolbar instanceof HTMLElement) {
+			own.insertAdjacentElement('beforebegin', toolbar)
+			wireMobileLiteToolbar(toolbar, own)
+		}
+
+		// "Editor extendido": preserve what's typed so it's restored on /responder.
+		const extendedLink = postEditor.querySelector('a#goext, a[href$="/responder"], a[href*="/responder"]')
+		extendedLink?.addEventListener('click', () => {
+			if (!own.value.trim()) return
+			void import('@/features/editor/logic/editor-content-preserve')
+				.then(({ saveEditorContent }) => saveEditorContent(own.value))
+				.catch(() => undefined)
+		})
+
+		// Single, correctly-placed upload control inside the footer.
+		liveEditorHost.querySelectorAll('[data-mvp-mobile-lite-upload-control="true"]').forEach(el => el.remove())
+		void import('@/features/mobile-lite/logic/editor-lite')
+			.then(({ injectMobileLiteUploadControl }) => {
+				const control = injectMobileLiteUploadControl(own)
+				const footer = postEditor.querySelector(MV_SELECTORS.EDITOR.EDITOR_META)
+				if (control && footer instanceof HTMLElement && !footer.contains(control)) {
+					footer.appendChild(control)
+				}
+			})
+			.catch(() => undefined)
+	}
+}
+
+export function moveFormToTop(options: LiveThreadDomOptions = {}): void {
+	const postEditor = getPostEditor()
 	// Note: LIVE_EDITOR_WRAPPER is a selector with #, need to strip it or use querySelector
 	// But it's easier to just use querySelector for consistency if it has ID
 	const editorWrapper = document.querySelector(MV_SELECTORS.EXTENSION.LIVE_EDITOR_WRAPPER)
@@ -147,23 +436,31 @@ export function moveFormToTop(): void {
 	const innerWrapper = editorWrapper.querySelector('div') || editorWrapper
 	innerWrapper.appendChild(postEditor)
 
-	// Reset styles to flow naturally within wrapper
+	const variant = getVariant(options)
+	postEditor.classList.toggle('live', variant !== 'mobile-lite')
+	postEditor.classList.toggle('mvp-live-mobile-editor', variant === 'mobile-lite')
+
+	// Reset styles to flow naturally within wrapper.
 	postEditor.style.position = 'static'
 	postEditor.style.display = 'none' // Controlled by toggle
 	postEditor.style.width = '100%'
 	postEditor.style.margin = '0'
-	postEditor.style.background = 'var(--bg-color, #1a1a1a)'
-	postEditor.style.borderRadius = '8px'
-	postEditor.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)'
 
-	postEditor.classList.add('live')
-
-	// Inject Custom Footer logic
-	injectCustomFooter(postEditor)
+	if (variant === 'mobile-lite') {
+		postEditor.style.removeProperty('background')
+		postEditor.style.removeProperty('border-radius')
+		postEditor.style.removeProperty('box-shadow')
+		cleanupLiveEditorAdditions(postEditor)
+	} else {
+		postEditor.style.background = 'var(--bg-color, #1a1a1a)'
+		postEditor.style.borderRadius = '8px'
+		postEditor.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.3)'
+		injectCustomFooter(postEditor)
+	}
 }
 
 export function restoreForm(): void {
-	const postEditor = document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
+	const postEditor = getPostEditor()
 
 	if (postEditor && originalFormParent) {
 		// Move back to original position
@@ -177,6 +474,7 @@ export function restoreForm(): void {
 		postEditor.style.cssText = ''
 		postEditor.removeAttribute(LIVE_EDITOR_PREPARED_ATTR)
 		postEditor.classList.remove('live')
+		postEditor.classList.remove('mvp-live-mobile-editor')
 
 		originalFormParent = null
 		originalFormNextSibling = null
@@ -427,35 +725,76 @@ export function forceEditorStyles(postEditor: HTMLElement): void {
 // FORM VISIBILITY TOGGLE
 // =============================================================================
 
-export function toggleFormVisibility(show: boolean): void {
+export function toggleFormVisibility(show: boolean, options: LiveThreadDomOptions = {}): void {
 	const wrapper = document.getElementById(DOM_MARKERS.IDS.LIVE_EDITOR_WRAPPER)
 	if (!wrapper) return
-	const isVisible = wrapper.classList.contains('visible')
+	const variant = getVariant(options)
+	// Treat the mobile editor as already open when it's prepared and displayed,
+	// even if the wrapper's `visible` class got out of sync. Otherwise a stray
+	// toggle(true) on every tap re-ran the full open flow (re-style + scroll),
+	// stealing focus from the textarea.
+	const postEditorForState = getPostEditor()
+	const isMobileLiteOpen =
+		variant === 'mobile-lite' &&
+		postEditorForState?.getAttribute(LIVE_EDITOR_PREPARED_ATTR) === 'mobile-lite' &&
+		postEditorForState.style.display !== 'none'
+	const isVisible = wrapper.classList.contains('visible') || isMobileLiteOpen
 
 	if (show) {
+		// Stop posts streaming in under the editor while composing on mobile; the
+		// layout churn was stealing focus from the textarea ("can't type" bug).
+		if (variant === 'mobile-lite') setLiveComposing(true)
+
 		// If already open, avoid forcing full style reapplication (prevents flicker in Firefox).
 		if (isVisible) {
-			const postEditor = document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
-			const textarea = postEditor?.querySelector(`#${MV_SELECTORS.EDITOR.TEXTAREA_ID}`) as HTMLTextAreaElement | null
-			if (textarea) {
-				setTimeout(() => textarea.focus(), 0)
+			// On mobile, NEVER focus programmatically: a focus() without a user gesture
+			// does not open the Android soft keyboard, and worse, it leaves the field
+			// "focused" so the user's own tap no longer reopens the keyboard. Let the
+			// tap do the focusing.
+			if (variant !== 'mobile-lite') {
+				const postEditor = getPostEditor()
+				const textarea = postEditor?.querySelector(MV_SELECTORS.EDITOR.TEXTAREA_ALL) as HTMLTextAreaElement | null
+				if (textarea) {
+					setTimeout(() => textarea.focus(), 0)
+				}
 			}
 			replyStateCallback?.(true)
 			return
 		}
 
+		if (variant === 'mobile-lite' && !getPostEditorTextarea()) {
+			void ensureMobileLiteNativeEditorReady().then(() => {
+				if (!getPostEditorTextarea()) return
+				moveFormToTop({ variant })
+				toggleFormVisibility(true, { variant })
+			})
+			return
+		}
+
 		wrapper.classList.add('visible')
-		const postEditor = document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
+		const postEditor = getPostEditor()
 		if (postEditor) {
-			postEditor.style.display = 'block'
-			if (!postEditor.hasAttribute(LIVE_EDITOR_PREPARED_ATTR)) {
+			if (variant === 'mobile-lite') {
+				prepareMobileLiteEditor(postEditor)
+			} else if (!postEditor.hasAttribute(LIVE_EDITOR_PREPARED_ATTR)) {
+				postEditor.style.display = 'block'
 				forceEditorStyles(postEditor)
 				postEditor.setAttribute(LIVE_EDITOR_PREPARED_ATTR, 'true')
+			} else {
+				postEditor.style.display = 'block'
 			}
-			const textarea = postEditor.querySelector(`#${MV_SELECTORS.EDITOR.TEXTAREA_ID}`) as HTMLTextAreaElement
-			if (textarea) setTimeout(() => textarea.focus(), 150)
+			// Desktop only: focus after opening. On mobile the user's tap focuses it
+			// (a programmatic focus there blocks the soft keyboard — see above).
+			if (variant !== 'mobile-lite') {
+				const textarea = postEditor.querySelector(MV_SELECTORS.EDITOR.TEXTAREA_ALL) as HTMLTextAreaElement | null
+				if (textarea) {
+					setTimeout(() => textarea.focus(), 150)
+				}
+			}
 		}
 	} else {
+		if (variant === 'mobile-lite') setLiveComposing(false)
+
 		if (!isVisible) {
 			replyStateCallback?.(false)
 			return
@@ -464,8 +803,14 @@ export function toggleFormVisibility(show: boolean): void {
 		wrapper.classList.remove('visible')
 		setTimeout(() => {
 			if (!wrapper.classList.contains('visible')) {
-				const postEditor = document.getElementById(MV_SELECTORS.EDITOR.POST_EDITOR_ID)
-				if (postEditor) postEditor.style.display = 'none'
+				const postEditor = getPostEditor()
+				if (postEditor) {
+					if (variant === 'mobile-lite') {
+						setMobileLiteEditorDisplay(postEditor, 'none')
+					} else {
+						postEditor.style.display = 'none'
+					}
+				}
 			}
 		}, 300)
 	}

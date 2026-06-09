@@ -1,12 +1,13 @@
-import { type CSSProperties, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Bold from 'lucide-react/dist/esm/icons/bold'
 import Check from 'lucide-react/dist/esm/icons/check'
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
 import Clipboard from 'lucide-react/dist/esm/icons/clipboard'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
-import Image from 'lucide-react/dist/esm/icons/image'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
 import Palette from 'lucide-react/dist/esm/icons/palette'
+import Radio from 'lucide-react/dist/esm/icons/radio'
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import Search from 'lucide-react/dist/esm/icons/search'
@@ -19,6 +20,7 @@ import { browser } from 'wxt/browser'
 import { NativeFidIcon } from '@/components/native-fid-icon'
 import { sendMessage } from '@/lib/messaging'
 import { getSubforumIconId } from '@/lib/subforums'
+import { getSettings, useSettingsStore } from '@/store/settings-store'
 import {
 	clearHiddenThreads,
 	getHiddenThreads,
@@ -45,7 +47,9 @@ import {
 	normalizeMobileLiteBoldColor,
 	saveMobileLiteBoldColorSettings,
 } from '../logic/bold-color'
+import { applyMobileLiteHiddenThreads } from '../logic/hidden-threads'
 import { getMobileLiteImgbbApiKey, saveMobileLiteImgbbApiKey } from '../logic/imgbb-api-key-storage'
+import { syncMobileLiteLiveThreadButton } from '../logic/live-thread'
 
 export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
 
@@ -60,25 +64,35 @@ const USERNAME_MAX_LENGTH = 13
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/
 const USERNAME_VALIDATION_ID = 'mvp-mobile-lite-username-validation'
 const DEFAULT_BOLD_COLOR = '#ffffff'
-const DEFAULT_VIEWPORT_BOUNDS = {
-	height: 0,
-	offsetTop: 0,
-}
+/**
+ * Calm token palette: one neutral surface ramp + a single amber accent (#f0a020),
+ * applied sparingly (active tab, primary action, active toggle) instead of the
+ * previous stacked yellow/gray noise. Literal hex is used throughout so Tailwind's
+ * JIT reliably generates each class. These constants are the single source of truth.
+ *
+ *   base #1c1f27 · raised #363d4d · input #14171d · hover #464e62 · border #4b5468
+ *   text #eef1f6 · muted #aab4c0 · accent #f0a020
+ */
+// Segmented control (pill). Idle = transparent/muted, active = raised pill + accent text.
 const TAB_BASE_CLASS =
-	'inline-flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-md border px-1.5 text-sm font-semibold transition-colors'
-const TAB_ACTIVE_CLASS = 'border-[#d89016] bg-[#856100] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
-const TAB_IDLE_CLASS = 'border-[#4f5965] bg-[#333a45] text-[#eef1f3]'
+	'inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[7px] px-2 text-[13px] font-semibold transition-colors'
+const TAB_ACTIVE_CLASS = 'bg-[#363d4d] text-[#f0a020] shadow-[0_1px_2px_rgba(0,0,0,0.25)]'
+const TAB_IDLE_CLASS = 'bg-transparent text-[#aab4c0] active:bg-[#464e62]'
+// Filter chips: compact, low-noise.
 const FILTER_BASE_CLASS =
-	'inline-flex h-10 min-w-0 items-center justify-center rounded-md border px-1.5 text-xs font-semibold transition-colors'
-const FILTER_ACTIVE_CLASS = 'border-[#d06d00] bg-[#805604] text-white'
-const FILTER_IDLE_CLASS = 'border-[#4c5560] bg-[#333a45] text-[#d8dde2]'
+	'inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors'
+const FILTER_ACTIVE_CLASS = 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
+const FILTER_IDLE_CLASS = 'border-[#4b5468] bg-transparent text-[#aab4c0]'
+// Row actions: neutral by default, subtle accent tint when active (not full yellow fill).
 const ACTION_BUTTON_BASE_CLASS =
-	'inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 text-sm font-semibold transition-colors disabled:opacity-60'
-const ACTION_IDLE_CLASS = 'border-[#626b74] bg-[#5b646e] text-[#eef1f3]'
-const ACTION_MUTE_ACTIVE_CLASS = 'border-[#c69422] bg-[#73570b] text-white'
-const ACTION_HIDE_ACTIVE_CLASS = 'border-[#d06d00] bg-[#8a5b00] text-white'
-const STATUS_SUCCESS_CLASS = 'rounded-md border border-[#556454] bg-[#2f3d34] px-3 py-2 text-sm text-[#d5ead5]'
-const STATUS_ERROR_CLASS = 'rounded-md border border-[#8f3f3f] bg-[#4a2528] px-3 py-2 text-sm text-[#ffd7d7]'
+	'inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 text-[13px] font-semibold transition-colors disabled:opacity-60'
+const ACTION_IDLE_CLASS = 'border-[#4b5468] bg-[#363d4d] text-[#eef1f6] active:bg-[#464e62]'
+const ACTION_MUTE_ACTIVE_CLASS = 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
+const ACTION_HIDE_ACTIVE_CLASS = 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
+const STATUS_SUCCESS_CLASS =
+	'rounded-xl border border-[#3e6e54] bg-gradient-to-br from-[#23402f] to-[#1b3325] px-3.5 py-2.5 text-sm font-medium text-[#caf0d6] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_2px_5px_rgba(0,0,0,0.35)]'
+const STATUS_ERROR_CLASS =
+	'rounded-xl border border-[#7c3c43] bg-gradient-to-br from-[#3a2227] to-[#2b1a1d] px-3.5 py-2.5 text-sm font-medium text-[#f4c6c6] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_2px_5px_rgba(0,0,0,0.35)]'
 
 interface FilteredUser {
 	username: string
@@ -86,7 +100,7 @@ interface FilteredUser {
 }
 
 type ActiveFilter = 'all' | MobileLiteIgnoreType
-type PanelTab = 'users' | 'threads' | 'images' | 'settings'
+type PanelTab = 'users' | 'threads' | 'settings'
 
 function getEmptyData(): UserCustomizationsData {
 	return {
@@ -126,53 +140,6 @@ function safeDecodeURIComponent(value: string): string {
 	} catch {
 		return value
 	}
-}
-
-function getVisualViewportBounds() {
-	const viewport = window.visualViewport
-	return {
-		height: viewport?.height ?? window.innerHeight,
-		offsetTop: viewport?.offsetTop ?? 0,
-	}
-}
-
-function useVisualViewportBounds(enabled: boolean) {
-	const [bounds, setBounds] = useState(DEFAULT_VIEWPORT_BOUNDS)
-	const initialBoundsRef = useRef<typeof DEFAULT_VIEWPORT_BOUNDS | null>(null)
-
-	useEffect(() => {
-		if (!enabled) {
-			initialBoundsRef.current = null
-			setBounds(DEFAULT_VIEWPORT_BOUNDS)
-			return
-		}
-
-		const initialBounds = getVisualViewportBounds()
-		initialBoundsRef.current = initialBounds
-		setBounds(initialBounds)
-
-		const updateBounds = () => {
-			const nextBounds = getVisualViewportBounds()
-			const lockedBounds = initialBoundsRef.current
-			setBounds({
-				height: lockedBounds ? Math.min(nextBounds.height, lockedBounds.height) : nextBounds.height,
-				offsetTop: nextBounds.offsetTop,
-			})
-		}
-
-		window.addEventListener('resize', updateBounds)
-		window.visualViewport?.addEventListener('resize', updateBounds)
-		window.visualViewport?.addEventListener('scroll', updateBounds)
-
-		return () => {
-			window.removeEventListener('resize', updateBounds)
-			window.visualViewport?.removeEventListener('resize', updateBounds)
-			window.visualViewport?.removeEventListener('scroll', updateBounds)
-			initialBoundsRef.current = null
-		}
-	}, [enabled])
-
-	return bounds
 }
 
 function getUsernameValidationMessage(username: string): string | null {
@@ -248,6 +215,9 @@ export function MobileLitePanel() {
 	const [boldColor, setBoldColor] = useState(DEFAULT_BOLD_COLOR)
 	const [boldColorDraft, setBoldColorDraft] = useState(DEFAULT_BOLD_COLOR)
 	const [boldColorEnabled, setBoldColorEnabled] = useState(false)
+	const [boldColorExpanded, setBoldColorExpanded] = useState(false)
+	const [liveThreadEnabled, setLiveThreadEnabled] = useState(false)
+	const [hideThreadButtonEnabled, setHideThreadButtonEnabled] = useState(true)
 	const [hiddenThreads, setHiddenThreads] = useState<HiddenThread[]>([])
 	const [hiddenThreadQuery, setHiddenThreadQuery] = useState('')
 	const [restoringThread, setRestoringThread] = useState<string | null>(null)
@@ -262,7 +232,9 @@ export function MobileLitePanel() {
 	const [savingBoldColor, setSavingBoldColor] = useState(false)
 	const [boldColorStatusMessage, setBoldColorStatusMessage] = useState<string | null>(null)
 	const [boldColorErrorMessage, setBoldColorErrorMessage] = useState<string | null>(null)
-	const viewportBounds = useVisualViewportBounds(open)
+	const [savingMobileLiteSetting, setSavingMobileLiteSetting] = useState<'liveThreadEnabled' | 'hideThreadEnabled' | null>(null)
+	const [mobileLiteSettingsStatusMessage, setMobileLiteSettingsStatusMessage] = useState<string | null>(null)
+	const [mobileLiteSettingsErrorMessage, setMobileLiteSettingsErrorMessage] = useState<string | null>(null)
 	const avatarHydrationInFlight = useRef<Set<string>>(new Set())
 	const panelBodyRef = useRef<HTMLDivElement>(null)
 
@@ -343,6 +315,17 @@ export function MobileLitePanel() {
 			.catch(() => {
 				if (mounted) setBoldColorErrorMessage('No se pudo cargar el color de negrita.')
 			})
+		getSettings()
+			.then(settings => {
+				if (!mounted) return
+				setLiveThreadEnabled(settings.liveThreadEnabled === true)
+				setHideThreadButtonEnabled(settings.hideThreadEnabled !== false)
+				setMobileLiteSettingsStatusMessage(null)
+				setMobileLiteSettingsErrorMessage(null)
+			})
+			.catch(() => {
+				if (mounted) setMobileLiteSettingsErrorMessage('No se pudieron cargar los ajustes de Mobile Lite.')
+			})
 		getHiddenThreads()
 			.then(nextThreads => {
 				if (mounted) setHiddenThreads(nextThreads)
@@ -397,7 +380,6 @@ export function MobileLitePanel() {
 	const usernameValidationMessage = getUsernameValidationMessage(exactQueryUsername)
 	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
-	const hasScrollablePanelContent = activeTab === 'users' ? hasAnyFilteredUsers : activeTab === 'threads' ? hiddenThreads.length > 0 : false
 	const missingAvatarCount = allFilteredUsers.filter(user => !user.customization.avatarUrl).length
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
 	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
@@ -650,6 +632,42 @@ export function MobileLitePanel() {
 		}
 	}
 
+	const toggleLiveThreadSetting = async () => {
+		const nextEnabled = !liveThreadEnabled
+		setSavingMobileLiteSetting('liveThreadEnabled')
+		setMobileLiteSettingsErrorMessage(null)
+		setMobileLiteSettingsStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('liveThreadEnabled', nextEnabled)
+			setLiveThreadEnabled(nextEnabled)
+			await syncMobileLiteLiveThreadButton(nextEnabled)
+			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Modo Live activado.' : 'Modo Live desactivado.')
+		} catch {
+			setLiveThreadEnabled(!nextEnabled)
+			setMobileLiteSettingsErrorMessage('No se pudo cambiar el Modo Live.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
+
+	const toggleHideThreadButtonSetting = () => {
+		const nextEnabled = !hideThreadButtonEnabled
+		setSavingMobileLiteSetting('hideThreadEnabled')
+		setMobileLiteSettingsErrorMessage(null)
+		setMobileLiteSettingsStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('hideThreadEnabled', nextEnabled)
+			setHideThreadButtonEnabled(nextEnabled)
+			applyMobileLiteHiddenThreads()
+			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Botón de ocultar hilos activado.' : 'Botón de ocultar hilos desactivado.')
+		} catch {
+			setHideThreadButtonEnabled(!nextEnabled)
+			setMobileLiteSettingsErrorMessage('No se pudo cambiar el botón de ocultar hilos.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
+
 	const restoreHiddenThread = async (thread: HiddenThread) => {
 		const previousThreads = hiddenThreads
 		const previousScrollTop = panelBodyRef.current?.scrollTop
@@ -692,50 +710,40 @@ export function MobileLitePanel() {
 
 	if (!open) return null
 
-	const overlayStyle: CSSProperties | undefined = viewportBounds.height
-		? {
-				height: `${viewportBounds.height}px`,
-				top: `${viewportBounds.offsetTop}px`,
-			}
-		: undefined
-	const panelShellClass = `absolute inset-x-0 top-0 mx-auto flex w-full max-w-[34rem] flex-col overflow-hidden border-y border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl sm:left-1/2 sm:right-auto sm:w-[calc(100%_-_24px)] sm:-translate-x-1/2 sm:border ${
-		hasScrollablePanelContent
-			? 'bottom-0 max-h-full sm:bottom-[max(12px,env(safe-area-inset-bottom))] sm:top-[max(12px,env(safe-area-inset-top))] sm:rounded-lg'
-			: 'max-h-[calc(100%_-_max(12px,env(safe-area-inset-bottom)))] rounded-b-lg sm:top-[max(12px,env(safe-area-inset-top))] sm:rounded-lg'
-	}`
-	const panelBodyClass = `overflow-y-auto overscroll-contain bg-[#384149] px-3 pb-[max(16px,calc(env(safe-area-inset-bottom)_+_16px))] ${
-		hasScrollablePanelContent ? 'min-h-0 flex-1' : ''
-	}`
-
 	return (
-		<div className="fixed inset-x-0 top-0 z-[99999] h-[100dvh] overflow-hidden overscroll-none bg-black/65" style={overlayStyle}>
+		<div className="fixed inset-0 z-[99999] flex h-[100dvh] items-end justify-center overflow-hidden overscroll-none bg-black/60 animate-in fade-in-0 duration-200">
 			<button type="button" className="absolute inset-0 h-full w-full cursor-default" aria-label="Cerrar panel MVP" onClick={() => setOpen(false)} />
 
-			<section className={panelShellClass}>
-				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-3 pb-2 pt-[max(8px,env(safe-area-inset-top))]">
-					<div className="flex min-w-0 items-center gap-2.5">
-						<img src={logoUrl} alt="" className="h-8 w-8 shrink-0 rounded-md object-contain" aria-hidden="true" />
-						<div className="flex min-w-0 items-baseline gap-2">
-							<h2 className="truncate text-[17px] font-black uppercase leading-none tracking-tight">
-								<span>MV</span>
-								<span className="italic text-[#f0a020]">Premium</span>
-							</h2>
-							<p className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-[#c5cbd2]">Dashboard</p>
-						</div>
+			<section className="relative flex h-[88%] w-full max-w-[34rem] flex-col overflow-hidden rounded-t-[20px] border-x border-t border-[#4b5468] bg-[#1c1f27] text-[#eef1f6] shadow-[0_-10px_40px_rgba(0,0,0,0.55)] animate-in slide-in-from-bottom-8 duration-300 ease-out">
+				<header className="shrink-0 bg-[#1c1f27] pt-[max(8px,env(safe-area-inset-top))]">
+					{/* Grab handle */}
+					<div className="flex justify-center pb-1 pt-1.5">
+						<span className="h-1 w-9 rounded-full bg-[#4a5160]" aria-hidden="true" />
 					</div>
-					<button
-						type="button"
-						className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-[#56606a] bg-[#4a525d] text-[#eef1f3] transition-colors active:bg-[#59626d]"
-						aria-label="Cerrar"
-						onClick={() => setOpen(false)}
-					>
-						<X className="h-5 w-5" aria-hidden="true" />
-					</button>
+					<div className="flex items-center justify-between px-3 pb-3 pt-1">
+						<div className="flex min-w-0 items-center gap-2.5">
+							<img src={logoUrl} alt="" className="h-8 w-8 shrink-0 rounded-md object-contain" aria-hidden="true" />
+							<div className="flex min-w-0 flex-col">
+								<h2 className="truncate text-[15px] font-black uppercase leading-none tracking-tight">
+									MV<span className="text-[#f0a020]">PREMIUM</span>
+								</h2>
+								<span className="mt-1 text-[9px] font-bold uppercase leading-none tracking-[0.22em] text-[#8b95a3]">Dashboard</span>
+							</div>
+						</div>
+						<button
+							type="button"
+							className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#aab4c0] transition-colors active:bg-[#464e62]"
+							aria-label="Cerrar"
+							onClick={() => setOpen(false)}
+						>
+							<X className="h-5 w-5" aria-hidden="true" />
+						</button>
+					</div>
 				</header>
 
-				<div ref={panelBodyRef} className={panelBodyClass}>
-					<div className="sticky top-0 z-20 -mx-3 mb-3 bg-[#384149] px-3 pb-2 pt-3 shadow-[0_10px_18px_rgba(24,28,34,0.22)]">
-						<div className="grid grid-cols-2 gap-1 rounded-lg border border-[#3f4853] bg-[#323942] p-1 sm:grid-cols-4" role="tablist" aria-label="Secciones del panel MVPremium">
+				<div ref={panelBodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#1c1f27] px-3 pb-[max(16px,calc(env(safe-area-inset-bottom)_+_16px))]">
+					<div className="sticky top-0 z-20 -mx-3 mb-3 bg-[#1c1f27] px-3 pb-2 pt-3">
+						<div className="flex gap-1 rounded-[10px] border border-[#4b5468] bg-[#14171d] p-1" role="tablist" aria-label="Secciones del panel MVPremium">
 						<button
 							type="button"
 							role="tab"
@@ -760,22 +768,12 @@ export function MobileLitePanel() {
 								<span
 									aria-hidden="true"
 									className={`ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-5 ${
-										activeTab === 'threads' ? 'bg-[#252b31]/85 text-white' : 'bg-[#252b31] text-[#d8dde2]'
+										activeTab === 'threads' ? 'bg-[#f0a020]/[0.18] text-[#f0a020]' : 'bg-[#464e62] text-[#aab4c0]'
 									}`}
 								>
 									{hiddenThreads.length}
 								</span>
 							)}
-						</button>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={activeTab === 'images'}
-							className={`${TAB_BASE_CLASS} ${activeTab === 'images' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
-							onClick={() => setActiveTab('images')}
-						>
-							<Image className="h-4 w-4" aria-hidden="true" />
-							ImgBB
 						</button>
 						<button
 							type="button"
@@ -799,7 +797,7 @@ export function MobileLitePanel() {
 							)}
 
 							<label className="relative block">
-								<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#aeb6be]" aria-hidden="true" />
+								<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8b95a3]" aria-hidden="true" />
 								<input
 									type="search"
 									value={query}
@@ -811,7 +809,7 @@ export function MobileLitePanel() {
 										setStatusMessage(null)
 									}}
 									placeholder="Buscar o añadir nick (3-13)"
-									className="h-11 w-full rounded-md border border-[#505963] bg-[#282f38] pl-10 pr-3 text-base text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
+									className="h-11 w-full rounded-md border border-[#4b5468] bg-[#14171d] pl-10 pr-3 text-base text-[#eef1f3] outline-none placeholder:text-[#8b95a3] focus:border-[#f0a020] focus:shadow-[0_0_0_1px_rgba(240,160,32,0.35)]"
 								/>
 							</label>
 
@@ -841,7 +839,7 @@ export function MobileLitePanel() {
 												onClick={() => setActiveFilter(option.id)}
 											>
 												<span className="truncate">{option.label}</span>
-												<span className="ml-1 shrink-0 rounded bg-[#252b31]/80 px-1.5 py-0.5 text-[11px] leading-none text-[#eef1f3]">
+												<span className="ml-1 shrink-0 rounded bg-black/25 px-1.5 py-0.5 text-[11px] leading-none">
 													({option.count})
 												</span>
 											</button>
@@ -853,7 +851,7 @@ export function MobileLitePanel() {
 							{hasAnyFilteredUsers && (
 								<button
 									type="button"
-									className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-[#5a646f] bg-[#4b535d] px-3 text-sm font-semibold text-[#e3e7eb] transition-colors disabled:opacity-60"
+									className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-[#4b5468] bg-[#363d4d] px-3 text-[13px] font-semibold text-[#aab4c0] transition-colors active:bg-[#464e62] disabled:opacity-60"
 									disabled={refreshingAvatars || missingAvatarCount === 0}
 									onClick={refreshMissingAvatars}
 								>
@@ -869,9 +867,9 @@ export function MobileLitePanel() {
 							)}
 
 							{canAddQueryUser && (
-								<div className="mt-3 rounded-md border border-dashed border-[#65707b] bg-[#323b45] p-3">
+								<div className="mt-3 rounded-lg border border-dashed border-[#4a5160] bg-[#14171d] p-3">
 									<div className="flex items-center gap-2 text-sm font-medium">
-										<UserX className="h-4 w-4 text-[#b7bec6]" aria-hidden="true" />
+										<UserX className="h-4 w-4 text-[#aab4c0]" aria-hidden="true" />
 										<span className="min-w-0 truncate">{exactQueryDisplayName}</span>
 									</div>
 									<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-2">
@@ -899,13 +897,13 @@ export function MobileLitePanel() {
 
 							<div className="mt-4 space-y-2">
 								{filteredUsers.length === 0 ? (
-									<div className="rounded-md border border-[#4b545d] bg-[#333b46] px-4 py-7 text-center text-sm text-[#c5cbd2]">
-										<UserX className="mx-auto mb-3 h-5 w-5 text-[#9fa8b2]" aria-hidden="true" />
-										<p className="font-semibold text-[#d8dde2]">
+									<div className="rounded-lg border border-[#4b5468] bg-[#363d4d] px-4 py-7 text-center text-sm text-[#aab4c0]">
+										<UserX className="mx-auto mb-3 h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
+										<p className="font-semibold text-[#eef1f6]">
 											{hasAnyFilteredUsers ? 'No hay resultados para este filtro.' : 'No hay usuarios filtrados.'}
 										</p>
 										{!hasAnyFilteredUsers && (
-											<p className="mx-auto mt-1 max-w-[22rem] text-xs leading-relaxed text-[#aeb6be]">
+											<p className="mx-auto mt-1 max-w-[22rem] text-xs leading-relaxed text-[#8b95a3]">
 												Escribe un nick exacto para silenciarlo u ocultarlo desde este panel.
 											</p>
 										)}
@@ -916,51 +914,55 @@ export function MobileLitePanel() {
 										const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
 
 										return (
-											<article key={user.username} className="rounded-md border border-[#4b545d] bg-[#3f4853] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-												<div className="flex items-center gap-3">
-													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#252b31] text-sm font-bold">
-														{user.customization.avatarUrl ? (
-															<img src={user.customization.avatarUrl} alt="" className="h-full w-full object-cover" />
-														) : (
-															user.username.slice(0, 1).toUpperCase()
-														)}
-													</div>
-													<div className="min-w-0 flex-1">
-														<div className="truncate text-base font-semibold">{user.username}</div>
-													</div>
+											<article key={user.username} className="flex items-center gap-2.5 rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
+												<div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#14171d] text-sm font-bold">
+													{user.customization.avatarUrl ? (
+														<img src={user.customization.avatarUrl} alt="" className="h-full w-full object-cover" />
+													) : (
+														user.username.slice(0, 1).toUpperCase()
+													)}
 												</div>
-
-												<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-2">
+												<div className="min-w-0 flex-1">
+													<div className="truncate text-sm font-semibold leading-tight">{user.username}</div>
+													<div className="text-[11px] leading-tight text-[#8b95a3]">{ignoreType === 'mute' ? 'Silenciado' : 'Oculto'}</div>
+												</div>
+												<div className="flex shrink-0 items-center gap-1">
 													<button
 														type="button"
-														className={`${ACTION_BUTTON_BASE_CLASS} ${
-															ignoreType === 'mute' ? ACTION_MUTE_ACTIVE_CLASS : ACTION_IDLE_CLASS
+														aria-label={ignoreType === 'mute' ? 'Silenciado' : 'Silenciar'}
+														aria-pressed={ignoreType === 'mute'}
+														className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-60 ${
+															ignoreType === 'mute'
+																? 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
+																: 'border-[#4b5468] bg-[#1c1f27] text-[#aab4c0] active:bg-[#464e62]'
 														}`}
 														disabled={isSaving}
 														onClick={() => updateFilter(user.username, 'mute')}
 													>
 														<VolumeX className="h-4 w-4" aria-hidden="true" />
-														<span>{ignoreType === 'mute' ? 'Silenciado' : 'Silenciar'}</span>
 													</button>
 													<button
 														type="button"
-														className={`${ACTION_BUTTON_BASE_CLASS} ${
-															ignoreType === 'hide' ? ACTION_HIDE_ACTIVE_CLASS : ACTION_IDLE_CLASS
+														aria-label={ignoreType === 'hide' ? 'Ocultado' : 'Ocultar'}
+														aria-pressed={ignoreType === 'hide'}
+														className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-60 ${
+															ignoreType === 'hide'
+																? 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
+																: 'border-[#4b5468] bg-[#1c1f27] text-[#aab4c0] active:bg-[#464e62]'
 														}`}
 														disabled={isSaving}
 														onClick={() => updateFilter(user.username, 'hide')}
 													>
 														<EyeOff className="h-4 w-4" aria-hidden="true" />
-														<span>{ignoreType === 'hide' ? 'Ocultado' : 'Ocultar'}</span>
 													</button>
 													<button
 														type="button"
-														className="col-span-full inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-md border border-[#5a646f] bg-[#4b535d] px-2 text-sm font-semibold text-[#e3e7eb] transition-colors disabled:opacity-60"
+														aria-label="Quitar"
+														className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#5a3236]/70 bg-[#2c1d1f] text-[#e08a8a] transition-colors active:bg-[#3a2427] active:text-[#f2c2c2] disabled:opacity-60"
 														disabled={isSaving}
 														onClick={() => removeUserFilter(user.username)}
 													>
 														<Trash2 className="h-4 w-4" aria-hidden="true" />
-														<span>Quitar</span>
 													</button>
 												</div>
 											</article>
@@ -984,18 +986,18 @@ export function MobileLitePanel() {
 							)}
 
 							{hiddenThreads.length === 0 ? (
-								<div className="rounded-md border border-[#4b545d] bg-[#333b46] px-4 py-7 text-center text-sm text-[#c5cbd2]">
-									<EyeOff className="mx-auto mb-3 h-5 w-5 text-[#9fa8b2]" aria-hidden="true" />
-									<p className="font-semibold text-[#d8dde2]">No hay hilos ocultos.</p>
-									<p className="mx-auto mt-1 max-w-[22rem] text-xs leading-relaxed text-[#aeb6be]">
+								<div className="rounded-lg border border-[#4b5468] bg-[#363d4d] px-4 py-7 text-center text-sm text-[#aab4c0]">
+									<EyeOff className="mx-auto mb-3 h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
+									<p className="font-semibold text-[#eef1f6]">No hay hilos ocultos.</p>
+									<p className="mx-auto mt-1 max-w-[22rem] text-xs leading-relaxed text-[#8b95a3]">
 										Los hilos que ocultes desde los listados aparecerán aquí.
 									</p>
 								</div>
 							) : (
 								<>
-									<div className="sticky top-[70px] z-10 -mx-3 space-y-2 bg-[#384149] px-3 pb-2 pt-1 shadow-[0_10px_18px_rgba(24,28,34,0.18)]">
+									<div className="sticky top-[64px] z-10 -mx-3 space-y-2 bg-[#1c1f27] px-3 pb-2 pt-1">
 										<label className="relative block min-w-0">
-											<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#aeb6be]" aria-hidden="true" />
+											<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8b95a3]" aria-hidden="true" />
 											<input
 												type="search"
 												value={hiddenThreadQuery}
@@ -1003,13 +1005,13 @@ export function MobileLitePanel() {
 												spellCheck={false}
 												onChange={event => setHiddenThreadQuery(event.target.value)}
 												placeholder="Buscar hilo o subforo"
-												className="h-11 w-full rounded-md border border-[#505963] bg-[#282f38] pl-10 pr-3 text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
+												className="h-11 w-full rounded-md border border-[#4b5468] bg-[#14171d] pl-10 pr-3 text-sm text-[#eef1f3] outline-none placeholder:text-[#8b95a3] focus:border-[#f0a020] focus:shadow-[0_0_0_1px_rgba(240,160,32,0.35)]"
 											/>
 										</label>
 										<button
 											type="button"
 											aria-label="Mostrar todos"
-											className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md border border-[#66736a] bg-[#405347] px-3 text-sm font-semibold text-[#e8f6eb] transition-colors active:bg-[#4a6252] disabled:opacity-60"
+											className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#4b5468] bg-[#363d4d] px-3 text-[13px] font-semibold text-[#f0a020] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_2px_4px_rgba(0,0,0,0.3)] transition-colors active:bg-[#3c4559] disabled:opacity-60"
 											disabled={clearingHiddenThreads}
 											onClick={() => setConfirmClearHiddenThreads(true)}
 										>
@@ -1019,9 +1021,9 @@ export function MobileLitePanel() {
 									</div>
 
 									{filteredHiddenThreads.length === 0 ? (
-										<div className="rounded-md border border-[#4b545d] bg-[#333b46] px-4 py-7 text-center text-sm text-[#c5cbd2]">
-											<EyeOff className="mx-auto mb-3 h-5 w-5 text-[#9fa8b2]" aria-hidden="true" />
-											<p className="font-semibold text-[#d8dde2]">No hay resultados.</p>
+										<div className="rounded-lg border border-[#4b5468] bg-[#363d4d] px-4 py-7 text-center text-sm text-[#aab4c0]">
+											<EyeOff className="mx-auto mb-3 h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
+											<p className="font-semibold text-[#eef1f6]">No hay resultados.</p>
 										</div>
 									) : (
 										<div className="space-y-2.5">
@@ -1032,27 +1034,27 @@ export function MobileLitePanel() {
 												const hiddenAtLabel = formatHiddenThreadDate(thread.hiddenAt)
 
 												return (
-													<article key={thread.id} className="grid grid-cols-[minmax(0,1fr)_52px] overflow-hidden rounded-md border border-[#596272] bg-[#424b5b] shadow-[0_1px_0_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)]">
-														<div className="min-w-0 px-3 py-3">
-															<div className="flex min-w-0 items-start gap-3">
+													<article key={thread.id} className="grid grid-cols-[minmax(0,1fr)_48px] overflow-hidden rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
+														<div className="min-w-0 px-3 py-2.5">
+															<div className="flex min-w-0 items-start gap-2.5">
 																{subforumIconId !== null && (
-																	<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#687383] bg-[#343c49] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-																		<NativeFidIcon iconId={subforumIconId} className="h-6 w-6 shrink-0" />
+																	<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[#4a5269] bg-[#232834]">
+																		<NativeFidIcon iconId={subforumIconId} className="h-5 w-5 shrink-0" />
 																	</div>
 																)}
 																<div className="min-w-0 flex-1">
-																	<div className="line-clamp-2 text-base font-bold leading-snug text-[#f2f4f7]">{thread.title}</div>
-																	<div className="mt-1 flex min-w-0 items-center justify-between gap-3 text-xs font-semibold text-[#c4ccd5]">
+																	<div className="line-clamp-2 text-sm font-semibold leading-snug text-[#eef1f6]">{thread.title}</div>
+																	<div className="mt-0.5 flex min-w-0 items-center justify-between gap-3 text-[11px] font-semibold text-[#aab4c0]">
 																		<span className="min-w-0 truncate">{thread.subforum}</span>
-																		{hiddenAtLabel && <span className="shrink-0 tabular-nums font-medium text-[#aeb6be]">{hiddenAtLabel}</span>}
+																		{hiddenAtLabel && <span className="shrink-0 tabular-nums font-medium text-[#8b95a3]">{hiddenAtLabel}</span>}
 																	</div>
 																</div>
 															</div>
 														</div>
-														<div className="flex items-center justify-center border-l border-[#596272] bg-[#394353] p-1">
+														<div className="flex items-center justify-center pl-1 pr-2">
 															<button
 																type="button"
-																className="inline-flex h-11 w-11 items-center justify-center rounded-md border border-[#607666] bg-[#465f4e] text-[#e8f6eb] transition-colors active:bg-[#52705b] disabled:opacity-60"
+																className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#f0a020] transition-colors active:bg-[#f0a020]/15 disabled:opacity-60"
 																aria-label="Mostrar"
 																title="Mostrar"
 																disabled={isRestoring}
@@ -1069,11 +1071,12 @@ export function MobileLitePanel() {
 								</>
 							)}
 						</div>
-					) : activeTab === 'images' ? (
+					) : (
 						<div className="space-y-3">
-							<div className="rounded-md border border-[#4b545d] bg-[#333b46] p-3">
+							<div className="px-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a3]">Imágenes</div>
+							<div className="rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
 								<div className="flex items-start gap-3">
-									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#252b31] text-[#f0a020]">
+									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f0a020]/15 text-[#f0a020]">
 										<KeyRound className="h-5 w-5" aria-hidden="true" />
 									</div>
 									<div className="min-w-0 flex-1">
@@ -1088,7 +1091,7 @@ export function MobileLitePanel() {
 												{isImgbbConfigured ? 'ImgBB activo' : 'Freeimage gratis'}
 											</span>
 										</div>
-										<p className="mt-1 text-sm text-[#c4cad0]">
+										<p className="mt-1 text-sm text-[#aab4c0]">
 											{isImgbbConfigured
 												? 'Tus subidas de imágenes usarán ImgBB con tu API key.'
 												: 'Sin API key se usará Freeimage, el servicio gratuito por defecto.'}
@@ -1096,7 +1099,7 @@ export function MobileLitePanel() {
 									</div>
 								</div>
 
-								<label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-[#b7bec6]" htmlFor="mvp-mobile-lite-imgbb-key">
+								<label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-[#8b95a3]" htmlFor="mvp-mobile-lite-imgbb-key">
 									API key
 								</label>
 								<input
@@ -1112,13 +1115,13 @@ export function MobileLitePanel() {
 										setImgbbErrorMessage(null)
 									}}
 									placeholder="Pega tu API key de ImgBB"
-									className="mt-2 h-11 w-full rounded-md border border-[#505963] bg-[#282f38] px-3 font-mono text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
+									className="mt-2 h-11 w-full rounded-md border border-[#4b5468] bg-[#14171d] px-3 font-mono text-sm text-[#eef1f3] outline-none placeholder:text-[#8b95a3] focus:border-[#f0a020] focus:shadow-[0_0_0_1px_rgba(240,160,32,0.35)]"
 								/>
 
 								<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(116px,1fr))] gap-2">
 									<button
 										type="button"
-										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#5b646e] px-2 text-sm font-semibold transition-colors active:bg-[#66717c]"
+										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#4a5160] bg-[#464e62] px-2 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#343b45]"
 										onClick={pasteImgbbApiKey}
 									>
 										<Clipboard className="h-4 w-4" aria-hidden="true" />
@@ -1126,7 +1129,8 @@ export function MobileLitePanel() {
 									</button>
 									<button
 										type="button"
-										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#d06d00] bg-[#8a5b00] px-2 text-sm font-semibold text-white transition-colors disabled:border-[#5a646f] disabled:bg-[#4b535d] disabled:text-[#b7bec6]"
+										aria-label="Guardar API key de ImgBB"
+										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#d06d00] bg-[#8a5b00] px-2 text-sm font-semibold text-white transition-colors disabled:border-[#4b5468] disabled:bg-[#363d4d] disabled:text-[#8b95a3]"
 										disabled={savingImgbbApiKey || !isImgbbDirty}
 										onClick={saveImgbbApiKey}
 									>
@@ -1152,39 +1156,34 @@ export function MobileLitePanel() {
 								href="https://api.imgbb.com/"
 								target="_blank"
 								rel="noopener noreferrer"
-								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#56616b] bg-[#333a45] px-3 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#3d4651]"
+								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#4b5468] bg-[#363d4d] px-3 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#3d4651]"
 							>
 								<ExternalLink className="h-4 w-4" aria-hidden="true" />
 								Obtener API key
 							</a>
-						</div>
-					) : (
-						<div className="space-y-3">
-							<section className="rounded-md border border-[#4b545d] bg-[#333b46] p-3">
-								<div className="flex items-start gap-3">
-									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#252b31] text-[#f0a020]">
-										<Palette className="h-5 w-5" aria-hidden="true" />
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="text-xs font-semibold uppercase tracking-wide text-[#b7bec6]">Lectura</div>
-										<div className="mt-0.5 text-base font-semibold text-[#f2f4f7]">Color de negrita</div>
-										<p className="mt-1 text-sm leading-relaxed text-[#c4cad0]">
-											Usa un color propio para el texto en negrita de los posts.
-										</p>
-									</div>
-								</div>
 
+							<div className="mt-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a3]">Apariencia</div>
+
+							<section className="overflow-hidden rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
 								<div
-									className={`mt-4 flex items-center justify-between gap-3 rounded-md border px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-										boldColorEnabled
-											? 'border-[#7d672a] bg-[#343225]'
-											: 'border-[#596272] bg-[#2b333d]'
+									className={`grid min-h-[68px] grid-cols-[40px_minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-3 ${
+										boldColorEnabled ? 'bg-transparent' : 'bg-transparent'
 									}`}
 								>
+									<div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#4a5160] bg-[#14171d]">
+										<span
+											className="h-6 w-6 rounded border border-[#4a5160] shadow-[0_1px_3px_rgba(0,0,0,0.35)]"
+											style={{ backgroundColor: normalizedBoldColorDraft }}
+											aria-hidden="true"
+										/>
+									</div>
 									<div className="min-w-0">
-										<div className="text-sm font-semibold text-[#eef1f3]">Color personalizado</div>
-										<div className="mt-0.5 text-xs text-[#aeb6be]">
-											{boldColorEnabled ? 'Activo en Mediavida' : 'Sin aplicar; se usa el color nativo'}
+										<div className="flex min-w-0 items-center gap-2">
+											<Palette className="h-4 w-4 shrink-0 text-[#f0a020]" aria-hidden="true" />
+											<div className="truncate text-sm font-semibold text-[#eef1f3]">Color de negrita</div>
+										</div>
+										<div className="mt-0.5 truncate text-xs text-[#8b95a3]">
+											{boldColorEnabled ? 'Activo en Mediavida' : 'Se usa el color nativo'}
 										</div>
 									</div>
 									<button
@@ -1192,77 +1191,164 @@ export function MobileLitePanel() {
 										role="switch"
 										aria-label="Color personalizado"
 										aria-checked={boldColorEnabled}
-										className={`relative h-8 w-14 shrink-0 rounded-full border transition-colors disabled:opacity-60 ${
-											boldColorEnabled ? 'border-[#d89016] bg-[#9a6d00]' : 'border-[#5a646f] bg-[#4b535d]'
+										className={`relative h-11 w-16 shrink-0 rounded-full border transition-colors disabled:opacity-60 ${
+											boldColorEnabled ? 'border-[#f0a020] bg-[#f0a020]' : 'border-[#4a5160] bg-[#464e62]'
 										}`}
 										disabled={savingBoldColor}
 										onClick={toggleBoldColor}
 									>
 										<span
-											className={`pointer-events-none absolute left-1 top-1 h-6 w-6 rounded-full bg-white shadow transition-transform ${
-												boldColorEnabled ? 'translate-x-6' : 'translate-x-0'
+											className={`pointer-events-none absolute left-2 top-2 h-7 w-7 rounded-full bg-white shadow transition-transform ${
+												boldColorEnabled ? 'translate-x-5' : 'translate-x-0'
+											}`}
+										/>
+									</button>
+									<button
+										type="button"
+										aria-expanded={boldColorExpanded}
+										aria-label={boldColorExpanded ? 'Ocultar ajustes de color' : 'Editar color de negrita'}
+										className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[#4a5160] bg-[#464e62] text-[#eef1f6] transition-colors active:bg-[#343b45]"
+										onClick={() => setBoldColorExpanded(value => !value)}
+									>
+										<ChevronDown
+											className={`h-4 w-4 transition-transform ${boldColorExpanded ? 'rotate-180' : ''}`}
+											aria-hidden="true"
+										/>
+									</button>
+								</div>
+
+								{boldColorExpanded && (
+									<div className="border-t border-[#4b5468] bg-[#1c1f27] p-3">
+										<label className="block text-xs font-semibold uppercase tracking-wide text-[#8b95a3]" htmlFor="mvp-mobile-lite-bold-color">
+											Color
+										</label>
+										<div className="mt-2 grid grid-cols-[56px_minmax(0,1fr)] gap-2">
+											<input
+												id="mvp-mobile-lite-bold-color"
+												type="color"
+												value={normalizedBoldColorDraft}
+												disabled={savingBoldColor}
+												onChange={event => {
+													setBoldColorDraft(event.target.value)
+													setBoldColorStatusMessage(null)
+													setBoldColorErrorMessage(null)
+												}}
+												className="h-11 w-full rounded-md border border-[#4a5160] bg-[#14171d] p-1"
+											/>
+											<input
+												type="text"
+												value={boldColorDraft}
+												autoCapitalize="none"
+												autoCorrect="off"
+												spellCheck={false}
+												disabled={savingBoldColor}
+												onChange={event => {
+													setBoldColorDraft(event.target.value)
+													setBoldColorStatusMessage(null)
+													setBoldColorErrorMessage(null)
+												}}
+												className="h-11 w-full rounded-md border border-[#4a5160] bg-[#14171d] px-3 font-mono text-sm text-[#eef1f6] outline-none placeholder:text-[#8b95a3] focus:border-[#f0a020] focus:shadow-[0_0_0_1px_rgba(240,160,32,0.35)]"
+											/>
+										</div>
+
+										<div className="mt-3 rounded-md border border-[#4b5468] bg-[#14171d] px-3 py-3 text-sm leading-relaxed text-[#cfd5db]">
+											Texto normal y{' '}
+											<strong style={{ color: boldColorEnabled ? normalizedBoldColorDraft : 'inherit' }}>
+												texto en negrita
+											</strong>
+										</div>
+
+										<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(116px,1fr))] gap-2">
+											<button
+												type="button"
+												className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#4a5160] bg-[#464e62] px-2 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#343b45] disabled:border-[#4b5468] disabled:bg-[#363d4d] disabled:text-[#8b95a3]"
+												disabled={savingBoldColor || (boldColor === DEFAULT_BOLD_COLOR && normalizedBoldColorDraft === DEFAULT_BOLD_COLOR)}
+												onClick={resetBoldColor}
+											>
+												<RotateCcw className="h-4 w-4" aria-hidden="true" />
+												Restaurar
+											</button>
+											<button
+												type="button"
+												aria-label="Guardar color de negrita"
+												className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#f0a020] bg-[#8a5b00] px-2 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-colors active:bg-[#9c6900] disabled:border-[#4b5468] disabled:bg-[#454d59] disabled:text-[#8b95a3] disabled:shadow-none"
+												disabled={savingBoldColor || !isBoldColorDirty}
+												onClick={saveBoldColor}
+											>
+												<Bold className="h-4 w-4" aria-hidden="true" />
+												{savingBoldColor ? 'Guardando' : 'Guardar'}
+											</button>
+										</div>
+									</div>
+								)}
+							</section>
+
+							<div className="mt-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a3]">Hilos</div>
+
+							<section className="overflow-hidden rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
+								<div
+									className={`flex min-h-[68px] items-center justify-between gap-3 px-3 py-3 ${
+										liveThreadEnabled ? 'bg-transparent' : 'bg-transparent'
+									}`}
+								>
+									<div className="flex min-w-0 items-start gap-3">
+										<Radio className="mt-0.5 h-4 w-4 shrink-0 text-[#f0a020]" aria-hidden="true" />
+										<div className="min-w-0">
+											<div className="text-sm font-semibold text-[#eef1f3]">Modo Live</div>
+											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
+												{liveThreadEnabled ? 'Muestra el botón Live en los hilos' : 'No muestra el botón Live'}
+											</div>
+										</div>
+									</div>
+									<button
+										type="button"
+										role="switch"
+										aria-label="Modo Live"
+										aria-checked={liveThreadEnabled}
+										className={`relative h-11 w-16 shrink-0 rounded-full border transition-colors disabled:opacity-60 ${
+											liveThreadEnabled ? 'border-[#f0a020] bg-[#f0a020]' : 'border-[#4a5160] bg-[#464e62]'
+										}`}
+										disabled={savingMobileLiteSetting === 'liveThreadEnabled'}
+										onClick={toggleLiveThreadSetting}
+									>
+										<span
+											className={`pointer-events-none absolute left-2 top-2 h-7 w-7 rounded-full bg-white shadow transition-transform ${
+												liveThreadEnabled ? 'translate-x-5' : 'translate-x-0'
 											}`}
 										/>
 									</button>
 								</div>
 
-								<label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-[#b7bec6]" htmlFor="mvp-mobile-lite-bold-color">
-									Color
-								</label>
-								<div className="mt-2 grid grid-cols-[56px_minmax(0,1fr)] gap-2">
-									<input
-										id="mvp-mobile-lite-bold-color"
-										type="color"
-										value={normalizedBoldColorDraft}
-										disabled={savingBoldColor}
-										onChange={event => {
-											setBoldColorDraft(event.target.value)
-											setBoldColorStatusMessage(null)
-											setBoldColorErrorMessage(null)
-										}}
-										className="h-11 w-full rounded-md border border-[#505963] bg-[#282f38] p-1"
-									/>
-									<input
-										type="text"
-										value={boldColorDraft}
-										autoCapitalize="none"
-										autoCorrect="off"
-										spellCheck={false}
-										disabled={savingBoldColor}
-										onChange={event => {
-											setBoldColorDraft(event.target.value)
-											setBoldColorStatusMessage(null)
-											setBoldColorErrorMessage(null)
-										}}
-										className="h-11 w-full rounded-md border border-[#505963] bg-[#282f38] px-3 font-mono text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00] focus:shadow-[0_0_0_1px_rgba(208,109,0,0.35)]"
-									/>
-								</div>
-
-								<div className="mt-3 rounded-md border border-[#4b545d] bg-[#2d3540] px-3 py-3 text-sm leading-relaxed text-[#d8dde2]">
-									Texto normal y{' '}
-									<strong style={{ color: boldColorEnabled ? normalizedBoldColorDraft : 'inherit' }}>
-										texto en negrita
-									</strong>
-								</div>
-
-								<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(116px,1fr))] gap-2">
+								<div
+									className={`flex min-h-[68px] items-center justify-between gap-3 border-t border-[#4b5468] px-3 py-3 ${
+										hideThreadButtonEnabled ? 'bg-transparent' : 'bg-transparent'
+									}`}
+								>
+									<div className="flex min-w-0 items-start gap-3">
+										<EyeOff className="mt-0.5 h-4 w-4 shrink-0 text-[#f0a020]" aria-hidden="true" />
+										<div className="min-w-0">
+											<div className="text-sm font-semibold text-[#eef1f3]">Botón ocultar hilos</div>
+											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
+												{hideThreadButtonEnabled ? 'Muestra el botón en los listados' : 'Oculta el botón de los listados'}
+											</div>
+										</div>
+									</div>
 									<button
 										type="button"
-										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#657080] bg-[#353d49] px-2 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#424b59] disabled:border-[#4d5662] disabled:bg-[#303842] disabled:text-[#8f98a5]"
-										disabled={savingBoldColor || (boldColor === DEFAULT_BOLD_COLOR && normalizedBoldColorDraft === DEFAULT_BOLD_COLOR)}
-										onClick={resetBoldColor}
+										role="switch"
+										aria-label="Botón ocultar hilos"
+										aria-checked={hideThreadButtonEnabled}
+										className={`relative h-11 w-16 shrink-0 rounded-full border transition-colors disabled:opacity-60 ${
+											hideThreadButtonEnabled ? 'border-[#f0a020] bg-[#f0a020]' : 'border-[#4a5160] bg-[#464e62]'
+										}`}
+										disabled={savingMobileLiteSetting === 'hideThreadEnabled'}
+										onClick={toggleHideThreadButtonSetting}
 									>
-										<RotateCcw className="h-4 w-4" aria-hidden="true" />
-										Restaurar
-									</button>
-									<button
-										type="button"
-										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#d89016] bg-[#9a6d00] px-2 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-colors active:bg-[#b07900] disabled:border-[#555f6b] disabled:bg-[#454d59] disabled:text-[#aeb6be] disabled:shadow-none"
-										disabled={savingBoldColor || !isBoldColorDirty}
-										onClick={saveBoldColor}
-									>
-										<Bold className="h-4 w-4" aria-hidden="true" />
-										{savingBoldColor ? 'Guardando' : 'Guardar'}
+										<span
+											className={`pointer-events-none absolute left-2 top-2 h-7 w-7 rounded-full bg-white shadow transition-transform ${
+												hideThreadButtonEnabled ? 'translate-x-5' : 'translate-x-0'
+											}`}
+										/>
 									</button>
 								</div>
 							</section>
@@ -1276,6 +1362,18 @@ export function MobileLitePanel() {
 							{boldColorErrorMessage && (
 								<div role="alert" className={STATUS_ERROR_CLASS}>
 									{boldColorErrorMessage}
+								</div>
+							)}
+
+							{mobileLiteSettingsStatusMessage && (
+								<div role="status" className={STATUS_SUCCESS_CLASS}>
+									{mobileLiteSettingsStatusMessage}
+								</div>
+							)}
+
+							{mobileLiteSettingsErrorMessage && (
+								<div role="alert" className={STATUS_ERROR_CLASS}>
+									{mobileLiteSettingsErrorMessage}
 								</div>
 							)}
 						</div>
@@ -1296,18 +1394,18 @@ export function MobileLitePanel() {
 						aria-modal="true"
 						aria-labelledby="mvp-mobile-lite-clear-hidden-threads-title"
 						aria-describedby="mvp-mobile-lite-clear-hidden-threads-description"
-						className="relative w-full max-w-[32rem] rounded-lg border border-[#4b545d] bg-[#333b46] p-4 text-sm text-[#e5e8eb] shadow-2xl"
+						className="relative w-full max-w-[32rem] rounded-lg border border-[#4b5468] bg-[#363d4d] p-4 text-sm text-[#e5e8eb] shadow-2xl"
 					>
 						<p id="mvp-mobile-lite-clear-hidden-threads-title" className="text-base font-semibold text-[#f2f4f7]">
 							Se mostrarán todos los hilos ocultos.
 						</p>
-						<p id="mvp-mobile-lite-clear-hidden-threads-description" className="mt-1 text-sm leading-relaxed text-[#c4cad0]">
+						<p id="mvp-mobile-lite-clear-hidden-threads-description" className="mt-1 text-sm leading-relaxed text-[#aab4c0]">
 							Esto vaciará tu lista de hilos ocultos en este dispositivo.
 						</p>
 						<div className="mt-4 grid grid-cols-2 gap-2">
 							<button
 								type="button"
-								className="inline-flex h-11 items-center justify-center rounded-md border border-[#626b74] bg-[#4b535d] px-2 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#59636e]"
+								className="inline-flex h-11 items-center justify-center rounded-md border border-[#626b74] bg-[#363d4d] px-2 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#59636e]"
 								onClick={() => setConfirmClearHiddenThreads(false)}
 							>
 								Cancelar

@@ -148,6 +148,7 @@ function sanitizePostHtml(html: string): string {
 // =============================================================================
 
 let isLiveActive = false
+let pollingPaused = false
 let pollTimeoutId: ReturnType<typeof setTimeout> | null = null
 let lastSeenPostNum = 0
 let lastPostTimestamp = Date.now()
@@ -190,6 +191,7 @@ export function resetPollingState(): void {
 	currentPollInterval = POLL_INTERVALS.NORMAL
 	consecutiveErrors = 0
 	knownTotalPages = 1
+	pollingPaused = false
 	clearLiveThreadDelayQueue({ reveal: false })
 }
 
@@ -778,17 +780,47 @@ export async function pollForNewPosts(): Promise<number> {
 }
 
 function scheduleNextPoll(): void {
-	if (!isLiveActive) return
+	if (!isLiveActive || pollingPaused) return
 	if (pollTimeoutId) clearTimeout(pollTimeoutId)
 	pollTimeoutId = setTimeout(() => void pollForNewPosts(), currentPollInterval)
+}
+
+/**
+ * Pauses live polling while the user is composing a reply. New posts shifting in
+ * under the editor cause layout churn that, on mobile, steals focus from the
+ * textarea (the "can't type / everything moves" bug). Posts resume on close.
+ */
+export function pauseLivePolling(): void {
+	if (pollingPaused) return
+	pollingPaused = true
+	if (pollTimeoutId) {
+		clearTimeout(pollTimeoutId)
+		pollTimeoutId = null
+	}
+}
+
+export function resumeLivePolling(): void {
+	if (!pollingPaused) return
+	pollingPaused = false
+	if (isLiveActive) scheduleNextPoll()
 }
 
 function handleVisibilityChange(): void {
 	if (document.hidden) {
 		statusUpdateCallback?.('paused')
 	} else {
+		if (pollingPaused) return
 		if (pollTimeoutId) clearTimeout(pollTimeoutId)
 		void pollForNewPosts()
+	}
+}
+
+function handleComposeChange(event: Event): void {
+	const composing = (event as CustomEvent<{ composing?: boolean }>).detail?.composing
+	if (composing) {
+		pauseLivePolling()
+	} else {
+		resumeLivePolling()
 	}
 }
 
@@ -798,6 +830,7 @@ export function startPolling(): void {
 	setupLikeButtonDelegation()
 
 	document.addEventListener('visibilitychange', handleVisibilityChange)
+	window.addEventListener('mvp:live-compose', handleComposeChange)
 	currentPollInterval = POLL_INTERVALS.NORMAL
 	scheduleNextPoll()
 	startTimestampUpdater()
@@ -828,5 +861,6 @@ export function stopPolling(): void {
 	}
 	stopTimestampUpdater()
 	document.removeEventListener('visibilitychange', handleVisibilityChange)
+	window.removeEventListener('mvp:live-compose', handleComposeChange)
 	cleanupLikeButtonDelegation()
 }

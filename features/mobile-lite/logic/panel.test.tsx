@@ -37,6 +37,10 @@ const mocks = vi.hoisted(() => ({
 	),
 	getMobileLiteImgbbApiKey: vi.fn(() => Promise.resolve('')),
 	saveMobileLiteImgbbApiKey: vi.fn((_apiKey: string) => Promise.resolve()),
+	getSettings: vi.fn(() => Promise.resolve({ liveThreadEnabled: false, hideThreadEnabled: true })),
+	setSetting: vi.fn(),
+	applyMobileLiteHiddenThreads: vi.fn(),
+	syncMobileLiteLiveThreadButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	sendMessage: vi.fn<() => Promise<MvUserAvatarResult>>(() => Promise.resolve({ success: false })),
 	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
@@ -89,13 +93,30 @@ vi.mock('../logic/bold-color', () => ({
 	saveMobileLiteBoldColorSettings: mocks.saveMobileLiteBoldColorSettings,
 }))
 
+vi.mock('../logic/hidden-threads', () => ({
+	applyMobileLiteHiddenThreads: mocks.applyMobileLiteHiddenThreads,
+}))
+
 vi.mock('../logic/imgbb-api-key-storage', () => ({
 	getMobileLiteImgbbApiKey: mocks.getMobileLiteImgbbApiKey,
 	saveMobileLiteImgbbApiKey: mocks.saveMobileLiteImgbbApiKey,
 }))
 
+vi.mock('../logic/live-thread', () => ({
+	syncMobileLiteLiveThreadButton: mocks.syncMobileLiteLiveThreadButton,
+}))
+
 vi.mock('@/lib/messaging', () => ({
 	sendMessage: mocks.sendMessage,
+}))
+
+vi.mock('@/store/settings-store', () => ({
+	getSettings: mocks.getSettings,
+	useSettingsStore: {
+		getState: () => ({
+			setSetting: mocks.setSetting,
+		}),
+	},
 }))
 
 vi.mock('@/components/shadow-wrapper', () => ({
@@ -148,6 +169,10 @@ describe('Mobile Lite panel injection', () => {
 		)
 		mocks.getMobileLiteImgbbApiKey.mockResolvedValue('')
 		mocks.saveMobileLiteImgbbApiKey.mockResolvedValue(undefined)
+		mocks.getSettings.mockResolvedValue({ liveThreadEnabled: false, hideThreadEnabled: true })
+		mocks.setSetting.mockReset()
+		mocks.applyMobileLiteHiddenThreads.mockReset()
+		mocks.syncMobileLiteLiveThreadButton.mockResolvedValue(undefined)
 		mocks.sendMessage.mockResolvedValue({ success: false })
 		document.body.innerHTML = `
 			<ul id="usermenu">
@@ -813,6 +838,7 @@ describe('Mobile Lite panel injection', () => {
 		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
 
 		expect(await screen.findByText('Color de negrita')).toBeInTheDocument()
+		await user.click(screen.getByRole('button', { name: 'Editar color de negrita' }))
 		const colorTextInput = Array.from(document.querySelectorAll<HTMLInputElement>('input[type="text"]')).find(
 			input => input.value === '#ff8800'
 		)
@@ -820,7 +846,7 @@ describe('Mobile Lite panel injection', () => {
 
 		await user.clear(colorTextInput!)
 		await user.type(colorTextInput!, '#00ff88')
-		await user.click(screen.getByRole('button', { name: 'Guardar' }))
+		await user.click(screen.getByRole('button', { name: 'Guardar color de negrita' }))
 
 		await waitFor(() => {
 			expect(mocks.saveMobileLiteBoldColorSettings).toHaveBeenCalledWith({
@@ -845,5 +871,35 @@ describe('Mobile Lite panel injection', () => {
 			})
 		})
 		expect(await screen.findByText('Color personalizado activado.')).toBeInTheDocument()
+	})
+
+	it('toggles the Mobile Lite live thread button from settings', async () => {
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+		await user.click(await screen.findByRole('switch', { name: 'Modo Live' }))
+
+		await waitFor(() => {
+			expect(mocks.setSetting).toHaveBeenCalledWith('liveThreadEnabled', true)
+		})
+		expect(mocks.syncMobileLiteLiveThreadButton).toHaveBeenCalledWith(true)
+		expect(await screen.findByText('Modo Live activado.')).toBeInTheDocument()
+	})
+
+	it('toggles the Mobile Lite hide-thread button from settings', async () => {
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+		await user.click(await screen.findByRole('switch', { name: 'Botón ocultar hilos' }))
+
+		await waitFor(() => {
+			expect(mocks.setSetting).toHaveBeenCalledWith('hideThreadEnabled', false)
+		})
+		expect(mocks.applyMobileLiteHiddenThreads).toHaveBeenCalledOnce()
+		expect(await screen.findByText('Botón de ocultar hilos desactivado.')).toBeInTheDocument()
 	})
 })
