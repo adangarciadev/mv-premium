@@ -85,6 +85,8 @@ shadow-[inset_0_1px_0_rgba(255,255,255,0.12),                 ← top inner high
 
 Do **not** invent new active treatments; reuse this.
 
+For native light-DOM `.btn` elements injected outside the panel (Live, Galería), use the plain-CSS translation of this recipe from [logic/native-button-styles.ts](logic/native-button-styles.ts) (`getPremiumPillButtonCss`) instead of copy-pasting hex values.
+
 ## 6. Interaction patterns
 
 - **Navigation**: fixed bottom tab bar (max 5 items, icon + uppercase 10px label), `role="tablist"`, badge anchored to the icon with `ring-2 ring-[#14171d]`. Tab bar gets `border-t` + upward shadow for elevation, and `pb-[max(10px,env(safe-area-inset-bottom))]`.

@@ -4,7 +4,7 @@
  * Displays images and videos in a fullscreen carousel with keyboard navigation.
  * Users can download individual images or right-click to save.
  */
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { logger } from '@/lib/logger'
 import X from 'lucide-react/dist/esm/icons/x'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
@@ -46,6 +46,7 @@ export function GalleryCarousel({ media, initialIndex = 0, isOpen, onClose }: Ga
 	const [api, setApi] = useState<CarouselApi>()
 	const [currentIndex, setCurrentIndex] = useState(initialIndex)
 	const [imageError, setImageError] = useState<Set<string>>(new Set())
+	const thumbStripRef = useRef<HTMLDivElement>(null)
 
 	// Track current slide
 	useEffect(() => {
@@ -61,6 +62,14 @@ export function GalleryCarousel({ media, initialIndex = 0, isOpen, onClose }: Ga
 			api.scrollTo(initialIndex, true)
 		}
 	}, [api, initialIndex, isOpen])
+
+	// Keep the active thumbnail visible inside the scrollable strip
+	useEffect(() => {
+		const strip = thumbStripRef.current
+		if (!strip) return
+		const activeThumb = strip.querySelector<HTMLElement>(`[data-thumb-index="${currentIndex}"]`)
+		activeThumb?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+	}, [currentIndex])
 
 	// Keyboard navigation
 	useEffect(() => {
@@ -248,30 +257,22 @@ export function GalleryCarousel({ media, initialIndex = 0, isOpen, onClose }: Ga
 						</Button>
 					</div>
 
-					{/* Thumbnail Strip - windowed for performance */}
-					{media.length > 1 && (() => {
-						// Only render thumbnails near the current index for performance
-						const WINDOW_SIZE = 10; // Show 10 on each side
-						const startIdx = Math.max(0, currentIndex - WINDOW_SIZE);
-						const endIdx = Math.min(media.length, currentIndex + WINDOW_SIZE + 1);
-						const visibleMedia = media.slice(startIdx, endIdx);
-						
-						return (
-							<div className="flex items-center justify-center gap-1.5 mt-3 max-w-full pb-1 px-4">
-								{/* Show "..." if there are images before */}
-								{startIdx > 0 && (
-									<span className="text-white/40 text-xs px-1">...</span>
-								)}
-								
-								{visibleMedia.map((item, idx) => {
-									const realIndex = startIdx + idx;
-									return (
+					{/* Thumbnail Strip - horizontally scrollable, counter always visible */}
+					{media.length > 1 && (
+						<div className="flex items-center gap-2 mt-3 px-4">
+							<div
+								ref={thumbStripRef}
+								className="flex-1 overflow-x-auto py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+							>
+								<div className="flex items-center gap-1.5 w-max mx-auto px-1">
+									{media.map((item, index) => (
 										<button
 											key={item.id}
-											onClick={() => api?.scrollTo(realIndex)}
+											data-thumb-index={index}
+											onClick={() => api?.scrollTo(index)}
 											className={`
 												relative flex-shrink-0 w-10 h-10 rounded overflow-hidden border-2 transition-all
-												${realIndex === currentIndex
+												${index === currentIndex
 													? 'border-primary ring-2 ring-primary/50 scale-110'
 													: 'border-white/20 hover:border-white/40 opacity-60 hover:opacity-100'
 												}
@@ -284,21 +285,16 @@ export function GalleryCarousel({ media, initialIndex = 0, isOpen, onClose }: Ga
 												</div>
 											)}
 										</button>
-									);
-								})}
-								
-								{/* Show "..." if there are images after */}
-								{endIdx < media.length && (
-									<span className="text-white/40 text-xs px-1">...</span>
-								)}
-								
-								{/* Counter */}
-								<span className="text-white/50 text-xs ml-2 font-mono">
-									{currentIndex + 1}/{media.length}
-								</span>
+									))}
+								</div>
 							</div>
-						);
-					})()}
+
+							{/* Counter - outside the scroll area so it never scrolls away */}
+							<span className="text-white/50 text-xs font-mono shrink-0">
+								{currentIndex + 1}/{media.length}
+							</span>
+						</div>
+					)}
 				</div>
 			</div>
 		</ShadowWrapper>

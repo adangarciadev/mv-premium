@@ -11,6 +11,7 @@ import {
 	isNormalMobileLiteSubforumPath,
 	teardownMobileLiteIgnoredUserThreads,
 } from './ignored-user-threads'
+import { initMobileLiteGallery, teardownMobileLiteGallery } from './gallery'
 import { initMobileLiteLiveThread, teardownMobileLiteLiveThread } from './live-thread'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 import { initMobileLiteThreadCompanion, teardownMobileLiteThreadCompanion } from './thread-companion'
@@ -56,6 +57,12 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		id: 'live-thread',
 		init: initMobileLiteLiveThread,
 		teardown: teardownMobileLiteLiveThread,
+		shouldRun: context => context.hasPosts || context.isThreadPage,
+	},
+	{
+		id: 'gallery',
+		init: initMobileLiteGallery,
+		teardown: teardownMobileLiteGallery,
 		shouldRun: context => context.hasPosts || context.isThreadPage,
 	},
 	{

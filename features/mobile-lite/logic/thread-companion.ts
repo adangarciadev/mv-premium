@@ -34,6 +34,11 @@ export function initMobileLiteThreadCompanion(): void {
 			transform: none !important;
 			opacity: 1 !important;
 		}
+		/* The action buttons wrap into several rows on the narrow viewport and the
+		   rows sit glued together; give each wrapped line some breathing room. */
+		#${MV_SELECTORS.GLOBAL.MORE_ACTIONS_ID} .btn {
+			margin-bottom: 6px !important;
+		}
 	`
 	document.head.appendChild(style)
 }

@@ -6,6 +6,7 @@ import { isThreadPage } from '@/lib/content-modules/utils/page-detection'
 import { getSettings } from '@/store/settings-store'
 import { cleanupLiveThreadButton, configureLiveThreadRuntime, startLiveMode } from '@/features/live-thread'
 import { getIsLiveActive } from '@/features/live-thread/logic/live-thread-polling'
+import { getPremiumPillButtonCss } from './native-button-styles'
 
 const STYLE_ID = 'mvp-mobile-lite-live-thread-styles'
 const BUTTON_ID = 'mvp-mobile-lite-live-thread-button'
@@ -25,21 +26,15 @@ function ensureStyles(): void {
 	const style = document.createElement('style')
 	style.id = STYLE_ID
 	style.textContent = `
+		${getPremiumPillButtonCss(`#${BUTTON_ID}.btn`)}
 		#${BUTTON_ID}.btn {
-			background: linear-gradient(180deg, #416390 0%, #36557d 100%) !important;
-			border-color: #587aa8 !important;
-			box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 1px 2px rgba(0,0,0,0.2) !important;
-			color: #fff !important;
-			letter-spacing: 0 !important;
 			margin-left: 4px !important;
 			margin-right: 0 !important;
-			text-decoration: none !important;
-			text-transform: none !important;
 		}
-		#${BUTTON_ID}.btn:active,
 		#${BUTTON_ID}.btn.mvp-mobile-lite-live-thread-active {
-			background: linear-gradient(180deg, #9a6d00 0%, #7d5900 100%) !important;
-			border-color: #d89016 !important;
+			background: linear-gradient(180deg, #f0a020 0%, #d98e12 100%) !important;
+			border-color: #d98e12 !important;
+			color: #221604 !important;
 		}
 		#${BUTTON_ID}.btn.mvp-mobile-lite-live-thread-busy {
 			opacity: 0.72;
@@ -57,8 +52,8 @@ function ensureStyles(): void {
 			width: 7px;
 		}
 		#${BUTTON_ID}.mvp-mobile-lite-live-thread-active .mvp-mobile-lite-live-thread-dot {
-			background: #fff2b3;
-			box-shadow: 0 0 0 2px rgba(255,242,179,0.22), 0 0 10px rgba(255,242,179,0.58);
+			background: #221604;
+			box-shadow: 0 0 0 2px rgba(34,22,4,0.2);
 		}
 	`
 	document.head.appendChild(style)
