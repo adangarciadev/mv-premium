@@ -209,6 +209,186 @@ export function showNativeElements(): void {
 }
 
 // =============================================================================
+// MOBILE LITE BOTTOM NAV (#bottom-nav)
+// =============================================================================
+
+let bottomNavProgressObserver: MutationObserver | null = null
+let bottomNavDownAnchor: HTMLAnchorElement | null = null
+let bottomNavDownHandler: ((event: Event) => void) | null = null
+let bottomNavRevealTimeout: ReturnType<typeof setTimeout> | null = null
+let bottomNavRevealListener: (() => void) | null = null
+
+/**
+ * Mediavida hides #bottom-nav while scrolling down and only re-shows it on an
+ * upward gesture. Our go-to-bottom scroll leaves the user at the absolute
+ * bottom, where no upward scroll can happen, so the bar stays stuck hidden.
+ * Once the smooth scroll settles, nudge 8px up (imperceptible) so Mediavida's
+ * own handler brings the bar back.
+ */
+function scheduleBottomNavReveal(): void {
+	cancelBottomNavReveal()
+	const finish = () => {
+		cancelBottomNavReveal()
+		window.scrollBy({ top: -8, behavior: 'auto' })
+	}
+	bottomNavRevealListener = finish
+	window.addEventListener('scrollend', finish, { once: true })
+	// Fallback for browsers without the scrollend event.
+	bottomNavRevealTimeout = setTimeout(finish, 900)
+}
+
+function cancelBottomNavReveal(): void {
+	if (bottomNavRevealTimeout !== null) {
+		clearTimeout(bottomNavRevealTimeout)
+		bottomNavRevealTimeout = null
+	}
+	if (bottomNavRevealListener) {
+		window.removeEventListener('scrollend', bottomNavRevealListener)
+		bottomNavRevealListener = null
+	}
+}
+
+function isMobileLitePostEditorDisplayed(): boolean {
+	const postEditor = getPostEditor()
+	if (!postEditor) return false
+	return postEditor.getAttribute(LIVE_EDITOR_PREPARED_ATTR) === 'mobile-lite' && postEditor.style.display !== 'none'
+}
+
+function isMobileLiteEditorOpen(): boolean {
+	const wrapper = document.getElementById(DOM_MARKERS.IDS.LIVE_EDITOR_WRAPPER)
+	return Boolean(wrapper?.classList.contains('visible')) || isMobileLitePostEditorDisplayed()
+}
+
+function pinLiveProgress(progress: HTMLElement): void {
+	if (progress.textContent !== '1 / 1') progress.textContent = '1 / 1'
+	if (progress.style.display === 'none') progress.style.removeProperty('display')
+}
+
+/**
+ * While Live mode owns the view there is a single visible "page", so the native
+ * mobile bottom bar must mirror Mediavida's own live threads: progress pinned
+ * to "1 / 1" with no page-pills dropdown, plus a reply shortcut. Ours improves
+ * on native by also scrolling up to the editor (it sits at the top of the
+ * thread), and a second tap closes it again.
+ */
+export function applyMobileLiteBottomNavLiveState(): void {
+	const bottomNav = document.getElementById(MV_SELECTORS.THREAD.BOTTOM_NAV_ID)
+	if (!bottomNav) return
+
+	const progress = bottomNav.querySelector(MV_SELECTORS.THREAD.BOTTOM_PROGRESS) as HTMLElement | null
+	if (progress && progress.dataset.mvpLiveOriginal === undefined) {
+		progress.dataset.mvpLiveOriginal = progress.textContent ?? ''
+		pinLiveProgress(progress)
+		progress.style.setProperty('pointer-events', 'none')
+
+		// Mediavida's own scroll handler keeps rewriting this pill from post
+		// offsets, which break once Live replaces the post list (it ended up
+		// blanking the pill entirely). Re-pin "1 / 1" whenever it changes.
+		bottomNavProgressObserver?.disconnect()
+		bottomNavProgressObserver = new MutationObserver(() => pinLiveProgress(progress))
+		bottomNavProgressObserver.observe(progress, {
+			attributeFilter: ['style', 'class'],
+			attributes: true,
+			characterData: true,
+			childList: true,
+			subtree: true,
+		})
+	}
+
+	const pagePills = bottomNav.querySelector(MV_SELECTORS.THREAD.PAGE_PILLS) as HTMLElement | null
+	if (pagePills) {
+		pagePills.classList.remove('active')
+		pagePills.style.setProperty('display', 'none', 'important')
+	}
+
+	if (!document.getElementById(DOM_MARKERS.IDS.LIVE_BOTTOM_REPLY)) {
+		// Reuse the native quickreply slot (its anchor is hidden during Live) so
+		// the bar keeps its exact item count and spacing. Our arrow toggles OUR
+		// editor and, when opening, scrolls up to it.
+		const link = document.createElement('a')
+		link.id = DOM_MARKERS.IDS.LIVE_BOTTOM_REPLY
+		link.href = '#'
+		link.setAttribute('role', 'button')
+		link.setAttribute('aria-label', 'Responder en el live')
+		link.innerHTML = '<i class="fa fa-reply"></i>'
+		link.addEventListener('click', event => {
+			event.preventDefault()
+			const isOpen = isMobileLiteEditorOpen()
+			toggleFormVisibility(!isOpen, { variant: 'mobile-lite' })
+			if (!isOpen) scrollToLiveEditor()
+		})
+
+		const quickReplyHost = bottomNav.querySelector(MV_SELECTORS.THREAD.QUICK_REPLY)?.closest('li')
+		if (quickReplyHost) {
+			quickReplyHost.appendChild(link)
+		} else {
+			const list = bottomNav.querySelector('ul')
+			if (!list) return
+			const item = document.createElement('li')
+			item.dataset.mvpLiveBottomReplyHost = 'true'
+			item.appendChild(link)
+			list.insertBefore(item, list.firstElementChild)
+		}
+	}
+
+	// The native "go to bottom" arrow targets the last post anchor of the
+	// ORIGINAL page (e.g. #60), which no longer exists once Live replaces the
+	// posts. Take it over and scroll to the real bottom of the live feed.
+	// (Scoped to direct bar items: the hidden page-pills dropdown has its own
+	// chevron-circle-down icon we must not grab.)
+	if (!bottomNavDownAnchor) {
+		const downAnchor = bottomNav.querySelector(':scope > ul > li > a > .fa-chevron-circle-down')?.closest('a')
+		if (downAnchor) {
+			bottomNavDownHandler = event => {
+				event.preventDefault()
+				window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })
+				scheduleBottomNavReveal()
+			}
+			downAnchor.addEventListener('click', bottomNavDownHandler)
+			bottomNavDownAnchor = downAnchor
+		}
+	}
+}
+
+function scrollToLiveEditor(): void {
+	const target =
+		document.getElementById(DOM_MARKERS.IDS.LIVE_HEADER_UI) ?? document.getElementById(DOM_MARKERS.IDS.LIVE_MAIN_CONTAINER)
+	if (!target) return
+
+	// Leave room for Mediavida's fixed mobile top bar.
+	const top = target.getBoundingClientRect().top + window.scrollY - 60
+	window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
+}
+
+export function restoreMobileLiteBottomNavLiveState(): void {
+	bottomNavProgressObserver?.disconnect()
+	bottomNavProgressObserver = null
+
+	if (bottomNavDownAnchor && bottomNavDownHandler) {
+		bottomNavDownAnchor.removeEventListener('click', bottomNavDownHandler)
+	}
+	bottomNavDownAnchor = null
+	bottomNavDownHandler = null
+	cancelBottomNavReveal()
+
+	document.getElementById(DOM_MARKERS.IDS.LIVE_BOTTOM_REPLY)?.remove()
+	document.querySelector('li[data-mvp-live-bottom-reply-host]')?.remove()
+
+	const bottomNav = document.getElementById(MV_SELECTORS.THREAD.BOTTOM_NAV_ID)
+	if (!bottomNav) return
+
+	const progress = bottomNav.querySelector(MV_SELECTORS.THREAD.BOTTOM_PROGRESS) as HTMLElement | null
+	if (progress && progress.dataset.mvpLiveOriginal !== undefined) {
+		progress.textContent = progress.dataset.mvpLiveOriginal
+		delete progress.dataset.mvpLiveOriginal
+		progress.style.removeProperty('pointer-events')
+	}
+
+	const pagePills = bottomNav.querySelector(MV_SELECTORS.THREAD.PAGE_PILLS) as HTMLElement | null
+	pagePills?.style.removeProperty('display')
+}
+
+// =============================================================================
 // FORM POSITIONING
 // =============================================================================
 
@@ -747,12 +927,7 @@ export function toggleFormVisibility(show: boolean, options: LiveThreadDomOption
 	// even if the wrapper's `visible` class got out of sync. Otherwise a stray
 	// toggle(true) on every tap re-ran the full open flow (re-style + scroll),
 	// stealing focus from the textarea.
-	const postEditorForState = getPostEditor()
-	const isMobileLiteOpen =
-		variant === 'mobile-lite' &&
-		postEditorForState?.getAttribute(LIVE_EDITOR_PREPARED_ATTR) === 'mobile-lite' &&
-		postEditorForState.style.display !== 'none'
-	const isVisible = wrapper.classList.contains('visible') || isMobileLiteOpen
+	const isVisible = wrapper.classList.contains('visible') || (variant === 'mobile-lite' && isMobileLitePostEditorDisplayed())
 
 	if (show) {
 		// Stop posts streaming in under the editor while composing on mobile; the

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DOM_MARKERS, MV_SELECTORS } from '@/constants'
 
 const editorToolbarMocks = vi.hoisted(() => ({
@@ -23,7 +23,14 @@ vi.mock('@/features/mobile-lite/logic/editor-lite', () => ({
 	injectMobileLiteUploadControl: mobileLiteEditorMocks.injectMobileLiteUploadControl,
 }))
 
-import { cleanupPostReplyHandler, moveFormToTop, setupPostReplyHandler, toggleFormVisibility } from './live-thread-dom'
+import {
+	applyMobileLiteBottomNavLiveState,
+	cleanupPostReplyHandler,
+	moveFormToTop,
+	restoreMobileLiteBottomNavLiveState,
+	setupPostReplyHandler,
+	toggleFormVisibility,
+} from './live-thread-dom'
 
 function setupThreadDom(postNum = '52'): HTMLTextAreaElement {
 	document.body.innerHTML = `
@@ -222,5 +229,154 @@ describe('live-thread-dom post reply handler', () => {
 
 		expect(editorToolbarMocks.injectEditorToolbar).toHaveBeenCalledOnce()
 		expect(editorToolbarMocks.injectCharacterCounter).toHaveBeenCalledOnce()
+	})
+})
+
+// Mirrors Mediavida's real #bottom-nav markup (captured from Firefox Android).
+function appendBottomNavDom(): void {
+	document.body.insertAdjacentHTML(
+		'beforeend',
+		`
+			<div id="${MV_SELECTORS.THREAD.BOTTOM_NAV_ID}" class="bottom-nav">
+				<ul>
+					<li><a class=" quickreply" href="#"><i class="fa fa-reply"></i></a></li>
+					<li class="fix-ani">
+						<a href="javascript:void(0);" class="togglefav" title="Favorito"><i class="fa fa-star-o"></i></a>
+					</li>
+					<li><a href="#top"><i class="fa fa-chevron-circle-up"></i></a></li>
+					<li><a href="#60"><i class="fa fa-chevron-circle-down"></i></a></li>
+					<li style="position: relative">
+						<a class="bottom-progress" href="#">2 / 3</a>
+						<ul class="page-pills active">
+							<li class="progress" style="width: 66.67%"></li>
+							<li><a class="last full" href="/foro/test/3"><i class="fa fa-chevron-circle-down"></i> 3</a></li>
+						</ul>
+					</li>
+				</ul>
+			</div>
+		`
+	)
+}
+
+describe('mobile lite bottom nav live state', () => {
+	beforeEach(() => {
+		vi.clearAllMocks()
+	})
+
+	afterEach(() => {
+		restoreMobileLiteBottomNavLiveState()
+	})
+
+	it('pins progress to 1 / 1, hides page pills and injects a reply shortcut', () => {
+		setupThreadDom('52')
+		appendBottomNavDom()
+
+		applyMobileLiteBottomNavLiveState()
+
+		const progress = document.querySelector(MV_SELECTORS.THREAD.BOTTOM_PROGRESS) as HTMLElement
+		expect(progress.textContent).toBe('1 / 1')
+		expect(progress.style.pointerEvents).toBe('none')
+
+		const pagePills = document.querySelector(MV_SELECTORS.THREAD.PAGE_PILLS) as HTMLElement
+		expect(pagePills.classList.contains('active')).toBe(false)
+		expect(pagePills.style.display).toBe('none')
+
+		const replyLink = document.getElementById(DOM_MARKERS.IDS.LIVE_BOTTOM_REPLY)
+		expect(replyLink).not.toBeNull()
+		expect(replyLink?.querySelector('.fa-reply')).not.toBeNull()
+	})
+
+	it('reuses the native quickreply slot so the bar keeps its layout', () => {
+		setupThreadDom('52')
+		appendBottomNavDom()
+		const itemCountBefore = document.querySelectorAll(`#${MV_SELECTORS.THREAD.BOTTOM_NAV_ID} > ul > li`).length
+
+		applyMobileLiteBottomNavLiveState()
+
+		const replyLink = document.getElementById(DOM_MARKERS.IDS.LIVE_BOTTOM_REPLY)
+		expect(replyLink?.closest('li')?.querySelector(MV_SELECTORS.THREAD.QUICK_REPLY)).not.toBeNull()
+		expect(document.querySelectorAll(`#${MV_SELECTORS.THREAD.BOTTOM_NAV_ID} > ul > li`)).toHaveLength(itemCountBefore)
+	})
+
+	it('re-pins 1 / 1 when Mediavida scroll JS rewrites the pill', async () => {
+		setupThreadDom('52')
+		appendBottomNavDom()
+
+		applyMobileLiteBottomNavLiveState()
+
+		const progress = document.querySelector(MV_SELECTORS.THREAD.BOTTOM_PROGRESS) as HTMLElement
+		progress.textContent = '4 / 9'
+		await new Promise(resolve => setTimeout(resolve, 0))
+
+		expect(progress.textContent).toBe('1 / 1')
+	})
+
+	it('is idempotent and keeps the original page count for restore', () => {
+		setupThreadDom('52')
+		appendBottomNavDom()
+
+		applyMobileLiteBottomNavLiveState()
+		applyMobileLiteBottomNavLiveState()
+
+		expect(document.querySelectorAll(`#${DOM_MARKERS.IDS.LIVE_BOTTOM_REPLY}`)).toHaveLength(1)
+
+		restoreMobileLiteBottomNavLiveState()
+
+		const progress = document.querySelector(MV_SELECTORS.THREAD.BOTTOM_PROGRESS) as HTMLElement
+		expect(progress.textContent).toBe('2 / 3')
+		expect(progress.style.pointerEvents).toBe('')
+		expect(document.getElementById(DOM_MARKERS.IDS.LIVE_BOTTOM_REPLY)).toBeNull()
+		expect((document.querySelector(MV_SELECTORS.THREAD.PAGE_PILLS) as HTMLElement).style.display).toBe('')
+	})
+
+	it('toggles the live editor when tapping the injected reply shortcut', () => {
+		setupThreadDom('52')
+		appendBottomNavDom()
+
+		applyMobileLiteBottomNavLiveState()
+
+		const link = document.getElementById(DOM_MARKERS.IDS.LIVE_BOTTOM_REPLY) as HTMLAnchorElement
+		link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+		expect(document.getElementById(DOM_MARKERS.IDS.LIVE_EDITOR_WRAPPER)?.classList.contains('visible')).toBe(true)
+
+		// Second tap closes, like the header's "Cerrar".
+		link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+		expect(document.getElementById(DOM_MARKERS.IDS.LIVE_EDITOR_WRAPPER)?.classList.contains('visible')).toBe(false)
+	})
+
+	it('repurposes the go-to-bottom arrow to scroll to the live feed end', () => {
+		setupThreadDom('52')
+		appendBottomNavDom()
+		const scrollSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
+
+		applyMobileLiteBottomNavLiveState()
+
+		// The stale anchor (#60: last post of the ORIGINAL page) must be taken over…
+		const downAnchor = document.querySelector(
+			`#${MV_SELECTORS.THREAD.BOTTOM_NAV_ID} > ul > li > a[href="#60"]`
+		) as HTMLAnchorElement
+		const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true })
+		downAnchor.dispatchEvent(clickEvent)
+
+		expect(clickEvent.defaultPrevented).toBe(true)
+		expect(scrollSpy).toHaveBeenCalledWith(expect.objectContaining({ behavior: 'smooth' }))
+
+		// …but NOT the chevron inside the hidden page-pills dropdown.
+		const pillsAnchor = document.querySelector(`${MV_SELECTORS.THREAD.PAGE_PILLS} a.last`) as HTMLAnchorElement
+		scrollSpy.mockClear()
+		pillsAnchor.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+		expect(scrollSpy).not.toHaveBeenCalled()
+
+		scrollSpy.mockRestore()
+	})
+
+	it('does nothing when the bottom nav is missing', () => {
+		setupThreadDom('52')
+
+		expect(() => {
+			applyMobileLiteBottomNavLiveState()
+			restoreMobileLiteBottomNavLiveState()
+		}).not.toThrow()
+		expect(document.getElementById(DOM_MARKERS.IDS.LIVE_BOTTOM_REPLY)).toBeNull()
 	})
 })

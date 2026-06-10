@@ -26,6 +26,8 @@ import {
 	restoreForm,
 	toggleFormVisibility,
 	ensureMobileLiteNativeEditorReady,
+	applyMobileLiteBottomNavLiveState,
+	restoreMobileLiteBottomNavLiveState,
 	setReplyStateCallback,
 	setupPostReplyHandler,
 	cleanupPostReplyHandler,
@@ -212,6 +214,10 @@ export async function startLiveMode(options: StartLiveModeOptions = {}): Promise
 	}
 
 	hideNativeElements()
+	if (variant === 'mobile-lite') {
+		// Mirror Mediavida's native live in the mobile bottom bar: "1 / 1" + reply.
+		applyMobileLiteBottomNavLiveState()
+	}
 
 	// Create main container
 	let mainContainer = document.getElementById(DOM_MARKERS.IDS.LIVE_MAIN_CONTAINER)
@@ -319,6 +325,7 @@ async function stopLiveMode(): Promise<void> {
 	document.getElementById(DOM_MARKERS.IDS.LIVE_MAIN_CONTAINER)?.remove()
 
 	showNativeElements()
+	restoreMobileLiteBottomNavLiveState()
 	resetPollingState()
 	window.location.reload()
 }

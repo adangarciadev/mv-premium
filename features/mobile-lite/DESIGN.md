@@ -54,7 +54,7 @@ Literal hex is used in classes so Tailwind JIT always generates them.
 
 **Spacing**: 4/8 scale only. Page gutter `px-4`. Section gap via `SECTION_LABEL_CLASS` (`pt-5 pb-2`). List rows `py-2 pl-3 pr-2` (later padding tighter on the actions side).
 
-**Typography**: body 16px (`text-base`) on every input — prevents mobile auto-zoom. Row titles `text-[15px] font-semibold`. Metadata `text-xs`/`text-[11px]`. Section labels `text-[11px] font-bold uppercase tracking-[0.14em]`. Wordmark: `MV` upright + `PREMIUM` italic amber, `font-black uppercase tracking-tighter`, with the `DASHBOARD` micro-label (`text-[9px] tracking-[0.25em]`) matching the desktop sidebar.
+**Typography**: body 16px (`text-base`) on every input — prevents mobile auto-zoom. Row titles `text-[15px] font-semibold`. Metadata `text-xs`/`text-[11px]`. Section labels `text-[11px] font-bold uppercase tracking-[0.14em]`. Wordmark: `MV` italic + `PREMIUM` upright amber, `font-black uppercase tracking-tighter`, with the `DASHBOARD` micro-label (`text-[9px] tracking-[0.25em]`) matching the desktop sidebar.
 
 ## 4. Component recipes (constants)
 
