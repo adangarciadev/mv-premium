@@ -374,7 +374,7 @@ describe('Mobile Lite editor enhancements', () => {
 		expect(control?.previousElementSibling).toBe(helpLink)
 		expect(favoritesRow?.style.display).toBe('')
 		expect(control?.style.cssFloat).toBe('none')
-		expect(control?.style.marginLeft).toBe('12px')
+		expect(control?.style.marginLeft).toBe('10px')
 		expect(control?.style.marginRight).toBe('0px')
 	})
 

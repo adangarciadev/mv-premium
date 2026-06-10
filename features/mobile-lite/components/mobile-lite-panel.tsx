@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from 'react'
 import Bold from 'lucide-react/dist/esm/icons/bold'
 import Check from 'lucide-react/dist/esm/icons/check'
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
@@ -6,7 +6,6 @@ import Clipboard from 'lucide-react/dist/esm/icons/clipboard'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
-import Palette from 'lucide-react/dist/esm/icons/palette'
 import Radio from 'lucide-react/dist/esm/icons/radio'
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
@@ -65,34 +64,52 @@ const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/
 const USERNAME_VALIDATION_ID = 'mvp-mobile-lite-username-validation'
 const DEFAULT_BOLD_COLOR = '#ffffff'
 /**
- * Calm token palette: one neutral surface ramp + a single amber accent (#f0a020),
- * applied sparingly (active tab, primary action, active toggle) instead of the
- * previous stacked yellow/gray noise. Literal hex is used throughout so Tailwind's
- * JIT reliably generates each class. These constants are the single source of truth.
+ * App-like token system: one neutral surface ramp + a single amber accent (#f0a020).
+ * Flat grouped lists (no per-row gradients), bottom tab bar, 44px controls and a
+ * 12/16/24 radius scale. Literal hex is used throughout so Tailwind's JIT reliably
+ * generates each class. These constants are the single source of truth.
  *
- *   base #1c1f27 · raised #363d4d · input #14171d · hover #464e62 · border #4b5468
- *   text #eef1f6 · muted #aab4c0 · accent #f0a020
+ *   sheet #1c1f27 · group #242a36 · input #14171d · divider #2d3442 · pressed #2e3543
+ *   text #eef1f6 · muted #9aa5b4 · faint #8b95a3 · accent #f0a020 · on-accent #221604
  */
-// Segmented control (pill). Idle = transparent/muted, active = raised pill + accent text.
+// Bottom tab bar items: the active state fills the whole button as one pill (icon + label).
 const TAB_BASE_CLASS =
-	'inline-flex h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[7px] px-2 text-[13px] font-semibold transition-colors'
-const TAB_ACTIVE_CLASS = 'bg-[#363d4d] text-[#f0a020] shadow-[0_1px_2px_rgba(0,0,0,0.25)]'
-const TAB_IDLE_CLASS = 'bg-transparent text-[#aab4c0] active:bg-[#464e62]'
-// Filter chips: compact, low-noise.
+	'flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-bold uppercase tracking-[0.08em] transition-colors'
+const TAB_ACTIVE_CLASS =
+	'bg-gradient-to-b from-[#f0a020]/[0.22] to-[#f0a020]/[0.07] text-[#f0a020] ring-1 ring-inset ring-[#f0a020]/[0.25] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-1px_0_rgba(0,0,0,0.3),0_3px_10px_rgba(0,0,0,0.45)]'
+const TAB_IDLE_CLASS = 'text-[#8b95a3] active:bg-[#1d212b] active:text-[#c2cad6]'
+// Filter chips: same beveled-pill language as the bottom tab bar.
 const FILTER_BASE_CLASS =
-	'inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-full border px-2.5 text-xs font-semibold transition-colors'
-const FILTER_ACTIVE_CLASS = 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
-const FILTER_IDLE_CLASS = 'border-[#4b5468] bg-transparent text-[#aab4c0]'
-// Row actions: neutral by default, subtle accent tint when active (not full yellow fill).
-const ACTION_BUTTON_BASE_CLASS =
-	'inline-flex h-9 min-w-0 items-center justify-center gap-1.5 rounded-md border px-2 text-[13px] font-semibold transition-colors disabled:opacity-60'
-const ACTION_IDLE_CLASS = 'border-[#4b5468] bg-[#363d4d] text-[#eef1f6] active:bg-[#464e62]'
-const ACTION_MUTE_ACTIVE_CLASS = 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
-const ACTION_HIDE_ACTIVE_CLASS = 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
+	'inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-semibold transition-colors'
+const FILTER_ACTIVE_CLASS =
+	'bg-gradient-to-b from-[#f0a020]/[0.22] to-[#f0a020]/[0.07] text-[#f0a020] ring-1 ring-inset ring-[#f0a020]/[0.25] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-1px_0_rgba(0,0,0,0.3),0_2px_6px_rgba(0,0,0,0.35)]'
+const FILTER_IDLE_CLASS = 'bg-[#242a36] text-[#9aa5b4] ring-1 ring-inset ring-white/[0.04] active:bg-[#2e3543]'
+// Buttons: a single amber primary + one neutral secondary, both 44px.
+const PRIMARY_BUTTON_CLASS =
+	'inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#f0a020] px-4 text-sm font-bold text-[#221604] transition-colors active:bg-[#d98e12] disabled:bg-[#2e3543] disabled:text-[#707b8e]'
+const SECONDARY_BUTTON_CLASS =
+	'inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2e3543] px-4 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#3a4254] disabled:opacity-50'
+// Row icon actions: ghost circles, accent tint only when active.
+const ROW_ICON_BASE_CLASS =
+	'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50'
+const ROW_ICON_IDLE_CLASS = 'text-[#8b95a3] active:bg-[#2e3543]'
+const ROW_ICON_ACTIVE_CLASS = 'bg-[#f0a020]/[0.16] text-[#f0a020]'
+// Grouped list surfaces (iOS inset-list style) and section labels.
+const GROUP_CLASS = 'overflow-hidden rounded-2xl bg-[#242a36]'
+const SECTION_LABEL_CLASS = 'px-4 pb-2 pt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]'
+// Inputs: 16px text always (prevents iOS auto-zoom), flat surface, accent focus ring.
+const INPUT_CLASS =
+	'h-11 w-full rounded-xl border border-transparent bg-[#14171d] text-base text-[#eef1f6] outline-none placeholder:text-[#707b8e] focus:border-[#f0a020]'
+// Switch: 28x48 visual track inside a 44px touch target.
+const SWITCH_WRAPPER_CLASS = 'inline-flex h-11 w-14 shrink-0 items-center justify-center disabled:opacity-60'
+const SWITCH_TRACK_BASE_CLASS = 'relative block h-7 w-12 rounded-full transition-colors'
+const SWITCH_THUMB_BASE_CLASS =
+	'pointer-events-none absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform'
+// Toasts: single feedback channel anchored above the tab bar.
 const STATUS_SUCCESS_CLASS =
-	'rounded-xl border border-[#3e6e54] bg-gradient-to-br from-[#23402f] to-[#1b3325] px-3.5 py-2.5 text-sm font-medium text-[#caf0d6] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_2px_5px_rgba(0,0,0,0.35)]'
+	'pointer-events-auto w-full rounded-xl border border-[#2f5a41] bg-[#16261d]/95 px-4 py-3 text-sm font-medium text-[#b9eccb] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
 const STATUS_ERROR_CLASS =
-	'rounded-xl border border-[#7c3c43] bg-gradient-to-br from-[#3a2227] to-[#2b1a1d] px-3.5 py-2.5 text-sm font-medium text-[#f4c6c6] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_2px_5px_rgba(0,0,0,0.35)]'
+	'pointer-events-auto w-full rounded-xl border border-[#6e3a40] bg-[#2a181b]/95 px-4 py-3 text-sm font-medium text-[#f4c6c6] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
 
 interface FilteredUser {
 	username: string
@@ -237,6 +254,10 @@ export function MobileLitePanel() {
 	const [mobileLiteSettingsErrorMessage, setMobileLiteSettingsErrorMessage] = useState<string | null>(null)
 	const avatarHydrationInFlight = useRef<Set<string>>(new Set())
 	const panelBodyRef = useRef<HTMLDivElement>(null)
+	const dragStartYRef = useRef<number | null>(null)
+	const sheetRef = useRef<HTMLElement>(null)
+	const [dragOffset, setDragOffset] = useState(0)
+	const [isDragging, setIsDragging] = useState(false)
 
 	useEffect(() => {
 		let mounted = true
@@ -339,6 +360,62 @@ export function MobileLitePanel() {
 			document.body.style.overflow = previousOverflow
 		}
 	}, [open])
+
+	// Success feedback is transient (toast above the tab bar); errors persist until the next action.
+	useEffect(() => {
+		if (
+			!statusMessage &&
+			!hiddenThreadsStatusMessage &&
+			!imgbbStatusMessage &&
+			!boldColorStatusMessage &&
+			!mobileLiteSettingsStatusMessage
+		) {
+			return
+		}
+
+		const timeout = window.setTimeout(() => {
+			setStatusMessage(null)
+			setHiddenThreadsStatusMessage(null)
+			setImgbbStatusMessage(null)
+			setBoldColorStatusMessage(null)
+			setMobileLiteSettingsStatusMessage(null)
+		}, 3500)
+
+		return () => window.clearTimeout(timeout)
+	}, [statusMessage, hiddenThreadsStatusMessage, imgbbStatusMessage, boldColorStatusMessage, mobileLiteSettingsStatusMessage])
+
+	const handleSheetTouchStart = (event: ReactTouchEvent) => {
+		dragStartYRef.current = event.touches[0]?.clientY ?? null
+		setIsDragging(true)
+	}
+
+	const handleSheetTouchMove = (event: ReactTouchEvent) => {
+		if (dragStartYRef.current === null) return
+		const currentY = event.touches[0]?.clientY ?? dragStartYRef.current
+		setDragOffset(Math.max(0, currentY - dragStartYRef.current))
+	}
+
+	const handleSheetTouchEnd = () => {
+		const sheetHeight = sheetRef.current?.offsetHeight ?? 0
+		// Dismiss only after a deliberate pull: ~1/4 of the sheet height (140px minimum on any screen).
+		const dismissThreshold = Math.max(140, sheetHeight * 0.25)
+		const shouldClose = dragOffset > dismissThreshold
+		dragStartYRef.current = null
+		setIsDragging(false)
+
+		if (shouldClose && sheetHeight > 0) {
+			// Animated exit: slide the sheet fully down, then unmount.
+			setDragOffset(sheetHeight)
+			window.setTimeout(() => {
+				setOpen(false)
+				setDragOffset(0)
+			}, 220)
+			return
+		}
+
+		// Below the threshold: snap back (animated by the transform transition).
+		setDragOffset(0)
+	}
 
 	const allFilteredUsers = useMemo(() => getFilteredUsers(data), [data])
 	const mutedUsers = useMemo(
@@ -714,25 +791,39 @@ export function MobileLitePanel() {
 		<div className="fixed inset-0 z-[99999] flex h-[100dvh] items-end justify-center overflow-hidden overscroll-none bg-black/60 animate-in fade-in-0 duration-200">
 			<button type="button" className="absolute inset-0 h-full w-full cursor-default" aria-label="Cerrar panel MVP" onClick={() => setOpen(false)} />
 
-			<section className="relative flex h-[88%] w-full max-w-[34rem] flex-col overflow-hidden rounded-t-[20px] border-x border-t border-[#4b5468] bg-[#1c1f27] text-[#eef1f6] shadow-[0_-10px_40px_rgba(0,0,0,0.55)] animate-in slide-in-from-bottom-8 duration-300 ease-out">
-				<header className="shrink-0 bg-[#1c1f27] pt-[max(8px,env(safe-area-inset-top))]">
-					{/* Grab handle */}
-					<div className="flex justify-center pb-1 pt-1.5">
-						<span className="h-1 w-9 rounded-full bg-[#4a5160]" aria-hidden="true" />
+			<section
+				ref={sheetRef}
+				className="relative flex h-[90%] w-full max-w-[34rem] flex-col overflow-hidden rounded-t-[24px] bg-[#1c1f27] text-[#eef1f6] shadow-[0_-12px_48px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom-8 duration-300 ease-out"
+				style={{
+					transform: `translateY(${dragOffset}px)`,
+					transition: isDragging ? 'none' : 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
+				}}
+			>
+				<header
+					className="shrink-0 touch-none select-none pt-[max(4px,env(safe-area-inset-top))]"
+					onTouchStart={handleSheetTouchStart}
+					onTouchMove={handleSheetTouchMove}
+					onTouchEnd={handleSheetTouchEnd}
+				>
+					{/* Grab handle (drag down to dismiss) */}
+					<div className="flex justify-center pb-1 pt-2">
+						<span className="h-1 w-10 rounded-full bg-[#3a4254]" aria-hidden="true" />
 					</div>
-					<div className="flex items-center justify-between px-3 pb-3 pt-1">
+					<div className="flex items-center justify-between gap-3 px-4 pb-2.5 pt-1">
 						<div className="flex min-w-0 items-center gap-2.5">
-							<img src={logoUrl} alt="" className="h-8 w-8 shrink-0 rounded-md object-contain" aria-hidden="true" />
-							<div className="flex min-w-0 flex-col">
-								<h2 className="truncate text-[15px] font-black uppercase leading-none tracking-tight">
-									MV<span className="text-[#f0a020]">PREMIUM</span>
-								</h2>
-								<span className="mt-1 text-[9px] font-bold uppercase leading-none tracking-[0.22em] text-[#8b95a3]">Dashboard</span>
-							</div>
+							<img src={logoUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" aria-hidden="true" />
+							<h2 className="flex min-w-0 items-baseline gap-2 truncate">
+								<span className="shrink-0 text-base font-black uppercase leading-none tracking-tighter">
+									MV<span className="italic text-[#f0a020]">Premium</span>
+								</span>
+								<span className="truncate text-[9px] font-bold uppercase leading-none tracking-[0.25em] text-[#8b95a3]/80">
+									Dashboard
+								</span>
+							</h2>
 						</div>
 						<button
 							type="button"
-							className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[#aab4c0] transition-colors active:bg-[#464e62]"
+							className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2e3543] text-[#aab4c0] transition-colors active:bg-[#3a4254]"
 							aria-label="Cerrar"
 							onClick={() => setOpen(false)}
 						>
@@ -741,141 +832,45 @@ export function MobileLitePanel() {
 					</div>
 				</header>
 
-				<div ref={panelBodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#1c1f27] px-3 pb-[max(16px,calc(env(safe-area-inset-bottom)_+_16px))]">
-					<div className="sticky top-0 z-20 -mx-3 mb-3 bg-[#1c1f27] px-3 pb-2 pt-3">
-						<div className="flex gap-1 rounded-[10px] border border-[#4b5468] bg-[#14171d] p-1" role="tablist" aria-label="Secciones del panel MVPremium">
-						<button
-							type="button"
-							role="tab"
-							aria-selected={activeTab === 'users'}
-							className={`${TAB_BASE_CLASS} ${activeTab === 'users' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
-							onClick={() => setActiveTab('users')}
-						>
-							<UserX className="h-4 w-4" aria-hidden="true" />
-							Usuarios
-						</button>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={activeTab === 'threads'}
-							aria-label="Hilos"
-							className={`${TAB_BASE_CLASS} ${activeTab === 'threads' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
-							onClick={() => setActiveTab('threads')}
-						>
-							<EyeOff className="h-4 w-4" aria-hidden="true" />
-							<span>Hilos</span>
-							{hiddenThreads.length > 0 && (
-								<span
-									aria-hidden="true"
-									className={`ml-0.5 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-bold leading-5 ${
-										activeTab === 'threads' ? 'bg-[#f0a020]/[0.18] text-[#f0a020]' : 'bg-[#464e62] text-[#aab4c0]'
-									}`}
-								>
-									{hiddenThreads.length}
-								</span>
-							)}
-						</button>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={activeTab === 'settings'}
-							className={`${TAB_BASE_CLASS} ${activeTab === 'settings' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
-							onClick={() => setActiveTab('settings')}
-						>
-							<Settings className="h-4 w-4" aria-hidden="true" />
-							Ajustes
-						</button>
-						</div>
-					</div>
+				<div ref={panelBodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
 
 					{activeTab === 'users' ? (
 						<>
-							{errorMessage && (
-								<div role="alert" className={`mb-3 ${STATUS_ERROR_CLASS}`}>
-									{errorMessage}
-								</div>
-							)}
-
-							<label className="relative block">
-								<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8b95a3]" aria-hidden="true" />
-								<input
-									type="search"
-									value={query}
-									autoCapitalize="none"
-									spellCheck={false}
-									aria-describedby={usernameValidationMessage ? USERNAME_VALIDATION_ID : undefined}
-									onChange={event => {
-										setQuery(event.target.value)
-										setStatusMessage(null)
-									}}
-									placeholder="Buscar o añadir nick (3-13)"
-									className="h-11 w-full rounded-md border border-[#4b5468] bg-[#14171d] pl-10 pr-3 text-base text-[#eef1f3] outline-none placeholder:text-[#8b95a3] focus:border-[#f0a020] focus:shadow-[0_0_0_1px_rgba(240,160,32,0.35)]"
-								/>
-							</label>
+							<div className="sticky top-0 z-20 -mx-4 bg-[#1c1f27] px-4 pb-2 pt-1">
+								<label className="relative block">
+									<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#707b8e]" aria-hidden="true" />
+									<input
+										type="search"
+										value={query}
+										autoCapitalize="none"
+										spellCheck={false}
+										aria-describedby={usernameValidationMessage ? USERNAME_VALIDATION_ID : undefined}
+										onChange={event => {
+											setQuery(event.target.value)
+											setStatusMessage(null)
+										}}
+										placeholder="Buscar o añadir nick (3-13)"
+										className={`${INPUT_CLASS} pl-10 pr-3`}
+									/>
+								</label>
+							</div>
 
 							{usernameValidationMessage && (
-								<p id={USERNAME_VALIDATION_ID} className="mt-2 text-xs text-[#d8b36a]">
+								<p id={USERNAME_VALIDATION_ID} className="mt-1 px-1 text-xs text-[#d8b36a]">
 									{usernameValidationMessage}
 								</p>
 							)}
 
-							{statusMessage && (
-								<div role="status" className={`mt-3 ${STATUS_SUCCESS_CLASS}`}>
-									{statusMessage}
-								</div>
-							)}
-
-							{hasAnyFilteredUsers && (
-								<div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Filtrar usuarios">
-									{filterOptions.map(option => {
-										const isActive = activeFilter === option.id
-
-										return (
-											<button
-												key={option.id}
-												type="button"
-												className={`${FILTER_BASE_CLASS} ${isActive ? FILTER_ACTIVE_CLASS : FILTER_IDLE_CLASS}`}
-												aria-pressed={isActive}
-												onClick={() => setActiveFilter(option.id)}
-											>
-												<span className="truncate">{option.label}</span>
-												<span className="ml-1 shrink-0 rounded bg-black/25 px-1.5 py-0.5 text-[11px] leading-none">
-													({option.count})
-												</span>
-											</button>
-										)
-									})}
-								</div>
-							)}
-
-							{hasAnyFilteredUsers && (
-								<button
-									type="button"
-									className="mt-3 inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-[#4b5468] bg-[#363d4d] px-3 text-[13px] font-semibold text-[#aab4c0] transition-colors active:bg-[#464e62] disabled:opacity-60"
-									disabled={refreshingAvatars || missingAvatarCount === 0}
-									onClick={refreshMissingAvatars}
-								>
-									<RefreshCw className={`h-4 w-4 ${refreshingAvatars ? 'animate-spin' : ''}`} aria-hidden="true" />
-									<span>
-										{refreshingAvatars
-											? 'Actualizando avatares'
-											: missingAvatarCount > 0
-												? `Actualizar avatares (${missingAvatarCount})`
-												: 'Avatares actualizados'}
-									</span>
-								</button>
-							)}
-
 							{canAddQueryUser && (
-								<div className="mt-3 rounded-lg border border-dashed border-[#4a5160] bg-[#14171d] p-3">
-									<div className="flex items-center gap-2 text-sm font-medium">
-										<UserX className="h-4 w-4 text-[#aab4c0]" aria-hidden="true" />
+								<div className="mt-2 rounded-2xl border border-dashed border-[#3a4254] bg-[#14171d] p-3">
+									<div className="flex items-center gap-2 px-1 text-sm font-semibold">
+										<UserX className="h-4 w-4 text-[#9aa5b4]" aria-hidden="true" />
 										<span className="min-w-0 truncate">{exactQueryDisplayName}</span>
 									</div>
-									<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-2">
+									<div className="mt-3 grid grid-cols-2 gap-2">
 										<button
 											type="button"
-											className={`${ACTION_BUTTON_BASE_CLASS} ${ACTION_IDLE_CLASS}`}
+											className={SECONDARY_BUTTON_CLASS}
 											disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
 											onClick={() => addQueryFilter('mute')}
 										>
@@ -884,7 +879,7 @@ export function MobileLitePanel() {
 										</button>
 										<button
 											type="button"
-											className={`${ACTION_BUTTON_BASE_CLASS} ${ACTION_IDLE_CLASS}`}
+											className={SECONDARY_BUTTON_CLASS}
 											disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
 											onClick={() => addQueryFilter('hide')}
 										>
@@ -895,109 +890,128 @@ export function MobileLitePanel() {
 								</div>
 							)}
 
-							<div className="mt-4 space-y-2">
+							{hasAnyFilteredUsers && (
+								<div className="mt-2 flex gap-1.5" role="group" aria-label="Filtrar usuarios">
+									{filterOptions.map(option => {
+										const isActive = activeFilter === option.id
+
+										return (
+											<button
+												key={option.id}
+												type="button"
+												className={`${FILTER_BASE_CLASS} flex-1 ${isActive ? FILTER_ACTIVE_CLASS : FILTER_IDLE_CLASS}`}
+												aria-pressed={isActive}
+												onClick={() => setActiveFilter(option.id)}
+											>
+												<span className="truncate">{option.label}</span>
+												<span className="shrink-0 opacity-80">({option.count})</span>
+											</button>
+										)
+									})}
+								</div>
+							)}
+
+							{hasAnyFilteredUsers && (missingAvatarCount > 0 || refreshingAvatars) && (
+								<button
+									type="button"
+									className="mt-1.5 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg text-xs font-semibold text-[#9aa5b4] transition-colors active:bg-[#242a36] disabled:opacity-50"
+									disabled={refreshingAvatars}
+									onClick={refreshMissingAvatars}
+								>
+									<RefreshCw className={`h-3.5 w-3.5 ${refreshingAvatars ? 'animate-spin' : ''}`} aria-hidden="true" />
+									<span>{refreshingAvatars ? 'Actualizando avatares' : `Actualizar avatares (${missingAvatarCount})`}</span>
+								</button>
+							)}
+
+							<div className="mt-3">
 								{filteredUsers.length === 0 ? (
-									<div className="rounded-lg border border-[#4b5468] bg-[#363d4d] px-4 py-7 text-center text-sm text-[#aab4c0]">
-										<UserX className="mx-auto mb-3 h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
-										<p className="font-semibold text-[#eef1f6]">
+									<div className="px-6 py-12 text-center">
+										<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#242a36]">
+											<UserX className="h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
+										</div>
+										<p className="text-sm font-semibold text-[#eef1f6]">
 											{hasAnyFilteredUsers ? 'No hay resultados para este filtro.' : 'No hay usuarios filtrados.'}
 										</p>
 										{!hasAnyFilteredUsers && (
-											<p className="mx-auto mt-1 max-w-[22rem] text-xs leading-relaxed text-[#8b95a3]">
+											<p className="mx-auto mt-1.5 max-w-[20rem] text-xs leading-relaxed text-[#8b95a3]">
 												Escribe un nick exacto para silenciarlo u ocultarlo desde este panel.
 											</p>
 										)}
 									</div>
 								) : (
-									filteredUsers.map(user => {
-										const ignoreType = getIgnoreTypeFromCustomization(user.customization) ?? 'hide'
-										const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
+									<div className={`${GROUP_CLASS} divide-y divide-[#2d3442]`}>
+										{filteredUsers.map(user => {
+											const ignoreType = getIgnoreTypeFromCustomization(user.customization) ?? 'hide'
+											const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
 
-										return (
-											<article key={user.username} className="flex items-center gap-2.5 rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
-												<div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#14171d] text-sm font-bold">
-													{user.customization.avatarUrl ? (
-														<img src={user.customization.avatarUrl} alt="" className="h-full w-full object-cover" />
-													) : (
-														user.username.slice(0, 1).toUpperCase()
-													)}
-												</div>
-												<div className="min-w-0 flex-1">
-													<div className="truncate text-sm font-semibold leading-tight">{user.username}</div>
-													<div className="text-[11px] leading-tight text-[#8b95a3]">{ignoreType === 'mute' ? 'Silenciado' : 'Oculto'}</div>
-												</div>
-												<div className="flex shrink-0 items-center gap-1">
-													<button
-														type="button"
-														aria-label={ignoreType === 'mute' ? 'Silenciado' : 'Silenciar'}
-														aria-pressed={ignoreType === 'mute'}
-														className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-60 ${
-															ignoreType === 'mute'
-																? 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
-																: 'border-[#4b5468] bg-[#1c1f27] text-[#aab4c0] active:bg-[#464e62]'
-														}`}
-														disabled={isSaving}
-														onClick={() => updateFilter(user.username, 'mute')}
-													>
-														<VolumeX className="h-4 w-4" aria-hidden="true" />
-													</button>
-													<button
-														type="button"
-														aria-label={ignoreType === 'hide' ? 'Ocultado' : 'Ocultar'}
-														aria-pressed={ignoreType === 'hide'}
-														className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors disabled:opacity-60 ${
-															ignoreType === 'hide'
-																? 'border-[#f0a020]/[0.5] bg-[#f0a020]/[0.18] text-[#f0a020]'
-																: 'border-[#4b5468] bg-[#1c1f27] text-[#aab4c0] active:bg-[#464e62]'
-														}`}
-														disabled={isSaving}
-														onClick={() => updateFilter(user.username, 'hide')}
-													>
-														<EyeOff className="h-4 w-4" aria-hidden="true" />
-													</button>
-													<button
-														type="button"
-														aria-label="Quitar"
-														className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#5a3236]/70 bg-[#2c1d1f] text-[#e08a8a] transition-colors active:bg-[#3a2427] active:text-[#f2c2c2] disabled:opacity-60"
-														disabled={isSaving}
-														onClick={() => removeUserFilter(user.username)}
-													>
-														<Trash2 className="h-4 w-4" aria-hidden="true" />
-													</button>
-												</div>
-											</article>
-										)
-									})
+											return (
+												<article key={user.username} className="flex items-center gap-3 py-2 pl-3 pr-2">
+													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#14171d] text-sm font-bold text-[#9aa5b4]">
+														{user.customization.avatarUrl ? (
+															<img src={user.customization.avatarUrl} alt="" className="h-full w-full object-cover" />
+														) : (
+															user.username.slice(0, 1).toUpperCase()
+														)}
+													</div>
+													<div className="min-w-0 flex-1">
+														<div className="truncate text-[15px] font-semibold leading-tight">{user.username}</div>
+														<div className="mt-0.5 text-xs leading-tight text-[#8b95a3]">{ignoreType === 'mute' ? 'Silenciado' : 'Oculto'}</div>
+													</div>
+													<div className="flex shrink-0 items-center">
+														<button
+															type="button"
+															aria-label={ignoreType === 'mute' ? 'Silenciado' : 'Silenciar'}
+															aria-pressed={ignoreType === 'mute'}
+															className={`${ROW_ICON_BASE_CLASS} ${ignoreType === 'mute' ? ROW_ICON_ACTIVE_CLASS : ROW_ICON_IDLE_CLASS}`}
+															disabled={isSaving}
+															onClick={() => updateFilter(user.username, 'mute')}
+														>
+															<VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+														<button
+															type="button"
+															aria-label={ignoreType === 'hide' ? 'Ocultado' : 'Ocultar'}
+															aria-pressed={ignoreType === 'hide'}
+															className={`${ROW_ICON_BASE_CLASS} ${ignoreType === 'hide' ? ROW_ICON_ACTIVE_CLASS : ROW_ICON_IDLE_CLASS}`}
+															disabled={isSaving}
+															onClick={() => updateFilter(user.username, 'hide')}
+														>
+															<EyeOff className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+														<button
+															type="button"
+															aria-label="Quitar"
+															className={`${ROW_ICON_BASE_CLASS} text-[#e08a8a] active:bg-[#3a2427] active:text-[#f2c2c2]`}
+															disabled={isSaving}
+															onClick={() => removeUserFilter(user.username)}
+														>
+															<Trash2 className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+													</div>
+												</article>
+											)
+										})}
+									</div>
 								)}
 							</div>
 						</>
 					) : activeTab === 'threads' ? (
-						<div className="space-y-3">
-							{hiddenThreadsStatusMessage && (
-								<div role="status" className={STATUS_SUCCESS_CLASS}>
-									{hiddenThreadsStatusMessage}
-								</div>
-							)}
-
-							{hiddenThreadsErrorMessage && (
-								<div role="alert" className={STATUS_ERROR_CLASS}>
-									{hiddenThreadsErrorMessage}
-								</div>
-							)}
-
+						<>
 							{hiddenThreads.length === 0 ? (
-								<div className="rounded-lg border border-[#4b5468] bg-[#363d4d] px-4 py-7 text-center text-sm text-[#aab4c0]">
-									<EyeOff className="mx-auto mb-3 h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
-									<p className="font-semibold text-[#eef1f6]">No hay hilos ocultos.</p>
-									<p className="mx-auto mt-1 max-w-[22rem] text-xs leading-relaxed text-[#8b95a3]">
+								<div className="px-6 py-12 text-center">
+									<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#242a36]">
+										<EyeOff className="h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
+									</div>
+									<p className="text-sm font-semibold text-[#eef1f6]">No hay hilos ocultos.</p>
+									<p className="mx-auto mt-1.5 max-w-[20rem] text-xs leading-relaxed text-[#8b95a3]">
 										Los hilos que ocultes desde los listados aparecerán aquí.
 									</p>
 								</div>
 							) : (
 								<>
-									<div className="sticky top-[64px] z-10 -mx-3 space-y-2 bg-[#1c1f27] px-3 pb-2 pt-1">
+									<div className="sticky top-0 z-20 -mx-4 bg-[#1c1f27] px-4 pb-2 pt-1">
 										<label className="relative block min-w-0">
-											<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8b95a3]" aria-hidden="true" />
+											<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#707b8e]" aria-hidden="true" />
 											<input
 												type="search"
 												value={hiddenThreadQuery}
@@ -1005,28 +1019,36 @@ export function MobileLitePanel() {
 												spellCheck={false}
 												onChange={event => setHiddenThreadQuery(event.target.value)}
 												placeholder="Buscar hilo o subforo"
-												className="h-11 w-full rounded-md border border-[#4b5468] bg-[#14171d] pl-10 pr-3 text-sm text-[#eef1f3] outline-none placeholder:text-[#8b95a3] focus:border-[#f0a020] focus:shadow-[0_0_0_1px_rgba(240,160,32,0.35)]"
+												className={`${INPUT_CLASS} pl-10 pr-3`}
 											/>
 										</label>
+									</div>
+
+									<div className="mt-1 flex items-center justify-between gap-3 pl-2">
+										<span className="text-xs font-semibold text-[#8b95a3]">
+											{hiddenThreads.length === 1 ? '1 hilo oculto' : `${hiddenThreads.length} hilos ocultos`}
+										</span>
 										<button
 											type="button"
 											aria-label="Mostrar todos"
-											className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-[#4b5468] bg-[#363d4d] px-3 text-[13px] font-semibold text-[#f0a020] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_2px_4px_rgba(0,0,0,0.3)] transition-colors active:bg-[#3c4559] disabled:opacity-60"
+											className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-bold text-[#f0a020] transition-colors active:bg-[#f0a020]/10 disabled:opacity-50"
 											disabled={clearingHiddenThreads}
 											onClick={() => setConfirmClearHiddenThreads(true)}
 										>
-											<RotateCcw className="h-4 w-4" aria-hidden="true" />
-											<span>Mostrar todos los hilos</span>
+											<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+											<span>Mostrar todos</span>
 										</button>
 									</div>
 
 									{filteredHiddenThreads.length === 0 ? (
-										<div className="rounded-lg border border-[#4b5468] bg-[#363d4d] px-4 py-7 text-center text-sm text-[#aab4c0]">
-											<EyeOff className="mx-auto mb-3 h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
-											<p className="font-semibold text-[#eef1f6]">No hay resultados.</p>
+										<div className="px-6 py-12 text-center">
+											<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#242a36]">
+												<Search className="h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
+											</div>
+											<p className="text-sm font-semibold text-[#eef1f6]">No hay resultados.</p>
 										</div>
 									) : (
-										<div className="space-y-2.5">
+										<div className={`mt-2 ${GROUP_CLASS} divide-y divide-[#2d3442]`}>
 											{filteredHiddenThreads.map(thread => {
 												const isRestoring = restoringThread === thread.id
 												const subforumSlug = getSubforumSlugFromId(thread.subforumId)
@@ -1034,35 +1056,34 @@ export function MobileLitePanel() {
 												const hiddenAtLabel = formatHiddenThreadDate(thread.hiddenAt)
 
 												return (
-													<article key={thread.id} className="grid grid-cols-[minmax(0,1fr)_48px] overflow-hidden rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
-														<div className="min-w-0 px-3 py-2.5">
-															<div className="flex min-w-0 items-start gap-2.5">
-																{subforumIconId !== null && (
-																	<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[#4a5269] bg-[#232834]">
-																		<NativeFidIcon iconId={subforumIconId} className="h-5 w-5 shrink-0" />
-																	</div>
+													<article key={thread.id} className="flex items-center gap-3 py-2.5 pl-3 pr-2">
+														{subforumIconId !== null && (
+															<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d]">
+																<NativeFidIcon iconId={subforumIconId} className="h-5 w-5 shrink-0" />
+															</div>
+														)}
+														<div className="min-w-0 flex-1">
+															<div className="line-clamp-2 text-sm font-semibold leading-snug text-[#eef1f6]">{thread.title}</div>
+															<div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-[#8b95a3]">
+																<span className="min-w-0 truncate">{thread.subforum}</span>
+																{hiddenAtLabel && (
+																	<>
+																		<span aria-hidden="true">·</span>
+																		<span className="shrink-0 tabular-nums">{hiddenAtLabel}</span>
+																	</>
 																)}
-																<div className="min-w-0 flex-1">
-																	<div className="line-clamp-2 text-sm font-semibold leading-snug text-[#eef1f6]">{thread.title}</div>
-																	<div className="mt-0.5 flex min-w-0 items-center justify-between gap-3 text-[11px] font-semibold text-[#aab4c0]">
-																		<span className="min-w-0 truncate">{thread.subforum}</span>
-																		{hiddenAtLabel && <span className="shrink-0 tabular-nums font-medium text-[#8b95a3]">{hiddenAtLabel}</span>}
-																	</div>
-																</div>
 															</div>
 														</div>
-														<div className="flex items-center justify-center pl-1 pr-2">
-															<button
-																type="button"
-																className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#f0a020] transition-colors active:bg-[#f0a020]/15 disabled:opacity-60"
-																aria-label="Mostrar"
-																title="Mostrar"
-																disabled={isRestoring}
-																onClick={() => restoreHiddenThread(thread)}
-															>
-																<RotateCcw className="h-5 w-5" aria-hidden="true" />
-															</button>
-														</div>
+														<button
+															type="button"
+															className={`${ROW_ICON_BASE_CLASS} text-[#f0a020] active:bg-[#f0a020]/15`}
+															aria-label="Mostrar"
+															title="Mostrar"
+															disabled={isRestoring}
+															onClick={() => restoreHiddenThread(thread)}
+														>
+															<RotateCcw className="h-5 w-5" aria-hidden="true" />
+														</button>
 													</article>
 												)
 											})}
@@ -1070,118 +1091,95 @@ export function MobileLitePanel() {
 									)}
 								</>
 							)}
-						</div>
+						</>
 					) : (
-						<div className="space-y-3">
-							<div className="px-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a3]">Imágenes</div>
-							<div className="rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
-								<div className="flex items-start gap-3">
-									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f0a020]/15 text-[#f0a020]">
-										<KeyRound className="h-5 w-5" aria-hidden="true" />
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="flex flex-wrap items-center gap-2">
-											<div className="text-base font-semibold">ImgBB</div>
-											<span
-												className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold ${
-													isImgbbConfigured ? 'bg-[#274532] text-[#bdf2c7]' : 'bg-[#403a2c] text-[#e7c77f]'
-												}`}
-											>
-												{isImgbbConfigured && <Check className="h-3 w-3" aria-hidden="true" />}
-												{isImgbbConfigured ? 'ImgBB activo' : 'Freeimage gratis'}
-											</span>
+						<div className="pb-1">
+							<div className={SECTION_LABEL_CLASS}>Imágenes</div>
+							<div className={GROUP_CLASS}>
+								<div className="p-4">
+									<div className="flex items-start gap-3">
+										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f0a020]/[0.16] text-[#f0a020]">
+											<KeyRound className="h-5 w-5" aria-hidden="true" />
 										</div>
-										<p className="mt-1 text-sm text-[#aab4c0]">
-											{isImgbbConfigured
-												? 'Tus subidas de imágenes usarán ImgBB con tu API key.'
-												: 'Sin API key se usará Freeimage, el servicio gratuito por defecto.'}
-										</p>
+										<div className="min-w-0 flex-1">
+											<div className="flex flex-wrap items-center gap-2">
+												<div className="text-[15px] font-semibold">ImgBB</div>
+												<span
+													className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+														isImgbbConfigured ? 'bg-[#274532] text-[#bdf2c7]' : 'bg-[#3b3526] text-[#e7c77f]'
+													}`}
+												>
+													{isImgbbConfigured && <Check className="h-3 w-3" aria-hidden="true" />}
+													{isImgbbConfigured ? 'ImgBB activo' : 'Freeimage gratis'}
+												</span>
+											</div>
+											<p className="mt-1 text-xs leading-relaxed text-[#9aa5b4]">
+												{isImgbbConfigured
+													? 'Tus subidas de imágenes usarán ImgBB con tu API key.'
+													: 'Sin API key se usará Freeimage, el servicio gratuito por defecto.'}
+											</p>
+										</div>
+									</div>
+
+									<label className="mt-4 block px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]" htmlFor="mvp-mobile-lite-imgbb-key">
+										API key
+									</label>
+									<input
+										id="mvp-mobile-lite-imgbb-key"
+										type="password"
+										value={imgbbApiKeyDraft}
+										autoCapitalize="none"
+										autoCorrect="off"
+										spellCheck={false}
+										onChange={event => {
+											setImgbbApiKeyDraft(event.target.value)
+											setImgbbStatusMessage(null)
+											setImgbbErrorMessage(null)
+										}}
+										placeholder="Pega tu API key de ImgBB"
+										className={`${INPUT_CLASS} mt-2 px-3 font-mono`}
+									/>
+
+									<div className="mt-3 grid grid-cols-2 gap-2">
+										<button type="button" className={SECONDARY_BUTTON_CLASS} onClick={pasteImgbbApiKey}>
+											<Clipboard className="h-4 w-4" aria-hidden="true" />
+											Pegar
+										</button>
+										<button
+											type="button"
+											aria-label="Guardar API key de ImgBB"
+											className={PRIMARY_BUTTON_CLASS}
+											disabled={savingImgbbApiKey || !isImgbbDirty}
+											onClick={saveImgbbApiKey}
+										>
+											<Check className="h-4 w-4" aria-hidden="true" />
+											{savingImgbbApiKey ? 'Guardando' : 'Guardar'}
+										</button>
 									</div>
 								</div>
 
-								<label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-[#8b95a3]" htmlFor="mvp-mobile-lite-imgbb-key">
-									API key
-								</label>
-								<input
-									id="mvp-mobile-lite-imgbb-key"
-									type="password"
-									value={imgbbApiKeyDraft}
-									autoCapitalize="none"
-									autoCorrect="off"
-									spellCheck={false}
-									onChange={event => {
-										setImgbbApiKeyDraft(event.target.value)
-										setImgbbStatusMessage(null)
-										setImgbbErrorMessage(null)
-									}}
-									placeholder="Pega tu API key de ImgBB"
-									className="mt-2 h-11 w-full rounded-md border border-[#4b5468] bg-[#14171d] px-3 font-mono text-sm text-[#eef1f3] outline-none placeholder:text-[#8b95a3] focus:border-[#f0a020] focus:shadow-[0_0_0_1px_rgba(240,160,32,0.35)]"
-								/>
-
-								<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(116px,1fr))] gap-2">
-									<button
-										type="button"
-										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#4a5160] bg-[#464e62] px-2 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#343b45]"
-										onClick={pasteImgbbApiKey}
-									>
-										<Clipboard className="h-4 w-4" aria-hidden="true" />
-										Pegar
-									</button>
-									<button
-										type="button"
-										aria-label="Guardar API key de ImgBB"
-										className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#d06d00] bg-[#8a5b00] px-2 text-sm font-semibold text-white transition-colors disabled:border-[#4b5468] disabled:bg-[#363d4d] disabled:text-[#8b95a3]"
-										disabled={savingImgbbApiKey || !isImgbbDirty}
-										onClick={saveImgbbApiKey}
-									>
-										<Check className="h-4 w-4" aria-hidden="true" />
-										{savingImgbbApiKey ? 'Guardando' : 'Guardar'}
-									</button>
-								</div>
+								<a
+									href="https://api.imgbb.com/"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="flex h-12 items-center justify-between gap-2 border-t border-[#2d3442] px-4 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#2e3543]"
+								>
+									<span>Obtener API key</span>
+									<ExternalLink className="h-4 w-4 shrink-0 text-[#707b8e]" aria-hidden="true" />
+								</a>
 							</div>
 
-							{imgbbStatusMessage && (
-								<div role="status" className={STATUS_SUCCESS_CLASS}>
-									{imgbbStatusMessage}
-								</div>
-							)}
+							<div className={SECTION_LABEL_CLASS}>Apariencia</div>
 
-							{imgbbErrorMessage && (
-								<div role="alert" className={STATUS_ERROR_CLASS}>
-									{imgbbErrorMessage}
-								</div>
-							)}
-
-							<a
-								href="https://api.imgbb.com/"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#4b5468] bg-[#363d4d] px-3 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#3d4651]"
-							>
-								<ExternalLink className="h-4 w-4" aria-hidden="true" />
-								Obtener API key
-							</a>
-
-							<div className="mt-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a3]">Apariencia</div>
-
-							<section className="overflow-hidden rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
-								<div
-									className={`grid min-h-[68px] grid-cols-[40px_minmax(0,1fr)_auto_auto] items-center gap-3 px-3 py-3 ${
-										boldColorEnabled ? 'bg-transparent' : 'bg-transparent'
-									}`}
-								>
-									<div className="flex h-10 w-10 items-center justify-center rounded-md border border-[#4a5160] bg-[#14171d]">
-										<span
-											className="h-6 w-6 rounded border border-[#4a5160] shadow-[0_1px_3px_rgba(0,0,0,0.35)]"
-											style={{ backgroundColor: normalizedBoldColorDraft }}
-											aria-hidden="true"
-										/>
-									</div>
-									<div className="min-w-0">
-										<div className="flex min-w-0 items-center gap-2">
-											<Palette className="h-4 w-4 shrink-0 text-[#f0a020]" aria-hidden="true" />
-											<div className="truncate text-sm font-semibold text-[#eef1f3]">Color de negrita</div>
-										</div>
+							<section className={GROUP_CLASS}>
+								<div className="flex min-h-[60px] items-center gap-3 py-2 pl-4 pr-2">
+									<span
+										className="h-7 w-7 shrink-0 rounded-lg border border-[#3a4254]"
+										style={{ backgroundColor: normalizedBoldColorDraft }}
+										aria-hidden="true"
+									/>
+									<div className="min-w-0 flex-1">
+										<div className="truncate text-[15px] font-semibold text-[#eef1f6]">Color de negrita</div>
 										<div className="mt-0.5 truncate text-xs text-[#8b95a3]">
 											{boldColorEnabled ? 'Activo en Mediavida' : 'Se usa el color nativo'}
 										</div>
@@ -1191,35 +1189,31 @@ export function MobileLitePanel() {
 										role="switch"
 										aria-label="Color personalizado"
 										aria-checked={boldColorEnabled}
-										className={`relative h-11 w-16 shrink-0 rounded-full border transition-colors disabled:opacity-60 ${
-											boldColorEnabled ? 'border-[#f0a020] bg-[#f0a020]' : 'border-[#4a5160] bg-[#464e62]'
-										}`}
+										className={SWITCH_WRAPPER_CLASS}
 										disabled={savingBoldColor}
 										onClick={toggleBoldColor}
 									>
-										<span
-											className={`pointer-events-none absolute left-2 top-2 h-7 w-7 rounded-full bg-white shadow transition-transform ${
-												boldColorEnabled ? 'translate-x-5' : 'translate-x-0'
-											}`}
-										/>
+										<span className={`${SWITCH_TRACK_BASE_CLASS} ${boldColorEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+											<span className={`${SWITCH_THUMB_BASE_CLASS} ${boldColorEnabled ? 'translate-x-5' : ''}`} />
+										</span>
 									</button>
 									<button
 										type="button"
 										aria-expanded={boldColorExpanded}
 										aria-label={boldColorExpanded ? 'Ocultar ajustes de color' : 'Editar color de negrita'}
-										className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[#4a5160] bg-[#464e62] text-[#eef1f6] transition-colors active:bg-[#343b45]"
+										className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8b95a3] transition-colors active:bg-[#2e3543]"
 										onClick={() => setBoldColorExpanded(value => !value)}
 									>
 										<ChevronDown
-											className={`h-4 w-4 transition-transform ${boldColorExpanded ? 'rotate-180' : ''}`}
+											className={`h-5 w-5 transition-transform ${boldColorExpanded ? 'rotate-180' : ''}`}
 											aria-hidden="true"
 										/>
 									</button>
 								</div>
 
 								{boldColorExpanded && (
-									<div className="border-t border-[#4b5468] bg-[#1c1f27] p-3">
-										<label className="block text-xs font-semibold uppercase tracking-wide text-[#8b95a3]" htmlFor="mvp-mobile-lite-bold-color">
+									<div className="border-t border-[#2d3442] bg-[#1c1f27] p-4">
+										<label className="block px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]" htmlFor="mvp-mobile-lite-bold-color">
 											Color
 										</label>
 										<div className="mt-2 grid grid-cols-[56px_minmax(0,1fr)] gap-2">
@@ -1233,7 +1227,7 @@ export function MobileLitePanel() {
 													setBoldColorStatusMessage(null)
 													setBoldColorErrorMessage(null)
 												}}
-												className="h-11 w-full rounded-md border border-[#4a5160] bg-[#14171d] p-1"
+												className="h-11 w-full rounded-xl border border-transparent bg-[#14171d] p-1.5"
 											/>
 											<input
 												type="text"
@@ -1247,21 +1241,21 @@ export function MobileLitePanel() {
 													setBoldColorStatusMessage(null)
 													setBoldColorErrorMessage(null)
 												}}
-												className="h-11 w-full rounded-md border border-[#4a5160] bg-[#14171d] px-3 font-mono text-sm text-[#eef1f6] outline-none placeholder:text-[#8b95a3] focus:border-[#f0a020] focus:shadow-[0_0_0_1px_rgba(240,160,32,0.35)]"
+												className={`${INPUT_CLASS} px-3 font-mono`}
 											/>
 										</div>
 
-										<div className="mt-3 rounded-md border border-[#4b5468] bg-[#14171d] px-3 py-3 text-sm leading-relaxed text-[#cfd5db]">
+										<div className="mt-3 rounded-xl bg-[#14171d] px-3 py-3 text-sm leading-relaxed text-[#cfd5db]">
 											Texto normal y{' '}
 											<strong style={{ color: boldColorEnabled ? normalizedBoldColorDraft : 'inherit' }}>
 												texto en negrita
 											</strong>
 										</div>
 
-										<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(116px,1fr))] gap-2">
+										<div className="mt-3 grid grid-cols-2 gap-2">
 											<button
 												type="button"
-												className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#4a5160] bg-[#464e62] px-2 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#343b45] disabled:border-[#4b5468] disabled:bg-[#363d4d] disabled:text-[#8b95a3]"
+												className={SECONDARY_BUTTON_CLASS}
 												disabled={savingBoldColor || (boldColor === DEFAULT_BOLD_COLOR && normalizedBoldColorDraft === DEFAULT_BOLD_COLOR)}
 												onClick={resetBoldColor}
 											>
@@ -1271,7 +1265,7 @@ export function MobileLitePanel() {
 											<button
 												type="button"
 												aria-label="Guardar color de negrita"
-												className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#f0a020] bg-[#8a5b00] px-2 text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-colors active:bg-[#9c6900] disabled:border-[#4b5468] disabled:bg-[#454d59] disabled:text-[#8b95a3] disabled:shadow-none"
+												className={PRIMARY_BUTTON_CLASS}
 												disabled={savingBoldColor || !isBoldColorDirty}
 												onClick={saveBoldColor}
 											>
@@ -1283,18 +1277,16 @@ export function MobileLitePanel() {
 								)}
 							</section>
 
-							<div className="mt-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-[#8b95a3]">Hilos</div>
+							<div className={SECTION_LABEL_CLASS}>Hilos</div>
 
-							<section className="overflow-hidden rounded-xl border border-[#535f80] bg-gradient-to-br from-[#3c4559] to-[#323b4d] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_2px_5px_rgba(0,0,0,0.35)]">
-								<div
-									className={`flex min-h-[68px] items-center justify-between gap-3 px-3 py-3 ${
-										liveThreadEnabled ? 'bg-transparent' : 'bg-transparent'
-									}`}
-								>
-									<div className="flex min-w-0 items-start gap-3">
-										<Radio className="mt-0.5 h-4 w-4 shrink-0 text-[#f0a020]" aria-hidden="true" />
+							<section className={`${GROUP_CLASS} divide-y divide-[#2d3442]`}>
+								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
+									<div className="flex min-w-0 items-center gap-3">
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+											<Radio className="h-4 w-4" aria-hidden="true" />
+										</div>
 										<div className="min-w-0">
-											<div className="text-sm font-semibold text-[#eef1f3]">Modo Live</div>
+											<div className="text-[15px] font-semibold text-[#eef1f6]">Modo Live</div>
 											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
 												{liveThreadEnabled ? 'Muestra el botón Live en los hilos' : 'No muestra el botón Live'}
 											</div>
@@ -1305,29 +1297,23 @@ export function MobileLitePanel() {
 										role="switch"
 										aria-label="Modo Live"
 										aria-checked={liveThreadEnabled}
-										className={`relative h-11 w-16 shrink-0 rounded-full border transition-colors disabled:opacity-60 ${
-											liveThreadEnabled ? 'border-[#f0a020] bg-[#f0a020]' : 'border-[#4a5160] bg-[#464e62]'
-										}`}
+										className={SWITCH_WRAPPER_CLASS}
 										disabled={savingMobileLiteSetting === 'liveThreadEnabled'}
 										onClick={toggleLiveThreadSetting}
 									>
-										<span
-											className={`pointer-events-none absolute left-2 top-2 h-7 w-7 rounded-full bg-white shadow transition-transform ${
-												liveThreadEnabled ? 'translate-x-5' : 'translate-x-0'
-											}`}
-										/>
+										<span className={`${SWITCH_TRACK_BASE_CLASS} ${liveThreadEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+											<span className={`${SWITCH_THUMB_BASE_CLASS} ${liveThreadEnabled ? 'translate-x-5' : ''}`} />
+										</span>
 									</button>
 								</div>
 
-								<div
-									className={`flex min-h-[68px] items-center justify-between gap-3 border-t border-[#4b5468] px-3 py-3 ${
-										hideThreadButtonEnabled ? 'bg-transparent' : 'bg-transparent'
-									}`}
-								>
-									<div className="flex min-w-0 items-start gap-3">
-										<EyeOff className="mt-0.5 h-4 w-4 shrink-0 text-[#f0a020]" aria-hidden="true" />
+								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
+									<div className="flex min-w-0 items-center gap-3">
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+											<EyeOff className="h-4 w-4" aria-hidden="true" />
+										</div>
 										<div className="min-w-0">
-											<div className="text-sm font-semibold text-[#eef1f3]">Botón ocultar hilos</div>
+											<div className="text-[15px] font-semibold text-[#eef1f6]">Botón ocultar hilos</div>
 											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
 												{hideThreadButtonEnabled ? 'Muestra el botón en los listados' : 'Oculta el botón de los listados'}
 											</div>
@@ -1338,51 +1324,124 @@ export function MobileLitePanel() {
 										role="switch"
 										aria-label="Botón ocultar hilos"
 										aria-checked={hideThreadButtonEnabled}
-										className={`relative h-11 w-16 shrink-0 rounded-full border transition-colors disabled:opacity-60 ${
-											hideThreadButtonEnabled ? 'border-[#f0a020] bg-[#f0a020]' : 'border-[#4a5160] bg-[#464e62]'
-										}`}
+										className={SWITCH_WRAPPER_CLASS}
 										disabled={savingMobileLiteSetting === 'hideThreadEnabled'}
 										onClick={toggleHideThreadButtonSetting}
 									>
-										<span
-											className={`pointer-events-none absolute left-2 top-2 h-7 w-7 rounded-full bg-white shadow transition-transform ${
-												hideThreadButtonEnabled ? 'translate-x-5' : 'translate-x-0'
-											}`}
-										/>
+										<span className={`${SWITCH_TRACK_BASE_CLASS} ${hideThreadButtonEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+											<span className={`${SWITCH_THUMB_BASE_CLASS} ${hideThreadButtonEnabled ? 'translate-x-5' : ''}`} />
+										</span>
 									</button>
 								</div>
 							</section>
-
-							{boldColorStatusMessage && (
-								<div role="status" className={STATUS_SUCCESS_CLASS}>
-									{boldColorStatusMessage}
-								</div>
-							)}
-
-							{boldColorErrorMessage && (
-								<div role="alert" className={STATUS_ERROR_CLASS}>
-									{boldColorErrorMessage}
-								</div>
-							)}
-
-							{mobileLiteSettingsStatusMessage && (
-								<div role="status" className={STATUS_SUCCESS_CLASS}>
-									{mobileLiteSettingsStatusMessage}
-								</div>
-							)}
-
-							{mobileLiteSettingsErrorMessage && (
-								<div role="alert" className={STATUS_ERROR_CLASS}>
-									{mobileLiteSettingsErrorMessage}
-								</div>
-							)}
 						</div>
 					)}
 				</div>
+
+				{/* Single feedback channel: transient toasts floating above the tab bar */}
+				<div className="pointer-events-none absolute inset-x-0 bottom-24 z-30 flex flex-col items-center gap-2 px-4">
+					{statusMessage && (
+						<div role="status" className={STATUS_SUCCESS_CLASS}>
+							{statusMessage}
+						</div>
+					)}
+					{hiddenThreadsStatusMessage && (
+						<div role="status" className={STATUS_SUCCESS_CLASS}>
+							{hiddenThreadsStatusMessage}
+						</div>
+					)}
+					{imgbbStatusMessage && (
+						<div role="status" className={STATUS_SUCCESS_CLASS}>
+							{imgbbStatusMessage}
+						</div>
+					)}
+					{boldColorStatusMessage && (
+						<div role="status" className={STATUS_SUCCESS_CLASS}>
+							{boldColorStatusMessage}
+						</div>
+					)}
+					{mobileLiteSettingsStatusMessage && (
+						<div role="status" className={STATUS_SUCCESS_CLASS}>
+							{mobileLiteSettingsStatusMessage}
+						</div>
+					)}
+					{errorMessage && (
+						<div role="alert" className={STATUS_ERROR_CLASS}>
+							{errorMessage}
+						</div>
+					)}
+					{hiddenThreadsErrorMessage && (
+						<div role="alert" className={STATUS_ERROR_CLASS}>
+							{hiddenThreadsErrorMessage}
+						</div>
+					)}
+					{imgbbErrorMessage && (
+						<div role="alert" className={STATUS_ERROR_CLASS}>
+							{imgbbErrorMessage}
+						</div>
+					)}
+					{boldColorErrorMessage && (
+						<div role="alert" className={STATUS_ERROR_CLASS}>
+							{boldColorErrorMessage}
+						</div>
+					)}
+					{mobileLiteSettingsErrorMessage && (
+						<div role="alert" className={STATUS_ERROR_CLASS}>
+							{mobileLiteSettingsErrorMessage}
+						</div>
+					)}
+				</div>
+
+				{/* Bottom tab bar: thumb-reachable primary navigation */}
+				<nav className="relative shrink-0 border-t border-[#2c3340] bg-[#14171d] px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.45)]">
+					<div className="flex h-[52px] items-stretch gap-1.5" role="tablist" aria-label="Secciones del panel MVPremium">
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'users'}
+							className={`${TAB_BASE_CLASS} ${activeTab === 'users' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
+							onClick={() => setActiveTab('users')}
+						>
+							<UserX className="h-5 w-5" aria-hidden="true" />
+							Usuarios
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'threads'}
+							aria-label="Hilos"
+							className={`${TAB_BASE_CLASS} ${activeTab === 'threads' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
+							onClick={() => setActiveTab('threads')}
+						>
+							<span className="relative">
+								<EyeOff className="h-5 w-5" aria-hidden="true" />
+								{hiddenThreads.length > 0 && (
+									<span
+										aria-hidden="true"
+										className="absolute -right-2.5 -top-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#f0a020] px-1 text-[10px] font-black leading-[18px] text-[#221604] ring-2 ring-[#14171d]"
+									>
+										{hiddenThreads.length}
+									</span>
+								)}
+							</span>
+							Hilos
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'settings'}
+							className={`${TAB_BASE_CLASS} ${activeTab === 'settings' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
+							onClick={() => setActiveTab('settings')}
+						>
+							<Settings className="h-5 w-5" aria-hidden="true" />
+							Ajustes
+						</button>
+					</div>
+				</nav>
 			</section>
 
 			{confirmClearHiddenThreads && (
-				<div className="absolute inset-0 z-30 flex items-end justify-center bg-black/50 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))]">
+				<div className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] animate-in fade-in-0 duration-150">
 					<button
 						type="button"
 						className="absolute inset-0 h-full w-full cursor-default"
@@ -1394,25 +1453,25 @@ export function MobileLitePanel() {
 						aria-modal="true"
 						aria-labelledby="mvp-mobile-lite-clear-hidden-threads-title"
 						aria-describedby="mvp-mobile-lite-clear-hidden-threads-description"
-						className="relative w-full max-w-[32rem] rounded-lg border border-[#4b5468] bg-[#363d4d] p-4 text-sm text-[#e5e8eb] shadow-2xl"
+						className="relative w-full max-w-[32rem] rounded-3xl bg-[#242a36] p-5 text-sm text-[#e5e8eb] shadow-[0_12px_48px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom-4 duration-200"
 					>
-						<p id="mvp-mobile-lite-clear-hidden-threads-title" className="text-base font-semibold text-[#f2f4f7]">
+						<p id="mvp-mobile-lite-clear-hidden-threads-title" className="text-base font-bold text-[#f2f4f7]">
 							Se mostrarán todos los hilos ocultos.
 						</p>
-						<p id="mvp-mobile-lite-clear-hidden-threads-description" className="mt-1 text-sm leading-relaxed text-[#aab4c0]">
+						<p id="mvp-mobile-lite-clear-hidden-threads-description" className="mt-1 text-sm leading-relaxed text-[#9aa5b4]">
 							Esto vaciará tu lista de hilos ocultos en este dispositivo.
 						</p>
-						<div className="mt-4 grid grid-cols-2 gap-2">
+						<div className="mt-5 grid grid-cols-2 gap-2">
 							<button
 								type="button"
-								className="inline-flex h-11 items-center justify-center rounded-md border border-[#626b74] bg-[#363d4d] px-2 text-sm font-semibold text-[#eef1f3] transition-colors active:bg-[#59636e]"
+								className={SECONDARY_BUTTON_CLASS}
 								onClick={() => setConfirmClearHiddenThreads(false)}
 							>
 								Cancelar
 							</button>
 							<button
 								type="button"
-								className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-[#ff7a1f] bg-[#b7470d] px-2 text-sm font-semibold text-white transition-colors active:bg-[#d0500f] disabled:opacity-60"
+								className={PRIMARY_BUTTON_CLASS}
 								disabled={clearingHiddenThreads}
 								onClick={restoreAllHiddenThreads}
 							>

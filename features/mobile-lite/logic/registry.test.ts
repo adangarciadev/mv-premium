@@ -56,9 +56,17 @@ vi.mock('./ignored-users-import', () => ({
 
 vi.mock('./ignored-user-threads', () => ({
 	initMobileLiteIgnoredUserThreads: mocks.initIgnoredUserThreads,
-	isNormalMobileLiteSubforumPath: vi.fn(
-		(pathname: string) => pathname.startsWith('/foro/') && !pathname.startsWith('/foro/spy')
-	),
+	// Mirrors the real implementation: subforum listings only, never spy or thread URLs (slug ending in -<id>).
+	isNormalMobileLiteSubforumPath: vi.fn((pathname: string) => {
+		if (!pathname.startsWith('/foro/')) return false
+		if (pathname.startsWith('/foro/spy')) return false
+
+		const segments = pathname.split('/').filter(Boolean)
+		if (segments.length < 2) return false
+
+		const maybeThreadSlug = segments[2]
+		return !maybeThreadSlug || !/-\d+$/.test(maybeThreadSlug)
+	}),
 	teardownMobileLiteIgnoredUserThreads: mocks.teardownIgnoredUserThreads,
 }))
 
