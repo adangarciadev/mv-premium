@@ -727,44 +727,53 @@ html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #po
 	z-index: 2 !important;
 }
 
-/* Stable show/hide (no height animation, no clipping) so Mediavida's native
-   editor keeps focus and the keyboard opens normally. */
+/* Smooth slide open/close (grid 0fr ↔ 1fr, same trick as desktop) with the
+   iOS-sheet curve from the Mobile Lite design system. Clipping only exists
+   WHILE animating: once open, JS adds .mvp-settled and we lift overflow so
+   dropdowns and the Android keyboard interplay match the old stable state.
+   `clip` instead of `hidden` on purpose: `hidden` creates a BFC that contains
+   inner margins, which added a phantom gap below the toolbar mid-animation and
+   a visible re-layout jump when .mvp-settled lifted the clipping. */
 #mvp-live-editor-wrapper.mvp-live-mobile-lite {
-	display: none !important;
-	grid-template-rows: none !important;
+	display: grid !important;
+	grid-template-rows: 0fr !important;
 	margin-bottom: 0 !important;
-	opacity: 1 !important;
+	opacity: 0 !important;
 	order: 2 !important;
-	overflow: visible !important;
-	pointer-events: auto !important;
+	overflow: clip !important;
+	pointer-events: none !important;
 	position: relative !important;
-	transition: none !important;
+	transition:
+		grid-template-rows 300ms cubic-bezier(0.32, 0.72, 0, 1),
+		opacity 240ms ease !important;
 	z-index: 1 !important;
 }
 
 #mvp-live-editor-wrapper.mvp-live-mobile-lite > div {
-	min-height: auto !important;
-	overflow: visible !important;
+	min-height: 0 !important;
+	overflow: clip !important;
 }
 
+/* Surfaces/tokens follow features/mobile-lite/DESIGN.md (§2): sheet #1c1f27,
+   inset #14171d, divider #2d3442, accent #f0a020, premium pill for active. */
 .mvp-live-mobile-header {
 	align-items: center !important;
-	background: #2b2f37 !important;
-	border: 1px solid #3a4049 !important;
+	background: #1c1f27 !important;
+	border: 1px solid #2c3340 !important;
 	border-radius: 0 !important;
-	box-shadow: none !important;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
 	box-sizing: border-box !important;
 	color: #eef1f6 !important;
 	display: grid !important;
 	gap: 8px !important;
-	grid-template-columns: minmax(64px, 1fr) auto auto auto !important;
+	grid-template-columns: minmax(56px, 1fr) auto auto auto !important;
 	min-height: 56px !important;
-	padding: 8px 10px !important;
+	padding: 8px 12px !important;
 	width: 100% !important;
 }
 
 .mvp-live-mobile-header.editor-open {
-	border-bottom-color: #3a4049 !important;
+	border-bottom-color: #2d3442 !important;
 }
 
 .mvp-live-mobile-status,
@@ -778,10 +787,10 @@ html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #po
 
 .mvp-live-mobile-status {
 	color: #50de5d !important;
-	font-size: 13px !important;
+	font-size: 12px !important;
 	font-weight: 800 !important;
 	gap: 7px !important;
-	letter-spacing: 0 !important;
+	letter-spacing: 0.08em !important;
 }
 
 .mvp-live-mobile-status .mvp-live-dot {
@@ -789,12 +798,18 @@ html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #po
 	width: 9px !important;
 }
 
+/* Idle chip recipe: inset surface, pill radius, faint text (DESIGN.md filter chips) */
 .mvp-live-mobile-chip {
-	color: #eef1f3 !important;
+	background: #14171d !important;
+	border: 1px solid rgba(255, 255, 255, 0.04) !important;
+	border-radius: 999px !important;
+	color: #9aa5b4 !important;
 	font-size: 12px !important;
 	font-weight: 700 !important;
-	gap: 5px !important;
-	opacity: 0.92 !important;
+	gap: 6px !important;
+	min-height: 36px !important;
+	opacity: 1 !important;
+	padding: 0 12px !important;
 }
 
 .mvp-live-mobile-clock {
@@ -816,32 +831,57 @@ html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #po
 	width: 1.5px !important;
 }
 
+/* "Responder": the one filled-accent (primary) button on screen.
+   Shared control geometry: every header control (chip, delay, primary, exit)
+   is a 36px pill with 12px text so the row reads as one homogeneous toolbar. */
 .mvp-live-mobile-btn {
-	background: #363d4d !important;
-	border: 1px solid #4b5468 !important;
-	border-radius: 7px !important;
-	color: #eef1f6 !important;
+	background: #f0a020 !important;
+	border: 1px solid transparent !important;
+	border-radius: 999px !important;
+	box-shadow: none !important;
+	color: #221604 !important;
 	cursor: pointer !important;
-	font-size: 13px !important;
-	font-weight: 700 !important;
+	font-size: 12px !important;
+	font-weight: 800 !important;
 	gap: 6px !important;
 	justify-content: center !important;
-	min-height: 40px !important;
-	padding: 0 12px !important;
+	min-height: 36px !important;
+	padding: 0 14px !important;
+	transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease !important;
 }
 
+.mvp-live-mobile-btn:active {
+	background: #d98e12 !important;
+}
+
+/* Editor open → "Cerrar": the house premium-pill active treatment (DESIGN.md §5) */
 .mvp-live-mobile-btn.is-active {
-	background: rgba(240, 160, 32, 0.14) !important;
-	border-color: rgba(240, 160, 32, 0.42) !important;
+	background: linear-gradient(180deg, rgba(240, 160, 32, 0.22), rgba(240, 160, 32, 0.07)) !important;
+	border-color: rgba(240, 160, 32, 0.25) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.12),
+		inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+		0 2px 6px rgba(0, 0, 0, 0.35) !important;
 	color: #f0a020 !important;
 }
 
+.mvp-live-mobile-btn.is-active:active {
+	background: linear-gradient(180deg, rgba(240, 160, 32, 0.3), rgba(240, 160, 32, 0.12)) !important;
+}
+
+/* "Salir": neutral secondary pill (visible button shape, no accent) */
 .mvp-live-mobile-btn.is-ghost {
-	background: transparent !important;
+	background: #2e3543 !important;
 	border-color: transparent !important;
-	color: #aab4c0 !important;
-	padding-left: 6px !important;
-	padding-right: 4px !important;
+	box-shadow: none !important;
+	color: #eef1f6 !important;
+	font-weight: 700 !important;
+	padding: 0 12px !important;
+}
+
+.mvp-live-mobile-btn.is-ghost:active {
+	background: #3a4254 !important;
+	color: #eef1f6 !important;
 }
 
 /* Delay/interval picker inside the mobile Live header (replaces the old dead chip) */
@@ -849,28 +889,36 @@ html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #po
 	justify-self: start !important;
 }
 
+/* Delay trigger: idle chip; selected delay gets the premium pill */
 .mvp-live-mobile-header .mvp-live-delay-trigger {
-	min-height: 38px !important;
-	padding: 0 10px !important;
-	background: rgba(255, 255, 255, 0.06) !important;
-	border-color: rgba(255, 255, 255, 0.16) !important;
-	color: #eef1f3 !important;
+	min-height: 36px !important;
+	padding: 0 12px !important;
+	background: #14171d !important;
+	border: 1px solid rgba(255, 255, 255, 0.04) !important;
+	border-radius: 999px !important;
+	color: #9aa5b4 !important;
 	font-size: 12px !important;
 	font-weight: 700 !important;
 }
 
 .mvp-live-mobile-header .mvp-live-delay-trigger.active {
-	background: rgba(240, 160, 32, 0.16) !important;
-	border-color: rgba(240, 160, 32, 0.45) !important;
+	background: linear-gradient(180deg, rgba(240, 160, 32, 0.22), rgba(240, 160, 32, 0.07)) !important;
+	border-color: rgba(240, 160, 32, 0.25) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.12),
+		inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+		0 2px 6px rgba(0, 0, 0, 0.35) !important;
 	color: #f0a020 !important;
 }
 
+/* Dropdown: flat grouped surface (DESIGN.md group recipe) */
 .mvp-live-mobile-header .mvp-live-delay-menu {
 	z-index: 30 !important;
-	background: #2b2f37 !important;
-	border: 1px solid #3a4049 !important;
-	border-radius: 8px !important;
+	background: #242a36 !important;
+	border: 1px solid #2d3442 !important;
+	border-radius: 16px !important;
 	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45) !important;
+	overflow: hidden !important;
 }
 
 .mvp-live-mobile-header .mvp-live-delay-title {
@@ -878,12 +926,12 @@ html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #po
 }
 
 .mvp-live-mobile-header .mvp-live-delay-option {
-	color: #e7eaee !important;
+	color: #eef1f6 !important;
 }
 
 .mvp-live-mobile-header .mvp-live-delay-option:active,
 .mvp-live-mobile-header .mvp-live-delay-option.active {
-	background: rgba(240, 160, 32, 0.14) !important;
+	background: rgba(240, 160, 32, 0.16) !important;
 	color: #f0a020 !important;
 }
 
@@ -895,24 +943,36 @@ html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #po
 	color: #8b95a3 !important;
 }
 
+/* Pause glyph tile: darker inset so it reads inside the neutral pill */
 .mvp-live-mobile-btn.is-ghost span {
 	align-items: center !important;
-	background: #f0a020 !important;
-	border-radius: 2px !important;
-	color: #fff !important;
+	background: #14171d !important;
+	border-radius: 4px !important;
+	color: #9aa5b4 !important;
 	display: inline-flex !important;
-	font-size: 10px !important;
+	font-size: 9px !important;
 	font-weight: 900 !important;
 	height: 16px !important;
 	justify-content: center !important;
 	width: 16px !important;
 }
 
+.mvp-live-mobile-btn.is-ghost:active span {
+	color: #eef1f6 !important;
+}
+
 #mvp-live-editor-wrapper.mvp-live-mobile-lite.visible {
-	display: block !important;
+	grid-template-rows: 1fr !important;
 	margin-bottom: 0 !important;
-	opacity: 1;
+	opacity: 1 !important;
 	pointer-events: auto !important;
+}
+
+/* Fully open (animation finished): no clipping, exactly like before the
+   animation existed, so emoji/delay menus can overflow the editor box. */
+#mvp-live-editor-wrapper.mvp-live-mobile-lite.visible.mvp-settled,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite.visible.mvp-settled > div {
+	overflow: visible !important;
 }
 
 /* Keep taps landing on the real textarea: stop Mediavida's native placeholder/

@@ -725,6 +725,20 @@ export function forceEditorStyles(postEditor: HTMLElement): void {
 // FORM VISIBILITY TOGGLE
 // =============================================================================
 
+// Once the mobile editor finishes its slide-open animation we lift the grid
+// clipping (overflow) so dropdowns (emoji, delay menu) and the Android keyboard
+// interplay behave exactly like the pre-animation stable state.
+const MOBILE_EDITOR_SETTLE_MS = 320
+const MOBILE_EDITOR_SETTLED_CLASS = 'mvp-settled'
+
+function scheduleMobileLiteEditorSettle(wrapper: HTMLElement): void {
+	window.setTimeout(() => {
+		if (wrapper.classList.contains('visible')) {
+			wrapper.classList.add(MOBILE_EDITOR_SETTLED_CLASS)
+		}
+	}, MOBILE_EDITOR_SETTLE_MS)
+}
+
 export function toggleFormVisibility(show: boolean, options: LiveThreadDomOptions = {}): void {
 	const wrapper = document.getElementById(DOM_MARKERS.IDS.LIVE_EDITOR_WRAPPER)
 	if (!wrapper) return
@@ -757,6 +771,11 @@ export function toggleFormVisibility(show: boolean, options: LiveThreadDomOption
 				if (textarea) {
 					setTimeout(() => textarea.focus(), 0)
 				}
+			} else if (!wrapper.classList.contains('visible')) {
+				// Re-sync after an interrupted close (editor still prepared but the
+				// wrapper lost its class). No-op on normal taps to avoid layout churn.
+				wrapper.classList.add('visible')
+				scheduleMobileLiteEditorSettle(wrapper)
 			}
 			replyStateCallback?.(true)
 			return
@@ -772,6 +791,9 @@ export function toggleFormVisibility(show: boolean, options: LiveThreadDomOption
 		}
 
 		wrapper.classList.add('visible')
+		if (variant === 'mobile-lite') {
+			scheduleMobileLiteEditorSettle(wrapper)
+		}
 		const postEditor = getPostEditor()
 		if (postEditor) {
 			if (variant === 'mobile-lite') {
@@ -800,6 +822,8 @@ export function toggleFormVisibility(show: boolean, options: LiveThreadDomOption
 			return
 		}
 
+		// Restore clipping BEFORE collapsing so the slide-up animates cleanly.
+		wrapper.classList.remove(MOBILE_EDITOR_SETTLED_CLASS)
 		wrapper.classList.remove('visible')
 		setTimeout(() => {
 			if (!wrapper.classList.contains('visible')) {
