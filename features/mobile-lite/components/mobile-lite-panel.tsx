@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react'
 import Bold from 'lucide-react/dist/esm/icons/bold'
 import Check from 'lucide-react/dist/esm/icons/check'
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
-import Clipboard from 'lucide-react/dist/esm/icons/clipboard'
+import CircleAlert from 'lucide-react/dist/esm/icons/circle-alert'
+import CircleCheck from 'lucide-react/dist/esm/icons/circle-check'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
@@ -105,11 +106,23 @@ const SWITCH_WRAPPER_CLASS = 'inline-flex h-11 w-14 shrink-0 items-center justif
 const SWITCH_TRACK_BASE_CLASS = 'relative block h-7 w-12 rounded-full transition-colors'
 const SWITCH_THUMB_BASE_CLASS =
 	'pointer-events-none absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform'
-// Toasts: single feedback channel anchored above the tab bar.
+// Toasts: single feedback channel anchored above the tab bar. Saturated
+// surfaces + status icon so the outcome reads at a glance.
 const STATUS_SUCCESS_CLASS =
-	'pointer-events-auto w-full rounded-xl border border-[#2f5a41] bg-[#16261d]/95 px-4 py-3 text-sm font-medium text-[#b9eccb] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
+	'pointer-events-auto flex w-full items-center gap-2.5 rounded-xl border border-[#2e8a52] bg-[#0e3320]/95 px-4 py-3 text-sm font-semibold text-[#d3f9e0] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
 const STATUS_ERROR_CLASS =
-	'pointer-events-auto w-full rounded-xl border border-[#6e3a40] bg-[#2a181b]/95 px-4 py-3 text-sm font-medium text-[#f4c6c6] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
+	'pointer-events-auto flex w-full items-center gap-2.5 rounded-xl border border-[#a84b53] bg-[#3c181c]/95 px-4 py-3 text-sm font-semibold text-[#ffd9d9] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
+
+function PanelToast({ kind, children }: { kind: 'success' | 'error'; children: ReactNode }) {
+	const isSuccess = kind === 'success'
+	const Icon = isSuccess ? CircleCheck : CircleAlert
+	return (
+		<div role={isSuccess ? 'status' : 'alert'} className={isSuccess ? STATUS_SUCCESS_CLASS : STATUS_ERROR_CLASS}>
+			<Icon className={`h-5 w-5 shrink-0 ${isSuccess ? 'text-[#41d97e]' : 'text-[#ff8585]'}`} aria-hidden="true" />
+			<span className="min-w-0 flex-1">{children}</span>
+		</div>
+	)
+}
 
 interface FilteredUser {
 	username: string
@@ -637,18 +650,6 @@ export function MobileLitePanel() {
 		}
 	}
 
-	const pasteImgbbApiKey = async () => {
-		setImgbbErrorMessage(null)
-		setImgbbStatusMessage(null)
-		try {
-			const text = await navigator.clipboard.readText()
-			setImgbbApiKeyDraft(text.trim())
-			setImgbbStatusMessage('Clave pegada. Pulsa Guardar para activarla.')
-		} catch {
-			setImgbbErrorMessage('No se pudo leer el portapapeles. Pega la clave manualmente.')
-		}
-	}
-
 	const saveBoldColor = async () => {
 		setSavingBoldColor(true)
 		setBoldColorErrorMessage(null)
@@ -1140,22 +1141,20 @@ export function MobileLitePanel() {
 										className={`${INPUT_CLASS} mt-2 px-3 font-mono`}
 									/>
 
-									<div className="mt-3 grid grid-cols-2 gap-2">
-										<button type="button" className={SECONDARY_BUTTON_CLASS} onClick={pasteImgbbApiKey}>
-											<Clipboard className="h-4 w-4" aria-hidden="true" />
-											Pegar
-										</button>
-										<button
-											type="button"
-											aria-label="Guardar API key de ImgBB"
-											className={PRIMARY_BUTTON_CLASS}
-											disabled={savingImgbbApiKey || !isImgbbDirty}
-											onClick={saveImgbbApiKey}
-										>
-											<Check className="h-4 w-4" aria-hidden="true" />
-											{savingImgbbApiKey ? 'Guardando' : 'Guardar'}
-										</button>
-									</div>
+									{/* No "Pegar" button on purpose: clipboard reads on Android always
+									    trigger the browser's paste-authorization bubble and there is no
+									    API to know beforehand whether the clipboard has content. The
+									    native long-press paste on the input avoids both problems. */}
+									<button
+										type="button"
+										aria-label="Guardar API key de ImgBB"
+										className={`${PRIMARY_BUTTON_CLASS} mt-3 w-full`}
+										disabled={savingImgbbApiKey || !isImgbbDirty}
+										onClick={saveImgbbApiKey}
+									>
+										<Check className="h-4 w-4" aria-hidden="true" />
+										{savingImgbbApiKey ? 'Guardando' : 'Guardar'}
+									</button>
 								</div>
 
 								<a
@@ -1340,56 +1339,16 @@ export function MobileLitePanel() {
 
 				{/* Single feedback channel: transient toasts floating above the tab bar */}
 				<div className="pointer-events-none absolute inset-x-0 bottom-24 z-30 flex flex-col items-center gap-2 px-4">
-					{statusMessage && (
-						<div role="status" className={STATUS_SUCCESS_CLASS}>
-							{statusMessage}
-						</div>
-					)}
-					{hiddenThreadsStatusMessage && (
-						<div role="status" className={STATUS_SUCCESS_CLASS}>
-							{hiddenThreadsStatusMessage}
-						</div>
-					)}
-					{imgbbStatusMessage && (
-						<div role="status" className={STATUS_SUCCESS_CLASS}>
-							{imgbbStatusMessage}
-						</div>
-					)}
-					{boldColorStatusMessage && (
-						<div role="status" className={STATUS_SUCCESS_CLASS}>
-							{boldColorStatusMessage}
-						</div>
-					)}
-					{mobileLiteSettingsStatusMessage && (
-						<div role="status" className={STATUS_SUCCESS_CLASS}>
-							{mobileLiteSettingsStatusMessage}
-						</div>
-					)}
-					{errorMessage && (
-						<div role="alert" className={STATUS_ERROR_CLASS}>
-							{errorMessage}
-						</div>
-					)}
-					{hiddenThreadsErrorMessage && (
-						<div role="alert" className={STATUS_ERROR_CLASS}>
-							{hiddenThreadsErrorMessage}
-						</div>
-					)}
-					{imgbbErrorMessage && (
-						<div role="alert" className={STATUS_ERROR_CLASS}>
-							{imgbbErrorMessage}
-						</div>
-					)}
-					{boldColorErrorMessage && (
-						<div role="alert" className={STATUS_ERROR_CLASS}>
-							{boldColorErrorMessage}
-						</div>
-					)}
-					{mobileLiteSettingsErrorMessage && (
-						<div role="alert" className={STATUS_ERROR_CLASS}>
-							{mobileLiteSettingsErrorMessage}
-						</div>
-					)}
+					{statusMessage && <PanelToast kind="success">{statusMessage}</PanelToast>}
+					{hiddenThreadsStatusMessage && <PanelToast kind="success">{hiddenThreadsStatusMessage}</PanelToast>}
+					{imgbbStatusMessage && <PanelToast kind="success">{imgbbStatusMessage}</PanelToast>}
+					{boldColorStatusMessage && <PanelToast kind="success">{boldColorStatusMessage}</PanelToast>}
+					{mobileLiteSettingsStatusMessage && <PanelToast kind="success">{mobileLiteSettingsStatusMessage}</PanelToast>}
+					{errorMessage && <PanelToast kind="error">{errorMessage}</PanelToast>}
+					{hiddenThreadsErrorMessage && <PanelToast kind="error">{hiddenThreadsErrorMessage}</PanelToast>}
+					{imgbbErrorMessage && <PanelToast kind="error">{imgbbErrorMessage}</PanelToast>}
+					{boldColorErrorMessage && <PanelToast kind="error">{boldColorErrorMessage}</PanelToast>}
+					{mobileLiteSettingsErrorMessage && <PanelToast kind="error">{mobileLiteSettingsErrorMessage}</PanelToast>}
 				</div>
 
 				{/* Bottom tab bar: thumb-reachable primary navigation */}

@@ -34,8 +34,8 @@ Literal hex is used in classes so Tailwind JIT always generates them.
 | On-accent | `#221604` | Text/icons on amber fills |
 | Accent pressed | `#d98e12` | `active:` of primary buttons |
 | Destructive | `#e08a8a` on `#3a2427` (pressed) | Delete row actions only |
-| Toast success | text `#b9eccb`, bg `#16261d`, border `#2f5a41` | |
-| Toast error | text `#f4c6c6`, bg `#2a181b`, border `#6e3a40` | |
+| Toast success | text `#d3f9e0`, icon `#41d97e`, bg `#0e3320`, border `#2e8a52` | Saturated so the outcome reads at a glance |
+| Toast error | text `#ffd9d9`, icon `#ff8585`, bg `#3c181c`, border `#a84b53` | |
 | Warning hint | `#d8b36a` | Inline validation text |
 
 ## 3. Shape & size scales
@@ -88,7 +88,8 @@ Do **not** invent new active treatments; reuse this.
 ## 6. Interaction patterns
 
 - **Navigation**: fixed bottom tab bar (max 5 items, icon + uppercase 10px label), `role="tablist"`, badge anchored to the icon with `ring-2 ring-[#14171d]`. Tab bar gets `border-t` + upward shadow for elevation, and `pb-[max(10px,env(safe-area-inset-bottom))]`.
-- **Feedback**: one toast container absolutely positioned `bottom-24` above the tab bar (`pointer-events-none` wrapper). Success = `role="status"`, auto-dismissed after **3.5s**; errors = `role="alert"`, persist until the next action. Toggles whose state is self-evident still confirm via toast, never via inline banners.
+- **Feedback**: one toast container absolutely positioned `bottom-24` above the tab bar (`pointer-events-none` wrapper). Toasts render via `PanelToast` and lead with a status icon (`CircleCheck` / `CircleAlert`). Success = `role="status"`, auto-dismissed after **3.5s**; errors = `role="alert"`, persist until the next action. Toggles whose state is self-evident still confirm via toast, never via inline banners.
+- **Clipboard**: never add "paste from clipboard" buttons. Android clipboard reads always trigger the browser's paste-authorization bubble and there is no API to know whether the clipboard has content; the native long-press paste on inputs is the expected gesture.
 - **Sheet gesture**: header drag-to-dismiss. Threshold `max(140px, 25% of sheet height)`; below it, snap back; above it, animate fully down then unmount (220ms). Curve: `cubic-bezier(0.32, 0.72, 0, 1)` (iOS sheet feel). Drag tracking uses `transition: none`.
 - **Press feedback**: every tappable element has an `active:` state (background shift or tint). No hover-dependent UI.
 - **Empty states**: open and centered (`px-6 py-12`), icon inside a `h-12 w-12 rounded-full bg-[#242a36]` circle, bold one-liner + optional faint hint. Never boxed in a bordered card.
