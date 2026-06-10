@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
 	teardownIgnoredUsersImport: vi.fn(),
 	initLiveThread: vi.fn(),
 	teardownLiveThread: vi.fn(),
+	initThreadCompanion: vi.fn(),
+	teardownThreadCompanion: vi.fn(),
 	initPanel: vi.fn(),
 	teardownPanel: vi.fn(),
 }))
@@ -91,6 +93,11 @@ vi.mock('./panel', () => ({
 	teardownMobileLitePanel: mocks.teardownPanel,
 }))
 
+vi.mock('./thread-companion', () => ({
+	initMobileLiteThreadCompanion: mocks.initThreadCompanion,
+	teardownMobileLiteThreadCompanion: mocks.teardownThreadCompanion,
+}))
+
 function context(overrides: Partial<MobileLiteContext> = {}): MobileLiteContext {
 	return {
 		hasEditor: false,
@@ -159,7 +166,7 @@ describe('Mobile Lite registry', () => {
 		window.history.replaceState({}, '', '/foro/deportes/pretemporada-2026-123456')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'thread-companion', 'editor-lite', 'panel'])
 	})
 
 	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
@@ -196,6 +203,14 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initBoldColor).toHaveBeenCalledOnce()
 		expect(mocks.initLiveThread).toHaveBeenCalledOnce()
 		expect(mocks.initIgnoredUsers).toHaveBeenCalledOnce()
+	})
+
+	it('initializes the thread companion fix only on thread pages', () => {
+		initMobileLite(context({ hasPosts: true }))
+		expect(mocks.initThreadCompanion).not.toHaveBeenCalled()
+
+		initMobileLite(context({ isThreadPage: true }))
+		expect(mocks.initThreadCompanion).toHaveBeenCalledOnce()
 	})
 
 	it('initializes thread filtering modules on normal subforum pages', () => {
@@ -257,6 +272,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.teardownIgnoredUsersImport).toHaveBeenCalledOnce()
 		expect(mocks.teardownBoldColor).toHaveBeenCalledOnce()
 		expect(mocks.teardownLiveThread).toHaveBeenCalledOnce()
+		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUsers).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUserThreads).toHaveBeenCalledOnce()
 		expect(mocks.teardownHiddenThreads).toHaveBeenCalledOnce()

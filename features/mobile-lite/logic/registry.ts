@@ -13,6 +13,7 @@ import {
 } from './ignored-user-threads'
 import { initMobileLiteLiveThread, teardownMobileLiteLiveThread } from './live-thread'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
+import { initMobileLiteThreadCompanion, teardownMobileLiteThreadCompanion } from './thread-companion'
 
 export interface MobileLiteContext {
 	hasEditor: boolean
@@ -56,6 +57,12 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		init: initMobileLiteLiveThread,
 		teardown: teardownMobileLiteLiveThread,
 		shouldRun: context => context.hasPosts || context.isThreadPage,
+	},
+	{
+		id: 'thread-companion',
+		init: initMobileLiteThreadCompanion,
+		teardown: teardownMobileLiteThreadCompanion,
+		shouldRun: context => context.isThreadPage,
 	},
 	{
 		id: 'ignored-users',
