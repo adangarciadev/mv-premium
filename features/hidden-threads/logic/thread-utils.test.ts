@@ -160,9 +160,13 @@ describe('hidden-threads thread-utils', () => {
 			expect(extractSubforumIdFromThreadPath(null)).toBeNull()
 		})
 
-		it('does not trust row users as thread creators on Spy', () => {
+		it('does not trust row users as thread creators on global forum views', () => {
 			expect(canExtractThreadCreatorFromPath('/foro/spy')).toBe(false)
 			expect(canExtractThreadCreatorFromPath('/foro/spy/live')).toBe(false)
+			expect(canExtractThreadCreatorFromPath('/foro/new')).toBe(false)
+			expect(canExtractThreadCreatorFromPath('/foro/unread')).toBe(false)
+			expect(canExtractThreadCreatorFromPath('/foro/top')).toBe(false)
+			expect(canExtractThreadCreatorFromPath('/foro/featured')).toBe(false)
 			expect(canExtractThreadCreatorFromPath('/foro/juegos')).toBe(true)
 		})
 	})

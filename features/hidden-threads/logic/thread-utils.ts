@@ -1,3 +1,4 @@
+import { isForumGlobalViewPath } from '@/lib/content-modules/utils/page-detection'
 import { extractThreadNumericId, slugToName, slugToTitle } from '@/lib/url-helpers'
 
 const THREAD_PATH_REGEX = /^\/foro\/[^/]+\/[^/]+-\d+/
@@ -99,7 +100,9 @@ export function extractSubforumIdFromThreadPath(threadPath: string | null): stri
 }
 
 export function canExtractThreadCreatorFromPath(pathname: string): boolean {
-	return !pathname.startsWith('/foro/spy')
+	// Global views (spy, new, unread, top, featured) aggregate threads from all
+	// subforums and the row avatars belong to the last poster, not the creator.
+	return !isForumGlobalViewPath(pathname)
 }
 
 /**

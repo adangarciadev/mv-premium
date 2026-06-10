@@ -9,6 +9,7 @@ import {
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
+import { isForumGlobalViewPath } from '@/lib/content-modules/utils/page-detection'
 import { useSettingsStore } from '@/store/settings-store'
 
 const STYLE_ID = 'mvp-mobile-lite-ignored-user-threads-styles'
@@ -36,7 +37,9 @@ function normalizeUsername(username: string): string {
 
 export function isNormalMobileLiteSubforumPath(pathname: string): boolean {
 	if (!pathname.startsWith('/foro/')) return false
-	if (pathname.startsWith('/foro/spy')) return false
+	// Global views (spy, new, unread, top, featured) don't render the thread
+	// creator, so author-based filtering would match the wrong user there.
+	if (isForumGlobalViewPath(pathname)) return false
 
 	const segments = pathname.split('/').filter(Boolean)
 	if (segments.length < 2) return false
