@@ -217,6 +217,23 @@ describe('IGDB API Service', () => {
 	})
 
 	describe('getUpcomingGameReleases', () => {
+		it('never persists upcoming releases to storage (time-window keys would pile up)', async () => {
+			const { cachedFetch } = await import('@/services/media')
+			vi.mocked(cachedFetch).mockClear()
+			mockSendMessage.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+
+			await getUpcomingGameReleases({
+				from: new Date('2026-01-01T00:00:00Z'),
+				to: new Date('2026-02-01T00:00:00Z'),
+			})
+
+			expect(cachedFetch).toHaveBeenCalledWith(
+				expect.stringContaining('upcoming-releases'),
+				expect.any(Function),
+				expect.objectContaining({ persist: false })
+			)
+		})
+
 		it('queries upcoming games in the requested date range', async () => {
 			const mockGames: IGDBGame[] = [
 				{
