@@ -40,6 +40,7 @@ export type ItadCountry = 'ES' | 'GB' | 'US'
 /** Work mode sub-options */
 export interface WorkModeOptions {
 	hideAvatars: boolean
+	hideUsername: boolean
 	hideImages: boolean
 	hideVideos: boolean
 	hideSocialEmbeds: boolean

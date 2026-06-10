@@ -86,6 +86,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	workModeEnabled: false,
 	workModeOptions: {
 		hideAvatars: true,
+		hideUsername: true,
 		hideImages: true,
 		hideVideos: true,
 		hideSocialEmbeds: true,

@@ -95,6 +95,17 @@ export function buildWorkModeCSS(options: WorkModeOptions): string {
 		`)
 	}
 
+	// Default ON when the key is missing: persisted workModeOptions from before
+	// this option existed don't include it (the store merge is shallow).
+	if (options.hideUsername !== false) {
+		rules.push(`
+			/* Work Mode: Hide own nick in the header (hover over it to reveal) */
+			#usermenu li.avw a.av:not(:hover) {
+				color: transparent !important;
+			}
+		`)
+	}
+
 	if (options.hideImages) {
 		rules.push(`
 			/* Work Mode: Hide images in posts */
