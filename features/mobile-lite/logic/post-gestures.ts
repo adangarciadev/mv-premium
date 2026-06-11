@@ -21,6 +21,7 @@ import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
 import { MOBILE_LITE_IGNORED_ATTR, getMobileLitePostAuthor, setMobileLiteUserIgnore } from './ignored-users'
+import { getAvatarUrlFromImage } from './avatar-utils'
 import type { MobileLiteIgnoreType } from './ignore-helpers'
 
 const POST_SELECTOR = `${MV_SELECTORS.THREAD.POST}, ${MV_SELECTORS.THREAD.POST_REPLY}, ${MV_SELECTORS.THREAD.POST_DIV}`
@@ -181,7 +182,7 @@ function getOwnUsername(): string | null {
 }
 
 function getPostAvatarUrl(post: HTMLElement): string | undefined {
-	return post.querySelector<HTMLImageElement>('.post-avatar img')?.src || undefined
+	return getAvatarUrlFromImage(post.querySelector<HTMLImageElement>('.post-avatar img'))
 }
 
 /** Elements whose own horizontal panning must win over the gesture */

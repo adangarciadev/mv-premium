@@ -42,6 +42,7 @@ import {
 	type MobileLiteIgnoreType,
 } from '../logic/ignore-helpers'
 import { dispatchMobileLiteIgnoredUsersSync } from '../logic/ignored-users-sync-event'
+import { getAvatarUrlFromImage, sanitizeAvatarUrl } from '../logic/avatar-utils'
 import {
 	getMobileLiteBoldColorSettings,
 	normalizeMobileLiteBoldColor,
@@ -191,13 +192,15 @@ function findVisibleUserAvatar(username: string): string | undefined {
 		const linkUsername = safeDecodeURIComponent(hrefUsername || link.querySelector('img')?.alt?.trim() || link.textContent?.trim() || '')
 		if (linkUsername.toLowerCase() !== normalizedUsername) continue
 
-		const avatarUrl = link.querySelector<HTMLImageElement>('img.avatar, img')?.src
+		const avatarUrl = getAvatarUrlFromImage(link.querySelector<HTMLImageElement>('img.avatar, img'))
 		if (avatarUrl) return avatarUrl
 
 		const postContainer = link.closest('.post, .respuesta, .msg, article, li, div[id^="post"], div[id^="respuesta"]')
-		const postAvatarUrl = postContainer
-			?.querySelector<HTMLImageElement>('img.avatar, .avatar img, .post-avatar img, .user-avatar img, img[src*="/img/users/avatar/"]')
-			?.src
+		const postAvatarUrl = getAvatarUrlFromImage(
+			postContainer?.querySelector<HTMLImageElement>(
+				'img.avatar, .avatar img, .post-avatar img, .user-avatar img, img[src*="/img/users/avatar/"]'
+			)
+		)
 		if (postAvatarUrl) return postAvatarUrl
 	}
 
@@ -209,7 +212,7 @@ async function resolveUserAvatar(username: string): Promise<string | undefined> 
 	if (visibleAvatar) return visibleAvatar
 
 	const result = await sendMessage('resolveMvUserAvatar', { username })
-	return result.success ? result.avatarUrl : undefined
+	return result.success ? sanitizeAvatarUrl(result.avatarUrl) : undefined
 }
 
 async function updateUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<UserCustomizationsData> {
@@ -470,7 +473,9 @@ export function MobileLitePanel() {
 	const usernameValidationMessage = getUsernameValidationMessage(exactQueryUsername)
 	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
-	const missingAvatarCount = allFilteredUsers.filter(user => !user.customization.avatarUrl).length
+	// Placeholder URLs (lazy-load pixels) count as missing so the refresh button
+	// can replace them with the real avatar.
+	const missingAvatarCount = allFilteredUsers.filter(user => !sanitizeAvatarUrl(user.customization.avatarUrl)).length
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
 	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
 	const normalizedBoldColorDraft = normalizeMobileLiteBoldColor(boldColorDraft)
@@ -480,7 +485,7 @@ export function MobileLitePanel() {
 	const hydrateMissingAvatars = useCallback(
 		async (users: FilteredUser[], options: { cancelled?: () => boolean; showStatus?: boolean } = {}) => {
 			const missingAvatarUsers = users.filter(user => {
-				if (user.customization.avatarUrl) return false
+				if (sanitizeAvatarUrl(user.customization.avatarUrl)) return false
 				const key = user.username.toLowerCase()
 				if (avatarHydrationInFlight.current.has(key)) return false
 				avatarHydrationInFlight.current.add(key)
@@ -518,7 +523,7 @@ export function MobileLitePanel() {
 				let changed = false
 				for (const { username, avatarUrl } of resolvedAvatars) {
 					const entry = getCustomizationEntryForUser(nextData, username)
-					if (!entry?.customization.isIgnored || entry.customization.avatarUrl) continue
+					if (!entry?.customization.isIgnored || sanitizeAvatarUrl(entry.customization.avatarUrl)) continue
 
 					nextData.users[entry.storageKey] = { ...entry.customization, avatarUrl }
 					changed = true
@@ -788,9 +793,19 @@ export function MobileLitePanel() {
 
 	if (!open) return null
 
+	// The overlay anchors with inset-0 (layout viewport) — correct on every
+	// well-behaved device. On Firefox Android the dynamic toolbar makes that
+	// viewport end ABOVE the real screen bottom while the toolbar is visible,
+	// and no CSS unit (100vh overshoots, 100dvh undershoots) nor the
+	// VisualViewport API reports the difference. Instead of guessing, a bleed
+	// strip below the sheet fills any potential gap with the tab bar color;
+	// when the viewport is accurate the bleed simply sits off-screen.
 	return (
-		<div className="fixed inset-0 z-[99999] flex h-[100dvh] items-end justify-center overflow-hidden overscroll-none bg-black/60 animate-in fade-in-0 duration-200">
+		<div className="fixed inset-0 z-[99999] flex items-end justify-center overscroll-none bg-black/60 animate-in fade-in-0 duration-200">
 			<button type="button" className="absolute inset-0 h-full w-full cursor-default" aria-label="Cerrar panel MVP" onClick={() => setOpen(false)} />
+
+			{/* Bleed: fills the Firefox Android dynamic-toolbar gap below the sheet */}
+			<div aria-hidden="true" className="absolute inset-x-0 top-full mx-auto h-28 w-full max-w-[34rem] bg-[#14171d]" />
 
 			<section
 				ref={sheetRef}
@@ -855,6 +870,29 @@ export function MobileLitePanel() {
 										className={`${INPUT_CLASS} pl-10 pr-3`}
 									/>
 								</label>
+
+								{/* Filter chips stick together with the search so they stay
+								    reachable while scrolling a long user list */}
+								{hasAnyFilteredUsers && (
+									<div className="mt-2 flex gap-1.5" role="group" aria-label="Filtrar usuarios">
+										{filterOptions.map(option => {
+											const isActive = activeFilter === option.id
+
+											return (
+												<button
+													key={option.id}
+													type="button"
+													className={`${FILTER_BASE_CLASS} flex-1 ${isActive ? FILTER_ACTIVE_CLASS : FILTER_IDLE_CLASS}`}
+													aria-pressed={isActive}
+													onClick={() => setActiveFilter(option.id)}
+												>
+													<span className="truncate">{option.label}</span>
+													<span className="shrink-0 opacity-80">({option.count})</span>
+												</button>
+											)
+										})}
+									</div>
+								)}
 							</div>
 
 							{usernameValidationMessage && (
@@ -892,27 +930,6 @@ export function MobileLitePanel() {
 								</div>
 							)}
 
-							{hasAnyFilteredUsers && (
-								<div className="mt-2 flex gap-1.5" role="group" aria-label="Filtrar usuarios">
-									{filterOptions.map(option => {
-										const isActive = activeFilter === option.id
-
-										return (
-											<button
-												key={option.id}
-												type="button"
-												className={`${FILTER_BASE_CLASS} flex-1 ${isActive ? FILTER_ACTIVE_CLASS : FILTER_IDLE_CLASS}`}
-												aria-pressed={isActive}
-												onClick={() => setActiveFilter(option.id)}
-											>
-												<span className="truncate">{option.label}</span>
-												<span className="shrink-0 opacity-80">({option.count})</span>
-											</button>
-										)
-									})}
-								</div>
-							)}
-
 							{hasAnyFilteredUsers && (missingAvatarCount > 0 || refreshingAvatars) && (
 								<button
 									type="button"
@@ -945,12 +962,13 @@ export function MobileLitePanel() {
 										{filteredUsers.map(user => {
 											const ignoreType = getIgnoreTypeFromCustomization(user.customization) ?? 'hide'
 											const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
+											const avatarUrl = sanitizeAvatarUrl(user.customization.avatarUrl)
 
 											return (
 												<article key={user.username} className="flex items-center gap-3 py-2 pl-3 pr-2">
 													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#14171d] text-sm font-bold text-[#9aa5b4]">
-														{user.customization.avatarUrl ? (
-															<img src={user.customization.avatarUrl} alt="" className="h-full w-full object-cover" />
+														{avatarUrl ? (
+															<img src={avatarUrl} alt="" className="h-full w-full object-cover" />
 														) : (
 															user.username.slice(0, 1).toUpperCase()
 														)}
@@ -1359,10 +1377,21 @@ export function MobileLitePanel() {
 							type="button"
 							role="tab"
 							aria-selected={activeTab === 'users'}
+							aria-label="Usuarios"
 							className={`${TAB_BASE_CLASS} ${activeTab === 'users' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
 							onClick={() => setActiveTab('users')}
 						>
-							<UserX className="h-5 w-5" aria-hidden="true" />
+							<span className="relative">
+								<UserX className="h-5 w-5" aria-hidden="true" />
+								{allFilteredUsers.length > 0 && (
+									<span
+										aria-hidden="true"
+										className="absolute -right-2.5 -top-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#f0a020] px-1 text-[10px] font-black leading-[18px] text-[#221604] ring-2 ring-[#14171d]"
+									>
+										{allFilteredUsers.length}
+									</span>
+								)}
+							</span>
 							Usuarios
 						</button>
 						<button

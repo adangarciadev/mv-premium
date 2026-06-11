@@ -8,6 +8,7 @@ import {
 } from '@/features/user-customizations/storage'
 import { applyHideToPost, applyMuteToPost } from '@/features/user-customizations/logic/mute-placeholder'
 import { showMobileLiteActionToast, teardownMobileLiteActionToast } from './action-toast'
+import { getAvatarUrlFromImage } from './avatar-utils'
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
@@ -276,7 +277,7 @@ function getMobileLiteUserCardAvatarUrl(card: HTMLElement): string | undefined {
 	const avatar = card.querySelector<HTMLImageElement>(
 		'.user-info img.avatar, .user-info img, .post-avatar img, img.avatar, img'
 	)
-	return avatar?.src || undefined
+	return getAvatarUrlFromImage(avatar)
 }
 
 function injectMobileLiteUserCardActions(card: HTMLElement, data: UserCustomizationsData): void {

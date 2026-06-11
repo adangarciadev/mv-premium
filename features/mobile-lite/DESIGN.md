@@ -100,7 +100,7 @@ For native light-DOM `.btn` elements injected outside the panel (Live, Galería)
 
 ## 7. Every-screen rules (phones → tablets)
 
-- Sheet: `w-full max-w-[34rem]` centered, `h-[90%]` of `100dvh` (dynamic viewport handles Firefox Android chrome).
+- Sheet: `w-full max-w-[34rem]` centered, `h-[90%]` of the overlay. The overlay is `fixed inset-x-0 top-0 h-screen` — **`100vh` (static large viewport) on purpose**. On Firefox Android the dynamic toolbar overlaps the top of the page and every dynamic measure (`bottom: 0`, `100dvh`, the VisualViewport API) tracks the layout viewport, which ends ~a toolbar height above the real screen bottom while the toolbar is visible — leaving a permanent gap under the tab bar. `100vh` always reaches the true screen bottom; only the overlay's top edge hides under the toolbar, which is harmless for a bottom sheet.
 - Header and tab bar are `shrink-0`; only the body scrolls (`min-h-0 flex-1 overflow-y-auto overscroll-contain`).
 - Safe areas: `env(safe-area-inset-top)` (header), `env(safe-area-inset-bottom)` (tab bar, dialogs).
 - All inputs 16px; all touch targets ≥44px; long text uses `truncate` / `line-clamp-2`.
