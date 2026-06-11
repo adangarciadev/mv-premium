@@ -11,7 +11,7 @@ row when done.
 |------|-------|----------|--------|------------|--------|
 | 001 | Close Mobile Lite lifecycle leaks | P1 | M | - | DONE |
 | 002 | Roll back Mobile Lite ignore changes when saving fails | P1 | M | 001 | DONE |
-| 003 | Clean up the Mobile Lite image crop dialog lifecycle | P2 | M | 001 | TODO |
+| 003 | Clean up the Mobile Lite image crop dialog lifecycle | P2 | M | 001 | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

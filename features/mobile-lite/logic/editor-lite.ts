@@ -104,6 +104,12 @@ interface CropFrame {
 	height: number
 }
 
+interface ActiveCropDialog {
+	finish: (result: CropDialogResult) => void
+}
+
+let activeCropDialog: ActiveCropDialog | null = null
+
 function isMobileLiteEditorAllowed(): boolean {
 	return getPlatformKind() === 'firefox-android' && isFeatureEnabled(FeatureFlag.MobileLite)
 }
@@ -443,12 +449,15 @@ function createCroppedImageFile(file: File, image: HTMLImageElement, frame: Crop
 	})
 }
 
+function closeActiveCropDialog(result: CropDialogResult = null): void {
+	activeCropDialog?.finish(result)
+}
+
 export async function openMobileLiteImageCropDialog(file: File): Promise<CropDialogResult> {
 	if (!isMobileLiteCropSupported(file)) return 'original'
 
 	const { image, objectUrl } = await loadImageFromFile(file)
-	const existingDialog = document.querySelector(`[${IMAGE_CROP_DIALOG_ATTR}="true"]`)
-	existingDialog?.remove()
+	closeActiveCropDialog(null)
 
 	return new Promise(resolve => {
 		const dialog = document.createElement('div')
@@ -855,12 +864,19 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 		let pinchStartDistance = 0
 		let pinchStartZoom = 1
 
+		let finished = false
 		const finish = (result: CropDialogResult) => {
+			if (finished) return
+			finished = true
+			if (activeCropDialog?.finish === finish) {
+				activeCropDialog = null
+			}
 			document.body.style.overflow = previousBodyOverflow
 			URL.revokeObjectURL(objectUrl)
 			dialog.remove()
 			resolve(result)
 		}
+		activeCropDialog = { finish }
 
 		/** Re-anchor zoom so the given frame point stays visually still */
 		const applyZoom = (nextZoom: number, focalX: number, focalY: number) => {
@@ -1291,6 +1307,8 @@ export async function uploadMobileLiteImage(file: File, textarea: HTMLTextAreaEl
 }
 
 export function teardownMobileLiteEditorEnhancements(): void {
+	closeActiveCropDialog(null)
+
 	if (observerTimeout) {
 		clearTimeout(observerTimeout)
 		observerTimeout = null
