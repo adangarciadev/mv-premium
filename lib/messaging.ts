@@ -119,6 +119,17 @@ export interface MvUserAvatarResult {
 	error?: string
 }
 
+export interface MvUserSearchUser {
+	username: string
+	avatarUrl?: string
+}
+
+export interface MvUserSearchResult {
+	success: boolean
+	users?: MvUserSearchUser[]
+	error?: string
+}
+
 // =============================================================================
 // Protocol Map - Define all RPC messages here
 // =============================================================================
@@ -164,6 +175,12 @@ interface ProtocolMap {
 	 * Resolve a Mediavida user's avatar by username via background script.
 	 */
 	resolveMvUserAvatar: (data: { username: string }) => MvUserAvatarResult
+
+	/**
+	 * Search Mediavida users by partial username via background script
+	 * (autocomplete suggestions with avatars).
+	 */
+	searchMvUsers: (data: { query: string }) => MvUserSearchResult
 
 	/**
 	 * Fetch Steam game details (CORS proxy)

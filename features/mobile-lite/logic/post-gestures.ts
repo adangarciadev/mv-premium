@@ -22,6 +22,7 @@ import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
 import { MOBILE_LITE_IGNORED_ATTR, getMobileLitePostAuthor, setMobileLiteUserIgnore } from './ignored-users'
 import { getAvatarUrlFromImage } from './avatar-utils'
+import { getOwnUsername, resetOwnUsernameCache } from './own-username'
 import type { MobileLiteIgnoreType } from './ignore-helpers'
 
 const POST_SELECTOR = `${MV_SELECTORS.THREAD.POST}, ${MV_SELECTORS.THREAD.POST_REPLY}, ${MV_SELECTORS.THREAD.POST_DIV}`
@@ -65,7 +66,6 @@ let gesture: GestureState | null = null
 let suppressClicksUntil = 0
 let commitTimeout: ReturnType<typeof setTimeout> | null = null
 let pendingCommitPost: HTMLElement | null = null
-let cachedOwnUsername: string | null | undefined
 
 function isMobileLitePostGesturesAllowed(): boolean {
 	return getPlatformKind() === 'firefox-android' && isFeatureEnabled(FeatureFlag.MobileLite)
@@ -170,15 +170,6 @@ function vibrate(pattern: number): void {
 	if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
 		navigator.vibrate(pattern)
 	}
-}
-
-function getOwnUsername(): string | null {
-	if (cachedOwnUsername !== undefined) return cachedOwnUsername
-
-	const ownLink = document.querySelector<HTMLAnchorElement>('#usermenu a[href^="/id/"]')
-	const match = ownLink?.getAttribute('href')?.match(/\/id\/([^/?#]+)/)
-	cachedOwnUsername = match?.[1] ? decodeURIComponent(match[1]).toLowerCase() : null
-	return cachedOwnUsername
 }
 
 function getPostAvatarUrl(post: HTMLElement): string | undefined {
@@ -405,6 +396,6 @@ export function teardownMobileLitePostGestures(): void {
 	document.getElementById(STYLE_ID)?.remove()
 
 	suppressClicksUntil = 0
-	cachedOwnUsername = undefined
+	resetOwnUsernameCache()
 	initialized = false
 }

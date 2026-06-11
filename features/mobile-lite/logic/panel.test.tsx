@@ -4,7 +4,6 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { HiddenThread } from '@/features/hidden-threads/logic/storage'
 import type { UserCustomization, UserCustomizationsData } from '@/features/user-customizations/storage'
-import type { MvUserAvatarResult } from '@/lib/messaging'
 import { MobileLitePanel, MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mobile-lite-panel'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 
@@ -43,7 +42,8 @@ const mocks = vi.hoisted(() => ({
 	syncMobileLiteLiveThreadButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
 	syncMobileLiteGalleryButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
-	sendMessage: vi.fn<() => Promise<MvUserAvatarResult>>(() => Promise.resolve({ success: false })),
+	sendMessage: vi.fn<(name: string, data?: unknown) => Promise<unknown>>(() => Promise.resolve({ success: false })),
+	getOwnUsername: vi.fn<() => string | null>(() => null),
 	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
 		const container = document.createElement('div')
 		if (options.id) container.id = options.id
@@ -88,6 +88,10 @@ vi.mock('@/features/hidden-threads/logic/storage', () => ({
 
 vi.mock('./ignored-users-sync-event', () => ({
 	dispatchMobileLiteIgnoredUsersSync: mocks.dispatchMobileLiteIgnoredUsersSync,
+}))
+
+vi.mock('./own-username', () => ({
+	getOwnUsername: mocks.getOwnUsername,
 }))
 
 vi.mock('../logic/bold-color', () => ({
@@ -182,6 +186,7 @@ describe('Mobile Lite panel injection', () => {
 		mocks.syncMobileLiteLiveThreadButton.mockResolvedValue(undefined)
 		mocks.syncMobileLiteGalleryButton.mockResolvedValue(undefined)
 		mocks.sendMessage.mockResolvedValue({ success: false })
+		mocks.getOwnUsername.mockReturnValue(null)
 		document.body.innerHTML = `
 			<ul id="usermenu">
 				<li><a href="/notificaciones">Notificaciones</a></li>
@@ -479,7 +484,79 @@ describe('Mobile Lite panel injection', () => {
 			ignoreType: 'mute',
 			avatarUrl: 'https://www.mediavida.com/img/users/avatar/avatar-user.png',
 		})
-		expect(mocks.sendMessage).not.toHaveBeenCalled()
+		expect(mocks.sendMessage).not.toHaveBeenCalledWith('resolveMvUserAvatar', expect.anything())
+	})
+
+	it('blocks adding yourself from the panel search', async () => {
+		const user = userEvent.setup()
+		mocks.getOwnUsername.mockReturnValue('selfuser')
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		const searchInput = await screen.findByPlaceholderText('Buscar o añadir nick (3-13)')
+		await user.type(searchInput, 'SelfUser')
+
+		expect(screen.getByText('No puedes silenciarte a ti mismo.')).toBeInTheDocument()
+		expect(screen.queryByRole('button', { name: 'Silenciar' })).not.toBeInTheDocument()
+		expect(screen.queryByRole('button', { name: 'Ocultar' })).not.toBeInTheDocument()
+		expect(mocks.saveUserCustomizations).not.toHaveBeenCalled()
+	})
+
+	it('suggests matching users while typing and adds them with their suggested avatar', async () => {
+		const user = userEvent.setup()
+		mocks.getOwnUsername.mockReturnValue('remoteself')
+		mocks.getUserCustomizations.mockImplementation(() =>
+			Promise.resolve(
+				createCustomizationData({
+					RemoteOld: { isIgnored: true, ignoreType: 'mute', avatarUrl: 'https://www.mediavida.com/img/users/avatar/remote-old.png' },
+				})
+			)
+		)
+		mocks.sendMessage.mockImplementation(name =>
+			name === 'searchMvUsers'
+				? Promise.resolve({
+						success: true,
+						users: [
+							{ username: 'RemoteUser', avatarUrl: 'https://www.mediavida.com/img/users/avatar/remote-user.png' },
+							{ username: 'RemoteUser2', avatarUrl: 'https://www.mediavida.com/img/users/avatar/remote-user-2.png' },
+							{ username: 'RemoteSelf', avatarUrl: 'https://www.mediavida.com/img/users/avatar/remote-self.png' },
+							{ username: 'RemoteOld', avatarUrl: 'https://www.mediavida.com/img/users/avatar/remote-old.png' },
+						],
+					})
+				: Promise.resolve({ success: false })
+		)
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		const searchInput = await screen.findByPlaceholderText('Buscar o añadir nick (3-13)')
+		await user.type(searchInput, 'Remote')
+
+		// Debounced fetch: suggestion rows appear with per-user accessible names.
+		const hideSuggestionButton = await screen.findByRole('button', { name: 'Ocultar RemoteUser2' })
+		expect(screen.getByRole('button', { name: 'Silenciar RemoteUser' })).toBeInTheDocument()
+		// Yourself and already-filtered users never show up as suggestions.
+		expect(screen.queryByRole('button', { name: 'Ocultar RemoteSelf' })).not.toBeInTheDocument()
+		expect(screen.queryByRole('button', { name: 'Ocultar RemoteOld' })).not.toBeInTheDocument()
+
+		await user.click(hideSuggestionButton)
+
+		await waitFor(() => {
+			expect(mocks.saveUserCustomizations).toHaveBeenCalled()
+		})
+		const savedData = mocks.saveUserCustomizations.mock.calls[mocks.saveUserCustomizations.mock.calls.length - 1][0]
+		expect(savedData.users.RemoteUser2).toMatchObject({
+			isIgnored: true,
+			ignoreType: 'hide',
+			avatarUrl: 'https://www.mediavida.com/img/users/avatar/remote-user-2.png',
+		})
+		// The suggestion already carries the avatar, so no extra resolve request.
+		expect(mocks.sendMessage).not.toHaveBeenCalledWith('resolveMvUserAvatar', expect.anything())
+		await waitFor(() => {
+			expect(searchInput).toHaveValue('')
+		})
+		expect(screen.getByRole('status')).toHaveTextContent('RemoteUser2 ocultado.')
 	})
 
 	it('stores a resolved avatar when adding a user that is not visible on the page', async () => {

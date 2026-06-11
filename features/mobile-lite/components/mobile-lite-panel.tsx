@@ -19,7 +19,7 @@ import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
 import X from 'lucide-react/dist/esm/icons/x'
 import { browser } from 'wxt/browser'
 import { NativeFidIcon } from '@/components/native-fid-icon'
-import { sendMessage } from '@/lib/messaging'
+import { sendMessage, type MvUserSearchUser } from '@/lib/messaging'
 import { getSubforumIconId } from '@/lib/subforums'
 import { getSettings, useSettingsStore } from '@/store/settings-store'
 import {
@@ -44,6 +44,7 @@ import {
 } from '../logic/ignore-helpers'
 import { dispatchMobileLiteIgnoredUsersSync } from '../logic/ignored-users-sync-event'
 import { getAvatarUrlFromImage, sanitizeAvatarUrl } from '../logic/avatar-utils'
+import { getOwnUsername } from '../logic/own-username'
 import {
 	getMobileLiteBoldColorSettings,
 	normalizeMobileLiteBoldColor,
@@ -66,6 +67,9 @@ const USERNAME_MIN_LENGTH = 3
 const USERNAME_MAX_LENGTH = 13
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/
 const USERNAME_VALIDATION_ID = 'mvp-mobile-lite-username-validation'
+const SELF_IGNORE_MESSAGE = 'No puedes silenciarte a ti mismo.'
+const USER_SUGGESTIONS_DEBOUNCE_MS = 300
+const USER_SUGGESTIONS_MAX = 5
 const DEFAULT_BOLD_COLOR = '#ffffff'
 /**
  * App-like token system: one neutral surface ramp + a single amber accent (#f0a020).
@@ -217,11 +221,18 @@ async function resolveUserAvatar(username: string): Promise<string | undefined> 
 	return result.success ? sanitizeAvatarUrl(result.avatarUrl) : undefined
 }
 
-async function updateUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<UserCustomizationsData> {
+async function updateUserIgnore(
+	username: string,
+	ignoreType: MobileLiteIgnoreType | null,
+	knownAvatarUrl?: string
+): Promise<UserCustomizationsData> {
 	const data = await getUserCustomizations()
 	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
 	const storedAvatarUrl = sanitizeAvatarUrl(data.users[storageKey]?.avatarUrl)
-	const avatarUrl = ignoreType && !storedAvatarUrl ? await resolveUserAvatar(storageKey) : undefined
+	const avatarUrl =
+		ignoreType && !storedAvatarUrl
+			? (sanitizeAvatarUrl(knownAvatarUrl) ?? (await resolveUserAvatar(storageKey)))
+			: undefined
 	if (avatarUrl) {
 		data.users[storageKey] = { ...data.users[storageKey], avatarUrl }
 	}
@@ -244,6 +255,7 @@ export function MobileLitePanel() {
 	const [query, setQuery] = useState('')
 	const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all')
 	const [savingUser, setSavingUser] = useState<string | null>(null)
+	const [userSuggestions, setUserSuggestions] = useState<MvUserSearchUser[]>([])
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 	const [statusMessage, setStatusMessage] = useState<string | null>(null)
 	const [imgbbApiKey, setImgbbApiKey] = useState('')
@@ -474,11 +486,33 @@ export function MobileLitePanel() {
 		})
 	}, [hiddenThreadQuery, hiddenThreads])
 	const exactQueryUsername = normalizeUsername(query)
+	const ownUsername = getOwnUsername()
+	const isOwnQueryUser = Boolean(exactQueryUsername) && exactQueryUsername.toLowerCase() === ownUsername
 	const exactQueryEntry = exactQueryUsername ? getCustomizationEntryForUser(data, exactQueryUsername) : null
 	const exactQueryCustomization = exactQueryEntry?.customization
-	const exactQueryDisplayName = exactQueryEntry?.storageKey ?? exactQueryUsername
-	const usernameValidationMessage = getUsernameValidationMessage(exactQueryUsername)
+	const usernameValidationMessage = isOwnQueryUser
+		? SELF_IGNORE_MESSAGE
+		: getUsernameValidationMessage(exactQueryUsername)
 	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
+	const canSearchUserSuggestions = Boolean(exactQueryUsername) && !usernameValidationMessage
+	const exactQuerySuggestion =
+		userSuggestions.find(user => user.username.toLowerCase() === exactQueryUsername.toLowerCase()) ?? null
+	const exactQueryDisplayName = exactQueryEntry?.storageKey ?? exactQuerySuggestion?.username ?? exactQueryUsername
+	const addUserSuggestions = useMemo(() => {
+		if (!canSearchUserSuggestions) return []
+
+		// Suggestions may be one keystroke behind the query (debounce), so they are
+		// re-filtered here; self and already-filtered users never show up.
+		const queryKey = exactQueryUsername.toLowerCase()
+		return userSuggestions
+			.filter(user => {
+				const usernameKey = user.username.toLowerCase()
+				if (usernameKey === queryKey || usernameKey === ownUsername) return false
+				if (getCustomizationEntryForUser(data, user.username)?.customization.isIgnored) return false
+				return usernameKey.includes(queryKey)
+			})
+			.slice(0, USER_SUGGESTIONS_MAX)
+	}, [canSearchUserSuggestions, data, exactQueryUsername, ownUsername, userSuggestions])
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
 	// Placeholder URLs (lazy-load pixels) count as missing so the refresh button
 	// can replace them with the real avatar.
@@ -561,7 +595,9 @@ export function MobileLitePanel() {
 	)
 
 	useEffect(() => {
-		if (!open || allFilteredUsers.length === 0) return
+		// While a save is in flight the list reflects optimistic data; wait for the
+		// final data before hydrating so primed avatars are not resolved again.
+		if (!open || savingUser !== null || allFilteredUsers.length === 0) return
 
 		let cancelled = false
 		void hydrateMissingAvatars(allFilteredUsers, { cancelled: () => cancelled }).catch(() => {
@@ -571,7 +607,31 @@ export function MobileLitePanel() {
 		return () => {
 			cancelled = true
 		}
-	}, [allFilteredUsers, hydrateMissingAvatars, open])
+	}, [allFilteredUsers, hydrateMissingAvatars, open, savingUser])
+
+	useEffect(() => {
+		if (!open || activeTab !== 'users' || !canSearchUserSuggestions) {
+			setUserSuggestions([])
+			return
+		}
+
+		let cancelled = false
+		const timeout = window.setTimeout(() => {
+			void sendMessage('searchMvUsers', { query: exactQueryUsername })
+				.then(result => {
+					if (cancelled || !result.success) return
+					setUserSuggestions(result.users ?? [])
+				})
+				.catch(() => {
+					// Autocomplete is opportunistic; adding by exact nick still works.
+				})
+		}, USER_SUGGESTIONS_DEBOUNCE_MS)
+
+		return () => {
+			cancelled = true
+			window.clearTimeout(timeout)
+		}
+	}, [activeTab, canSearchUserSuggestions, exactQueryUsername, open])
 
 	const refreshMissingAvatars = async () => {
 		setRefreshingAvatars(true)
@@ -586,23 +646,37 @@ export function MobileLitePanel() {
 		}
 	}
 
-	const updateFilter = async (username: string, ignoreType: MobileLiteIgnoreType | null) => {
+	const updateFilter = async (
+		username: string,
+		ignoreType: MobileLiteIgnoreType | null,
+		options: { avatarUrl?: string } = {}
+	) => {
 		const normalizedUsername = normalizeUsername(username)
 		if (!normalizedUsername) return false
+		if (ignoreType && normalizedUsername.toLowerCase() === getOwnUsername()) {
+			setErrorMessage(SELF_IGNORE_MESSAGE)
+			return false
+		}
 
 		const previousData = data
 		const optimisticData: UserCustomizationsData = {
 			...data,
 			users: { ...data.users },
 		}
-		setUserIgnoreInData(optimisticData, normalizedUsername, ignoreType)
+		const { storageKey: optimisticKey } = setUserIgnoreInData(optimisticData, normalizedUsername, ignoreType)
+		// Prime the known avatar optimistically too; otherwise the avatar hydration
+		// effect sees the new row without avatar and fires a redundant resolve.
+		const knownAvatarUrl = sanitizeAvatarUrl(options.avatarUrl)
+		if (ignoreType && knownAvatarUrl && !sanitizeAvatarUrl(optimisticData.users[optimisticKey]?.avatarUrl)) {
+			optimisticData.users[optimisticKey] = { ...optimisticData.users[optimisticKey], avatarUrl: knownAvatarUrl }
+		}
 
 		setSavingUser(normalizedUsername)
 		setErrorMessage(null)
 		setStatusMessage(null)
 		setData(optimisticData)
 		try {
-			const nextData = await updateUserIgnore(normalizedUsername, ignoreType)
+			const nextData = await updateUserIgnore(normalizedUsername, ignoreType, options.avatarUrl)
 			setData(nextData)
 			return true
 		} catch {
@@ -646,12 +720,22 @@ export function MobileLitePanel() {
 	}
 
 	const addQueryFilter = async (ignoreType: MobileLiteIgnoreType) => {
-		const username = exactQueryUsername
-		const saved = await updateFilter(username, ignoreType)
+		// Prefer the remote suggestion match: real casing + avatar with no extra request.
+		const username = exactQuerySuggestion?.username ?? exactQueryUsername
+		const displayName = exactQueryDisplayName
+		const saved = await updateFilter(username, ignoreType, { avatarUrl: exactQuerySuggestion?.avatarUrl })
 		if (!saved) return
 
 		setQuery('')
-		setStatusMessage(ignoreType === 'mute' ? `${exactQueryDisplayName} silenciado.` : `${exactQueryDisplayName} ocultado.`)
+		setStatusMessage(ignoreType === 'mute' ? `${displayName} silenciado.` : `${displayName} ocultado.`)
+	}
+
+	const addSuggestionFilter = async (suggestion: MvUserSearchUser, ignoreType: MobileLiteIgnoreType) => {
+		const saved = await updateFilter(suggestion.username, ignoreType, { avatarUrl: suggestion.avatarUrl })
+		if (!saved) return
+
+		setQuery('')
+		setStatusMessage(ignoreType === 'mute' ? `${suggestion.username} silenciado.` : `${suggestion.username} ocultado.`)
 	}
 
 	const saveImgbbApiKey = async () => {
@@ -935,31 +1019,81 @@ export function MobileLitePanel() {
 								</p>
 							)}
 
-							{canAddQueryUser && (
-								<div className="mt-2 rounded-2xl border border-dashed border-[#3a4254] bg-[#14171d] p-3">
-									<div className="flex items-center gap-2 px-1 text-sm font-semibold">
-										<UserX className="h-4 w-4 text-[#9aa5b4]" aria-hidden="true" />
-										<span className="min-w-0 truncate">{exactQueryDisplayName}</span>
+							{(canAddQueryUser || addUserSuggestions.length > 0) && (
+								<div className="mt-2 overflow-hidden rounded-2xl border border-dashed border-[#3a4254] bg-[#14171d]">
+									<div className="flex items-center gap-2 px-3 pb-1 pt-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]">
+										<UserX className="h-3.5 w-3.5" aria-hidden="true" />
+										Añadir usuario
 									</div>
-									<div className="mt-3 grid grid-cols-2 gap-2">
-										<button
-											type="button"
-											className={SECONDARY_BUTTON_CLASS}
-											disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
-											onClick={() => addQueryFilter('mute')}
-										>
-											<VolumeX className="h-4 w-4" aria-hidden="true" />
-											Silenciar
-										</button>
-										<button
-											type="button"
-											className={SECONDARY_BUTTON_CLASS}
-											disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
-											onClick={() => addQueryFilter('hide')}
-										>
-											<EyeOff className="h-4 w-4" aria-hidden="true" />
-											Ocultar
-										</button>
+									<div className="divide-y divide-[#2d3442]">
+										{canAddQueryUser && (
+											<div className="flex items-center gap-3 py-2 pl-3 pr-2">
+												<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#242a36] text-sm font-bold text-[#9aa5b4]">
+													{exactQuerySuggestion?.avatarUrl ? (
+														<img src={exactQuerySuggestion.avatarUrl} alt="" className="h-full w-full object-cover" />
+													) : (
+														exactQueryDisplayName.slice(0, 1).toUpperCase()
+													)}
+												</div>
+												<div className="min-w-0 flex-1 truncate text-[15px] font-semibold">{exactQueryDisplayName}</div>
+												<div className="flex shrink-0 items-center">
+													<button
+														type="button"
+														aria-label="Silenciar"
+														className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
+														disabled={savingUser?.toLowerCase() === exactQueryUsername.toLowerCase()}
+														onClick={() => addQueryFilter('mute')}
+													>
+														<VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
+													</button>
+													<button
+														type="button"
+														aria-label="Ocultar"
+														className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
+														disabled={savingUser?.toLowerCase() === exactQueryUsername.toLowerCase()}
+														onClick={() => addQueryFilter('hide')}
+													>
+														<EyeOff className="h-[18px] w-[18px]" aria-hidden="true" />
+													</button>
+												</div>
+											</div>
+										)}
+										{addUserSuggestions.map(suggestion => {
+											const isSavingSuggestion = savingUser?.toLowerCase() === suggestion.username.toLowerCase()
+
+											return (
+												<div key={suggestion.username} className="flex items-center gap-3 py-2 pl-3 pr-2">
+													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#242a36] text-sm font-bold text-[#9aa5b4]">
+														{suggestion.avatarUrl ? (
+															<img src={suggestion.avatarUrl} alt="" className="h-full w-full object-cover" />
+														) : (
+															suggestion.username.slice(0, 1).toUpperCase()
+														)}
+													</div>
+													<div className="min-w-0 flex-1 truncate text-[15px] font-semibold">{suggestion.username}</div>
+													<div className="flex shrink-0 items-center">
+														<button
+															type="button"
+															aria-label={`Silenciar ${suggestion.username}`}
+															className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
+															disabled={isSavingSuggestion}
+															onClick={() => addSuggestionFilter(suggestion, 'mute')}
+														>
+															<VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+														<button
+															type="button"
+															aria-label={`Ocultar ${suggestion.username}`}
+															className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
+															disabled={isSavingSuggestion}
+															onClick={() => addSuggestionFilter(suggestion, 'hide')}
+														>
+															<EyeOff className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+													</div>
+												</div>
+											)
+										})}
 									</div>
 								</div>
 							)}

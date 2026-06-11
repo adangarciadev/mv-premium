@@ -10,6 +10,7 @@ import { setupMvUserAvatarHandler, setupTwitterLiteHandler } from './api-handler
 
 type MessageHandler = (message: { data: { tweetUrl: string } }) => Promise<unknown>
 type MvUserAvatarHandler = (message: { data: { username: string } }) => Promise<unknown>
+type MvUserSearchHandler = (message: { data: { query: string } }) => Promise<unknown>
 
 describe('setupTwitterLiteHandler', () => {
 	const handlers = new Map<string, MessageHandler>()
@@ -142,5 +143,45 @@ describe('setupMvUserAvatarHandler', () => {
 			avatarUrl: 'https://www.mediavida.com/img/users/avatar/html-user.png',
 			error: undefined,
 		})
+	})
+
+	it('returns deduplicated user suggestions for autocomplete searches', async () => {
+		vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					suggestions: [
+						{ value: 'RemoteUser', data: { nombre: 'RemoteUser', avatar: 'remote-user.png' } },
+						{ value: 'RemoteUser2', data: { nombre: 'RemoteUser2', avatar: '' } },
+						{ value: 'remoteuser', data: { nombre: 'remoteuser', avatar: 'dupe.png' } },
+					],
+				}),
+				{ status: 200, headers: { 'content-type': 'text/plain' } }
+			)
+		)
+
+		setupMvUserAvatarHandler()
+		const handler = handlers.get('searchMvUsers') as unknown as MvUserSearchHandler | undefined
+
+		const result = await handler?.({ data: { query: 'Remote' } })
+
+		expect(result).toEqual({
+			success: true,
+			users: [
+				{ username: 'RemoteUser', avatarUrl: 'https://www.mediavida.com/img/users/avatar/remote-user.png' },
+				{ username: 'RemoteUser2', avatarUrl: undefined },
+			],
+		})
+	})
+
+	it('rejects invalid autocomplete queries without fetching', async () => {
+		const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+		setupMvUserAvatarHandler()
+		const handler = handlers.get('searchMvUsers') as unknown as MvUserSearchHandler | undefined
+
+		const result = await handler?.({ data: { query: 'ab' } })
+
+		expect(result).toEqual({ success: false, error: 'Consulta no valida' })
+		expect(fetchMock).not.toHaveBeenCalled()
 	})
 })

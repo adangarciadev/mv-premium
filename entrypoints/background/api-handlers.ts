@@ -9,6 +9,8 @@ import { fetchSteamBundleDetails, fetchSteamGameDetails, searchSteamApps } from 
 import {
 	onMessage,
 	type MvUserAvatarResult,
+	type MvUserSearchResult,
+	type MvUserSearchUser,
 	type ThreadPageHtmlFetchResult,
 	type TweetLiteData,
 	type TweetLiteResult,
@@ -35,6 +37,7 @@ const MAX_REHOST_IMAGE_BYTES = 8 * 1024 * 1024
 const TWITTER_FETCH_TIMEOUT_MS = 3500
 const MEDIAVIDA_THREAD_HOSTS = new Set(['www.mediavida.com', 'mediavida.com'])
 const MV_USERNAME_PATTERN = /^[A-Za-z0-9_-]{3,13}$/
+const MV_USER_SEARCH_MAX_RESULTS = 6
 
 interface GiphyApiResponse {
 	data: Array<{
@@ -412,13 +415,10 @@ function getSuggestionAvatar(suggestion: Record<string, unknown>): string {
 	return getStringValue(data?.avatar) || getStringValue(suggestion.avatar)
 }
 
-async function resolveMvUserAvatar(username: string): Promise<MvUserAvatarResult> {
-	const normalizedUsername = username.trim()
-	if (!MV_USERNAME_PATTERN.test(normalizedUsername)) {
-		return { success: false, error: 'Nick no valido' }
-	}
-
-	const url = `${MV_URLS.USERS_LIST}?query=${encodeURIComponent(normalizedUsername)}`
+async function fetchMvUserSuggestions(
+	query: string
+): Promise<{ suggestions: Record<string, unknown>[] } | { error: string }> {
+	const url = `${MV_URLS.USERS_LIST}?query=${encodeURIComponent(query)}`
 	const response = await fetch(url, {
 		credentials: 'include',
 		headers: {
@@ -428,11 +428,24 @@ async function resolveMvUserAvatar(username: string): Promise<MvUserAvatarResult
 	})
 
 	if (!response.ok) {
-		return { success: false, error: `HTTP ${response.status}` }
+		return { error: `HTTP ${response.status}` }
 	}
 
-	const payload = parseMvUserSuggestionsPayload(await response.text())
-	const exactSuggestion = extractMvUserSuggestions(payload).find(
+	return { suggestions: extractMvUserSuggestions(parseMvUserSuggestionsPayload(await response.text())) }
+}
+
+async function resolveMvUserAvatar(username: string): Promise<MvUserAvatarResult> {
+	const normalizedUsername = username.trim()
+	if (!MV_USERNAME_PATTERN.test(normalizedUsername)) {
+		return { success: false, error: 'Nick no valido' }
+	}
+
+	const result = await fetchMvUserSuggestions(normalizedUsername)
+	if ('error' in result) {
+		return { success: false, error: result.error }
+	}
+
+	const exactSuggestion = result.suggestions.find(
 		suggestion => getSuggestionUsername(suggestion).toLowerCase() === normalizedUsername.toLowerCase()
 	)
 	if (!exactSuggestion) {
@@ -446,6 +459,35 @@ async function resolveMvUserAvatar(username: string): Promise<MvUserAvatarResult
 		avatarUrl,
 		error: avatarUrl ? undefined : 'Avatar no encontrado',
 	}
+}
+
+async function searchMvUsers(query: string): Promise<MvUserSearchResult> {
+	const normalizedQuery = query.trim()
+	if (!MV_USERNAME_PATTERN.test(normalizedQuery)) {
+		return { success: false, error: 'Consulta no valida' }
+	}
+
+	const result = await fetchMvUserSuggestions(normalizedQuery)
+	if ('error' in result) {
+		return { success: false, error: result.error }
+	}
+
+	const users: MvUserSearchUser[] = []
+	const seenUsernames = new Set<string>()
+	for (const suggestion of result.suggestions) {
+		const username = getSuggestionUsername(suggestion)
+		const usernameKey = username.toLowerCase()
+		if (!username || seenUsernames.has(usernameKey)) continue
+
+		seenUsernames.add(usernameKey)
+		users.push({
+			username,
+			avatarUrl: normalizeMediavidaAvatarUrl(getSuggestionAvatar(suggestion)) || undefined,
+		})
+		if (users.length >= MV_USER_SEARCH_MAX_RESULTS) break
+	}
+
+	return { success: true, users }
 }
 
 async function fetchRecordWithTimeout(url: string, init?: RequestInit): Promise<Record<string, unknown> | null> {
@@ -958,6 +1000,15 @@ export function setupMvUserAvatarHandler(): void {
 			return await resolveMvUserAvatar(data.username)
 		} catch (error) {
 			logger.warn('Mediavida user avatar resolve failed:', error)
+			return { success: false, error: error instanceof Error ? error.message : 'Fetch failed' }
+		}
+	})
+
+	onMessage('searchMvUsers', async ({ data }): Promise<MvUserSearchResult> => {
+		try {
+			return await searchMvUsers(data.query)
+		} catch (error) {
+			logger.warn('Mediavida user search failed:', error)
 			return { success: false, error: error instanceof Error ? error.message : 'Fetch failed' }
 		}
 	})
