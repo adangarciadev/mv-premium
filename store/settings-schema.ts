@@ -69,7 +69,7 @@ export const settingsSchema = z.object({
 	syncEnabled: z.boolean().default(false),
 
 	// Feature Toggles - Navigation
-	mobileLiteEnabled: z.boolean().default(false),
+	mobileLiteEnabled: z.boolean().default(true),
 	infiniteScrollEnabled: z.boolean().default(false),
 	liveThreadEnabled: z.boolean().default(false),
 	newHomepageEnabled: z.boolean().default(false),

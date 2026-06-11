@@ -49,6 +49,12 @@ export interface GeminiResult {
 	modelUsed?: string
 }
 
+export interface GeminiConnectionResult {
+	success: boolean
+	message: string
+	availableModelIds?: string[]
+}
+
 export interface TweetLiteData {
 	username: string
 	displayName: string
@@ -106,6 +112,24 @@ export interface ThreadPageHtmlFetchResult {
 	finalUrl?: string
 }
 
+export interface MvUserAvatarResult {
+	success: boolean
+	username?: string
+	avatarUrl?: string
+	error?: string
+}
+
+export interface MvUserSearchUser {
+	username: string
+	avatarUrl?: string
+}
+
+export interface MvUserSearchResult {
+	success: boolean
+	users?: MvUserSearchUser[]
+	error?: string
+}
+
 // =============================================================================
 // Protocol Map - Define all RPC messages here
 // =============================================================================
@@ -146,6 +170,17 @@ interface ProtocolMap {
 	 * Keeps thread-page network requests out of content scripts.
 	 */
 	fetchThreadPageHtml: (data: { url: string }) => ThreadPageHtmlFetchResult
+
+	/**
+	 * Resolve a Mediavida user's avatar by username via background script.
+	 */
+	resolveMvUserAvatar: (data: { username: string }) => MvUserAvatarResult
+
+	/**
+	 * Search Mediavida users by partial username via background script
+	 * (autocomplete suggestions with avatars).
+	 */
+	searchMvUsers: (data: { query: string }) => MvUserSearchResult
 
 	/**
 	 * Fetch Steam game details (CORS proxy)
@@ -215,11 +250,16 @@ interface ProtocolMap {
 	 * Supports full chat history with model fallback on rate limits
 	 */
 	generateGemini: (data: {
-		apiKey: string
 		model: string
 		history?: ChatMessage[]
 		prompt?: string
 	}) => GeminiResult
+
+	/**
+	 * Test Gemini API connectivity via background script.
+	 * Background reads the configured API key from extension storage.
+	 */
+	testGeminiConnection: () => GeminiConnectionResult
 
 	/**
 	 * Syntax highlight code using PrismJS in background script

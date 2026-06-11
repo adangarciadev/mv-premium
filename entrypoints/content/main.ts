@@ -35,7 +35,14 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 			window.history.replaceState(window.history.state, document.title, getUrlWithoutMobileLiteDevParam(window.location.href))
 		}
 
-		if (!useSettingsStore.getState().mobileLiteEnabled) {
+		let mobileLiteEnabled = useSettingsStore.getState().mobileLiteEnabled
+		if (!devActivation && !mobileLiteEnabled) {
+			useSettingsStore.getState().setSetting('mobileLiteEnabled', true)
+			mobileLiteEnabled = true
+			logger.info('Mobile Lite auto-enabled on Firefox Android')
+		}
+
+		if (!mobileLiteEnabled) {
 			logger.debug('Skipping content main on Firefox Android because mobile lite is disabled')
 			return
 		}

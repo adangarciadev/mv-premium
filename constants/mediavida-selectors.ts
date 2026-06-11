@@ -173,6 +173,10 @@ export const MV_SELECTORS = {
 		QUICK_REPLY_ALL: '.quickreply, #topic-reply',
 		/** Bottom progress indicator */
 		BOTTOM_PROGRESS: '.bottom-progress',
+		/** Mobile fixed bottom navigation bar */
+		BOTTOM_NAV_ID: 'bottom-nav',
+		/** Mobile pagination dropdown inside #bottom-nav */
+		PAGE_PILLS: '.page-pills',
 		/** Main wrapper */
 		MAIN_WRAPPER: '#main.wrp',
 		/** Generic wrapper */

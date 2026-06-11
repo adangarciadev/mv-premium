@@ -670,7 +670,10 @@ export async function getUpcomingGameReleases({
 		{
 			prefix: CACHE_PREFIX,
 			ttl: CACHE_TTL.LONG,
-			persist: true,
+			// NEVER persist: the cache key embeds the from/to window, which shifts
+			// over time, so persisted entries (~500KB each) are never read again and
+			// pile up until they exhaust the storage quota (5MB on Firefox).
+			persist: false,
 		}
 	)
 }

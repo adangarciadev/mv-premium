@@ -1,16 +1,34 @@
-import { type CSSProperties, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react'
+import Bold from 'lucide-react/dist/esm/icons/bold'
 import Check from 'lucide-react/dist/esm/icons/check'
-import Clipboard from 'lucide-react/dist/esm/icons/clipboard'
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
+import CircleAlert from 'lucide-react/dist/esm/icons/circle-alert'
+import CircleCheck from 'lucide-react/dist/esm/icons/circle-check'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
+import Images from 'lucide-react/dist/esm/icons/images'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
-import Image from 'lucide-react/dist/esm/icons/image'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
+import Radio from 'lucide-react/dist/esm/icons/radio'
+import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
+import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import Search from 'lucide-react/dist/esm/icons/search'
+import Settings from 'lucide-react/dist/esm/icons/settings'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import UserX from 'lucide-react/dist/esm/icons/user-x'
 import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
 import X from 'lucide-react/dist/esm/icons/x'
 import { browser } from 'wxt/browser'
+import { NativeFidIcon } from '@/components/native-fid-icon'
+import { sendMessage, type MvUserSearchUser } from '@/lib/messaging'
+import { getSubforumIconId } from '@/lib/subforums'
+import { getSettings, useSettingsStore } from '@/store/settings-store'
+import {
+	clearHiddenThreads,
+	getHiddenThreads,
+	unhideThread,
+	watchHiddenThreads,
+	type HiddenThread,
+} from '@/features/hidden-threads/logic/storage'
 import {
 	getUserCustomizations,
 	saveUserCustomizations,
@@ -25,7 +43,17 @@ import {
 	type MobileLiteIgnoreType,
 } from '../logic/ignore-helpers'
 import { dispatchMobileLiteIgnoredUsersSync } from '../logic/ignored-users-sync-event'
+import { getAvatarUrlFromImage, sanitizeAvatarUrl } from '../logic/avatar-utils'
+import { getOwnUsername } from '../logic/own-username'
+import {
+	getMobileLiteBoldColorSettings,
+	normalizeMobileLiteBoldColor,
+	saveMobileLiteBoldColorSettings,
+} from '../logic/bold-color'
+import { applyMobileLiteHiddenThreads } from '../logic/hidden-threads'
 import { getMobileLiteImgbbApiKey, saveMobileLiteImgbbApiKey } from '../logic/imgbb-api-key-storage'
+import { syncMobileLiteGalleryButton } from '../logic/gallery'
+import { syncMobileLiteLiveThreadButton } from '../logic/live-thread'
 
 export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
 
@@ -39,9 +67,68 @@ const USERNAME_MIN_LENGTH = 3
 const USERNAME_MAX_LENGTH = 13
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/
 const USERNAME_VALIDATION_ID = 'mvp-mobile-lite-username-validation'
-const DEFAULT_VIEWPORT_BOUNDS = {
-	height: 0,
-	offsetTop: 0,
+const SELF_IGNORE_MESSAGE = 'No puedes silenciarte a ti mismo.'
+const USER_SUGGESTIONS_DEBOUNCE_MS = 300
+const USER_SUGGESTIONS_MAX = 5
+const DEFAULT_BOLD_COLOR = '#ffffff'
+/**
+ * App-like token system: one neutral surface ramp + a single amber accent (#f0a020).
+ * Flat grouped lists (no per-row gradients), bottom tab bar, 44px controls and a
+ * 12/16/24 radius scale. Literal hex is used throughout so Tailwind's JIT reliably
+ * generates each class. These constants are the single source of truth.
+ *
+ *   sheet #1c1f27 · group #242a36 · input #14171d · divider #2d3442 · pressed #2e3543
+ *   text #eef1f6 · muted #9aa5b4 · faint #8b95a3 · accent #f0a020 · on-accent #221604
+ */
+// Bottom tab bar items: the active state fills the whole button as one pill (icon + label).
+const TAB_BASE_CLASS =
+	'flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-bold uppercase tracking-[0.08em] transition-colors'
+const TAB_ACTIVE_CLASS =
+	'bg-gradient-to-b from-[#f0a020]/[0.22] to-[#f0a020]/[0.07] text-[#f0a020] ring-1 ring-inset ring-[#f0a020]/[0.25] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-1px_0_rgba(0,0,0,0.3),0_3px_10px_rgba(0,0,0,0.45)]'
+const TAB_IDLE_CLASS = 'text-[#8b95a3] active:bg-[#1d212b] active:text-[#c2cad6]'
+// Filter chips: same beveled-pill language as the bottom tab bar.
+const FILTER_BASE_CLASS =
+	'inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-semibold transition-colors'
+const FILTER_ACTIVE_CLASS =
+	'bg-gradient-to-b from-[#f0a020]/[0.22] to-[#f0a020]/[0.07] text-[#f0a020] ring-1 ring-inset ring-[#f0a020]/[0.25] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-1px_0_rgba(0,0,0,0.3),0_2px_6px_rgba(0,0,0,0.35)]'
+const FILTER_IDLE_CLASS = 'bg-[#242a36] text-[#9aa5b4] ring-1 ring-inset ring-white/[0.04] active:bg-[#2e3543]'
+// Buttons: a single amber primary + one neutral secondary, both 44px.
+const PRIMARY_BUTTON_CLASS =
+	'inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#f0a020] px-4 text-sm font-bold text-[#221604] transition-colors active:bg-[#d98e12] disabled:bg-[#2e3543] disabled:text-[#707b8e]'
+const SECONDARY_BUTTON_CLASS =
+	'inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2e3543] px-4 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#3a4254] disabled:opacity-50'
+// Row icon actions: ghost circles, accent tint only when active.
+const ROW_ICON_BASE_CLASS =
+	'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50'
+const ROW_ICON_IDLE_CLASS = 'text-[#8b95a3] active:bg-[#2e3543]'
+const ROW_ICON_ACTIVE_CLASS = 'bg-[#f0a020]/[0.16] text-[#f0a020]'
+// Grouped list surfaces (iOS inset-list style) and section labels.
+const GROUP_CLASS = 'overflow-hidden rounded-2xl bg-[#242a36]'
+const SECTION_LABEL_CLASS = 'px-4 pb-2 pt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]'
+// Inputs: 16px text always (prevents iOS auto-zoom), flat surface, accent focus ring.
+const INPUT_CLASS =
+	'h-11 w-full rounded-xl border border-transparent bg-[#14171d] text-base text-[#eef1f6] outline-none placeholder:text-[#707b8e] focus:border-[#f0a020]'
+// Switch: 28x48 visual track inside a 44px touch target.
+const SWITCH_WRAPPER_CLASS = 'inline-flex h-11 w-14 shrink-0 items-center justify-center disabled:opacity-60'
+const SWITCH_TRACK_BASE_CLASS = 'relative block h-7 w-12 rounded-full transition-colors'
+const SWITCH_THUMB_BASE_CLASS =
+	'pointer-events-none absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform'
+// Toasts: single feedback channel anchored above the tab bar. Saturated
+// surfaces + status icon so the outcome reads at a glance.
+const STATUS_SUCCESS_CLASS =
+	'pointer-events-auto flex w-full items-center gap-2.5 rounded-xl border border-[#2e8a52] bg-[#0e3320]/95 px-4 py-3 text-sm font-semibold text-[#d3f9e0] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
+const STATUS_ERROR_CLASS =
+	'pointer-events-auto flex w-full items-center gap-2.5 rounded-xl border border-[#a84b53] bg-[#3c181c]/95 px-4 py-3 text-sm font-semibold text-[#ffd9d9] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
+
+function PanelToast({ kind, children }: { kind: 'success' | 'error'; children: ReactNode }) {
+	const isSuccess = kind === 'success'
+	const Icon = isSuccess ? CircleCheck : CircleAlert
+	return (
+		<div role={isSuccess ? 'status' : 'alert'} className={isSuccess ? STATUS_SUCCESS_CLASS : STATUS_ERROR_CLASS}>
+			<Icon className={`h-5 w-5 shrink-0 ${isSuccess ? 'text-[#41d97e]' : 'text-[#ff8585]'}`} aria-hidden="true" />
+			<span className="min-w-0 flex-1">{children}</span>
+		</div>
+	)
 }
 
 interface FilteredUser {
@@ -50,7 +137,7 @@ interface FilteredUser {
 }
 
 type ActiveFilter = 'all' | MobileLiteIgnoreType
-type PanelTab = 'users' | 'images'
+type PanelTab = 'users' | 'threads' | 'settings'
 
 function getEmptyData(): UserCustomizationsData {
 	return {
@@ -70,35 +157,26 @@ function normalizeUsername(username: string): string {
 	return username.trim()
 }
 
-function getVisualViewportBounds() {
-	const viewport = window.visualViewport
-	return {
-		height: viewport?.height ?? window.innerHeight,
-		offsetTop: viewport?.offsetTop ?? 0,
-	}
+function getSubforumSlugFromId(subforumId: string): string {
+	return subforumId.replace(/^\/foro\//, '').replace(/^foro\//, '').trim()
 }
 
-function useVisualViewportBounds(enabled: boolean) {
-	const [bounds, setBounds] = useState(DEFAULT_VIEWPORT_BOUNDS)
+function formatHiddenThreadDate(hiddenAt: number): string {
+	if (!Number.isFinite(hiddenAt) || hiddenAt <= 0) return ''
 
-	useEffect(() => {
-		if (!enabled) return
+	return new Intl.DateTimeFormat('es-ES', {
+		day: '2-digit',
+		month: '2-digit',
+		year: '2-digit',
+	}).format(new Date(hiddenAt))
+}
 
-		const updateBounds = () => setBounds(getVisualViewportBounds())
-		updateBounds()
-
-		window.addEventListener('resize', updateBounds)
-		window.visualViewport?.addEventListener('resize', updateBounds)
-		window.visualViewport?.addEventListener('scroll', updateBounds)
-
-		return () => {
-			window.removeEventListener('resize', updateBounds)
-			window.visualViewport?.removeEventListener('resize', updateBounds)
-			window.visualViewport?.removeEventListener('scroll', updateBounds)
-		}
-	}, [enabled])
-
-	return bounds
+function safeDecodeURIComponent(value: string): string {
+	try {
+		return decodeURIComponent(value)
+	} catch {
+		return value
+	}
 }
 
 function getUsernameValidationMessage(username: string): string | null {
@@ -109,9 +187,56 @@ function getUsernameValidationMessage(username: string): string | null {
 	return null
 }
 
-async function updateUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<UserCustomizationsData> {
+function findVisibleUserAvatar(username: string): string | undefined {
+	const normalizedUsername = username.toLowerCase()
+	const userLinks = Array.from(
+		document.querySelectorAll<HTMLAnchorElement>('a.user-card[href^="/id/"], a.autor[href^="/id/"], a[href^="/id/"]')
+	)
+
+	for (const link of userLinks) {
+		const hrefUsername = link.getAttribute('href')?.match(/\/id\/([^/?#]+)/)?.[1] || ''
+		const linkUsername = safeDecodeURIComponent(hrefUsername || link.querySelector('img')?.alt?.trim() || link.textContent?.trim() || '')
+		if (linkUsername.toLowerCase() !== normalizedUsername) continue
+
+		const avatarUrl = getAvatarUrlFromImage(link.querySelector<HTMLImageElement>('img.avatar, img'))
+		if (avatarUrl) return avatarUrl
+
+		const postContainer = link.closest('.post, .respuesta, .msg, article, li, div[id^="post"], div[id^="respuesta"]')
+		const postAvatarUrl = getAvatarUrlFromImage(
+			postContainer?.querySelector<HTMLImageElement>(
+				'img.avatar, .avatar img, .post-avatar img, .user-avatar img, img[src*="/img/users/avatar/"]'
+			)
+		)
+		if (postAvatarUrl) return postAvatarUrl
+	}
+
+	return undefined
+}
+
+async function resolveUserAvatar(username: string): Promise<string | undefined> {
+	const visibleAvatar = findVisibleUserAvatar(username)
+	if (visibleAvatar) return visibleAvatar
+
+	const result = await sendMessage('resolveMvUserAvatar', { username })
+	return result.success ? sanitizeAvatarUrl(result.avatarUrl) : undefined
+}
+
+async function updateUserIgnore(
+	username: string,
+	ignoreType: MobileLiteIgnoreType | null,
+	knownAvatarUrl?: string
+): Promise<UserCustomizationsData> {
 	const data = await getUserCustomizations()
 	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
+	const storedAvatarUrl = sanitizeAvatarUrl(data.users[storageKey]?.avatarUrl)
+	const avatarUrl =
+		ignoreType && !storedAvatarUrl
+			? (sanitizeAvatarUrl(knownAvatarUrl) ?? (await resolveUserAvatar(storageKey)))
+			: undefined
+	if (avatarUrl) {
+		data.users[storageKey] = { ...data.users[storageKey], avatarUrl }
+	}
+
 	await saveUserCustomizations(data)
 	dispatchMobileLiteIgnoredUsersSync({
 		data,
@@ -130,17 +255,54 @@ export function MobileLitePanel() {
 	const [query, setQuery] = useState('')
 	const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all')
 	const [savingUser, setSavingUser] = useState<string | null>(null)
+	const [userSuggestions, setUserSuggestions] = useState<MvUserSearchUser[]>([])
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 	const [statusMessage, setStatusMessage] = useState<string | null>(null)
 	const [imgbbApiKey, setImgbbApiKey] = useState('')
 	const [imgbbApiKeyDraft, setImgbbApiKeyDraft] = useState('')
+	const [boldColor, setBoldColor] = useState(DEFAULT_BOLD_COLOR)
+	const [boldColorDraft, setBoldColorDraft] = useState(DEFAULT_BOLD_COLOR)
+	const [boldColorEnabled, setBoldColorEnabled] = useState(false)
+	const [boldColorExpanded, setBoldColorExpanded] = useState(false)
+	const [liveThreadEnabled, setLiveThreadEnabled] = useState(false)
+	const [galleryButtonEnabled, setGalleryButtonEnabled] = useState(true)
+	const [hideThreadButtonEnabled, setHideThreadButtonEnabled] = useState(true)
+	const [hiddenThreads, setHiddenThreads] = useState<HiddenThread[]>([])
+	const [hiddenThreadQuery, setHiddenThreadQuery] = useState('')
+	const [restoringThread, setRestoringThread] = useState<string | null>(null)
+	const [clearingHiddenThreads, setClearingHiddenThreads] = useState(false)
+	const [confirmClearHiddenThreads, setConfirmClearHiddenThreads] = useState(false)
 	const [savingImgbbApiKey, setSavingImgbbApiKey] = useState(false)
+	const [refreshingAvatars, setRefreshingAvatars] = useState(false)
+	const [hiddenThreadsStatusMessage, setHiddenThreadsStatusMessage] = useState<string | null>(null)
+	const [hiddenThreadsErrorMessage, setHiddenThreadsErrorMessage] = useState<string | null>(null)
 	const [imgbbStatusMessage, setImgbbStatusMessage] = useState<string | null>(null)
 	const [imgbbErrorMessage, setImgbbErrorMessage] = useState<string | null>(null)
-	const viewportBounds = useVisualViewportBounds(open)
+	const [savingBoldColor, setSavingBoldColor] = useState(false)
+	const [boldColorStatusMessage, setBoldColorStatusMessage] = useState<string | null>(null)
+	const [boldColorErrorMessage, setBoldColorErrorMessage] = useState<string | null>(null)
+	const [savingMobileLiteSetting, setSavingMobileLiteSetting] = useState<
+		'liveThreadEnabled' | 'galleryButtonEnabled' | 'hideThreadEnabled' | null
+	>(null)
+	const [mobileLiteSettingsStatusMessage, setMobileLiteSettingsStatusMessage] = useState<string | null>(null)
+	const [mobileLiteSettingsErrorMessage, setMobileLiteSettingsErrorMessage] = useState<string | null>(null)
+	const avatarHydrationInFlight = useRef<Set<string>>(new Set())
+	const panelBodyRef = useRef<HTMLDivElement>(null)
+	const dragStartYRef = useRef<number | null>(null)
+	const sheetRef = useRef<HTMLElement>(null)
+	const [dragOffset, setDragOffset] = useState(0)
+	const [isDragging, setIsDragging] = useState(false)
 
 	useEffect(() => {
 		let mounted = true
+
+		const handleOpen = () => setOpen(true)
+		const handleKeyDown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') setOpen(false)
+		}
+
+		window.addEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
+		window.addEventListener('keydown', handleKeyDown)
 
 		getUserCustomizations()
 			.then(nextData => {
@@ -153,18 +315,19 @@ export function MobileLitePanel() {
 		const unwatch = watchUserCustomizations(nextData => {
 			setData(nextData)
 		})
-
-		const handleOpen = () => setOpen(true)
-		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === 'Escape') setOpen(false)
+		let unwatchHiddenThreads: (() => void) | null = null
+		try {
+			unwatchHiddenThreads = watchHiddenThreads(nextThreads => {
+				setHiddenThreads(nextThreads)
+			})
+		} catch {
+			// Hidden-thread management should not prevent the panel from opening.
 		}
-
-		window.addEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
-		window.addEventListener('keydown', handleKeyDown)
 
 		return () => {
 			mounted = false
 			unwatch()
+			unwatchHiddenThreads?.()
 			window.removeEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
 			window.removeEventListener('keydown', handleKeyDown)
 		}
@@ -195,12 +358,99 @@ export function MobileLitePanel() {
 			.catch(() => {
 				if (mounted) setImgbbErrorMessage('No se pudo cargar la API key de ImgBB.')
 			})
+		getMobileLiteBoldColorSettings()
+			.then(settings => {
+				if (!mounted) return
+				setBoldColor(settings.color)
+				setBoldColorDraft(settings.color)
+				setBoldColorEnabled(settings.enabled)
+				setBoldColorStatusMessage(null)
+				setBoldColorErrorMessage(null)
+			})
+			.catch(() => {
+				if (mounted) setBoldColorErrorMessage('No se pudo cargar el color de negrita.')
+			})
+		getSettings()
+			.then(settings => {
+				if (!mounted) return
+				setLiveThreadEnabled(settings.liveThreadEnabled === true)
+				setGalleryButtonEnabled(settings.galleryButtonEnabled !== false)
+				setHideThreadButtonEnabled(settings.hideThreadEnabled !== false)
+				setMobileLiteSettingsStatusMessage(null)
+				setMobileLiteSettingsErrorMessage(null)
+			})
+			.catch(() => {
+				if (mounted) setMobileLiteSettingsErrorMessage('No se pudieron cargar los ajustes de Mobile Lite.')
+			})
+		getHiddenThreads()
+			.then(nextThreads => {
+				if (mounted) setHiddenThreads(nextThreads)
+			})
+			.catch(() => {
+				if (mounted) setHiddenThreadsErrorMessage('No se pudieron cargar los hilos ocultos.')
+			})
 
 		return () => {
 			mounted = false
 			document.body.style.overflow = previousOverflow
 		}
 	}, [open])
+
+	// Success feedback is transient (toast above the tab bar); errors persist until the next action.
+	useEffect(() => {
+		if (
+			!statusMessage &&
+			!hiddenThreadsStatusMessage &&
+			!imgbbStatusMessage &&
+			!boldColorStatusMessage &&
+			!mobileLiteSettingsStatusMessage
+		) {
+			return
+		}
+
+		const timeout = window.setTimeout(() => {
+			setStatusMessage(null)
+			setHiddenThreadsStatusMessage(null)
+			setImgbbStatusMessage(null)
+			setBoldColorStatusMessage(null)
+			setMobileLiteSettingsStatusMessage(null)
+		}, 3500)
+
+		return () => window.clearTimeout(timeout)
+	}, [statusMessage, hiddenThreadsStatusMessage, imgbbStatusMessage, boldColorStatusMessage, mobileLiteSettingsStatusMessage])
+
+	const handleSheetTouchStart = (event: ReactTouchEvent) => {
+		dragStartYRef.current = event.touches[0]?.clientY ?? null
+		setIsDragging(true)
+	}
+
+	const handleSheetTouchMove = (event: ReactTouchEvent) => {
+		if (dragStartYRef.current === null) return
+		const currentY = event.touches[0]?.clientY ?? dragStartYRef.current
+		setDragOffset(Math.max(0, currentY - dragStartYRef.current))
+	}
+
+	const handleSheetTouchEnd = () => {
+		const sheetHeight = sheetRef.current?.offsetHeight ?? 0
+		// Dismiss only after a deliberate pull: ~1/4 of the sheet height (140px minimum on any screen).
+		const dismissThreshold = Math.max(140, sheetHeight * 0.25)
+		const shouldClose = dragOffset > dismissThreshold
+		dragStartYRef.current = null
+		setIsDragging(false)
+
+		if (shouldClose && sheetHeight > 0) {
+			// Animated exit: slide the sheet fully down, then unmount.
+			setDragOffset(sheetHeight)
+			window.setTimeout(() => {
+				setOpen(false)
+				setDragOffset(0)
+			}, 220)
+			return
+		}
+
+		// Below the threshold: snap back (animated by the transform transition).
+		setDragOffset(0)
+	}
 
 	const allFilteredUsers = useMemo(() => getFilteredUsers(data), [data])
 	const mutedUsers = useMemo(
@@ -223,29 +473,245 @@ export function MobileLitePanel() {
 		{ id: 'mute', label: 'Silenciados', count: mutedUsers.length },
 		{ id: 'hide', label: 'Ocultos', count: hiddenUsers.length },
 	] satisfies Array<{ id: ActiveFilter; label: string; count: number }>
+	const filteredHiddenThreads = useMemo(() => {
+		const normalizedQuery = hiddenThreadQuery.trim().toLowerCase()
+		if (!normalizedQuery) return hiddenThreads
 
+		return hiddenThreads.filter(thread => {
+			return (
+				thread.title.toLowerCase().includes(normalizedQuery) ||
+				thread.subforum.toLowerCase().includes(normalizedQuery) ||
+				getSubforumSlugFromId(thread.subforumId).toLowerCase().includes(normalizedQuery)
+			)
+		})
+	}, [hiddenThreadQuery, hiddenThreads])
 	const exactQueryUsername = normalizeUsername(query)
+	const ownUsername = getOwnUsername()
+	const isOwnQueryUser = Boolean(exactQueryUsername) && exactQueryUsername.toLowerCase() === ownUsername
 	const exactQueryEntry = exactQueryUsername ? getCustomizationEntryForUser(data, exactQueryUsername) : null
 	const exactQueryCustomization = exactQueryEntry?.customization
-	const exactQueryDisplayName = exactQueryEntry?.storageKey ?? exactQueryUsername
-	const usernameValidationMessage = getUsernameValidationMessage(exactQueryUsername)
+	const usernameValidationMessage = isOwnQueryUser
+		? SELF_IGNORE_MESSAGE
+		: getUsernameValidationMessage(exactQueryUsername)
 	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
+	const canSearchUserSuggestions = Boolean(exactQueryUsername) && !usernameValidationMessage
+	const exactQuerySuggestion =
+		userSuggestions.find(user => user.username.toLowerCase() === exactQueryUsername.toLowerCase()) ?? null
+	const exactQueryDisplayName = exactQueryEntry?.storageKey ?? exactQuerySuggestion?.username ?? exactQueryUsername
+	const addUserSuggestions = useMemo(() => {
+		if (!canSearchUserSuggestions) return []
+
+		// Suggestions may be one keystroke behind the query (debounce), so they are
+		// re-filtered here; self and already-filtered users never show up.
+		const queryKey = exactQueryUsername.toLowerCase()
+		return userSuggestions
+			.filter(user => {
+				const usernameKey = user.username.toLowerCase()
+				if (usernameKey === queryKey || usernameKey === ownUsername) return false
+				if (getCustomizationEntryForUser(data, user.username)?.customization.isIgnored) return false
+				return usernameKey.includes(queryKey)
+			})
+			.slice(0, USER_SUGGESTIONS_MAX)
+	}, [canSearchUserSuggestions, data, exactQueryUsername, ownUsername, userSuggestions])
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
+	// Placeholder URLs (lazy-load pixels) count as missing so the refresh button
+	// can replace them with the real avatar.
+	const missingAvatarCount = allFilteredUsers.filter(user => !sanitizeAvatarUrl(user.customization.avatarUrl)).length
 	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
+	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
+	const normalizedBoldColorDraft = normalizeMobileLiteBoldColor(boldColorDraft)
+	const isBoldColorDirty = normalizedBoldColorDraft !== boldColor
 	const logoUrl = browser.runtime.getURL('/icon/48.png')
 
-	const updateFilter = async (username: string, ignoreType: MobileLiteIgnoreType | null) => {
+	const hydrateMissingAvatars = useCallback(
+		async (users: FilteredUser[], options: { cancelled?: () => boolean; showStatus?: boolean } = {}) => {
+			const missingAvatarUsers = users.filter(user => {
+				if (sanitizeAvatarUrl(user.customization.avatarUrl)) return false
+				const key = user.username.toLowerCase()
+				if (avatarHydrationInFlight.current.has(key)) return false
+				avatarHydrationInFlight.current.add(key)
+				return true
+			})
+			if (missingAvatarUsers.length === 0) {
+				if (options.showStatus) setStatusMessage('No hay avatares pendientes de actualizar.')
+				return
+			}
+
+			const resolvedAvatars: Array<{ username: string; avatarUrl: string }> = []
+
+			try {
+				for (const user of missingAvatarUsers) {
+					if (options.cancelled?.()) break
+
+					try {
+						const avatarUrl = await resolveUserAvatar(user.username)
+						if (avatarUrl) {
+							resolvedAvatars.push({ username: user.username, avatarUrl })
+						}
+					} catch {
+						// Avatar hydration is opportunistic; failing should not block panel usage.
+					} finally {
+						avatarHydrationInFlight.current.delete(user.username.toLowerCase())
+					}
+				}
+
+				if (options.cancelled?.() || resolvedAvatars.length === 0) {
+					if (options.showStatus && !options.cancelled?.()) setStatusMessage('No se encontraron avatares nuevos.')
+					return
+				}
+
+				const nextData = await getUserCustomizations()
+				let changed = false
+				for (const { username, avatarUrl } of resolvedAvatars) {
+					const entry = getCustomizationEntryForUser(nextData, username)
+					if (!entry?.customization.isIgnored || sanitizeAvatarUrl(entry.customization.avatarUrl)) continue
+
+					nextData.users[entry.storageKey] = { ...entry.customization, avatarUrl }
+					changed = true
+				}
+
+				if (!changed || options.cancelled?.()) {
+					if (options.showStatus && !options.cancelled?.()) setStatusMessage('No se encontraron avatares nuevos.')
+					return
+				}
+
+				await saveUserCustomizations(nextData)
+				setData(nextData)
+				dispatchMobileLiteIgnoredUsersSync({ data: nextData })
+				if (options.showStatus) {
+					setStatusMessage(
+						resolvedAvatars.length === 1
+							? 'Avatar actualizado.'
+							: `${resolvedAvatars.length} avatares actualizados.`
+					)
+				}
+			} finally {
+				for (const user of missingAvatarUsers) {
+					avatarHydrationInFlight.current.delete(user.username.toLowerCase())
+				}
+			}
+		},
+		[]
+	)
+
+	useEffect(() => {
+		// While a save is in flight the list reflects optimistic data; wait for the
+		// final data before hydrating so primed avatars are not resolved again.
+		if (!open || savingUser !== null || allFilteredUsers.length === 0) return
+
+		let cancelled = false
+		void hydrateMissingAvatars(allFilteredUsers, { cancelled: () => cancelled }).catch(() => {
+			// Avatar hydration is opportunistic; failing should not block panel usage.
+		})
+
+		return () => {
+			cancelled = true
+		}
+	}, [allFilteredUsers, hydrateMissingAvatars, open, savingUser])
+
+	useEffect(() => {
+		if (!open || activeTab !== 'users' || !canSearchUserSuggestions) {
+			setUserSuggestions([])
+			return
+		}
+
+		let cancelled = false
+		const timeout = window.setTimeout(() => {
+			void sendMessage('searchMvUsers', { query: exactQueryUsername })
+				.then(result => {
+					if (cancelled || !result.success) return
+					setUserSuggestions(result.users ?? [])
+				})
+				.catch(() => {
+					// Autocomplete is opportunistic; adding by exact nick still works.
+				})
+		}, USER_SUGGESTIONS_DEBOUNCE_MS)
+
+		return () => {
+			cancelled = true
+			window.clearTimeout(timeout)
+		}
+	}, [activeTab, canSearchUserSuggestions, exactQueryUsername, open])
+
+	const refreshMissingAvatars = async () => {
+		setRefreshingAvatars(true)
+		setErrorMessage(null)
+		setStatusMessage(null)
+		try {
+			await hydrateMissingAvatars(allFilteredUsers, { showStatus: true })
+		} catch {
+			setErrorMessage('No se pudieron actualizar los avatares. Inténtalo de nuevo.')
+		} finally {
+			setRefreshingAvatars(false)
+		}
+	}
+
+	const updateFilter = async (
+		username: string,
+		ignoreType: MobileLiteIgnoreType | null,
+		options: { avatarUrl?: string } = {}
+	) => {
 		const normalizedUsername = normalizeUsername(username)
 		if (!normalizedUsername) return false
+		if (ignoreType && normalizedUsername.toLowerCase() === getOwnUsername()) {
+			setErrorMessage(SELF_IGNORE_MESSAGE)
+			return false
+		}
+
+		const previousData = data
+		const optimisticData: UserCustomizationsData = {
+			...data,
+			users: { ...data.users },
+		}
+		const { storageKey: optimisticKey } = setUserIgnoreInData(optimisticData, normalizedUsername, ignoreType)
+		// Prime the known avatar optimistically too; otherwise the avatar hydration
+		// effect sees the new row without avatar and fires a redundant resolve.
+		const knownAvatarUrl = sanitizeAvatarUrl(options.avatarUrl)
+		if (ignoreType && knownAvatarUrl && !sanitizeAvatarUrl(optimisticData.users[optimisticKey]?.avatarUrl)) {
+			optimisticData.users[optimisticKey] = { ...optimisticData.users[optimisticKey], avatarUrl: knownAvatarUrl }
+		}
 
 		setSavingUser(normalizedUsername)
 		setErrorMessage(null)
 		setStatusMessage(null)
+		setData(optimisticData)
 		try {
-			const nextData = await updateUserIgnore(normalizedUsername, ignoreType)
+			const nextData = await updateUserIgnore(normalizedUsername, ignoreType, options.avatarUrl)
 			setData(nextData)
 			return true
 		} catch {
+			setData(previousData)
+			setErrorMessage('No se pudo guardar el filtro. Inténtalo de nuevo.')
+			return false
+		} finally {
+			setSavingUser(null)
+		}
+	}
+
+	const removeUserFilter = async (username: string) => {
+		const previousData = data
+		const previousScrollTop = panelBodyRef.current?.scrollTop
+		const optimisticData: UserCustomizationsData = {
+			...data,
+			users: { ...data.users },
+		}
+		setUserIgnoreInData(optimisticData, username, null)
+
+		setSavingUser(username)
+		setErrorMessage(null)
+		setStatusMessage(null)
+		setData(optimisticData)
+		try {
+			const nextData = await updateUserIgnore(username, null)
+			setData(nextData)
+			if (previousScrollTop !== undefined) {
+				window.requestAnimationFrame(() => {
+					if (panelBodyRef.current) panelBodyRef.current.scrollTop = previousScrollTop
+				})
+			}
+			return true
+		} catch {
+			setData(previousData)
 			setErrorMessage('No se pudo guardar el filtro. Inténtalo de nuevo.')
 			return false
 		} finally {
@@ -254,12 +720,22 @@ export function MobileLitePanel() {
 	}
 
 	const addQueryFilter = async (ignoreType: MobileLiteIgnoreType) => {
-		const username = exactQueryUsername
-		const saved = await updateFilter(username, ignoreType)
+		// Prefer the remote suggestion match: real casing + avatar with no extra request.
+		const username = exactQuerySuggestion?.username ?? exactQueryUsername
+		const displayName = exactQueryDisplayName
+		const saved = await updateFilter(username, ignoreType, { avatarUrl: exactQuerySuggestion?.avatarUrl })
 		if (!saved) return
 
 		setQuery('')
-		setStatusMessage(ignoreType === 'mute' ? `${exactQueryDisplayName} silenciado.` : `${exactQueryDisplayName} ocultado.`)
+		setStatusMessage(ignoreType === 'mute' ? `${displayName} silenciado.` : `${displayName} ocultado.`)
+	}
+
+	const addSuggestionFilter = async (suggestion: MvUserSearchUser, ignoreType: MobileLiteIgnoreType) => {
+		const saved = await updateFilter(suggestion.username, ignoreType, { avatarUrl: suggestion.avatarUrl })
+		if (!saved) return
+
+		setQuery('')
+		setStatusMessage(ignoreType === 'mute' ? `${suggestion.username} silenciado.` : `${suggestion.username} ocultado.`)
 	}
 
 	const saveImgbbApiKey = async () => {
@@ -279,334 +755,917 @@ export function MobileLitePanel() {
 		}
 	}
 
-	const pasteImgbbApiKey = async () => {
-		setImgbbErrorMessage(null)
-		setImgbbStatusMessage(null)
+	const saveBoldColor = async () => {
+		setSavingBoldColor(true)
+		setBoldColorErrorMessage(null)
+		setBoldColorStatusMessage(null)
 		try {
-			const text = await navigator.clipboard.readText()
-			setImgbbApiKeyDraft(text.trim())
-			setImgbbStatusMessage('Clave pegada. Pulsa Guardar para activarla.')
+			const nextSettings = await saveMobileLiteBoldColorSettings({
+				color: normalizedBoldColorDraft,
+				enabled: boldColorEnabled,
+			})
+			setBoldColor(nextSettings.color)
+			setBoldColorDraft(nextSettings.color)
+			setBoldColorEnabled(nextSettings.enabled)
+			setBoldColorStatusMessage('Color de negrita guardado.')
 		} catch {
-			setImgbbErrorMessage('No se pudo leer el portapapeles. Pega la clave manualmente.')
+			setBoldColorErrorMessage('No se pudo guardar el color de negrita.')
+		} finally {
+			setSavingBoldColor(false)
+		}
+	}
+
+	const toggleBoldColor = async () => {
+		const nextEnabled = !boldColorEnabled
+		setSavingBoldColor(true)
+		setBoldColorErrorMessage(null)
+		setBoldColorStatusMessage(null)
+		try {
+			const nextSettings = await saveMobileLiteBoldColorSettings({
+				enabled: nextEnabled,
+			})
+			setBoldColor(nextSettings.color)
+			setBoldColorDraft(nextSettings.color)
+			setBoldColorEnabled(nextSettings.enabled)
+			setBoldColorStatusMessage(nextSettings.enabled ? 'Color personalizado activado.' : 'Color personalizado desactivado.')
+		} catch {
+			setBoldColorErrorMessage('No se pudo cambiar el color de negrita.')
+		} finally {
+			setSavingBoldColor(false)
+		}
+	}
+
+	const resetBoldColor = async () => {
+		setSavingBoldColor(true)
+		setBoldColorErrorMessage(null)
+		setBoldColorStatusMessage(null)
+		try {
+			const nextSettings = await saveMobileLiteBoldColorSettings({
+				color: DEFAULT_BOLD_COLOR,
+				enabled: boldColorEnabled,
+			})
+			setBoldColor(nextSettings.color)
+			setBoldColorDraft(nextSettings.color)
+			setBoldColorEnabled(nextSettings.enabled)
+			setBoldColorStatusMessage('Color de negrita restaurado.')
+		} catch {
+			setBoldColorErrorMessage('No se pudo restaurar el color de negrita.')
+		} finally {
+			setSavingBoldColor(false)
+		}
+	}
+
+	const toggleLiveThreadSetting = async () => {
+		const nextEnabled = !liveThreadEnabled
+		setSavingMobileLiteSetting('liveThreadEnabled')
+		setMobileLiteSettingsErrorMessage(null)
+		setMobileLiteSettingsStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('liveThreadEnabled', nextEnabled)
+			setLiveThreadEnabled(nextEnabled)
+			await syncMobileLiteLiveThreadButton(nextEnabled)
+			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Modo Live activado.' : 'Modo Live desactivado.')
+		} catch {
+			setLiveThreadEnabled(!nextEnabled)
+			setMobileLiteSettingsErrorMessage('No se pudo cambiar el Modo Live.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
+
+	const toggleGalleryButtonSetting = async () => {
+		const nextEnabled = !galleryButtonEnabled
+		setSavingMobileLiteSetting('galleryButtonEnabled')
+		setMobileLiteSettingsErrorMessage(null)
+		setMobileLiteSettingsStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('galleryButtonEnabled', nextEnabled)
+			setGalleryButtonEnabled(nextEnabled)
+			await syncMobileLiteGalleryButton(nextEnabled)
+			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Botón de galería activado.' : 'Botón de galería desactivado.')
+		} catch {
+			setGalleryButtonEnabled(!nextEnabled)
+			setMobileLiteSettingsErrorMessage('No se pudo cambiar el botón de galería.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
+
+	const toggleHideThreadButtonSetting = () => {
+		const nextEnabled = !hideThreadButtonEnabled
+		setSavingMobileLiteSetting('hideThreadEnabled')
+		setMobileLiteSettingsErrorMessage(null)
+		setMobileLiteSettingsStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('hideThreadEnabled', nextEnabled)
+			setHideThreadButtonEnabled(nextEnabled)
+			applyMobileLiteHiddenThreads()
+			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Botón de ocultar hilos activado.' : 'Botón de ocultar hilos desactivado.')
+		} catch {
+			setHideThreadButtonEnabled(!nextEnabled)
+			setMobileLiteSettingsErrorMessage('No se pudo cambiar el botón de ocultar hilos.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
+
+	const restoreHiddenThread = async (thread: HiddenThread) => {
+		const previousThreads = hiddenThreads
+		const previousScrollTop = panelBodyRef.current?.scrollTop
+		setRestoringThread(thread.id)
+		setHiddenThreadsStatusMessage(null)
+		setHiddenThreadsErrorMessage(null)
+		setHiddenThreads(currentThreads => currentThreads.filter(currentThread => currentThread.id !== thread.id))
+		try {
+			await unhideThread(thread.id)
+			const nextThreads = await getHiddenThreads()
+			setHiddenThreads(nextThreads)
+			if (previousScrollTop !== undefined) {
+				window.requestAnimationFrame(() => {
+					if (panelBodyRef.current) panelBodyRef.current.scrollTop = previousScrollTop
+				})
+			}
+		} catch {
+			setHiddenThreads(previousThreads)
+			setHiddenThreadsErrorMessage('No se pudo restaurar el hilo. Inténtalo de nuevo.')
+		} finally {
+			setRestoringThread(null)
+		}
+	}
+
+	const restoreAllHiddenThreads = async () => {
+		setClearingHiddenThreads(true)
+		setHiddenThreadsStatusMessage(null)
+		setHiddenThreadsErrorMessage(null)
+		try {
+			await clearHiddenThreads()
+			setHiddenThreads([])
+			setHiddenThreadQuery('')
+			setConfirmClearHiddenThreads(false)
+		} catch {
+			setHiddenThreadsErrorMessage('No se pudieron restaurar todos los hilos. Inténtalo de nuevo.')
+		} finally {
+			setClearingHiddenThreads(false)
 		}
 	}
 
 	if (!open) return null
 
-	const overlayStyle: CSSProperties | undefined = viewportBounds.height
-		? {
-				height: `${viewportBounds.height}px`,
-				top: `${viewportBounds.offsetTop}px`,
-			}
-		: undefined
-
+	// The overlay anchors with inset-0 (layout viewport) — correct on every
+	// well-behaved device. On Firefox Android the dynamic toolbar makes that
+	// viewport end ABOVE the real screen bottom while the toolbar is visible,
+	// and no CSS unit (100vh overshoots, 100dvh undershoots) nor the
+	// VisualViewport API reports the difference. Instead of guessing, a bleed
+	// strip below the sheet fills any potential gap with the tab bar color;
+	// when the viewport is accurate the bleed simply sits off-screen.
 	return (
-		<div className="fixed inset-x-0 top-0 z-[99999] h-[100dvh] overflow-hidden bg-black/60" style={overlayStyle}>
+		<div className="fixed inset-0 z-[99999] flex items-end justify-center overscroll-none bg-black/60 animate-in fade-in-0 duration-200">
 			<button type="button" className="absolute inset-0 h-full w-full cursor-default" aria-label="Cerrar panel MVP" onClick={() => setOpen(false)} />
 
+			{/* Bleed: fills the Firefox Android dynamic-toolbar gap below the sheet */}
+			<div aria-hidden="true" className="absolute inset-x-0 top-full mx-auto h-28 w-full max-w-[34rem] bg-[#14171d]" />
+
 			<section
-				className={`absolute left-[max(12px,env(safe-area-inset-left))] right-[max(12px,env(safe-area-inset-right))] flex max-h-[calc(100%_-_max(12px,env(safe-area-inset-top))_-_max(12px,env(safe-area-inset-bottom)))] flex-col overflow-hidden border border-[#4b545d] bg-[#343b41] text-[#e5e8eb] shadow-2xl ${
-					hasAnyFilteredUsers
-						? 'bottom-[max(0px,env(safe-area-inset-bottom))] top-[max(56px,calc(env(safe-area-inset-top)_+_12px))] rounded-t-lg'
-						: 'bottom-auto top-[max(132px,calc(env(safe-area-inset-top)_+_18dvh))] rounded-lg'
-				}`}
+				ref={sheetRef}
+				className="relative flex h-[90%] w-full max-w-[34rem] flex-col overflow-hidden rounded-t-[24px] bg-[#1c1f27] text-[#eef1f6] shadow-[0_-12px_48px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom-8 duration-300 ease-out"
+				style={{
+					transform: `translateY(${dragOffset}px)`,
+					transition: isDragging ? 'none' : 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
+				}}
 			>
-				<header className="flex items-center justify-between border-b border-[#46505a] bg-[#30363d] px-4 py-3">
-					<div className="flex min-w-0 items-center gap-3">
-						<img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-md object-contain" aria-hidden="true" />
-						<div className="min-w-0">
-							<h2 className="truncate text-lg font-black uppercase italic leading-none tracking-tight">
-								<span>MV</span>
-								<span className="text-[#f0a020]"> Premium</span>
-							</h2>
-							<p className="mt-1 text-[10px] font-bold uppercase tracking-[0.32em] text-[#b7bec6]">Dashboard</p>
-						</div>
+				<header
+					className="shrink-0 touch-none select-none pt-[max(4px,env(safe-area-inset-top))]"
+					onTouchStart={handleSheetTouchStart}
+					onTouchMove={handleSheetTouchMove}
+					onTouchEnd={handleSheetTouchEnd}
+				>
+					{/* Grab handle (drag down to dismiss) */}
+					<div className="flex justify-center pb-1 pt-2">
+						<span className="h-1 w-10 rounded-full bg-[#3a4254]" aria-hidden="true" />
 					</div>
-					<button
-						type="button"
-						className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#56606a] bg-[#444b54] text-[#eef1f3]"
-						aria-label="Cerrar"
-						onClick={() => setOpen(false)}
-					>
-						<X className="h-5 w-5" aria-hidden="true" />
-					</button>
+					<div className="flex items-center justify-between gap-3 px-4 pb-2.5 pt-1">
+						<div className="flex min-w-0 items-center gap-2.5">
+							<img src={logoUrl} alt="" className="h-7 w-7 shrink-0 rounded-lg object-contain" aria-hidden="true" />
+							<h2 className="flex min-w-0 items-baseline gap-2 truncate">
+								<span className="shrink-0 text-base font-black uppercase leading-none tracking-tighter">
+									<span className="italic">MV</span>
+									<span className="text-[#f0a020]">Premium</span>
+								</span>
+								<span className="truncate text-[9px] font-bold uppercase leading-none tracking-[0.25em] text-[#8b95a3]/80">
+									Dashboard
+								</span>
+							</h2>
+						</div>
+						<button
+							type="button"
+							className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2e3543] text-[#aab4c0] transition-colors active:bg-[#3a4254]"
+							aria-label="Cerrar"
+							onClick={() => setOpen(false)}
+						>
+							<X className="h-5 w-5" aria-hidden="true" />
+						</button>
+					</div>
 				</header>
 
-				<div className="min-h-0 flex-1 overflow-y-auto bg-[#384149] px-4 py-4 pb-[max(16px,calc(env(safe-area-inset-bottom)_+_16px))]">
-					<div className="mb-4 grid grid-cols-2 gap-2" role="tablist" aria-label="Secciones del panel MVPremium">
-						<button
-							type="button"
-							role="tab"
-							aria-selected={activeTab === 'users'}
-							className={`inline-flex h-10 items-center justify-center gap-2 rounded-md border px-2 text-sm font-semibold ${
-								activeTab === 'users' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#56616b] bg-[#303840] text-[#d8dde2]'
-							}`}
-							onClick={() => setActiveTab('users')}
-						>
-							<UserX className="h-4 w-4" aria-hidden="true" />
-							Usuarios
-						</button>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={activeTab === 'images'}
-							className={`inline-flex h-10 items-center justify-center gap-2 rounded-md border px-2 text-sm font-semibold ${
-								activeTab === 'images' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#56616b] bg-[#303840] text-[#d8dde2]'
-							}`}
-							onClick={() => setActiveTab('images')}
-						>
-							<Image className="h-4 w-4" aria-hidden="true" />
-							ImgBB
-						</button>
-					</div>
+				<div ref={panelBodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
 
 					{activeTab === 'users' ? (
 						<>
-							{errorMessage && (
-								<div role="alert" className="mb-3 rounded-md border border-[#8f3f3f] bg-[#4a2528] px-3 py-2 text-sm text-[#ffd7d7]">
-									{errorMessage}
-								</div>
-							)}
+							<div className="sticky top-0 z-20 -mx-4 bg-[#1c1f27] px-4 pb-2 pt-1">
+								<label className="relative block">
+									<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#707b8e]" aria-hidden="true" />
+									<input
+										type="search"
+										value={query}
+										autoCapitalize="none"
+										spellCheck={false}
+										aria-describedby={usernameValidationMessage ? USERNAME_VALIDATION_ID : undefined}
+										onChange={event => {
+											setQuery(event.target.value)
+											setStatusMessage(null)
+										}}
+										placeholder="Buscar o añadir nick (3-13)"
+										className={`${INPUT_CLASS} pl-10 pr-3`}
+									/>
+								</label>
 
-							<label className="relative block">
-								<Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#aeb6be]" aria-hidden="true" />
-								<input
-									type="search"
-									value={query}
-									autoCapitalize="none"
-									spellCheck={false}
-									aria-describedby={usernameValidationMessage ? USERNAME_VALIDATION_ID : undefined}
-									onChange={event => {
-										setQuery(event.target.value)
-										setStatusMessage(null)
-									}}
-									placeholder="Buscar o añadir nick (3-13)"
-									className="h-11 w-full rounded-md border border-[#505963] bg-[#262d34] pl-10 pr-3 text-base text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00]"
-								/>
-							</label>
+								{/* Filter chips stick together with the search so they stay
+								    reachable while scrolling a long user list */}
+								{hasAnyFilteredUsers && (
+									<div className="mt-2 flex gap-1.5" role="group" aria-label="Filtrar usuarios">
+										{filterOptions.map(option => {
+											const isActive = activeFilter === option.id
+
+											return (
+												<button
+													key={option.id}
+													type="button"
+													className={`${FILTER_BASE_CLASS} flex-1 ${isActive ? FILTER_ACTIVE_CLASS : FILTER_IDLE_CLASS}`}
+													aria-pressed={isActive}
+													onClick={() => setActiveFilter(option.id)}
+												>
+													<span className="truncate">{option.label}</span>
+													<span className="shrink-0 opacity-80">({option.count})</span>
+												</button>
+											)
+										})}
+									</div>
+								)}
+							</div>
 
 							{usernameValidationMessage && (
-								<p id={USERNAME_VALIDATION_ID} className="mt-2 text-xs text-[#d8b36a]">
+								<p id={USERNAME_VALIDATION_ID} className="mt-1 px-1 text-xs text-[#d8b36a]">
 									{usernameValidationMessage}
 								</p>
 							)}
 
-							{statusMessage && (
-								<div role="status" className="mt-3 rounded-md border border-[#556454] bg-[#2f3d34] px-3 py-2 text-sm text-[#d5ead5]">
-									{statusMessage}
-								</div>
-							)}
-
-							{hasAnyFilteredUsers && (
-								<div className="mt-3 grid grid-cols-3 gap-2" role="group" aria-label="Filtrar usuarios">
-									{filterOptions.map(option => {
-										const isActive = activeFilter === option.id
-
-										return (
-											<button
-												key={option.id}
-												type="button"
-												className={`inline-flex h-9 min-w-0 items-center justify-center rounded-md border px-1.5 text-xs font-semibold ${
-													isActive ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#56616b] bg-[#303840] text-[#d8dde2]'
-												}`}
-												aria-pressed={isActive}
-												onClick={() => setActiveFilter(option.id)}
-											>
-												<span className="truncate">{option.label}</span>
-												<span className="ml-1 shrink-0 rounded bg-[#252b31] px-1.5 py-0.5 text-[11px] leading-none text-[#eef1f3]">
-													({option.count})
-												</span>
-											</button>
-										)
-									})}
-								</div>
-							)}
-
-							{canAddQueryUser && (
-								<div className="mt-3 rounded-md border border-dashed border-[#56616b] bg-[#303840] p-3">
-									<div className="flex items-center gap-2 text-sm font-medium">
-										<UserX className="h-4 w-4 text-[#b7bec6]" aria-hidden="true" />
-										<span className="min-w-0 truncate">{exactQueryDisplayName}</span>
+							{(canAddQueryUser || addUserSuggestions.length > 0) && (
+								<div className="mt-2 overflow-hidden rounded-2xl border border-dashed border-[#3a4254] bg-[#14171d]">
+									<div className="flex items-center gap-2 px-3 pb-1 pt-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]">
+										<UserX className="h-3.5 w-3.5" aria-hidden="true" />
+										Añadir usuario
 									</div>
-									<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-2">
-										<button
-											type="button"
-											className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
-											disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
-											onClick={() => addQueryFilter('mute')}
-										>
-											<VolumeX className="h-4 w-4" aria-hidden="true" />
-											Silenciar
-										</button>
-										<button
-											type="button"
-											className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
-											disabled={savingUser === exactQueryUsername || savingUser === exactQueryDisplayName}
-											onClick={() => addQueryFilter('hide')}
-										>
-											<EyeOff className="h-4 w-4" aria-hidden="true" />
-											Ocultar
-										</button>
+									<div className="divide-y divide-[#2d3442]">
+										{canAddQueryUser && (
+											<div className="flex items-center gap-3 py-2 pl-3 pr-2">
+												<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#242a36] text-sm font-bold text-[#9aa5b4]">
+													{exactQuerySuggestion?.avatarUrl ? (
+														<img src={exactQuerySuggestion.avatarUrl} alt="" className="h-full w-full object-cover" />
+													) : (
+														exactQueryDisplayName.slice(0, 1).toUpperCase()
+													)}
+												</div>
+												<div className="min-w-0 flex-1 truncate text-[15px] font-semibold">{exactQueryDisplayName}</div>
+												<div className="flex shrink-0 items-center">
+													<button
+														type="button"
+														aria-label="Silenciar"
+														className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
+														disabled={savingUser?.toLowerCase() === exactQueryUsername.toLowerCase()}
+														onClick={() => addQueryFilter('mute')}
+													>
+														<VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
+													</button>
+													<button
+														type="button"
+														aria-label="Ocultar"
+														className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
+														disabled={savingUser?.toLowerCase() === exactQueryUsername.toLowerCase()}
+														onClick={() => addQueryFilter('hide')}
+													>
+														<EyeOff className="h-[18px] w-[18px]" aria-hidden="true" />
+													</button>
+												</div>
+											</div>
+										)}
+										{addUserSuggestions.map(suggestion => {
+											const isSavingSuggestion = savingUser?.toLowerCase() === suggestion.username.toLowerCase()
+
+											return (
+												<div key={suggestion.username} className="flex items-center gap-3 py-2 pl-3 pr-2">
+													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#242a36] text-sm font-bold text-[#9aa5b4]">
+														{suggestion.avatarUrl ? (
+															<img src={suggestion.avatarUrl} alt="" className="h-full w-full object-cover" />
+														) : (
+															suggestion.username.slice(0, 1).toUpperCase()
+														)}
+													</div>
+													<div className="min-w-0 flex-1 truncate text-[15px] font-semibold">{suggestion.username}</div>
+													<div className="flex shrink-0 items-center">
+														<button
+															type="button"
+															aria-label={`Silenciar ${suggestion.username}`}
+															className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
+															disabled={isSavingSuggestion}
+															onClick={() => addSuggestionFilter(suggestion, 'mute')}
+														>
+															<VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+														<button
+															type="button"
+															aria-label={`Ocultar ${suggestion.username}`}
+															className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
+															disabled={isSavingSuggestion}
+															onClick={() => addSuggestionFilter(suggestion, 'hide')}
+														>
+															<EyeOff className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+													</div>
+												</div>
+											)
+										})}
 									</div>
 								</div>
 							)}
 
-							<div className="mt-4 space-y-2">
+							{hasAnyFilteredUsers && (missingAvatarCount > 0 || refreshingAvatars) && (
+								<button
+									type="button"
+									className="mt-1.5 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg text-xs font-semibold text-[#9aa5b4] transition-colors active:bg-[#242a36] disabled:opacity-50"
+									disabled={refreshingAvatars}
+									onClick={refreshMissingAvatars}
+								>
+									<RefreshCw className={`h-3.5 w-3.5 ${refreshingAvatars ? 'animate-spin' : ''}`} aria-hidden="true" />
+									<span>{refreshingAvatars ? 'Actualizando avatares' : `Actualizar avatares (${missingAvatarCount})`}</span>
+								</button>
+							)}
+
+							<div className="mt-3">
 								{filteredUsers.length === 0 ? (
-									<div className="rounded-md border border-[#4b545d] bg-[#303840] px-4 py-8 text-center text-sm text-[#b7bec6]">
-										{hasAnyFilteredUsers ? 'No hay resultados para este filtro.' : 'No hay usuarios filtrados.'}
+									<div className="px-6 py-12 text-center">
+										<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#242a36]">
+											<UserX className="h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
+										</div>
+										<p className="text-sm font-semibold text-[#eef1f6]">
+											{hasAnyFilteredUsers ? 'No hay resultados para este filtro.' : 'No hay usuarios filtrados.'}
+										</p>
+										{!hasAnyFilteredUsers && (
+											<p className="mx-auto mt-1.5 max-w-[20rem] text-xs leading-relaxed text-[#8b95a3]">
+												Escribe un nick exacto para silenciarlo u ocultarlo desde este panel.
+											</p>
+										)}
 									</div>
 								) : (
-									filteredUsers.map(user => {
-										const ignoreType = getIgnoreTypeFromCustomization(user.customization) ?? 'hide'
-										const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
+									<div className={`${GROUP_CLASS} divide-y divide-[#2d3442]`}>
+										{filteredUsers.map(user => {
+											const ignoreType = getIgnoreTypeFromCustomization(user.customization) ?? 'hide'
+											const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
+											const avatarUrl = sanitizeAvatarUrl(user.customization.avatarUrl)
 
-										return (
-											<article key={user.username} className="rounded-md border border-[#4b545d] bg-[#3e4750] p-3">
-												<div className="flex items-center gap-3">
-													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-[#252b31] text-sm font-bold">
-														{user.customization.avatarUrl ? (
-															<img src={user.customization.avatarUrl} alt="" className="h-full w-full object-cover" />
+											return (
+												<article key={user.username} className="flex items-center gap-3 py-2 pl-3 pr-2">
+													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#14171d] text-sm font-bold text-[#9aa5b4]">
+														{avatarUrl ? (
+															<img src={avatarUrl} alt="" className="h-full w-full object-cover" />
 														) : (
 															user.username.slice(0, 1).toUpperCase()
 														)}
 													</div>
 													<div className="min-w-0 flex-1">
-														<div className="truncate text-base font-semibold">{user.username}</div>
+														<div className="truncate text-[15px] font-semibold leading-tight">{user.username}</div>
+														<div className="mt-0.5 text-xs leading-tight text-[#8b95a3]">{ignoreType === 'mute' ? 'Silenciado' : 'Oculto'}</div>
 													</div>
-												</div>
-
-												<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(118px,1fr))] gap-2">
-													<button
-														type="button"
-														className={`inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
-															ignoreType === 'mute' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#626b74] bg-[#545d66]'
-														}`}
-														disabled={isSaving}
-														onClick={() => updateFilter(user.username, 'mute')}
-													>
-														<VolumeX className="h-4 w-4" aria-hidden="true" />
-														<span>{ignoreType === 'mute' ? 'Silenciado' : 'Silenciar'}</span>
-													</button>
-													<button
-														type="button"
-														className={`inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border px-2 text-sm font-semibold ${
-															ignoreType === 'hide' ? 'border-[#d06d00] bg-[#7b4b08] text-white' : 'border-[#626b74] bg-[#545d66]'
-														}`}
-														disabled={isSaving}
-														onClick={() => updateFilter(user.username, 'hide')}
-													>
-														<EyeOff className="h-4 w-4" aria-hidden="true" />
-														<span>{ignoreType === 'hide' ? 'Ocultado' : 'Ocultar'}</span>
-													</button>
-													<button
-														type="button"
-														className="col-span-full inline-flex h-10 min-w-0 items-center justify-center gap-1 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
-														disabled={isSaving}
-														onClick={() => updateFilter(user.username, null)}
-													>
-														<Trash2 className="h-4 w-4" aria-hidden="true" />
-														<span>Quitar</span>
-													</button>
-												</div>
-											</article>
-										)
-									})
+													<div className="flex shrink-0 items-center">
+														<button
+															type="button"
+															aria-label={ignoreType === 'mute' ? 'Silenciado' : 'Silenciar'}
+															aria-pressed={ignoreType === 'mute'}
+															className={`${ROW_ICON_BASE_CLASS} ${ignoreType === 'mute' ? ROW_ICON_ACTIVE_CLASS : ROW_ICON_IDLE_CLASS}`}
+															disabled={isSaving}
+															onClick={() => updateFilter(user.username, 'mute')}
+														>
+															<VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+														<button
+															type="button"
+															aria-label={ignoreType === 'hide' ? 'Ocultado' : 'Ocultar'}
+															aria-pressed={ignoreType === 'hide'}
+															className={`${ROW_ICON_BASE_CLASS} ${ignoreType === 'hide' ? ROW_ICON_ACTIVE_CLASS : ROW_ICON_IDLE_CLASS}`}
+															disabled={isSaving}
+															onClick={() => updateFilter(user.username, 'hide')}
+														>
+															<EyeOff className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+														<button
+															type="button"
+															aria-label="Quitar"
+															className={`${ROW_ICON_BASE_CLASS} text-[#e08a8a] active:bg-[#3a2427] active:text-[#f2c2c2]`}
+															disabled={isSaving}
+															onClick={() => removeUserFilter(user.username)}
+														>
+															<Trash2 className="h-[18px] w-[18px]" aria-hidden="true" />
+														</button>
+													</div>
+												</article>
+											)
+										})}
+									</div>
 								)}
 							</div>
 						</>
-					) : (
-						<div className="space-y-3">
-							<div className="rounded-md border border-[#4b545d] bg-[#303840] p-3">
-								<div className="flex items-start gap-3">
-									<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#252b31] text-[#f0a020]">
-										<KeyRound className="h-5 w-5" aria-hidden="true" />
+					) : activeTab === 'threads' ? (
+						<>
+							{hiddenThreads.length === 0 ? (
+								<div className="px-6 py-12 text-center">
+									<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#242a36]">
+										<EyeOff className="h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
 									</div>
-									<div className="min-w-0 flex-1">
-										<div className="flex flex-wrap items-center gap-2">
-											<div className="text-base font-semibold">ImgBB</div>
-											<span
-												className={`inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-semibold ${
-													isImgbbConfigured ? 'bg-[#274532] text-[#bdf2c7]' : 'bg-[#4b3b25] text-[#f6d28b]'
-												}`}
-											>
-												{isImgbbConfigured && <Check className="h-3 w-3" aria-hidden="true" />}
-												{isImgbbConfigured ? 'ImgBB activo' : 'Freeimage gratis'}
-											</span>
-										</div>
-										<p className="mt-1 text-sm text-[#c4cad0]">
-											{isImgbbConfigured
-												? 'Tus subidas de imágenes usarán ImgBB con tu API key.'
-												: 'Sin API key se usará Freeimage, el servicio gratuito por defecto.'}
-										</p>
-									</div>
+									<p className="text-sm font-semibold text-[#eef1f6]">No hay hilos ocultos.</p>
+									<p className="mx-auto mt-1.5 max-w-[20rem] text-xs leading-relaxed text-[#8b95a3]">
+										Los hilos que ocultes desde los listados aparecerán aquí.
+									</p>
 								</div>
+							) : (
+								<>
+									<div className="sticky top-0 z-20 -mx-4 bg-[#1c1f27] px-4 pb-2 pt-1">
+										<label className="relative block min-w-0">
+											<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#707b8e]" aria-hidden="true" />
+											<input
+												type="search"
+												value={hiddenThreadQuery}
+												autoCapitalize="none"
+												spellCheck={false}
+												onChange={event => setHiddenThreadQuery(event.target.value)}
+												placeholder="Buscar hilo o subforo"
+												className={`${INPUT_CLASS} pl-10 pr-3`}
+											/>
+										</label>
+									</div>
 
-								<label className="mt-4 block text-xs font-semibold uppercase tracking-wide text-[#b7bec6]" htmlFor="mvp-mobile-lite-imgbb-key">
-									API key
-								</label>
-								<input
-									id="mvp-mobile-lite-imgbb-key"
-									type="password"
-									value={imgbbApiKeyDraft}
-									autoCapitalize="none"
-									autoCorrect="off"
-									spellCheck={false}
-									onChange={event => {
-										setImgbbApiKeyDraft(event.target.value)
-										setImgbbStatusMessage(null)
-										setImgbbErrorMessage(null)
-									}}
-									placeholder="Pega tu API key de ImgBB"
-									className="mt-2 h-11 w-full rounded-md border border-[#505963] bg-[#262d34] px-3 font-mono text-sm text-[#eef1f3] outline-none placeholder:text-[#aeb6be] focus:border-[#d06d00]"
-								/>
+									<div className="mt-1 flex items-center justify-between gap-3 pl-2">
+										<span className="text-xs font-semibold text-[#8b95a3]">
+											{hiddenThreads.length === 1 ? '1 hilo oculto' : `${hiddenThreads.length} hilos ocultos`}
+										</span>
+										<button
+											type="button"
+											aria-label="Mostrar todos"
+											className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-bold text-[#f0a020] transition-colors active:bg-[#f0a020]/10 disabled:opacity-50"
+											disabled={clearingHiddenThreads}
+											onClick={() => setConfirmClearHiddenThreads(true)}
+										>
+											<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+											<span>Mostrar todos</span>
+										</button>
+									</div>
 
-								<div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(116px,1fr))] gap-2">
+									{filteredHiddenThreads.length === 0 ? (
+										<div className="px-6 py-12 text-center">
+											<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#242a36]">
+												<Search className="h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
+											</div>
+											<p className="text-sm font-semibold text-[#eef1f6]">No hay resultados.</p>
+										</div>
+									) : (
+										<div className={`mt-2 ${GROUP_CLASS} divide-y divide-[#2d3442]`}>
+											{filteredHiddenThreads.map(thread => {
+												const isRestoring = restoringThread === thread.id
+												const subforumSlug = getSubforumSlugFromId(thread.subforumId)
+												const subforumIconId = getSubforumIconId(subforumSlug)
+												const hiddenAtLabel = formatHiddenThreadDate(thread.hiddenAt)
+
+												return (
+													<article key={thread.id} className="flex items-center gap-3 py-2.5 pl-3 pr-2">
+														{subforumIconId !== null && (
+															<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d]">
+																<NativeFidIcon iconId={subforumIconId} className="h-5 w-5 shrink-0" />
+															</div>
+														)}
+														<div className="min-w-0 flex-1">
+															<div className="line-clamp-2 text-sm font-semibold leading-snug text-[#eef1f6]">{thread.title}</div>
+															<div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-[#8b95a3]">
+																<span className="min-w-0 truncate">{thread.subforum}</span>
+																{hiddenAtLabel && (
+																	<>
+																		<span aria-hidden="true">·</span>
+																		<span className="shrink-0 tabular-nums">{hiddenAtLabel}</span>
+																	</>
+																)}
+															</div>
+														</div>
+														<button
+															type="button"
+															className={`${ROW_ICON_BASE_CLASS} text-[#f0a020] active:bg-[#f0a020]/15`}
+															aria-label="Mostrar"
+															title="Mostrar"
+															disabled={isRestoring}
+															onClick={() => restoreHiddenThread(thread)}
+														>
+															<RotateCcw className="h-5 w-5" aria-hidden="true" />
+														</button>
+													</article>
+												)
+											})}
+										</div>
+									)}
+								</>
+							)}
+						</>
+					) : (
+						<div className="pb-1">
+							<div className={SECTION_LABEL_CLASS}>Imágenes</div>
+							<div className={GROUP_CLASS}>
+								<div className="p-4">
+									<div className="flex items-start gap-3">
+										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f0a020]/[0.16] text-[#f0a020]">
+											<KeyRound className="h-5 w-5" aria-hidden="true" />
+										</div>
+										<div className="min-w-0 flex-1">
+											<div className="flex flex-wrap items-center gap-2">
+												<div className="text-[15px] font-semibold">ImgBB</div>
+												<span
+													className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+														isImgbbConfigured ? 'bg-[#274532] text-[#bdf2c7]' : 'bg-[#3b3526] text-[#e7c77f]'
+													}`}
+												>
+													{isImgbbConfigured && <Check className="h-3 w-3" aria-hidden="true" />}
+													{isImgbbConfigured ? 'ImgBB activo' : 'Freeimage gratis'}
+												</span>
+											</div>
+											<p className="mt-1 text-xs leading-relaxed text-[#9aa5b4]">
+												{isImgbbConfigured
+													? 'Tus subidas de imágenes usarán ImgBB con tu API key.'
+													: 'Sin API key se usará Freeimage, el servicio gratuito por defecto.'}
+											</p>
+										</div>
+									</div>
+
+									<label className="mt-4 block px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]" htmlFor="mvp-mobile-lite-imgbb-key">
+										API key
+									</label>
+									<input
+										id="mvp-mobile-lite-imgbb-key"
+										type="password"
+										value={imgbbApiKeyDraft}
+										autoCapitalize="none"
+										autoCorrect="off"
+										spellCheck={false}
+										onChange={event => {
+											setImgbbApiKeyDraft(event.target.value)
+											setImgbbStatusMessage(null)
+											setImgbbErrorMessage(null)
+										}}
+										placeholder="Pega tu API key de ImgBB"
+										className={`${INPUT_CLASS} mt-2 px-3 font-mono`}
+									/>
+
+									{/* No "Pegar" button on purpose: clipboard reads on Android always
+									    trigger the browser's paste-authorization bubble and there is no
+									    API to know beforehand whether the clipboard has content. The
+									    native long-press paste on the input avoids both problems. */}
 									<button
 										type="button"
-										className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#626b74] bg-[#545d66] px-2 text-sm font-semibold"
-										onClick={pasteImgbbApiKey}
-									>
-										<Clipboard className="h-4 w-4" aria-hidden="true" />
-										Pegar
-									</button>
-									<button
-										type="button"
-										className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#d06d00] bg-[#9a6500] px-2 text-sm font-semibold text-white disabled:opacity-60"
-										disabled={savingImgbbApiKey || imgbbApiKeyDraft.trim() === imgbbApiKey}
+										aria-label="Guardar API key de ImgBB"
+										className={`${PRIMARY_BUTTON_CLASS} mt-3 w-full`}
+										disabled={savingImgbbApiKey || !isImgbbDirty}
 										onClick={saveImgbbApiKey}
 									>
 										<Check className="h-4 w-4" aria-hidden="true" />
 										{savingImgbbApiKey ? 'Guardando' : 'Guardar'}
 									</button>
 								</div>
+
+								<a
+									href="https://api.imgbb.com/"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="flex h-12 items-center justify-between gap-2 border-t border-[#2d3442] px-4 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#2e3543]"
+								>
+									<span>Obtener API key</span>
+									<ExternalLink className="h-4 w-4 shrink-0 text-[#707b8e]" aria-hidden="true" />
+								</a>
 							</div>
 
-							{imgbbStatusMessage && (
-								<div role="status" className="rounded-md border border-[#556454] bg-[#2f3d34] px-3 py-2 text-sm text-[#d5ead5]">
-									{imgbbStatusMessage}
-								</div>
-							)}
+							<div className={SECTION_LABEL_CLASS}>Apariencia</div>
 
-							{imgbbErrorMessage && (
-								<div role="alert" className="rounded-md border border-[#8f3f3f] bg-[#4a2528] px-3 py-2 text-sm text-[#ffd7d7]">
-									{imgbbErrorMessage}
+							<section className={GROUP_CLASS}>
+								<div className="flex min-h-[60px] items-center gap-3 py-2 pl-4 pr-2">
+									<span
+										className="h-7 w-7 shrink-0 rounded-lg border border-[#3a4254]"
+										style={{ backgroundColor: normalizedBoldColorDraft }}
+										aria-hidden="true"
+									/>
+									<div className="min-w-0 flex-1">
+										<div className="truncate text-[15px] font-semibold text-[#eef1f6]">Color de negrita</div>
+										<div className="mt-0.5 truncate text-xs text-[#8b95a3]">
+											{boldColorEnabled ? 'Activo en Mediavida' : 'Se usa el color nativo'}
+										</div>
+									</div>
+									<button
+										type="button"
+										role="switch"
+										aria-label="Color personalizado"
+										aria-checked={boldColorEnabled}
+										className={SWITCH_WRAPPER_CLASS}
+										disabled={savingBoldColor}
+										onClick={toggleBoldColor}
+									>
+										<span className={`${SWITCH_TRACK_BASE_CLASS} ${boldColorEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+											<span className={`${SWITCH_THUMB_BASE_CLASS} ${boldColorEnabled ? 'translate-x-5' : ''}`} />
+										</span>
+									</button>
+									<button
+										type="button"
+										aria-expanded={boldColorExpanded}
+										aria-label={boldColorExpanded ? 'Ocultar ajustes de color' : 'Editar color de negrita'}
+										className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8b95a3] transition-colors active:bg-[#2e3543]"
+										onClick={() => setBoldColorExpanded(value => !value)}
+									>
+										<ChevronDown
+											className={`h-5 w-5 transition-transform ${boldColorExpanded ? 'rotate-180' : ''}`}
+											aria-hidden="true"
+										/>
+									</button>
 								</div>
-							)}
 
-							<a
-								href="https://api.imgbb.com/"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="inline-flex min-h-10 items-center gap-2 rounded-md border border-[#56616b] bg-[#303840] px-3 text-sm font-semibold text-[#eef1f3]"
-							>
-								<ExternalLink className="h-4 w-4" aria-hidden="true" />
-								Obtener API key
-							</a>
+								{boldColorExpanded && (
+									<div className="border-t border-[#2d3442] bg-[#1c1f27] p-4">
+										<label className="block px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]" htmlFor="mvp-mobile-lite-bold-color">
+											Color
+										</label>
+										<div className="mt-2 grid grid-cols-[56px_minmax(0,1fr)] gap-2">
+											<input
+												id="mvp-mobile-lite-bold-color"
+												type="color"
+												value={normalizedBoldColorDraft}
+												disabled={savingBoldColor}
+												onChange={event => {
+													setBoldColorDraft(event.target.value)
+													setBoldColorStatusMessage(null)
+													setBoldColorErrorMessage(null)
+												}}
+												className="h-11 w-full rounded-xl border border-transparent bg-[#14171d] p-1.5"
+											/>
+											<input
+												type="text"
+												value={boldColorDraft}
+												autoCapitalize="none"
+												autoCorrect="off"
+												spellCheck={false}
+												disabled={savingBoldColor}
+												onChange={event => {
+													setBoldColorDraft(event.target.value)
+													setBoldColorStatusMessage(null)
+													setBoldColorErrorMessage(null)
+												}}
+												className={`${INPUT_CLASS} px-3 font-mono`}
+											/>
+										</div>
+
+										<div className="mt-3 rounded-xl bg-[#14171d] px-3 py-3 text-sm leading-relaxed text-[#cfd5db]">
+											Texto normal y{' '}
+											<strong style={{ color: boldColorEnabled ? normalizedBoldColorDraft : 'inherit' }}>
+												texto en negrita
+											</strong>
+										</div>
+
+										<div className="mt-3 grid grid-cols-2 gap-2">
+											<button
+												type="button"
+												className={SECONDARY_BUTTON_CLASS}
+												disabled={savingBoldColor || (boldColor === DEFAULT_BOLD_COLOR && normalizedBoldColorDraft === DEFAULT_BOLD_COLOR)}
+												onClick={resetBoldColor}
+											>
+												<RotateCcw className="h-4 w-4" aria-hidden="true" />
+												Restaurar
+											</button>
+											<button
+												type="button"
+												aria-label="Guardar color de negrita"
+												className={PRIMARY_BUTTON_CLASS}
+												disabled={savingBoldColor || !isBoldColorDirty}
+												onClick={saveBoldColor}
+											>
+												<Bold className="h-4 w-4" aria-hidden="true" />
+												{savingBoldColor ? 'Guardando' : 'Guardar'}
+											</button>
+										</div>
+									</div>
+								)}
+							</section>
+
+							<div className={SECTION_LABEL_CLASS}>Hilos</div>
+
+							<section className={`${GROUP_CLASS} divide-y divide-[#2d3442]`}>
+								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
+									<div className="flex min-w-0 items-center gap-3">
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+											<Radio className="h-4 w-4" aria-hidden="true" />
+										</div>
+										<div className="min-w-0">
+											<div className="text-[15px] font-semibold text-[#eef1f6]">Modo Live</div>
+											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
+												{liveThreadEnabled ? 'Muestra el botón Live en los hilos' : 'No muestra el botón Live'}
+											</div>
+										</div>
+									</div>
+									<button
+										type="button"
+										role="switch"
+										aria-label="Modo Live"
+										aria-checked={liveThreadEnabled}
+										className={SWITCH_WRAPPER_CLASS}
+										disabled={savingMobileLiteSetting === 'liveThreadEnabled'}
+										onClick={toggleLiveThreadSetting}
+									>
+										<span className={`${SWITCH_TRACK_BASE_CLASS} ${liveThreadEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+											<span className={`${SWITCH_THUMB_BASE_CLASS} ${liveThreadEnabled ? 'translate-x-5' : ''}`} />
+										</span>
+									</button>
+								</div>
+
+								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
+									<div className="flex min-w-0 items-center gap-3">
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+											<Images className="h-4 w-4" aria-hidden="true" />
+										</div>
+										<div className="min-w-0">
+											<div className="text-[15px] font-semibold text-[#eef1f6]">Botón galería</div>
+											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
+												{galleryButtonEnabled ? 'Muestra el botón Galería en los hilos' : 'No muestra el botón Galería'}
+											</div>
+										</div>
+									</div>
+									<button
+										type="button"
+										role="switch"
+										aria-label="Botón galería"
+										aria-checked={galleryButtonEnabled}
+										className={SWITCH_WRAPPER_CLASS}
+										disabled={savingMobileLiteSetting === 'galleryButtonEnabled'}
+										onClick={toggleGalleryButtonSetting}
+									>
+										<span className={`${SWITCH_TRACK_BASE_CLASS} ${galleryButtonEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+											<span className={`${SWITCH_THUMB_BASE_CLASS} ${galleryButtonEnabled ? 'translate-x-5' : ''}`} />
+										</span>
+									</button>
+								</div>
+
+								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
+									<div className="flex min-w-0 items-center gap-3">
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+											<EyeOff className="h-4 w-4" aria-hidden="true" />
+										</div>
+										<div className="min-w-0">
+											<div className="text-[15px] font-semibold text-[#eef1f6]">Botón ocultar hilos</div>
+											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
+												{hideThreadButtonEnabled ? 'Muestra el botón en los listados' : 'Oculta el botón de los listados'}
+											</div>
+										</div>
+									</div>
+									<button
+										type="button"
+										role="switch"
+										aria-label="Botón ocultar hilos"
+										aria-checked={hideThreadButtonEnabled}
+										className={SWITCH_WRAPPER_CLASS}
+										disabled={savingMobileLiteSetting === 'hideThreadEnabled'}
+										onClick={toggleHideThreadButtonSetting}
+									>
+										<span className={`${SWITCH_TRACK_BASE_CLASS} ${hideThreadButtonEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+											<span className={`${SWITCH_THUMB_BASE_CLASS} ${hideThreadButtonEnabled ? 'translate-x-5' : ''}`} />
+										</span>
+									</button>
+								</div>
+							</section>
 						</div>
 					)}
 				</div>
+
+				{/* Single feedback channel: transient toasts floating above the tab bar */}
+				<div className="pointer-events-none absolute inset-x-0 bottom-24 z-30 flex flex-col items-center gap-2 px-4">
+					{statusMessage && <PanelToast kind="success">{statusMessage}</PanelToast>}
+					{hiddenThreadsStatusMessage && <PanelToast kind="success">{hiddenThreadsStatusMessage}</PanelToast>}
+					{imgbbStatusMessage && <PanelToast kind="success">{imgbbStatusMessage}</PanelToast>}
+					{boldColorStatusMessage && <PanelToast kind="success">{boldColorStatusMessage}</PanelToast>}
+					{mobileLiteSettingsStatusMessage && <PanelToast kind="success">{mobileLiteSettingsStatusMessage}</PanelToast>}
+					{errorMessage && <PanelToast kind="error">{errorMessage}</PanelToast>}
+					{hiddenThreadsErrorMessage && <PanelToast kind="error">{hiddenThreadsErrorMessage}</PanelToast>}
+					{imgbbErrorMessage && <PanelToast kind="error">{imgbbErrorMessage}</PanelToast>}
+					{boldColorErrorMessage && <PanelToast kind="error">{boldColorErrorMessage}</PanelToast>}
+					{mobileLiteSettingsErrorMessage && <PanelToast kind="error">{mobileLiteSettingsErrorMessage}</PanelToast>}
+				</div>
+
+				{/* Bottom tab bar: thumb-reachable primary navigation */}
+				<nav className="relative shrink-0 border-t border-[#2c3340] bg-[#14171d] px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-10px_30px_rgba(0,0,0,0.45)]">
+					<div className="flex h-[52px] items-stretch gap-1.5" role="tablist" aria-label="Secciones del panel MVPremium">
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'users'}
+							aria-label="Usuarios"
+							className={`${TAB_BASE_CLASS} ${activeTab === 'users' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
+							onClick={() => setActiveTab('users')}
+						>
+							<span className="relative">
+								<UserX className="h-5 w-5" aria-hidden="true" />
+								{allFilteredUsers.length > 0 && (
+									<span
+										aria-hidden="true"
+										className="absolute -right-2.5 -top-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#f0a020] px-1 text-[10px] font-black leading-[18px] text-[#221604] ring-2 ring-[#14171d]"
+									>
+										{allFilteredUsers.length}
+									</span>
+								)}
+							</span>
+							Usuarios
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'threads'}
+							aria-label="Hilos"
+							className={`${TAB_BASE_CLASS} ${activeTab === 'threads' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
+							onClick={() => setActiveTab('threads')}
+						>
+							<span className="relative">
+								<EyeOff className="h-5 w-5" aria-hidden="true" />
+								{hiddenThreads.length > 0 && (
+									<span
+										aria-hidden="true"
+										className="absolute -right-2.5 -top-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#f0a020] px-1 text-[10px] font-black leading-[18px] text-[#221604] ring-2 ring-[#14171d]"
+									>
+										{hiddenThreads.length}
+									</span>
+								)}
+							</span>
+							Hilos
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeTab === 'settings'}
+							className={`${TAB_BASE_CLASS} ${activeTab === 'settings' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
+							onClick={() => setActiveTab('settings')}
+						>
+							<Settings className="h-5 w-5" aria-hidden="true" />
+							Ajustes
+						</button>
+					</div>
+				</nav>
 			</section>
+
+			{confirmClearHiddenThreads && (
+				<div className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] animate-in fade-in-0 duration-150">
+					<button
+						type="button"
+						className="absolute inset-0 h-full w-full cursor-default"
+						aria-label="Cancelar restauración de hilos"
+						onClick={() => setConfirmClearHiddenThreads(false)}
+					/>
+					<div
+						role="alertdialog"
+						aria-modal="true"
+						aria-labelledby="mvp-mobile-lite-clear-hidden-threads-title"
+						aria-describedby="mvp-mobile-lite-clear-hidden-threads-description"
+						className="relative w-full max-w-[32rem] rounded-3xl bg-[#242a36] p-5 text-sm text-[#e5e8eb] shadow-[0_12px_48px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom-4 duration-200"
+					>
+						<p id="mvp-mobile-lite-clear-hidden-threads-title" className="text-base font-bold text-[#f2f4f7]">
+							Se mostrarán todos los hilos ocultos.
+						</p>
+						<p id="mvp-mobile-lite-clear-hidden-threads-description" className="mt-1 text-sm leading-relaxed text-[#9aa5b4]">
+							Esto vaciará tu lista de hilos ocultos en este dispositivo.
+						</p>
+						<div className="mt-5 grid grid-cols-2 gap-2">
+							<button
+								type="button"
+								className={SECONDARY_BUTTON_CLASS}
+								onClick={() => setConfirmClearHiddenThreads(false)}
+							>
+								Cancelar
+							</button>
+							<button
+								type="button"
+								className={PRIMARY_BUTTON_CLASS}
+								disabled={clearingHiddenThreads}
+								onClick={restoreAllHiddenThreads}
+							>
+								<RotateCcw className="h-4 w-4" aria-hidden="true" />
+								{clearingHiddenThreads ? 'Restaurando' : 'Continuar'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	)
 }

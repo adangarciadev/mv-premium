@@ -96,9 +96,12 @@ import {
 	injectMobileLiteUploadControl,
 	injectMobileLiteUploadControls,
 	insertMobileLiteImageTag,
+	openMobileLiteImageCropDialog,
 	teardownMobileLiteEditorEnhancements,
 	uploadMobileLiteImage,
 } from './editor-lite'
+
+const CROP_DIALOG_SELECTOR = '[data-mvp-mobile-lite-image-crop-dialog="true"]'
 
 function renderEditor(value = ''): HTMLTextAreaElement {
 	document.body.innerHTML = `<form id="postform"><textarea id="cuerpo" name="cuerpo">${value}</textarea></form>`
@@ -213,6 +216,75 @@ function setInputFiles(input: HTMLInputElement, files: File[]): void {
 	})
 }
 
+function installCropDialogBrowserMocks() {
+	let objectUrlIndex = 0
+	const createObjectURL = vi.fn((file: Blob) => {
+		objectUrlIndex += 1
+		return `blob:test-${file.type}-${objectUrlIndex}`
+	})
+	const revokeObjectURL = vi.fn()
+	const OriginalImage = globalThis.Image
+	const originalCreateObjectURL = Object.getOwnPropertyDescriptor(URL, 'createObjectURL')
+	const originalRevokeObjectURL = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL')
+
+	class MockImage {
+		onload: (() => void) | null = null
+		onerror: (() => void) | null = null
+		naturalWidth = 800
+		naturalHeight = 600
+		private imageSrc = ''
+
+		get src(): string {
+			return this.imageSrc
+		}
+
+		set src(value: string) {
+			this.imageSrc = value
+			setTimeout(() => this.onload?.(), 0)
+		}
+	}
+
+	Object.defineProperty(URL, 'createObjectURL', {
+		configurable: true,
+		value: createObjectURL,
+	})
+	Object.defineProperty(URL, 'revokeObjectURL', {
+		configurable: true,
+		value: revokeObjectURL,
+	})
+	vi.stubGlobal('Image', MockImage)
+
+	return {
+		createObjectURL,
+		revokeObjectURL,
+		restore: () => {
+			vi.stubGlobal('Image', OriginalImage)
+			if (originalCreateObjectURL) {
+				Object.defineProperty(URL, 'createObjectURL', originalCreateObjectURL)
+			} else {
+				delete (URL as Partial<typeof URL>).createObjectURL
+			}
+			if (originalRevokeObjectURL) {
+				Object.defineProperty(URL, 'revokeObjectURL', originalRevokeObjectURL)
+			} else {
+				delete (URL as Partial<typeof URL>).revokeObjectURL
+			}
+		},
+	}
+}
+
+function getCropDialog(): HTMLElement | null {
+	return document.querySelector<HTMLElement>(CROP_DIALOG_SELECTOR)
+}
+
+function getCropDialogButton(label: string): HTMLButtonElement {
+	const button = Array.from(document.querySelectorAll<HTMLButtonElement>(`${CROP_DIALOG_SELECTOR} button`)).find(
+		candidate => candidate.textContent?.includes(label)
+	)
+	if (!button) throw new Error(`Missing crop dialog button: ${label}`)
+	return button
+}
+
 describe('Mobile Lite editor enhancements', () => {
 	beforeEach(async () => {
 		mocks.getPlatformKind.mockReturnValue('firefox-android')
@@ -279,6 +351,76 @@ describe('Mobile Lite editor enhancements', () => {
 		expect(result.status).toBe('error')
 		expect(mocks.uploadImage).not.toHaveBeenCalled()
 		expect(textarea.value).toBe('')
+	})
+
+	it('cleans up the crop dialog when the user cancels it', async () => {
+		const browserMocks = installCropDialogBrowserMocks()
+		document.body.style.overflow = 'auto'
+
+		try {
+			const cropPromise = openMobileLiteImageCropDialog(new File(['image'], 'image.png', { type: 'image/png' }))
+			await vi.waitFor(() => expect(getCropDialog()).not.toBeNull())
+
+			expect(document.body.style.overflow).toBe('hidden')
+			getCropDialogButton('Cancelar').click()
+
+			await expect(cropPromise).resolves.toBeNull()
+			expect(document.body.style.overflow).toBe('auto')
+			expect(getCropDialog()).toBeNull()
+			expect(browserMocks.revokeObjectURL).toHaveBeenCalledOnce()
+			expect(browserMocks.revokeObjectURL).toHaveBeenCalledWith('blob:test-image/png-1')
+		} finally {
+			browserMocks.restore()
+		}
+	})
+
+	it('closes an open crop dialog during editor teardown', async () => {
+		const browserMocks = installCropDialogBrowserMocks()
+		document.body.style.overflow = 'scroll'
+
+		try {
+			const cropPromise = openMobileLiteImageCropDialog(new File(['image'], 'image.png', { type: 'image/png' }))
+			await vi.waitFor(() => expect(getCropDialog()).not.toBeNull())
+
+			teardownMobileLiteEditorEnhancements()
+
+			await expect(cropPromise).resolves.toBeNull()
+			expect(document.body.style.overflow).toBe('scroll')
+			expect(getCropDialog()).toBeNull()
+			expect(browserMocks.revokeObjectURL).toHaveBeenCalledOnce()
+			expect(browserMocks.revokeObjectURL).toHaveBeenCalledWith('blob:test-image/png-1')
+		} finally {
+			browserMocks.restore()
+		}
+	})
+
+	it('cleans up the previous crop dialog before opening another one', async () => {
+		const browserMocks = installCropDialogBrowserMocks()
+		document.body.style.overflow = 'visible'
+
+		try {
+			const firstCropPromise = openMobileLiteImageCropDialog(new File(['first'], 'first.png', { type: 'image/png' }))
+			await vi.waitFor(() => expect(getCropDialog()).not.toBeNull())
+
+			const secondCropPromise = openMobileLiteImageCropDialog(new File(['second'], 'second.png', { type: 'image/png' }))
+			await expect(firstCropPromise).resolves.toBeNull()
+			await vi.waitFor(() => expect(getCropDialog()).not.toBeNull())
+
+			expect(document.querySelectorAll(CROP_DIALOG_SELECTOR)).toHaveLength(1)
+			expect(document.body.style.overflow).toBe('hidden')
+			expect(browserMocks.revokeObjectURL).toHaveBeenCalledTimes(1)
+			expect(browserMocks.revokeObjectURL).toHaveBeenCalledWith('blob:test-image/png-1')
+
+			getCropDialogButton('Cancelar').click()
+
+			await expect(secondCropPromise).resolves.toBeNull()
+			expect(document.body.style.overflow).toBe('visible')
+			expect(getCropDialog()).toBeNull()
+			expect(browserMocks.revokeObjectURL).toHaveBeenCalledTimes(2)
+			expect(browserMocks.revokeObjectURL).toHaveBeenCalledWith('blob:test-image/png-2')
+		} finally {
+			browserMocks.restore()
+		}
 	})
 
 	it('injects the image upload control next to the editor textarea without duplicates', () => {
@@ -374,7 +516,7 @@ describe('Mobile Lite editor enhancements', () => {
 		expect(control?.previousElementSibling).toBe(helpLink)
 		expect(favoritesRow?.style.display).toBe('')
 		expect(control?.style.cssFloat).toBe('none')
-		expect(control?.style.marginLeft).toBe('12px')
+		expect(control?.style.marginLeft).toBe('10px')
 		expect(control?.style.marginRight).toBe('0px')
 	})
 

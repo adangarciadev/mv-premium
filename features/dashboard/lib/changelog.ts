@@ -22,6 +22,120 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.1.0',
+		date: '2026-06-11',
+		title: 'Mobile Lite 2.0: panel renovado, gestos, galería y Live',
+		summary:
+			'Mediavida Premium 3.1 convierte Mobile Lite en una experiencia mucho más completa: panel rediseñado como una app, gestos para filtrar usuarios, galería y modo Live en el móvil, autocompletado de usuarios, gestión de hilos ocultos y nuevas opciones de personalización.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Panel móvil rediseñado como una app: Mobile Lite estrena hoja inferior con pestañas de Usuarios, Hilos y Ajustes, gesto de arrastre para cerrar, avisos tipo toast y un estilo nativo unificado en todo el panel.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Gestos para filtrar usuarios: Desliza un post hacia la derecha para silenciar a su autor o hacia la izquierda para ocultarlo, con aviso de confirmación y botón Deshacer.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Galería de hilos en móvil: La galería de imágenes llega a Mobile Lite con tira de miniaturas desplazable y botón propio en el hilo, activable desde los ajustes del panel.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Modo Live en móvil: El live nativo de Mediavida se integra en la barra inferior de Mobile Lite con cabecera renovada, y puede activarse o desactivarse desde los ajustes del panel.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Hilos ocultos en móvil: Puedes ocultar hilos desde los listados y gestionarlos en una pestaña dedicada del panel, con búsqueda, restauración individual y opción de restaurarlos todos.',
+				category: 'Mobile Lite',
+				surface: ['mobile-lite', 'shared'],
+			},
+			{
+				type: 'feature',
+				description:
+					'Autocompletado de usuarios en el panel: El buscador sugiere usuarios reales de Mediavida con su avatar mientras escribes, para silenciarlos u ocultarlos sin teclear el nick exacto.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Recorte de imágenes renovado: El diálogo de recorte móvil estrena el nuevo diseño, zoom con dos dedos (pinch) y acciones más claras antes de subir una imagen.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Color de negrita personalizable en móvil: Nuevo ajuste en el panel para elegir el color del texto en negrita de los posts.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Modo Trabajo: Nueva opción para ocultar tu propio nick en la cabecera de Mediavida y mostrarlo solo al pasar el ratón por encima.',
+				category: 'Privacidad',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Mobile Lite activado por defecto: En Firefox para Android la experiencia móvil viene activada de serie al instalar la extensión.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Cambiar un usuario entre Silenciado y Ocultado es instantáneo: el panel aplica el cambio al momento sin esperar a peticiones de red innecesarias.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Avatares más fiables en el panel: los usuarios añadidos resuelven su avatar automáticamente y un botón permite actualizar de golpe los que falten.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'fix',
+				description:
+					'Auto-silenciado bloqueado: El panel móvil ya no permite silenciarte u ocultarte a ti mismo, igual que los gestos en los posts.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'fix',
+				description:
+					'Ocultación de hilos por autor: Ya no se aplica en vistas globales del foro (Spy, Nuevos, Sin leer, Top), donde el avatar visible es del último en responder y no del creador del hilo, evitando ocultar hilos por error.',
+				category: 'Filtros',
+				surface: ['desktop', 'mobile-lite', 'shared'],
+			},
+			{
+				type: 'fix',
+				description:
+					'Limpieza de almacenamiento: La caché de próximos lanzamientos (IGDB) ya no se guarda en disco — acumulaba entradas que nunca se reutilizaban hasta llenar el almacenamiento de la extensión, especialmente en Firefox. Al actualizar a esta versión se purgan automáticamente las cachés antiguas de IGDB, TMDB, AniList, Steam y resolutores de medios.',
+				category: 'Rendimiento',
+				surface: ['desktop', 'shared'],
+			},
+		],
+	},
+	{
 		version: '3.0.0',
 		date: '2026-06-07',
 		title: 'Mobile Lite, QR unificado, ImgBB y recorte de imágenes',

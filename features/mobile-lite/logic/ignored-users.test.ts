@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 	getPlatformKind: vi.fn(() => 'firefox-android'),
 	isFeatureEnabled: vi.fn(() => true),
 	getUserCustomizations: vi.fn(),
+	loggerError: vi.fn(),
 	saveUserCustomizations: vi.fn(),
 	watchUserCustomizations: vi.fn<WatchUserCustomizations>(() => vi.fn()),
 }))
@@ -27,6 +28,12 @@ vi.mock('@/lib/feature-flags', () => ({
 		MobileLite: 'mobile-lite',
 	},
 	isFeatureEnabled: mocks.isFeatureEnabled,
+}))
+
+vi.mock('@/lib/logger', () => ({
+	logger: {
+		error: mocks.loggerError,
+	},
 }))
 
 vi.mock('@/features/user-customizations/storage', async importOriginal => {
@@ -107,12 +114,13 @@ function renderThreadWithPostWrapper(): void {
 	`
 }
 
-function renderNativeUserCard(username = 'HiddenUser', id = 'user-card'): void {
+function renderNativeUserCard(username = 'HiddenUser', id = 'user-card', avatarUrl?: string): void {
 	document.body.insertAdjacentHTML(
 		'beforeend',
 		`
 			<div ${id ? `id="${id}"` : ''} class="f-card show">
 				<div class="user-info">
+					${avatarUrl ? `<img class="avatar" src="${avatarUrl}" alt="${username}">` : ''}
 					<h4><a href="/id/${username}">${username}</a></h4>
 				</div>
 				<div class="user-controls">
@@ -222,6 +230,25 @@ describe('Mobile Lite ignored users', () => {
 
 		expect(event.defaultPrevented).toBe(false)
 		expect(document.querySelector('[data-mvp-mobile-lite-user-actions-menu="true"]')).toBeNull()
+	})
+
+	it('cancels delayed native user-card action injection on teardown', () => {
+		vi.useFakeTimers()
+		renderThread()
+
+		initMobileLiteIgnoredUsers()
+		applyMobileLiteIgnoredUsers(userCustomizations({}))
+
+		document
+			.querySelector<HTMLAnchorElement>('#post-2 a.autor')
+			?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+		teardownMobileLiteIgnoredUsers()
+		renderNativeUserCard('HiddenUser')
+
+		vi.runOnlyPendingTimers()
+
+		expect(document.querySelector('[data-mvp-mobile-lite-user-card-actions="true"]')).toBeNull()
+		vi.useRealTimers()
 	})
 
 	it('injects manual actions into the native Mediavida user card', () => {
@@ -365,6 +392,84 @@ describe('Mobile Lite ignored users', () => {
 		expect(mutedPost?.dataset.mvpHasPlaceholder).toBeUndefined()
 	})
 
+	it('shows a confirmation toast when ignoring a user (swipe or user card)', async () => {
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+
+		await setMobileLiteUserIgnore('Trolencio', 'mute')
+
+		let toast = document.getElementById('mvp-mobile-lite-action-toast')
+		expect(toast?.textContent).toContain('Trolencio ha sido silenciado')
+		expect(toast?.getAttribute('role')).toBe('status')
+
+		await setMobileLiteUserIgnore('Trolencio', 'hide')
+		toast = document.getElementById('mvp-mobile-lite-action-toast')
+		expect(toast?.textContent).toContain('Trolencio ha sido ocultado')
+
+		await setMobileLiteUserIgnore('Trolencio', null)
+		toast = document.getElementById('mvp-mobile-lite-action-toast')
+		expect(toast?.textContent).toContain('Trolencio vuelve a ser visible')
+	})
+
+	it('rolls back optimistic ignored state when saving a manual ignore fails', async () => {
+		renderThread()
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+		mocks.saveUserCustomizations.mockRejectedValueOnce(new Error('storage failed'))
+
+		await expect(setMobileLiteUserIgnore('MutedUser', 'mute')).rejects.toThrow('storage failed')
+
+		const mutedPost = document.querySelector<HTMLElement>('.rep[data-num="3"]')
+		const toast = document.getElementById('mvp-mobile-lite-action-toast')
+		expect(mutedPost).not.toHaveClass('mvp-muted-user')
+		expect(mutedPost?.querySelector('.mvp-mute-placeholder')).toBeNull()
+		expect(toast?.textContent).toContain('No se pudo guardar el filtro. Inténtalo de nuevo.')
+		expect(toast?.textContent).not.toContain('MutedUser ha sido silenciado')
+		expect(mocks.loggerError).toHaveBeenCalledWith('Error saving Mobile Lite ignore:', expect.any(Error))
+	})
+
+	it('keeps user-card clicks handled when saving a manual ignore fails', async () => {
+		renderThread()
+		renderNativeUserCard('HiddenUser')
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+		mocks.saveUserCustomizations.mockRejectedValueOnce(new Error('storage failed'))
+
+		applyMobileLiteIgnoredUsers(userCustomizations({}))
+		const muteButton = Array.from(
+			document.querySelectorAll<HTMLButtonElement>('[data-mvp-mobile-lite-user-card-actions="true"] button')
+		).find(button => button.textContent?.includes('Silenciar'))
+		expect(muteButton).not.toBeNull()
+
+		muteButton!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+		await vi.waitFor(() => {
+			expect(document.getElementById('mvp-mobile-lite-action-toast')?.textContent).toContain(
+				'No se pudo guardar el filtro. Inténtalo de nuevo.'
+			)
+		})
+		expect(document.querySelector<HTMLElement>('#post-2')).not.toHaveClass('mvp-muted-user')
+		expect(document.querySelector<HTMLElement>('#user-card')).not.toBeNull()
+		expect(mocks.loggerError).toHaveBeenCalledWith('Error applying Mobile Lite user-card ignore:', expect.any(Error))
+	})
+
+	it('undoes an ignore from the toast Deshacer button', async () => {
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+
+		await setMobileLiteUserIgnore('Trolencio', 'mute')
+
+		const undoButton = document.querySelector<HTMLButtonElement>(
+			'#mvp-mobile-lite-action-toast .mvp-mobile-lite-action-toast-button'
+		)
+		expect(undoButton?.textContent).toBe('Deshacer')
+
+		undoButton?.click()
+
+		await vi.waitFor(() => {
+			const toast = document.getElementById('mvp-mobile-lite-action-toast')
+			expect(toast?.textContent).toContain('Trolencio vuelve a ser visible')
+		})
+		// The follow-up toast must not offer another undo
+		expect(document.querySelector('#mvp-mobile-lite-action-toast .mvp-mobile-lite-action-toast-button')).toBeNull()
+	})
+
 	it('ignores stale storage snapshots after clearing a manual mute', async () => {
 		renderThread()
 		let watchCallback: (data: UserCustomizationsData) => void = () => undefined
@@ -433,6 +538,33 @@ describe('Mobile Lite ignored users', () => {
 				},
 			})
 		)
+	})
+
+	it('stores the native user-card avatar when saving a manual action from the card', async () => {
+		renderThread()
+		renderNativeUserCard('HiddenUser', 'user-card', 'https://www.mediavida.com/img/users/avatar/hidden-user.png')
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+
+		applyMobileLiteIgnoredUsers(userCustomizations({}))
+
+		const muteButton = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-mvp-mobile-lite-user-card-actions="true"] button')).find(
+			button => button.textContent?.includes('Silenciar')
+		)
+		expect(muteButton).not.toBeNull()
+
+		muteButton!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+		await vi.waitFor(() => {
+			expect(mocks.saveUserCustomizations).toHaveBeenCalledWith(
+				userCustomizations({
+					HiddenUser: {
+						isIgnored: true,
+						ignoreType: 'mute',
+						avatarUrl: 'https://www.mediavida.com/img/users/avatar/hidden-user.png',
+					},
+				})
+			)
+		})
 	})
 
 	it('removes only the manual ignore fields when clearing a filtered user', async () => {

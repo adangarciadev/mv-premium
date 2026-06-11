@@ -1,6 +1,9 @@
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { getPlatformKind } from '@/lib/platform'
+import { isThreadPage as detectIsThreadPage } from '@/lib/content-modules/utils/page-detection'
+import { initMobileLiteBoldColor, teardownMobileLiteBoldColor } from './bold-color'
 import { initMobileLiteEditorEnhancements, teardownMobileLiteEditorEnhancements } from './editor-lite'
+import { initMobileLiteHiddenThreads, isMobileLiteHiddenThreadsPath, teardownMobileLiteHiddenThreads } from './hidden-threads'
 import { initMobileLiteIgnoredUsers, teardownMobileLiteIgnoredUsers } from './ignored-users'
 import { hasIgnoredUsersImportParam, initMobileLiteIgnoredUsersImport, teardownMobileLiteIgnoredUsersImport } from './ignored-users-import'
 import {
@@ -8,7 +11,11 @@ import {
 	isNormalMobileLiteSubforumPath,
 	teardownMobileLiteIgnoredUserThreads,
 } from './ignored-user-threads'
+import { initMobileLiteGallery, teardownMobileLiteGallery } from './gallery'
+import { initMobileLiteLiveThread, teardownMobileLiteLiveThread } from './live-thread'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
+import { initMobileLitePostGestures, teardownMobileLitePostGestures } from './post-gestures'
+import { initMobileLiteThreadCompanion, teardownMobileLiteThreadCompanion } from './thread-companion'
 
 export interface MobileLiteContext {
 	hasEditor: boolean
@@ -18,6 +25,7 @@ export interface MobileLiteContext {
 	hasIgnoredUsersImport: boolean
 	isForumRelated: boolean
 	isNormalSubforumThreadList: boolean
+	isThreadPage: boolean
 	pathname: string
 }
 
@@ -35,10 +43,34 @@ const USER_MENU_SELECTOR = '#usermenu'
 
 const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 	{
+		id: 'bold-color',
+		init: initMobileLiteBoldColor,
+		teardown: teardownMobileLiteBoldColor,
+		shouldRun: context => context.isForumRelated || context.hasPosts,
+	},
+	{
 		id: 'ignored-users-import',
 		init: initMobileLiteIgnoredUsersImport,
 		teardown: teardownMobileLiteIgnoredUsersImport,
 		shouldRun: context => context.hasIgnoredUsersImport,
+	},
+	{
+		id: 'live-thread',
+		init: initMobileLiteLiveThread,
+		teardown: teardownMobileLiteLiveThread,
+		shouldRun: context => context.hasPosts || context.isThreadPage,
+	},
+	{
+		id: 'gallery',
+		init: initMobileLiteGallery,
+		teardown: teardownMobileLiteGallery,
+		shouldRun: context => context.hasPosts || context.isThreadPage,
+	},
+	{
+		id: 'thread-companion',
+		init: initMobileLiteThreadCompanion,
+		teardown: teardownMobileLiteThreadCompanion,
+		shouldRun: context => context.isThreadPage,
 	},
 	{
 		id: 'ignored-users',
@@ -47,10 +79,22 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		shouldRun: context => context.hasPosts || context.hasUserCard,
 	},
 	{
+		id: 'post-gestures',
+		init: initMobileLitePostGestures,
+		teardown: teardownMobileLitePostGestures,
+		shouldRun: context => context.hasPosts || context.isThreadPage,
+	},
+	{
 		id: 'ignored-user-threads',
 		init: initMobileLiteIgnoredUserThreads,
 		teardown: teardownMobileLiteIgnoredUserThreads,
 		shouldRun: context => context.isNormalSubforumThreadList,
+	},
+	{
+		id: 'hidden-threads',
+		init: initMobileLiteHiddenThreads,
+		teardown: teardownMobileLiteHiddenThreads,
+		shouldRun: context => isMobileLiteHiddenThreadsPath(context.pathname),
 	},
 	{
 		id: 'editor-lite',
@@ -81,6 +125,7 @@ export function getMobileLiteContext(root: ParentNode = document): MobileLiteCon
 		hasIgnoredUsersImport: hasIgnoredUsersImportParam(window.location.search),
 		isForumRelated: pathname === '/' || pathname.startsWith('/foro'),
 		isNormalSubforumThreadList: isNormalMobileLiteSubforumPath(pathname),
+		isThreadPage: detectIsThreadPage(),
 		pathname,
 	}
 }

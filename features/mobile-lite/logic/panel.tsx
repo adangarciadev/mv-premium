@@ -1,7 +1,7 @@
 import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { MV_SELECTORS } from '@/constants'
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
-import { createContainer, isFeatureMounted, mountFeatureWithBoundary } from '@/lib/content-modules/utils/react-helpers'
+import { createContainer, isFeatureMounted, mountFeatureWithBoundary, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import { getPlatformKind } from '@/lib/platform'
 import {
 	SUBFORUMS,
@@ -31,6 +31,7 @@ const NEW_THREAD_FULL_WIDTH_SUBFORUMS = new Set(['gamedev'])
 let initialized = false
 let menuObserver: MutationObserver | null = null
 let userMenuClickListenerAttached = false
+let userMenuInjectionTimeouts: number[] = []
 
 function isUserMenuRelatedClick(event: MouseEvent): boolean {
 	const target = event.target
@@ -45,8 +46,22 @@ function isUserMenuRelatedClick(event: MouseEvent): boolean {
 function handleUserMenuClick(event: MouseEvent): void {
 	if (!isUserMenuRelatedClick(event)) return
 
-	window.setTimeout(injectPanelMenuItem, 0)
-	window.setTimeout(injectPanelMenuItem, 150)
+	schedulePanelMenuInjection(0)
+	schedulePanelMenuInjection(150)
+}
+
+function schedulePanelMenuInjection(delay: number): void {
+	const timeoutId = window.setTimeout(() => {
+		userMenuInjectionTimeouts = userMenuInjectionTimeouts.filter(id => id !== timeoutId)
+		if (!initialized) return
+		injectPanelMenuItem()
+	}, delay)
+	userMenuInjectionTimeouts.push(timeoutId)
+}
+
+function clearPanelMenuInjectionTimeouts(): void {
+	userMenuInjectionTimeouts.forEach(timeoutId => window.clearTimeout(timeoutId))
+	userMenuInjectionTimeouts = []
 }
 
 function isMobileLitePanelAllowed(): boolean {
@@ -373,12 +388,15 @@ export function initMobileLitePanel(): void {
 }
 
 export function teardownMobileLitePanel(): void {
+	clearPanelMenuInjectionTimeouts()
 	menuObserver?.disconnect()
 	menuObserver = null
 	if (userMenuClickListenerAttached) {
 		document.removeEventListener('click', handleUserMenuClick, true)
 		userMenuClickListenerAttached = false
 	}
+	unmountFeature(FEATURE_ID)
+	document.getElementById(CONTAINER_ID)?.remove()
 	initialized = false
 	document.querySelectorAll(`[${MENU_ITEM_ATTR}="true"]`).forEach(item => item.remove())
 	document.querySelectorAll(`[${NEW_THREAD_MENU_ITEM_ATTR}="true"]`).forEach(item => item.remove())

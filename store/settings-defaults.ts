@@ -31,7 +31,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	syncEnabled: false,
 
 	// Feature Toggles - Navigation
-	mobileLiteEnabled: false,
+	mobileLiteEnabled: true,
 	infiniteScrollEnabled: false,
 	autoInfiniteScrollEnabled: false,
 	liveThreadEnabled: false,
@@ -86,6 +86,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	workModeEnabled: false,
 	workModeOptions: {
 		hideAvatars: true,
+		hideUsername: true,
 		hideImages: true,
 		hideVideos: true,
 		hideSocialEmbeds: true,

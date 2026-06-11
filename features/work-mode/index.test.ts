@@ -4,6 +4,7 @@ import type { WorkModeOptions } from '@/store/settings-types'
 
 const ALL_ON: WorkModeOptions = {
 	hideAvatars: true,
+	hideUsername: true,
 	hideImages: true,
 	hideVideos: true,
 	hideSocialEmbeds: true,
@@ -14,6 +15,7 @@ const ALL_ON: WorkModeOptions = {
 
 const ALL_OFF: WorkModeOptions = {
 	hideAvatars: false,
+	hideUsername: false,
 	hideImages: false,
 	hideVideos: false,
 	hideSocialEmbeds: false,
@@ -107,6 +109,7 @@ describe('buildWorkModeCSS', () => {
 	it('combines avatars + videos without affecting other sections', () => {
 		const css = buildWorkModeCSS({
 			hideAvatars: true,
+			hideUsername: false,
 			hideImages: false,
 			hideVideos: true,
 			hideSocialEmbeds: false,
@@ -146,6 +149,27 @@ describe('buildWorkModeCSS', () => {
 		for (const platform of platforms) {
 			expect(css).toContain(`data-s9e-mediaembed="${platform}"`)
 		}
+	})
+
+	it('hides the header nick with hover reveal when hideUsername is true', () => {
+		const css = buildWorkModeCSS({ ...ALL_OFF, hideUsername: true })
+		expect(css).toContain('#usermenu li.avw a.av:not(:hover)')
+		expect(css).toContain('color: transparent !important')
+		expect(css).not.toContain('.post-avatar img')
+	})
+
+	it('treats a missing hideUsername key as enabled (legacy persisted options)', () => {
+		const { hideUsername: _hideUsername, ...legacyOptions } = ALL_OFF
+		const css = buildWorkModeCSS(legacyOptions as WorkModeOptions)
+		expect(css).toContain('#usermenu li.avw a.av:not(:hover)')
+	})
+
+	it('omits the nick rule when hideUsername is false', () => {
+		const css = buildWorkModeCSS(ALL_ON)
+		expect(css).toContain('#usermenu li.avw a.av:not(:hover)')
+
+		const cssOff = buildWorkModeCSS({ ...ALL_ON, hideUsername: false })
+		expect(cssOff).not.toContain('#usermenu li.avw a.av:not(:hover)')
 	})
 
 	it('only includes forum icon CSS when hideForumIcons is true', () => {

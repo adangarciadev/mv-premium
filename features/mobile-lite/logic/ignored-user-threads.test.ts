@@ -110,10 +110,14 @@ describe('Mobile Lite ignored user threads', () => {
 		document.body.innerHTML = ''
 	})
 
-	it('detects normal subforum paths but excludes spy and thread pages', () => {
+	it('detects normal subforum paths but excludes global views and thread pages', () => {
 		expect(isNormalMobileLiteSubforumPath('/foro/juegos')).toBe(true)
 		expect(isNormalMobileLiteSubforumPath('/foro/juegos/2')).toBe(true)
 		expect(isNormalMobileLiteSubforumPath('/foro/spy')).toBe(false)
+		expect(isNormalMobileLiteSubforumPath('/foro/new')).toBe(false)
+		expect(isNormalMobileLiteSubforumPath('/foro/unread')).toBe(false)
+		expect(isNormalMobileLiteSubforumPath('/foro/top')).toBe(false)
+		expect(isNormalMobileLiteSubforumPath('/foro/featured')).toBe(false)
 		expect(isNormalMobileLiteSubforumPath('/foro/juegos/hilo-hidden-222')).toBe(false)
 	})
 

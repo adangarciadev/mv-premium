@@ -7,6 +7,8 @@ import {
 	type UserCustomizationsData,
 } from '@/features/user-customizations/storage'
 import { applyHideToPost, applyMuteToPost } from '@/features/user-customizations/logic/mute-placeholder'
+import { showMobileLiteActionToast, teardownMobileLiteActionToast } from './action-toast'
+import { getAvatarUrlFromImage } from './avatar-utils'
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
@@ -28,7 +30,7 @@ const AUTHOR_SELECTORS = [
 ] as const
 
 const STYLE_ID = 'mvp-mobile-lite-ignored-users-styles'
-const MOBILE_LITE_IGNORED_ATTR = 'data-mvp-mobile-lite-ignored-user'
+export const MOBILE_LITE_IGNORED_ATTR = 'data-mvp-mobile-lite-ignored-user'
 const MOBILE_LITE_AUTHOR_ACTION_ATTR = 'data-mvp-mobile-lite-user-actions'
 const MOBILE_LITE_USER_CARD_ACTIONS_ATTR = 'data-mvp-mobile-lite-user-card-actions'
 const MOBILE_LITE_USER_CARD_ACTIONS_KEY_ATTR = 'data-mvp-mobile-lite-user-card-actions-key'
@@ -44,6 +46,7 @@ let currentData: UserCustomizationsData | null = null
 let unwatchUserCustomizations: (() => void) | null = null
 let contentObserver: MutationObserver | null = null
 let applyTimeout: ReturnType<typeof setTimeout> | null = null
+let userCardInjectionTimeouts: number[] = []
 let documentUserCardClickListenerAttached = false
 let mutePlaceholderGuardAttached = false
 let syncEventListenerAttached = false
@@ -255,7 +258,9 @@ function createUserCardActionButton(
 	button.addEventListener('click', event => {
 		event.preventDefault()
 		event.stopPropagation()
-		void onClick()
+		void Promise.resolve(onClick()).catch(error => {
+			logger.error('Error applying Mobile Lite user-card ignore:', error)
+		})
 	})
 	return button
 }
@@ -271,11 +276,19 @@ function getMobileLiteUserCardUsername(card: HTMLElement): string | null {
 	return username || null
 }
 
+function getMobileLiteUserCardAvatarUrl(card: HTMLElement): string | undefined {
+	const avatar = card.querySelector<HTMLImageElement>(
+		'.user-info img.avatar, .user-info img, .post-avatar img, img.avatar, img'
+	)
+	return getAvatarUrlFromImage(avatar)
+}
+
 function injectMobileLiteUserCardActions(card: HTMLElement, data: UserCustomizationsData): void {
 	const username = getMobileLiteUserCardUsername(card)
 	if (!username) return
 	if (!card.querySelector('.user-info, .user-controls')) return
 
+	const avatarUrl = getMobileLiteUserCardAvatarUrl(card)
 	const customizationEntry = getEffectiveCustomizationEntryForUser(data, username)
 	const storageKey = customizationEntry?.storageKey ?? username
 	const customization = customizationEntry?.customization
@@ -292,10 +305,10 @@ function injectMobileLiteUserCardActions(card: HTMLElement, data: UserCustomizat
 	actions.setAttribute(MOBILE_LITE_USER_CARD_ACTIONS_KEY_ATTR, actionsKey)
 	actions.append(
 		createUserCardActionButton(isMuted ? 'Silenciado' : 'Silenciar', 'fa-user-times', isMuted, () =>
-			setMobileLiteUserIgnore(storageKey, isMuted ? null : 'mute')
+			setMobileLiteUserIgnore(storageKey, isMuted ? null : 'mute', avatarUrl)
 		),
 		createUserCardActionButton(isHidden ? 'Oculto' : 'Ocultar', 'fa-eye-slash', isHidden, () =>
-			setMobileLiteUserIgnore(storageKey, isHidden ? null : 'hide')
+			setMobileLiteUserIgnore(storageKey, isHidden ? null : 'hide', avatarUrl)
 		)
 	)
 
@@ -332,11 +345,18 @@ function ensureMutePlaceholderGuard(): void {
 
 function scheduleMobileLiteUserCardInjection(data: UserCustomizationsData): void {
 	for (const delay of USER_CARD_INJECTION_DELAYS_MS) {
-		window.setTimeout(() => {
-			if (!isMobileLiteIgnoredUsersAllowed()) return
+		const timeoutId = window.setTimeout(() => {
+			userCardInjectionTimeouts = userCardInjectionTimeouts.filter(id => id !== timeoutId)
+			if (!initialized || !isMobileLiteIgnoredUsersAllowed()) return
 			injectVisibleMobileLiteUserCards(data)
 		}, delay)
+		userCardInjectionTimeouts.push(timeoutId)
 	}
+}
+
+function clearUserCardInjectionTimeouts(): void {
+	userCardInjectionTimeouts.forEach(timeoutId => window.clearTimeout(timeoutId))
+	userCardInjectionTimeouts = []
 }
 
 function handleDocumentUserCardClick(event: MouseEvent): void {
@@ -475,16 +495,72 @@ function ensureMobileLiteIgnoredUsersSyncListener(): void {
 	syncEventListenerAttached = true
 }
 
-export async function setMobileLiteUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<void> {
+function cloneUserCustomizationsData(data: UserCustomizationsData): UserCustomizationsData {
+	return {
+		...data,
+		users: Object.fromEntries(
+			Object.entries(data.users).map(([username, customization]) => [username, { ...customization }])
+		),
+		globalSettings: { ...data.globalSettings },
+	}
+}
+
+function forgetManualIgnoreChange(storageKey: string): void {
+	recentManualIgnoreChanges.delete(normalizeUsernameKey(storageKey))
+	suppressWatchUntil = 0
+}
+
+export async function setMobileLiteUserIgnore(
+	username: string,
+	ignoreType: MobileLiteIgnoreType | null,
+	avatarUrl?: string
+): Promise<void> {
 	if (!isMobileLiteIgnoredUsersAllowed()) return
 
-	const data = await getUserCustomizations()
+	const previousData = await getUserCustomizations()
+	const data = cloneUserCustomizationsData(previousData)
 	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
+	if (ignoreType && avatarUrl) {
+		data.users[storageKey] = { ...data.users[storageKey], avatarUrl }
+	}
 
 	markMobileLiteIgnoredUsersManualChange(storageKey, ignoreType)
 	syncMobileLiteIgnoredUsers(data)
-	dismissVisibleMobileLiteUserCards()
-	await saveUserCustomizations(data)
+	try {
+		await saveUserCustomizations(data)
+		dismissVisibleMobileLiteUserCards()
+		showUserIgnoreToast(username, ignoreType)
+	} catch (error) {
+		forgetManualIgnoreChange(storageKey)
+		syncMobileLiteIgnoredUsers(previousData)
+		showMobileLiteActionToast('No se pudo guardar el filtro. Inténtalo de nuevo.', 'fa-exclamation-triangle')
+		logger.error('Error saving Mobile Lite ignore:', error)
+		throw error
+	}
+}
+
+function createUndoIgnoreAction(username: string) {
+	return {
+		label: 'Deshacer',
+		onAction: () => {
+			void setMobileLiteUserIgnore(username, null).catch(error => {
+				logger.error('Error undoing Mobile Lite ignore:', error)
+			})
+		},
+	}
+}
+
+function showUserIgnoreToast(username: string, ignoreType: MobileLiteIgnoreType | null): void {
+	if (ignoreType === 'mute') {
+		showMobileLiteActionToast(`${username} ha sido silenciado`, 'fa-user-times', createUndoIgnoreAction(username))
+		return
+	}
+	if (ignoreType === 'hide') {
+		showMobileLiteActionToast(`${username} ha sido ocultado`, 'fa-eye-slash', createUndoIgnoreAction(username))
+		return
+	}
+	// No undo here: re-ignoring is a deliberate choice, not an accident to revert
+	showMobileLiteActionToast(`${username} vuelve a ser visible`, 'fa-eye')
 }
 
 function hasUserCardContent(mutations: MutationRecord[]): boolean {
@@ -567,6 +643,7 @@ export function teardownMobileLiteIgnoredUsers(): void {
 		clearTimeout(applyTimeout)
 		applyTimeout = null
 	}
+	clearUserCardInjectionTimeouts()
 
 	contentObserver?.disconnect()
 	contentObserver = null
@@ -591,6 +668,7 @@ export function teardownMobileLiteIgnoredUsers(): void {
 	unwatchUserCustomizations = null
 
 	resetMobileLiteIgnoredUsers()
+	teardownMobileLiteActionToast()
 	document.getElementById(STYLE_ID)?.remove()
 
 	currentData = null

@@ -8,11 +8,14 @@ import { logger } from '@/lib/logger'
 import { fetchSteamBundleDetails, fetchSteamGameDetails, searchSteamApps } from '@/services/api/steam'
 import {
 	onMessage,
+	type MvUserAvatarResult,
+	type MvUserSearchResult,
+	type MvUserSearchUser,
 	type ThreadPageHtmlFetchResult,
 	type TweetLiteData,
 	type TweetLiteResult,
 } from '@/lib/messaging'
-import { API_URLS } from '@/constants'
+import { API_URLS, MV_BASE_URL, MV_URLS } from '@/constants'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import { normalizeTweetUrl as normalizeTweetUrlBase } from '@/lib/content-modules/twitter-lite/utils'
 import { uploadBase64ImageToBestProvider } from './upload-handlers'
@@ -33,6 +36,8 @@ const ANILIST_IMAGE_HOST = 's4.anilist.co'
 const MAX_REHOST_IMAGE_BYTES = 8 * 1024 * 1024
 const TWITTER_FETCH_TIMEOUT_MS = 3500
 const MEDIAVIDA_THREAD_HOSTS = new Set(['www.mediavida.com', 'mediavida.com'])
+const MV_USERNAME_PATTERN = /^[A-Za-z0-9_-]{3,13}$/
+const MV_USER_SEARCH_MAX_RESULTS = 6
 
 interface GiphyApiResponse {
 	data: Array<{
@@ -306,6 +311,183 @@ function isAllowedMediavidaThreadUrl(rawUrl: string): boolean {
 	} catch {
 		return false
 	}
+}
+
+function normalizeMediavidaAvatarUrl(rawAvatar: string): string | undefined {
+	const avatar = rawAvatar.trim()
+	if (!avatar) return undefined
+	if (/^https?:\/\//i.test(avatar)) return avatar
+	if (avatar.startsWith('//')) return `https:${avatar}`
+	if (avatar.startsWith('/')) return `${MV_BASE_URL}${avatar}`
+	return `${MV_URLS.AVATAR_BASE}/${avatar}`
+}
+
+function isRecordArray(value: unknown): value is Record<string, unknown>[] {
+	return Array.isArray(value) && value.every(isRecord)
+}
+
+function getStringValue(value: unknown): string {
+	return typeof value === 'string' ? value.trim() : ''
+}
+
+function safeDecodeURIComponent(value: string): string {
+	try {
+		return decodeURIComponent(value)
+	} catch {
+		return value
+	}
+}
+
+function extractMvUserSuggestions(payload: unknown): Record<string, unknown>[] {
+	if (isRecord(payload) && isRecordArray(payload.suggestions)) return payload.suggestions
+	if (isRecordArray(payload)) return payload
+	return []
+}
+
+function extractAttribute(html: string, attributeName: string): string {
+	const pattern = new RegExp(`${attributeName}\\s*=\\s*["']([^"']+)["']`, 'i')
+	return decodeHtmlEntities(pattern.exec(html)?.[1] || '')
+}
+
+function extractAvatarSourceFromHtml(html: string): string {
+	const imageMatches = html.matchAll(/<img\b[^>]*>/gi)
+	for (const match of imageMatches) {
+		const src = extractAttribute(match[0], 'src')
+		if (src && /\/img\/users\/avatar\//i.test(src)) return src
+	}
+
+	return ''
+}
+
+function extractMvUserSuggestionsFromHtml(html: string): Record<string, unknown>[] {
+	const suggestions: Record<string, unknown>[] = []
+	const seenUsernames = new Set<string>()
+	const userLinkMatches = html.matchAll(/<a\b[^>]*href\s*=\s*["']\/id\/([^"'/?#]+)[^"']*["'][^>]*>[\s\S]*?<\/a>/gi)
+
+	for (const match of userLinkMatches) {
+		const username = safeDecodeURIComponent(match[1] || '').trim()
+		const usernameKey = username.toLowerCase()
+		if (!username || seenUsernames.has(usernameKey)) continue
+
+		seenUsernames.add(usernameKey)
+		const linkHtml = match[0]
+		const matchIndex = match.index ?? 0
+		const nearbyHtml = html.slice(Math.max(0, matchIndex - 400), matchIndex + linkHtml.length + 400)
+		const avatar = extractAvatarSourceFromHtml(linkHtml) || extractAvatarSourceFromHtml(nearbyHtml)
+
+		suggestions.push({
+			value: username,
+			data: {
+				nombre: username,
+				avatar,
+			},
+		})
+	}
+
+	return suggestions
+}
+
+function parseMvUserSuggestionsPayload(text: string): unknown {
+	const trimmed = text.trim()
+	if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+		try {
+			return JSON.parse(trimmed)
+		} catch {
+			// Fall through to the HTML parser; MV can return non-standard responses.
+		}
+	}
+
+	return extractMvUserSuggestionsFromHtml(text)
+}
+
+function getSuggestionUsername(suggestion: Record<string, unknown>): string {
+	const data = isRecord(suggestion.data) ? suggestion.data : null
+	return (
+		getStringValue(data?.nombre) ||
+		getStringValue(suggestion.nombre) ||
+		getStringValue(suggestion.value) ||
+		getStringValue(suggestion.username)
+	)
+}
+
+function getSuggestionAvatar(suggestion: Record<string, unknown>): string {
+	const data = isRecord(suggestion.data) ? suggestion.data : null
+	return getStringValue(data?.avatar) || getStringValue(suggestion.avatar)
+}
+
+async function fetchMvUserSuggestions(
+	query: string
+): Promise<{ suggestions: Record<string, unknown>[] } | { error: string }> {
+	const url = `${MV_URLS.USERS_LIST}?query=${encodeURIComponent(query)}`
+	const response = await fetch(url, {
+		credentials: 'include',
+		headers: {
+			Accept: 'application/json, text/javascript, */*; q=0.01',
+			'X-Requested-With': 'XMLHttpRequest',
+		},
+	})
+
+	if (!response.ok) {
+		return { error: `HTTP ${response.status}` }
+	}
+
+	return { suggestions: extractMvUserSuggestions(parseMvUserSuggestionsPayload(await response.text())) }
+}
+
+async function resolveMvUserAvatar(username: string): Promise<MvUserAvatarResult> {
+	const normalizedUsername = username.trim()
+	if (!MV_USERNAME_PATTERN.test(normalizedUsername)) {
+		return { success: false, error: 'Nick no valido' }
+	}
+
+	const result = await fetchMvUserSuggestions(normalizedUsername)
+	if ('error' in result) {
+		return { success: false, error: result.error }
+	}
+
+	const exactSuggestion = result.suggestions.find(
+		suggestion => getSuggestionUsername(suggestion).toLowerCase() === normalizedUsername.toLowerCase()
+	)
+	if (!exactSuggestion) {
+		return { success: false, error: 'Usuario no encontrado' }
+	}
+
+	const avatarUrl = normalizeMediavidaAvatarUrl(getSuggestionAvatar(exactSuggestion))
+	return {
+		success: Boolean(avatarUrl),
+		username: getSuggestionUsername(exactSuggestion) || normalizedUsername,
+		avatarUrl,
+		error: avatarUrl ? undefined : 'Avatar no encontrado',
+	}
+}
+
+async function searchMvUsers(query: string): Promise<MvUserSearchResult> {
+	const normalizedQuery = query.trim()
+	if (!MV_USERNAME_PATTERN.test(normalizedQuery)) {
+		return { success: false, error: 'Consulta no valida' }
+	}
+
+	const result = await fetchMvUserSuggestions(normalizedQuery)
+	if ('error' in result) {
+		return { success: false, error: result.error }
+	}
+
+	const users: MvUserSearchUser[] = []
+	const seenUsernames = new Set<string>()
+	for (const suggestion of result.suggestions) {
+		const username = getSuggestionUsername(suggestion)
+		const usernameKey = username.toLowerCase()
+		if (!username || seenUsernames.has(usernameKey)) continue
+
+		seenUsernames.add(usernameKey)
+		users.push({
+			username,
+			avatarUrl: normalizeMediavidaAvatarUrl(getSuggestionAvatar(suggestion)) || undefined,
+		})
+		if (users.length >= MV_USER_SEARCH_MAX_RESULTS) break
+	}
+
+	return { success: true, users }
 }
 
 async function fetchRecordWithTimeout(url: string, init?: RequestInit): Promise<Record<string, unknown> | null> {
@@ -812,6 +994,26 @@ export function setupMediavidaThreadFetchHandler(): void {
 	})
 }
 
+export function setupMvUserAvatarHandler(): void {
+	onMessage('resolveMvUserAvatar', async ({ data }): Promise<MvUserAvatarResult> => {
+		try {
+			return await resolveMvUserAvatar(data.username)
+		} catch (error) {
+			logger.warn('Mediavida user avatar resolve failed:', error)
+			return { success: false, error: error instanceof Error ? error.message : 'Fetch failed' }
+		}
+	})
+
+	onMessage('searchMvUsers', async ({ data }): Promise<MvUserSearchResult> => {
+		try {
+			return await searchMvUsers(data.query)
+		} catch (error) {
+			logger.warn('Mediavida user search failed:', error)
+			return { success: false, error: error instanceof Error ? error.message : 'Fetch failed' }
+		}
+	})
+}
+
 /**
  * Merges syndication metadata (avatar, verified, media, quoted tweet) into the base oEmbed data.
  */
@@ -1021,6 +1223,7 @@ export function setupTwitterLiteHandler(): void {
 export function setupApiHandlers(): void {
 	setupOptionsHandler()
 	setupMediavidaThreadFetchHandler()
+	setupMvUserAvatarHandler()
 	setupSteamHandler()
 	setupTmdbKeyCheckHandler()
 	setupTmdbRequestHandler()

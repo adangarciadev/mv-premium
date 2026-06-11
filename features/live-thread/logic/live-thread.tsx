@@ -14,7 +14,6 @@ import { mountFeatureWithBoundary, unmountFeature, isFeatureMounted, updateFeatu
 import { getStatusActionsRow } from '@/lib/content-modules/utils/extra-actions-row'
 import { isThreadPage, getThreadIdFromUrl } from '@/lib/content-modules/utils/page-detection'
 import { applyStoredTheme } from '@/lib/theme-sync'
-import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { MV_SELECTORS, FEATURE_IDS } from '@/constants'
 import { DOM_MARKERS } from '@/constants/dom-markers'
 
@@ -26,9 +25,13 @@ import {
 	moveFormToTop,
 	restoreForm,
 	toggleFormVisibility,
+	ensureMobileLiteNativeEditorReady,
+	applyMobileLiteBottomNavLiveState,
+	restoreMobileLiteBottomNavLiveState,
 	setReplyStateCallback,
 	setupPostReplyHandler,
 	cleanupPostReplyHandler,
+	type LiveThreadVariant,
 } from './live-thread-dom'
 import {
 	setIsLiveActive,
@@ -60,6 +63,10 @@ const HEADER_FEATURE_ID = FEATURE_IDS.LIVE_THREAD_HEADER
 
 let isInfiniteScrollActive = false // Whether infinite scroll is currently active
 let isLiveThreadDelayEnabled = true // Whether delay control is enabled in settings
+
+interface StartLiveModeOptions {
+	variant?: LiveThreadVariant
+}
 
 // =============================================================================
 // REACT COMPONENTS
@@ -111,6 +118,49 @@ function LiveHeader({ onStop }: { onStop: () => void }) {
 	)
 }
 
+function MobileLiteLiveHeader({ onStop }: { onStop: () => void }) {
+	const [status, setStatus] = useState<LiveStatus>('connected')
+	const [isReplyOpen, setIsReplyOpen] = useState(false)
+
+	useEffect(() => {
+		setStatusCallback(setStatus)
+		setReplyStateCallback(setIsReplyOpen)
+		return () => {
+			setStatusCallback(null)
+			setReplyStateCallback(null)
+		}
+	}, [])
+
+	const handleToggleReply = () => {
+		const nextOpen = !isReplyOpen
+		toggleFormVisibility(nextOpen, { variant: 'mobile-lite' })
+	}
+
+	return (
+		<div className={cn('mvp-live-mobile-header', isReplyOpen && 'editor-open')}>
+			<div className="mvp-live-mobile-status">
+				<div className={cn('mvp-live-dot', status)} />
+				<span>LIVE</span>
+			</div>
+			{isLiveThreadDelayEnabled ? (
+				<LiveDelayControl />
+			) : (
+				<span className="mvp-live-mobile-chip" aria-hidden="true">
+					<span className="mvp-live-mobile-clock" />
+					Real-time
+				</span>
+			)}
+			<button type="button" onClick={handleToggleReply} className={cn('mvp-live-mobile-btn', isReplyOpen && 'is-active')}>
+				{isReplyOpen ? 'Cerrar' : 'Responder'}
+			</button>
+			<button type="button" onClick={onStop} className="mvp-live-mobile-btn is-ghost">
+				<span aria-hidden="true">II</span>
+				Salir
+			</button>
+		</div>
+	)
+}
+
 interface LiveButtonProps {
 	isActive: boolean
 	isDisabled: boolean
@@ -146,9 +196,10 @@ function LiveButton({ isActive, isDisabled, onToggle }: LiveButtonProps) {
  * Switches the current thread view to Live mode.
  * Replaces the native post container with a smart-polling view and enables real-time updates.
  */
-async function startLiveMode(): Promise<void> {
+export async function startLiveMode(options: StartLiveModeOptions = {}): Promise<void> {
 	if (getIsLiveActive()) return
 
+	const variant = options.variant ?? 'desktop'
 	const postsWrap = document.getElementById(MV_SELECTORS.THREAD.POSTS_CONTAINER_ID)
 	if (!postsWrap) return
 
@@ -158,7 +209,15 @@ async function startLiveMode(): Promise<void> {
 	// Wait for fade-out animation
 	await new Promise(resolve => setTimeout(resolve, 250))
 
+	if (variant === 'mobile-lite') {
+		await ensureMobileLiteNativeEditorReady()
+	}
+
 	hideNativeElements()
+	if (variant === 'mobile-lite') {
+		// Mirror Mediavida's native live in the mobile bottom bar: "1 / 1" + reply.
+		applyMobileLiteBottomNavLiveState()
+	}
 
 	// Create main container
 	let mainContainer = document.getElementById(DOM_MARKERS.IDS.LIVE_MAIN_CONTAINER)
@@ -176,6 +235,8 @@ async function startLiveMode(): Promise<void> {
 		`
 		postsWrap.parentNode?.insertBefore(mainContainer, postsWrap)
 	}
+	mainContainer.classList.toggle('mvp-live-mobile-lite', variant === 'mobile-lite')
+	mainContainer.dataset.mvpLiveVariant = variant
 
 	// Create React UI container (header)
 	let appContainer = document.getElementById(DOM_MARKERS.IDS.LIVE_HEADER_UI)
@@ -193,6 +254,7 @@ async function startLiveMode(): Promise<void> {
 		editorWrapper.id = DOM_MARKERS.IDS.LIVE_EDITOR_WRAPPER
 		mainContainer.appendChild(editorWrapper)
 	}
+	editorWrapper.classList.toggle('mvp-live-mobile-lite', variant === 'mobile-lite')
 	if (!editorWrapper.firstElementChild) {
 		editorWrapper.innerHTML = '<div style="min-height: 0;"></div>'
 	}
@@ -200,7 +262,13 @@ async function startLiveMode(): Promise<void> {
 	await initializeLiveThreadDelay(isLiveThreadDelayEnabled)
 
 	// Mount React header
-	mountFeatureWithBoundary(HEADER_FEATURE_ID, appContainer, <LiveHeader onStop={stopLiveMode} />, 'Live Thread Header')
+	const header =
+		variant === 'mobile-lite' ? (
+			<MobileLiteLiveHeader onStop={stopLiveMode} />
+		) : (
+			<LiveHeader onStop={stopLiveMode} />
+		)
+	mountFeatureWithBoundary(HEADER_FEATURE_ID, appContainer, header, 'Live Thread Header')
 
 	setIsLiveActive(true)
 
@@ -211,10 +279,10 @@ async function startLiveMode(): Promise<void> {
 		})
 	)
 
-	moveFormToTop()
-	toggleFormVisibility(false)
-	setupFormInterceptor()
-	setupPostReplyHandler()
+	moveFormToTop({ variant })
+	toggleFormVisibility(false, { variant })
+	setupFormInterceptor({ variant })
+	setupPostReplyHandler({ variant })
 
 	// Step 2: Load posts (this clears postsWrap.innerHTML)
 	await loadInitialPosts()
@@ -257,6 +325,7 @@ async function stopLiveMode(): Promise<void> {
 	document.getElementById(DOM_MARKERS.IDS.LIVE_MAIN_CONTAINER)?.remove()
 
 	showNativeElements()
+	restoreMobileLiteBottomNavLiveState()
 	resetPollingState()
 	window.location.reload()
 }
@@ -279,21 +348,32 @@ function updateButton(): void {
 // =============================================================================
 
 /**
- * Injects the "LIVE" toggle button into the thread action bar if the feature is enabled.
+ * Prepares the shared runtime state before a desktop or mobile Live entry point starts.
  */
-export async function injectLiveThreadButton(): Promise<void> {
-	if (!isThreadPage()) return
-	if (isFeatureMounted(BUTTON_FEATURE_ID)) return
+export async function configureLiveThreadRuntime(options: { requireEnabled?: boolean } = {}): Promise<boolean> {
+	const { requireEnabled = true } = options
+
+	if (!isThreadPage()) return false
 
 	// Check if feature is enabled in settings
 	const { getSettings } = await import('@/store/settings-store')
 	const settings = await getSettings()
-	if (settings.liveThreadEnabled !== true) return
+	if (requireEnabled && settings.liveThreadEnabled !== true) return false
 	isLiveThreadDelayEnabled = settings.liveThreadDelayEnabled !== false
 
 	const threadId = getThreadIdFromUrl() || ''
-	if (!threadId) return
+	if (!threadId) return false
 	setCurrentThreadId(threadId)
+
+	return true
+}
+
+/**
+ * Injects the "LIVE" toggle button into the thread action bar if the feature is enabled.
+ */
+export async function injectLiveThreadButton(): Promise<void> {
+	if (isFeatureMounted(BUTTON_FEATURE_ID)) return
+	if (!(await configureLiveThreadRuntime())) return
 
 	// Use unified extra actions row (status section)
 	const statusRow = getStatusActionsRow()

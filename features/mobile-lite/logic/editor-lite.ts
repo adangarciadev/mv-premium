@@ -51,7 +51,18 @@ const uploadControlStyles = {
 		'padding: 0',
 		'font-size: 13px',
 	].join(';'),
-	button: ['white-space: nowrap', 'min-width: 126px', 'max-width: 100%'].join(';'),
+	button: [
+		'display: inline-flex',
+		'align-items: center',
+		'justify-content: center',
+		'gap: 6px',
+		'box-sizing: border-box',
+		'white-space: nowrap',
+		'min-width: 132px',
+		'max-width: 100%',
+		'touch-action: manipulation',
+		'transition: opacity 120ms ease, filter 120ms ease',
+	].join(';'),
 	status: [
 		'position: absolute',
 		'width: 1px',
@@ -92,6 +103,12 @@ interface CropFrame {
 	width: number
 	height: number
 }
+
+interface ActiveCropDialog {
+	finish: (result: CropDialogResult) => void
+}
+
+let activeCropDialog: ActiveCropDialog | null = null
 
 function isMobileLiteEditorAllowed(): boolean {
 	return getPlatformKind() === 'firefox-android' && isFeatureEnabled(FeatureFlag.MobileLite)
@@ -308,7 +325,7 @@ function setUploadButtonContent(button: HTMLButtonElement, label: string, iconCl
 	const icon = document.createElement('i')
 	icon.className = iconClass
 	icon.setAttribute('aria-hidden', 'true')
-	icon.style.marginRight = '5px'
+	icon.style.marginRight = '0'
 
 	const text = document.createElement('span')
 	text.textContent = label
@@ -318,11 +335,28 @@ function setUploadButtonContent(button: HTMLButtonElement, label: string, iconCl
 
 function setUploadButtonIdle(button: HTMLButtonElement): void {
 	button.disabled = false
+	button.removeAttribute('aria-busy')
+	button.style.opacity = ''
+	button.style.cursor = ''
+	button.style.filter = ''
 	setUploadButtonContent(button, 'Subir imagen', 'fa fa-picture-o')
+}
+
+function setUploadButtonBusy(button: HTMLButtonElement, label: string): void {
+	button.disabled = true
+	button.setAttribute('aria-busy', 'true')
+	button.style.opacity = '0.82'
+	button.style.cursor = 'progress'
+	button.style.filter = 'saturate(0.9)'
+	setUploadButtonContent(button, label, 'fa fa-spinner fa-spin')
 }
 
 function setTemporaryUploadButtonText(button: HTMLButtonElement, text: string, iconClass: string): void {
 	button.disabled = false
+	button.removeAttribute('aria-busy')
+	button.style.opacity = ''
+	button.style.cursor = ''
+	button.style.filter = ''
 	setUploadButtonContent(button, text, iconClass)
 	window.setTimeout(() => {
 		setUploadButtonIdle(button)
@@ -415,78 +449,223 @@ function createCroppedImageFile(file: File, image: HTMLImageElement, frame: Crop
 	})
 }
 
+function closeActiveCropDialog(result: CropDialogResult = null): void {
+	activeCropDialog?.finish(result)
+}
+
 export async function openMobileLiteImageCropDialog(file: File): Promise<CropDialogResult> {
 	if (!isMobileLiteCropSupported(file)) return 'original'
 
 	const { image, objectUrl } = await loadImageFromFile(file)
-	const existingDialog = document.querySelector(`[${IMAGE_CROP_DIALOG_ATTR}="true"]`)
-	existingDialog?.remove()
+	closeActiveCropDialog(null)
 
 	return new Promise(resolve => {
 		const dialog = document.createElement('div')
 		dialog.setAttribute(IMAGE_CROP_DIALOG_ATTR, 'true')
-		dialog.style.cssText = [
-			'position: fixed',
-			'inset: 0',
-			'z-index: 100000',
-			'display: flex',
-			'align-items: center',
-			'justify-content: center',
-			'box-sizing: border-box',
-			'padding: max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left))',
-			'background: rgba(0, 0, 0, 0.68)',
-			'color: #e5e8eb',
-			'font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-		].join(';')
+		dialog.setAttribute('role', 'dialog')
+		dialog.setAttribute('aria-modal', 'true')
+		dialog.setAttribute('aria-label', 'Recortar imagen')
+		dialog.className = 'mvp-ml-crop-overlay'
+
+		// Scoped styles travel with the dialog and disappear with dialog.remove().
+		// Tokens and recipes come from DESIGN.md (§2 colors, §4 buttons, §5 pill).
+		const style = document.createElement('style')
+		style.textContent = `
+			.mvp-ml-crop-overlay {
+				position: fixed;
+				inset: 0;
+				z-index: 100000;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				box-sizing: border-box;
+				padding: max(16px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left));
+				background: rgba(0, 0, 0, 0.6);
+				color: #eef1f6;
+				font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+				overscroll-behavior: contain;
+			}
+			.mvp-ml-crop-overlay *,
+			.mvp-ml-crop-overlay *::before,
+			.mvp-ml-crop-overlay *::after {
+				box-sizing: border-box;
+			}
+			.mvp-ml-crop-panel {
+				width: min(100%, 390px);
+				overflow: hidden;
+				border-radius: 24px;
+				background: #1c1f27;
+				box-shadow: 0 18px 48px rgba(0, 0, 0, 0.6);
+			}
+			.mvp-ml-crop-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				padding: 16px 16px 10px;
+			}
+			.mvp-ml-crop-title {
+				font-size: 16px;
+				font-weight: 700;
+				line-height: 1.2;
+			}
+			.mvp-ml-crop-subtitle {
+				margin-top: 2px;
+				color: #9aa5b4;
+				font-size: 12px;
+			}
+			.mvp-ml-crop-close {
+				width: 40px;
+				height: 40px;
+				flex-shrink: 0;
+				border: none;
+				border-radius: 999px;
+				background: #2e3543;
+				color: #aab4c0;
+				font-size: 24px;
+				line-height: 1;
+			}
+			.mvp-ml-crop-close:active {
+				background: #3a4254;
+			}
+			.mvp-ml-crop-body {
+				padding: 4px 16px 16px;
+			}
+			.mvp-ml-crop-viewport {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				overflow: hidden;
+				border-radius: 16px;
+				background: #14171d;
+			}
+			.mvp-ml-crop-box {
+				position: relative;
+				overflow: hidden;
+				touch-action: none;
+				border: 2px solid #f0a020;
+				border-radius: 12px;
+				background: #14171d;
+			}
+			.mvp-ml-crop-hint {
+				margin: 10px 0 0;
+				color: #8b95a3;
+				font-size: 12px;
+				text-align: center;
+			}
+			.mvp-ml-crop-modes {
+				display: grid;
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+				gap: 8px;
+				margin-top: 14px;
+			}
+			.mvp-ml-crop-chip {
+				height: 36px;
+				border: none;
+				border-radius: 999px;
+				background: transparent;
+				box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+				color: #8b95a3;
+				font-size: 13px;
+				font-weight: 700;
+			}
+			.mvp-ml-crop-chip:active {
+				background: #2e3543;
+			}
+			.mvp-ml-crop-chip.mvp-ml-crop-chip-active {
+				background: linear-gradient(180deg, rgba(240, 160, 32, 0.22) 0%, rgba(240, 160, 32, 0.07) 100%);
+				box-shadow: inset 0 0 0 1px rgba(240, 160, 32, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.3), 0 2px 6px rgba(0, 0, 0, 0.35);
+				color: #f0a020;
+			}
+			.mvp-ml-crop-slider-label {
+				display: block;
+				margin-top: 14px;
+				color: #9aa5b4;
+				font-size: 12px;
+				font-weight: 700;
+			}
+			.mvp-ml-crop-overlay input[type='range'] {
+				width: 100%;
+				height: 32px;
+				margin: 6px 0 0;
+				accent-color: #f0a020;
+			}
+			.mvp-ml-crop-free-controls {
+				display: none;
+				grid-template-columns: 1fr 1fr;
+				gap: 10px;
+			}
+			.mvp-ml-crop-free-controls.mvp-ml-crop-free-controls-visible {
+				display: grid;
+			}
+			.mvp-ml-crop-footer {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 8px;
+				padding: 4px 16px 16px;
+			}
+			.mvp-ml-crop-btn-secondary {
+				height: 44px;
+				border: none;
+				border-radius: 12px;
+				background: #2e3543;
+				color: #eef1f6;
+				padding: 0 12px;
+				font-size: 14px;
+				font-weight: 600;
+			}
+			.mvp-ml-crop-btn-secondary:active {
+				background: #3a4254;
+			}
+			.mvp-ml-crop-btn-primary {
+				grid-column: 1 / -1;
+				height: 44px;
+				border: none;
+				border-radius: 12px;
+				background: #f0a020;
+				color: #221604;
+				padding: 0 12px;
+				font-size: 14px;
+				font-weight: 700;
+			}
+			.mvp-ml-crop-btn-primary:active {
+				background: #d98e12;
+			}
+			.mvp-ml-crop-btn-primary[disabled] {
+				background: #2e3543;
+				color: #707b8e;
+			}
+		`
 
 		const panel = document.createElement('section')
-		panel.style.cssText = [
-			'width: min(100%, 390px)',
-			'overflow: hidden',
-			'border: 1px solid #4b545d',
-			'border-radius: 10px',
-			'background: #343b41',
-			'box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45)',
-		].join(';')
+		panel.className = 'mvp-ml-crop-panel'
 
 		const header = document.createElement('header')
-		header.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; background: #30363d; border-bottom: 1px solid #46505a;'
+		header.className = 'mvp-ml-crop-header'
 		const title = document.createElement('div')
-		title.innerHTML = '<div style="font-size: 16px; font-weight: 700; line-height: 1.2;">Recortar imagen</div><div style="margin-top: 2px; color: #b7bec6; font-size: 12px;">Opcional antes de subir</div>'
+		title.innerHTML =
+			'<div class="mvp-ml-crop-title">Recortar imagen</div><div class="mvp-ml-crop-subtitle">Opcional antes de subir</div>'
 		const closeButton = document.createElement('button')
 		closeButton.type = 'button'
 		closeButton.textContent = '×'
 		closeButton.setAttribute('aria-label', 'Cancelar recorte')
-		closeButton.style.cssText = 'width: 40px; height: 40px; border: 1px solid #56606a; border-radius: 7px; background: #444b54; color: #eef1f3; font-size: 26px; line-height: 1;'
+		closeButton.className = 'mvp-ml-crop-close'
 		header.append(title, closeButton)
 
 		const body = document.createElement('div')
-		body.style.cssText = 'padding: 16px; background: #384149;'
+		body.className = 'mvp-ml-crop-body'
 
 		const maxFrameSize = Math.max(180, Math.min(280, window.innerWidth - 76, window.innerHeight - 360))
 		const minFrameSize = Math.max(120, Math.round(maxFrameSize * 0.52))
 		let frame: CropFrame = { width: maxFrameSize, height: maxFrameSize }
 		const cropViewport = document.createElement('div')
-		cropViewport.style.cssText = [
-			`height: ${maxFrameSize}px`,
-			'display: flex',
-			'align-items: center',
-			'justify-content: center',
-			'overflow: hidden',
-		].join(';')
+		cropViewport.className = 'mvp-ml-crop-viewport'
+		cropViewport.style.height = `${maxFrameSize + 16}px`
 
 		const cropBox = document.createElement('div')
-		cropBox.style.cssText = [
-			`width: ${frame.width}px`,
-			`height: ${frame.height}px`,
-			'box-sizing: border-box',
-			'position: relative',
-			'overflow: hidden',
-			'touch-action: none',
-			'border: 2px solid #d06d00',
-			'border-radius: 8px',
-			'background: #20262c',
-		].join(';')
+		cropBox.className = 'mvp-ml-crop-box'
+		cropBox.style.width = `${frame.width}px`
+		cropBox.style.height = `${frame.height}px`
 
 		const previewImage = document.createElement('img')
 		previewImage.src = objectUrl
@@ -508,96 +687,96 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 		cropViewport.append(cropBox)
 
 		const hint = document.createElement('p')
-		hint.textContent = 'Arrastra la imagen para encuadrar.'
-		hint.style.cssText = 'margin: 10px 0 0; color: #b7bec6; font-size: 12px; text-align: center;'
+		hint.textContent = 'Arrastra para encuadrar, pellizca para hacer zoom.'
+		hint.className = 'mvp-ml-crop-hint'
 
 		const modeGroup = document.createElement('div')
 		modeGroup.setAttribute('role', 'group')
 		modeGroup.setAttribute('aria-label', 'Formato de recorte')
-		modeGroup.style.cssText = 'display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px;'
+		modeGroup.className = 'mvp-ml-crop-modes'
 
-		const squareModeButton = document.createElement('button')
-		squareModeButton.type = 'button'
-		squareModeButton.textContent = 'Cuadrado'
-		squareModeButton.style.cssText = 'height: 36px; border: 1px solid #d06d00; border-radius: 7px; background: #7b4b08; color: white; font-weight: 700;'
+		const createModeButton = (label: string): HTMLButtonElement => {
+			const button = document.createElement('button')
+			button.type = 'button'
+			button.textContent = label
+			button.className = 'mvp-ml-crop-chip'
+			return button
+		}
 
-		const originalModeButton = document.createElement('button')
-		originalModeButton.type = 'button'
-		originalModeButton.textContent = 'Original'
-		originalModeButton.style.cssText = 'height: 36px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; font-weight: 700;'
-
-		const freeModeButton = document.createElement('button')
-		freeModeButton.type = 'button'
-		freeModeButton.textContent = 'Libre'
-		freeModeButton.style.cssText = 'height: 36px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; font-weight: 700;'
-
+		const squareModeButton = createModeButton('Cuadrado')
+		const originalModeButton = createModeButton('Original')
+		const freeModeButton = createModeButton('Libre')
 		modeGroup.append(squareModeButton, originalModeButton, freeModeButton)
 
 		const freeControls = document.createElement('div')
-		freeControls.style.cssText = 'display: none; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px;'
+		freeControls.className = 'mvp-ml-crop-free-controls'
 
-		const widthLabel = document.createElement('label')
-		widthLabel.textContent = 'Ancho'
-		widthLabel.style.cssText = 'display: block; color: #d8dde2; font-size: 12px; font-weight: 600;'
+		const createSliderLabel = (text: string): HTMLLabelElement => {
+			const label = document.createElement('label')
+			label.textContent = text
+			label.className = 'mvp-ml-crop-slider-label'
+			return label
+		}
+
+		const widthLabel = createSliderLabel('Ancho')
 		const widthInput = document.createElement('input')
 		widthInput.type = 'range'
 		widthInput.min = String(minFrameSize)
 		widthInput.max = String(maxFrameSize)
 		widthInput.step = '1'
 		widthInput.value = String(frame.width)
-		widthInput.style.cssText = 'width: 100%; margin-top: 6px; accent-color: #d06d00;'
 		widthLabel.append(widthInput)
 
-		const heightLabel = document.createElement('label')
-		heightLabel.textContent = 'Alto'
-		heightLabel.style.cssText = 'display: block; color: #d8dde2; font-size: 12px; font-weight: 600;'
+		const heightLabel = createSliderLabel('Alto')
 		const heightInput = document.createElement('input')
 		heightInput.type = 'range'
 		heightInput.min = String(minFrameSize)
 		heightInput.max = String(maxFrameSize)
 		heightInput.step = '1'
 		heightInput.value = String(frame.height)
-		heightInput.style.cssText = 'width: 100%; margin-top: 6px; accent-color: #d06d00;'
 		heightLabel.append(heightInput)
 
 		freeControls.append(widthLabel, heightLabel)
 
-		const zoomLabel = document.createElement('label')
-		zoomLabel.textContent = 'Zoom'
-		zoomLabel.style.cssText = 'display: block; margin-top: 14px; color: #d8dde2; font-size: 13px; font-weight: 600;'
-
+		const zoomLabel = createSliderLabel('Zoom')
 		const zoomInput = document.createElement('input')
 		zoomInput.type = 'range'
 		zoomInput.min = '1'
 		zoomInput.max = '3'
 		zoomInput.step = '0.01'
 		zoomInput.value = '1'
-		zoomInput.style.cssText = 'width: 100%; margin-top: 8px; accent-color: #d06d00;'
+		zoomLabel.append(zoomInput)
 
-		body.append(cropViewport, hint, modeGroup, freeControls, zoomLabel, zoomInput)
+		body.append(cropViewport, hint, modeGroup, freeControls, zoomLabel)
 
 		const footer = document.createElement('footer')
-		footer.style.cssText = 'display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 12px 16px; background: #30363d; border-top: 1px solid #46505a;'
-
-		const originalButton = document.createElement('button')
-		originalButton.type = 'button'
-		originalButton.textContent = 'Subir original'
-		originalButton.style.cssText = 'height: 40px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; padding: 0 12px; font-weight: 700;'
-
-		const cropButton = document.createElement('button')
-		cropButton.type = 'button'
-		cropButton.textContent = 'Recortar y subir'
-		cropButton.style.cssText = 'height: 40px; border: 1px solid #d06d00; border-radius: 7px; background: #7b4b08; color: white; padding: 0 12px; font-weight: 700;'
+		footer.className = 'mvp-ml-crop-footer'
 
 		const cancelButton = document.createElement('button')
 		cancelButton.type = 'button'
 		cancelButton.textContent = 'Cancelar'
-		cancelButton.style.cssText = 'height: 40px; border: 1px solid #626b74; border-radius: 7px; background: transparent; color: #eef1f3; padding: 0 12px; font-weight: 700;'
+		cancelButton.className = 'mvp-ml-crop-btn-secondary'
 
+		const originalButton = document.createElement('button')
+		originalButton.type = 'button'
+		originalButton.textContent = 'Subir original'
+		originalButton.className = 'mvp-ml-crop-btn-secondary'
+
+		const cropButton = document.createElement('button')
+		cropButton.type = 'button'
+		cropButton.textContent = 'Recortar y subir'
+		cropButton.className = 'mvp-ml-crop-btn-primary'
+
+		// One primary action per screen (DESIGN.md §4), full width and last so it
+		// sits closest to the thumb.
 		footer.append(cancelButton, originalButton, cropButton)
 		panel.append(header, body, footer)
-		dialog.append(panel)
+		dialog.append(style, panel)
 		document.body.appendChild(dialog)
+
+		// Lock the page behind the dialog (same pattern as the panel sheet)
+		const previousBodyOverflow = document.body.style.overflow
+		document.body.style.overflow = 'hidden'
 
 		let baseScale = Math.max(frame.width / image.naturalWidth, frame.height / image.naturalHeight)
 		let transform = clampCropTransform(
@@ -668,13 +847,12 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 			}
 		}
 		const setModeButtonState = (mode: 'square' | 'original' | 'free') => {
-			const activeStyle = 'height: 36px; border: 1px solid #d06d00; border-radius: 7px; background: #7b4b08; color: white; font-weight: 700;'
-			const idleStyle = 'height: 36px; border: 1px solid #626b74; border-radius: 7px; background: #545d66; color: #eef1f3; font-weight: 700;'
-			squareModeButton.style.cssText = mode === 'square' ? activeStyle : idleStyle
-			originalModeButton.style.cssText = mode === 'original' ? activeStyle : idleStyle
-			freeModeButton.style.cssText = mode === 'free' ? activeStyle : idleStyle
-			freeControls.style.display = mode === 'free' ? 'grid' : 'none'
+			squareModeButton.classList.toggle('mvp-ml-crop-chip-active', mode === 'square')
+			originalModeButton.classList.toggle('mvp-ml-crop-chip-active', mode === 'original')
+			freeModeButton.classList.toggle('mvp-ml-crop-chip-active', mode === 'free')
+			freeControls.classList.toggle('mvp-ml-crop-free-controls-visible', mode === 'free')
 		}
+		setModeButtonState('square')
 		updatePreview()
 
 		let dragging = false
@@ -682,23 +860,88 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 		let dragStartY = 0
 		let transformStartX = 0
 		let transformStartY = 0
+		const activePointers = new Map<number, { x: number; y: number }>()
+		let pinchStartDistance = 0
+		let pinchStartZoom = 1
 
+		let finished = false
 		const finish = (result: CropDialogResult) => {
+			if (finished) return
+			finished = true
+			if (activeCropDialog?.finish === finish) {
+				activeCropDialog = null
+			}
+			document.body.style.overflow = previousBodyOverflow
 			URL.revokeObjectURL(objectUrl)
 			dialog.remove()
 			resolve(result)
 		}
+		activeCropDialog = { finish }
 
-		cropBox.addEventListener('pointerdown', event => {
+		/** Re-anchor zoom so the given frame point stays visually still */
+		const applyZoom = (nextZoom: number, focalX: number, focalY: number) => {
+			const previousScale = baseScale * transform.zoom
+			const nextScale = baseScale * nextZoom
+
+			transform = clampCropTransform(
+				{
+					x: focalX - ((focalX - transform.x) / previousScale) * nextScale,
+					y: focalY - ((focalY - transform.y) / previousScale) * nextScale,
+					zoom: nextZoom,
+				},
+				image,
+				frame,
+				baseScale
+			)
+			updatePreview()
+		}
+
+		const startDragFromPointer = (pointer: { x: number; y: number }) => {
 			dragging = true
-			dragStartX = event.clientX
-			dragStartY = event.clientY
+			dragStartX = pointer.x
+			dragStartY = pointer.y
 			transformStartX = transform.x
 			transformStartY = transform.y
+		}
+
+		const getPinchDistance = (): number => {
+			const [first, second] = [...activePointers.values()]
+			return Math.hypot(first.x - second.x, first.y - second.y)
+		}
+
+		cropBox.addEventListener('pointerdown', event => {
 			cropBox.setPointerCapture(event.pointerId)
+			activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+
+			if (activePointers.size === 2) {
+				// Second finger: switch from drag to pinch zoom
+				dragging = false
+				pinchStartDistance = getPinchDistance()
+				pinchStartZoom = transform.zoom
+				return
+			}
+
+			startDragFromPointer({ x: event.clientX, y: event.clientY })
 		})
 
 		cropBox.addEventListener('pointermove', event => {
+			if (!activePointers.has(event.pointerId)) return
+			activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY })
+
+			if (activePointers.size >= 2) {
+				if (pinchStartDistance <= 0) return
+
+				const [first, second] = [...activePointers.values()]
+				const nextZoom = Math.min(3, Math.max(1, (pinchStartZoom * getPinchDistance()) / pinchStartDistance))
+				const boxRect = cropBox.getBoundingClientRect()
+				const focalX = (first.x + second.x) / 2 - boxRect.left
+				const focalY = (first.y + second.y) / 2 - boxRect.top
+
+				applyZoom(nextZoom, focalX, focalY)
+				zoomInput.value = String(nextZoom)
+				return
+			}
+
 			if (!dragging) return
 
 			transform = clampCropTransform(
@@ -714,33 +957,30 @@ export async function openMobileLiteImageCropDialog(file: File): Promise<CropDia
 			updatePreview()
 		})
 
-		cropBox.addEventListener('pointerup', event => {
-			dragging = false
-			cropBox.releasePointerCapture(event.pointerId)
-		})
-		cropBox.addEventListener('pointercancel', event => {
-			dragging = false
-			cropBox.releasePointerCapture(event.pointerId)
-		})
+		const handlePointerEnd = (event: PointerEvent) => {
+			activePointers.delete(event.pointerId)
+			if (cropBox.hasPointerCapture(event.pointerId)) {
+				cropBox.releasePointerCapture(event.pointerId)
+			}
+
+			if (activePointers.size === 1) {
+				// Back from pinch to single-finger drag without jumps
+				pinchStartDistance = 0
+				startDragFromPointer([...activePointers.values()][0])
+				return
+			}
+
+			if (activePointers.size === 0) {
+				dragging = false
+				pinchStartDistance = 0
+			}
+		}
+
+		cropBox.addEventListener('pointerup', handlePointerEnd)
+		cropBox.addEventListener('pointercancel', handlePointerEnd)
 
 		zoomInput.addEventListener('input', () => {
-			const previousScale = baseScale * transform.zoom
-			const nextZoom = Number(zoomInput.value)
-			const nextScale = baseScale * nextZoom
-			const centerX = frame.width / 2
-			const centerY = frame.height / 2
-
-			transform = clampCropTransform(
-				{
-					x: centerX - ((centerX - transform.x) / previousScale) * nextScale,
-					y: centerY - ((centerY - transform.y) / previousScale) * nextScale,
-					zoom: nextZoom,
-				},
-				image,
-				frame,
-				baseScale
-			)
-			updatePreview()
+			applyZoom(Number(zoomInput.value), frame.width / 2, frame.height / 2)
 		})
 
 		squareModeButton.addEventListener('click', () => {
@@ -873,12 +1113,12 @@ function prepareOptionsRowUploadControl(wrapper: HTMLElement, row: HTMLElement):
 	wrapper.style.display = 'inline-flex'
 	wrapper.style.verticalAlign = 'middle'
 	wrapper.style.clear = 'none'
-	wrapper.style.marginTop = '4px'
-	wrapper.style.marginBottom = '4px'
+	wrapper.style.marginTop = '5px'
+	wrapper.style.marginBottom = '5px'
 
 	if (row.id === EXTENDED_EDITOR_FAVORITES_SELECTOR.slice(1)) {
 		wrapper.style.cssFloat = 'none'
-		wrapper.style.marginLeft = '12px'
+		wrapper.style.marginLeft = '10px'
 		wrapper.style.marginRight = '0'
 		return
 	}
@@ -907,7 +1147,7 @@ function placeUploadControl(wrapper: HTMLElement, textarea: HTMLTextAreaElement)
 		return
 	}
 
-	wrapper.style.marginBottom = '8px'
+	wrapper.style.marginBottom = '10px'
 	const fallbackTarget =
 		textarea.closest<HTMLElement>(`${MV_SELECTORS.EDITOR.TEXT_WRAP}, ${MV_SELECTORS.EDITOR.EDITOR_BODY}`) ??
 		textarea
@@ -957,8 +1197,7 @@ export function injectMobileLiteUploadControl(textarea: HTMLTextAreaElement): HT
 			return
 		}
 
-		button.disabled = true
-		setUploadButtonContent(button, 'Preparando...', 'fa fa-spinner fa-spin')
+		setUploadButtonBusy(button, 'Preparando...')
 		setUploadControlStatus(status, 'Preparando imagen...')
 
 		openMobileLiteImageCropDialog(file)
@@ -969,7 +1208,7 @@ export function injectMobileLiteUploadControl(textarea: HTMLTextAreaElement): HT
 					return null
 				}
 
-				setUploadButtonContent(button, 'Subiendo...', 'fa fa-spinner fa-spin')
+				setUploadButtonBusy(button, 'Subiendo...')
 				setUploadControlStatus(status, 'Subiendo...')
 				return uploadMobileLiteImage(cropResult === 'original' ? file : cropResult, textarea)
 			})
@@ -1068,6 +1307,8 @@ export async function uploadMobileLiteImage(file: File, textarea: HTMLTextAreaEl
 }
 
 export function teardownMobileLiteEditorEnhancements(): void {
+	closeActiveCropDialog(null)
+
 	if (observerTimeout) {
 		clearTimeout(observerTimeout)
 		observerTimeout = null

@@ -87,13 +87,23 @@ export function isSpyPage(): boolean {
 }
 
 /**
+ * Pure pathname check for global forum views (spy, new, unread, top, featured).
+ * These listings aggregate threads from every subforum and do NOT render the
+ * thread creator (the avatars belong to the last poster), so author-based
+ * features must not run on them. Pagination uses ?pagina=N, so the pathname
+ * stays stable across pages.
+ */
+export function isForumGlobalViewPath(pathname: string): boolean {
+	return FORUM_GLOBAL_VIEWS.some(view => pathname === view || pathname.startsWith(`${view}/`))
+}
+
+/**
  * Check if we're on a global forum view page (not a specific subforum)
  * These pages have the sidebar but are not subforums
  * Includes: spy, new, unread, top, featured
  */
 export function isForumGlobalViewPage(): boolean {
-	const path = window.location.pathname
-	return FORUM_GLOBAL_VIEWS.some(view => path.startsWith(view))
+	return isForumGlobalViewPath(window.location.pathname)
 }
 
 /**

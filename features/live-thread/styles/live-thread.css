@@ -411,7 +411,7 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 }
 
 /* Editor container styling */
-#mvp-live-editor-wrapper #post-editor {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor {
 	display: block !important;
 	position: relative !important;
 	float: none !important;
@@ -427,15 +427,15 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 }
 
 /* Hide the placeholder text that overlays */
-#mvp-live-editor-wrapper #post-editor .placeholder,
-#mvp-live-editor-wrapper #post-editor .editor-placeholder,
-#mvp-live-editor-wrapper #post-editor .text-wrap > span,
-#mvp-live-editor-wrapper #post-editor .text-wrap > div:not(:first-child):not([data-mvp-dropzone-overlay='true']) {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .placeholder,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-placeholder,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .text-wrap > span,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .text-wrap > div:not(:first-child):not([data-mvp-dropzone-overlay='true']) {
 	display: none !important;
 }
 
 /* text-wrap container needs solid background */
-#mvp-live-editor-wrapper #post-editor .text-wrap {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .text-wrap {
 	display: block !important;
 	visibility: visible !important;
 	opacity: 1 !important;
@@ -445,17 +445,17 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 }
 
 /* Hide unwanted separators/spacers, titles, and native minimize toggle */
-#mvp-live-editor-wrapper #post-editor .spacer,
-#mvp-live-editor-wrapper #post-editor h2,
-#mvp-live-editor-wrapper #post-editor h1,
-#mvp-live-editor-wrapper #post-editor .control > *:not(.editor-body),
-#mvp-live-editor-wrapper #post-editor .control .close,
-#mvp-live-editor-wrapper #post-editor .control .minimize {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .spacer,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor h2,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor h1,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .control > *:not(.editor-body),
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .control .close,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .control .minimize {
 	display: none !important;
 }
 
 /* Ensure the control container itself doesn't add any space */
-#mvp-live-editor-wrapper #post-editor .control {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .control {
 	padding: 0 !important;
 	margin: 0 !important;
 	height: auto !important;
@@ -463,8 +463,8 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 }
 
 /* Make sure editor internals have no extra spacing */
-#mvp-live-editor-wrapper #post-editor .editor-body,
-#mvp-live-editor-wrapper #post-editor #postform {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-body,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor #postform {
 	display: block !important;
 	visibility: visible !important;
 	opacity: 1 !important;
@@ -476,7 +476,7 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 }
 
 /* Toolbar styling */
-#mvp-live-editor-wrapper #post-editor .editor-controls {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls {
 	display: flex !important;
 	flex-wrap: nowrap !important; /* Single line */
 	padding: 0 10px !important; /* No vertical padding, height 30px will center it */
@@ -492,8 +492,8 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 }
 
 /* Toolbar buttons - smaller in Live mode to fit in single line */
-#mvp-live-editor-wrapper #post-editor .editor-controls button,
-#mvp-live-editor-wrapper #post-editor .editor-controls .ddi {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .ddi {
 	color: var(--foreground, #e4e6eb) !important;
 	border-radius: var(--radius, 3px) !important;
 	width: 24px !important;
@@ -508,15 +508,15 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 	background: transparent !important;
 }
 
-#mvp-live-editor-wrapper #post-editor .editor-controls button:hover,
-#mvp-live-editor-wrapper #post-editor .editor-controls .ddi:hover {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button:hover,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .ddi:hover {
 	background: rgba(128, 128, 128, 0.25) !important;
 	color: var(--primary, #fc8f22) !important;
 }
 
 /* Force all children to take the theme color and REMOVE any native filters */
-#mvp-live-editor-wrapper #post-editor .editor-controls button:hover *,
-#mvp-live-editor-wrapper #post-editor .editor-controls .ddi:hover * {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button:hover *,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .ddi:hover * {
 	color: var(--primary, #fc8f22) !important;
 	fill: var(--primary, #fc8f22) !important;
 	filter: none !important;
@@ -524,69 +524,69 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 }
 
 /* Light mode overrides for contrast: use black/foreground instead of orange */
-.light #mvp-live-editor-wrapper #post-editor .editor-controls button,
-html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls button {
+.light #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button,
+html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button {
 	color: var(--foreground, #000000) !important;
 }
 
-.light #mvp-live-editor-wrapper #post-editor .editor-controls button:hover,
-html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls button:hover {
+.light #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button:hover,
+html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button:hover {
 	background: rgba(0, 0, 0, 0.1) !important;
 }
 
-.light #mvp-live-editor-wrapper #post-editor .editor-controls button:hover *,
-html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls button:hover * {
+.light #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button:hover *,
+html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button:hover * {
 	color: var(--foreground, #000000) !important;
 	fill: var(--foreground, #000000) !important;
 	filter: none !important;
 }
 
 /* Premium toolbar buttons: override native live-thread hover coloring */
-#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .mvp-toolbar-btn:hover {
 	background: rgba(128, 128, 128, 0.25) !important;
 	color: var(--primary, #fc8f22) !important;
 }
 
-#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover i,
-#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover .fa {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .mvp-toolbar-btn:hover i,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .mvp-toolbar-btn:hover .fa {
 	color: inherit !important;
 }
 
-#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover svg,
-#mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover svg * {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .mvp-toolbar-btn:hover svg,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .mvp-toolbar-btn:hover svg * {
 	color: inherit !important;
 	stroke: currentColor !important;
 	fill: none !important;
 	filter: none !important;
 }
 
-.light #mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover,
-html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls .mvp-toolbar-btn:hover {
+.light #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .mvp-toolbar-btn:hover,
+html[data-theme='light'] #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .mvp-toolbar-btn:hover {
 	background: rgba(0, 0, 0, 0.1) !important;
 	color: var(--foreground, #000000) !important;
 }
 
 /* Hide undo/redo buttons in Live mode - they appear incorrectly */
-#mvp-live-editor-wrapper #post-editor .editor-controls button[data-cmd='undo'],
-#mvp-live-editor-wrapper #post-editor .editor-controls button[data-cmd='redo'],
-#mvp-live-editor-wrapper #post-editor .editor-controls button[title*='Deshacer'],
-#mvp-live-editor-wrapper #post-editor .editor-controls button[title*='Rehacer'],
-#mvp-live-editor-wrapper #post-editor .editor-controls .fa-undo,
-#mvp-live-editor-wrapper #post-editor .editor-controls .fa-redo,
-#mvp-live-editor-wrapper #post-editor .editor-controls button:has(.fa-undo),
-#mvp-live-editor-wrapper #post-editor .editor-controls button:has(.fa-redo) {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button[data-cmd='undo'],
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button[data-cmd='redo'],
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button[title*='Deshacer'],
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button[title*='Rehacer'],
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .fa-undo,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls .fa-redo,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button:has(.fa-undo),
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls button:has(.fa-redo) {
 	display: none !important;
 }
 
 /* Icon sizing */
-#mvp-live-editor-wrapper #post-editor .editor-controls i,
-#mvp-live-editor-wrapper #post-editor .editor-controls svg {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls i,
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls svg {
 	color: inherit !important;
 	font-size: 12px !important;
 }
 
 /* Textarea */
-#mvp-live-editor-wrapper #post-editor #cuerpo {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor #cuerpo {
 	display: block !important;
 	width: 100% !important;
 	min-height: 120px !important;
@@ -600,7 +600,7 @@ html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls 
 	outline: none !important;
 }
 
-#mvp-live-editor-wrapper #post-editor #cuerpo::placeholder {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor #cuerpo::placeholder {
 	color: var(--muted-foreground, #8a8d91) !important;
 }
 
@@ -626,7 +626,7 @@ html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls 
 }
 
 /* Hide native footer */
-#mvp-live-editor-wrapper #post-editor .editor-meta {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-meta {
 	display: none !important;
 }
 
@@ -711,6 +711,464 @@ html[data-theme='light'] #mvp-live-editor-wrapper #post-editor .editor-controls 
 }
 
 /* Hide emoji picker unless explicitly shown */
-#mvp-live-editor-wrapper #post-editor .emoji-wrap.hidden {
+#mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .emoji-wrap.hidden {
 	display: none !important;
+}
+
+/* Mobile Lite variant: keep Mediavida's native mobile editor intact. */
+#mvp-live-main-container.mvp-live-mobile-lite {
+	margin-bottom: 0 !important;
+	overflow: visible !important;
+}
+
+#mvp-live-main-container.mvp-live-mobile-lite #mvp-live-header-ui {
+	order: 1 !important;
+	position: relative !important;
+	z-index: 2 !important;
+}
+
+/* Smooth slide open/close (grid 0fr ↔ 1fr, same trick as desktop) with the
+   iOS-sheet curve from the Mobile Lite design system. Clipping only exists
+   WHILE animating: once open, JS adds .mvp-settled and we lift overflow so
+   dropdowns and the Android keyboard interplay match the old stable state.
+   `clip` instead of `hidden` on purpose: `hidden` creates a BFC that contains
+   inner margins, which added a phantom gap below the toolbar mid-animation and
+   a visible re-layout jump when .mvp-settled lifted the clipping. */
+#mvp-live-editor-wrapper.mvp-live-mobile-lite {
+	display: grid !important;
+	grid-template-rows: 0fr !important;
+	margin-bottom: 0 !important;
+	opacity: 0 !important;
+	order: 2 !important;
+	overflow: clip !important;
+	pointer-events: none !important;
+	position: relative !important;
+	transition:
+		grid-template-rows 300ms cubic-bezier(0.32, 0.72, 0, 1),
+		opacity 240ms ease !important;
+	z-index: 1 !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div {
+	min-height: 0 !important;
+	overflow: clip !important;
+}
+
+/* Surfaces/tokens follow features/mobile-lite/DESIGN.md (§2): sheet #1c1f27,
+   inset #14171d, divider #2d3442, accent #f0a020, premium pill for active. */
+.mvp-live-mobile-header {
+	align-items: center !important;
+	background: #1c1f27 !important;
+	border: 1px solid #2c3340 !important;
+	border-radius: 0 !important;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+	box-sizing: border-box !important;
+	color: #eef1f6 !important;
+	display: grid !important;
+	gap: 8px !important;
+	grid-template-columns: minmax(56px, 1fr) auto auto auto !important;
+	min-height: 56px !important;
+	padding: 8px 12px !important;
+	width: 100% !important;
+}
+
+.mvp-live-mobile-header.editor-open {
+	border-bottom-color: #2d3442 !important;
+}
+
+.mvp-live-mobile-status,
+.mvp-live-mobile-chip,
+.mvp-live-mobile-btn {
+	align-items: center !important;
+	display: inline-flex !important;
+	line-height: 1 !important;
+	white-space: nowrap !important;
+}
+
+.mvp-live-mobile-status {
+	color: #50de5d !important;
+	font-size: 12px !important;
+	font-weight: 800 !important;
+	gap: 7px !important;
+	letter-spacing: 0.08em !important;
+}
+
+.mvp-live-mobile-status .mvp-live-dot {
+	height: 9px !important;
+	width: 9px !important;
+}
+
+/* Idle chip recipe: inset surface, pill radius, faint text (DESIGN.md filter chips) */
+.mvp-live-mobile-chip {
+	background: #14171d !important;
+	border: 1px solid rgba(255, 255, 255, 0.04) !important;
+	border-radius: 999px !important;
+	color: #9aa5b4 !important;
+	font-size: 12px !important;
+	font-weight: 700 !important;
+	gap: 6px !important;
+	min-height: 36px !important;
+	opacity: 1 !important;
+	padding: 0 12px !important;
+}
+
+.mvp-live-mobile-clock {
+	border: 1.5px solid currentColor !important;
+	border-radius: 999px !important;
+	display: inline-block !important;
+	height: 12px !important;
+	position: relative !important;
+	width: 12px !important;
+}
+
+.mvp-live-mobile-clock::after {
+	background: currentColor !important;
+	content: '' !important;
+	height: 4px !important;
+	left: 5px !important;
+	position: absolute !important;
+	top: 2px !important;
+	width: 1.5px !important;
+}
+
+/* "Responder": the one filled-accent (primary) button on screen.
+   Shared control geometry: every header control (chip, delay, primary, exit)
+   is a 36px pill with 12px text so the row reads as one homogeneous toolbar. */
+.mvp-live-mobile-btn {
+	background: #f0a020 !important;
+	border: 1px solid transparent !important;
+	border-radius: 999px !important;
+	box-shadow: none !important;
+	color: #221604 !important;
+	cursor: pointer !important;
+	font-size: 12px !important;
+	font-weight: 800 !important;
+	gap: 6px !important;
+	justify-content: center !important;
+	min-height: 36px !important;
+	padding: 0 14px !important;
+	transition: background 120ms ease, box-shadow 120ms ease, color 120ms ease !important;
+}
+
+.mvp-live-mobile-btn:active {
+	background: #d98e12 !important;
+}
+
+/* Editor open → "Cerrar": the house premium-pill active treatment (DESIGN.md §5) */
+.mvp-live-mobile-btn.is-active {
+	background: linear-gradient(180deg, rgba(240, 160, 32, 0.22), rgba(240, 160, 32, 0.07)) !important;
+	border-color: rgba(240, 160, 32, 0.25) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.12),
+		inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+		0 2px 6px rgba(0, 0, 0, 0.35) !important;
+	color: #f0a020 !important;
+}
+
+.mvp-live-mobile-btn.is-active:active {
+	background: linear-gradient(180deg, rgba(240, 160, 32, 0.3), rgba(240, 160, 32, 0.12)) !important;
+}
+
+/* "Salir": neutral secondary pill (visible button shape, no accent) */
+.mvp-live-mobile-btn.is-ghost {
+	background: #2e3543 !important;
+	border-color: transparent !important;
+	box-shadow: none !important;
+	color: #eef1f6 !important;
+	font-weight: 700 !important;
+	padding: 0 12px !important;
+}
+
+.mvp-live-mobile-btn.is-ghost:active {
+	background: #3a4254 !important;
+	color: #eef1f6 !important;
+}
+
+/* Delay/interval picker inside the mobile Live header (replaces the old dead chip) */
+.mvp-live-mobile-header .mvp-live-delay {
+	justify-self: start !important;
+}
+
+/* Delay trigger: idle chip; selected delay gets the premium pill */
+.mvp-live-mobile-header .mvp-live-delay-trigger {
+	min-height: 36px !important;
+	padding: 0 12px !important;
+	background: #14171d !important;
+	border: 1px solid rgba(255, 255, 255, 0.04) !important;
+	border-radius: 999px !important;
+	color: #9aa5b4 !important;
+	font-size: 12px !important;
+	font-weight: 700 !important;
+}
+
+.mvp-live-mobile-header .mvp-live-delay-trigger.active {
+	background: linear-gradient(180deg, rgba(240, 160, 32, 0.22), rgba(240, 160, 32, 0.07)) !important;
+	border-color: rgba(240, 160, 32, 0.25) !important;
+	box-shadow:
+		inset 0 1px 0 rgba(255, 255, 255, 0.12),
+		inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+		0 2px 6px rgba(0, 0, 0, 0.35) !important;
+	color: #f0a020 !important;
+}
+
+/* Dropdown: flat grouped surface (DESIGN.md group recipe) */
+.mvp-live-mobile-header .mvp-live-delay-menu {
+	z-index: 30 !important;
+	background: #242a36 !important;
+	border: 1px solid #2d3442 !important;
+	border-radius: 16px !important;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45) !important;
+	overflow: hidden !important;
+}
+
+.mvp-live-mobile-header .mvp-live-delay-title {
+	color: #8b95a3 !important;
+}
+
+.mvp-live-mobile-header .mvp-live-delay-option {
+	color: #eef1f6 !important;
+}
+
+.mvp-live-mobile-header .mvp-live-delay-option:active,
+.mvp-live-mobile-header .mvp-live-delay-option.active {
+	background: rgba(240, 160, 32, 0.16) !important;
+	color: #f0a020 !important;
+}
+
+.mvp-live-mobile-header .mvp-live-delay-check {
+	color: #f0a020 !important;
+}
+
+.mvp-live-mobile-header .mvp-live-delay-queue-note {
+	color: #8b95a3 !important;
+}
+
+/* Pause glyph tile: darker inset so it reads inside the neutral pill */
+.mvp-live-mobile-btn.is-ghost span {
+	align-items: center !important;
+	background: #14171d !important;
+	border-radius: 4px !important;
+	color: #9aa5b4 !important;
+	display: inline-flex !important;
+	font-size: 9px !important;
+	font-weight: 900 !important;
+	height: 16px !important;
+	justify-content: center !important;
+	width: 16px !important;
+}
+
+.mvp-live-mobile-btn.is-ghost:active span {
+	color: #eef1f6 !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite.visible {
+	grid-template-rows: 1fr !important;
+	margin-bottom: 0 !important;
+	opacity: 1 !important;
+	pointer-events: auto !important;
+}
+
+/* Fully open (animation finished): no clipping, exactly like before the
+   animation existed, so emoji/delay menus can overflow the editor box. */
+#mvp-live-editor-wrapper.mvp-live-mobile-lite.visible.mvp-settled,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite.visible.mvp-settled > div {
+	overflow: visible !important;
+}
+
+/* Keep taps landing on the real textarea: stop Mediavida's native placeholder/
+   overlay from swallowing the first touch (the "can't type" bug). */
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .text-wrap {
+	position: relative !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .text-wrap > span,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-placeholder,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .placeholder {
+	pointer-events: none !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor {
+	border: 0 !important;
+	box-sizing: border-box !important;
+	display: block !important;
+	margin: 0 !important;
+	overflow: visible !important;
+	padding: 0 !important;
+	pointer-events: auto !important;
+	width: 100% !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .control,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-meta,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .text-wrap,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-body,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor #postform {
+	height: auto !important;
+	max-height: none !important;
+	opacity: 1 !important;
+	overflow: visible !important;
+	pointer-events: auto !important;
+	position: static !important;
+	visibility: visible !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-controls,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-controls button,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-controls .ddi {
+	position: static !important;
+	top: auto !important;
+	z-index: auto !important;
+}
+
+/* Toolbar moved out of #post-editor to sit ABOVE our textarea (cohesive editor box). */
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls {
+	position: static !important;
+	display: flex !important;
+	flex-wrap: nowrap !important;
+	align-items: center !important;
+	gap: 2px !important;
+	margin: 0 !important;
+	padding: 4px 8px !important;
+	min-height: 38px !important;
+	background: #232830 !important;
+	border: 1px solid #3c424d !important;
+	border-bottom: none !important;
+	border-radius: 0 !important;
+	overflow-x: auto !important;
+	overflow-y: hidden !important;
+}
+
+/* Toolbar buttons: make the icons visible (light) on the dark bar. */
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls button,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls .ddi {
+	flex: 0 0 auto !important;
+	min-width: 30px !important;
+	height: 30px !important;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	background: transparent !important;
+	border: none !important;
+	border-radius: 5px !important;
+	color: #c9d1da !important;
+	cursor: pointer !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls button i,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls button .fa,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls .ddi i,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls svg {
+	color: #c9d1da !important;
+	fill: currentColor !important;
+	font-size: 15px !important;
+	opacity: 1 !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls button:active,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls button:active i,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls button:active .fa {
+	color: #f0a020 !important;
+	background: rgba(255, 255, 255, 0.08) !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite > div > .editor-controls .spacer {
+	flex: 0 0 auto !important;
+	width: 1px !important;
+	height: 16px !important;
+	background: #3c424d !important;
+	margin: 0 5px !important;
+}
+
+/* Kill the leftover gray gap below the textarea: hide MV's minimize bar and
+   collapse the now-empty editor body / control / form. */
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-reply,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-close,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .minimize {
+	display: none !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .control,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-body,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor #postform {
+	background: transparent !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	min-height: 0 !important;
+}
+
+/* Our own live-reply textarea (replaces Mediavida's native one, which won't take
+   the Android keyboard once relocated). Static positioning + 16px font like the
+   plain textarea that worked in testing. */
+#mvp-live-editor-wrapper.mvp-live-mobile-lite .mvp-live-own-textarea {
+	box-sizing: border-box !important;
+	display: block !important;
+	width: 100% !important;
+	min-height: 120px !important;
+	margin: 0 !important;
+	padding: 12px !important;
+	outline: none !important;
+	position: static !important;
+	resize: vertical !important;
+	font-family: inherit !important;
+	font-size: 16px !important;
+	line-height: 1.45 !important;
+	background: #1b1f25 !important;
+	color: #e7eaee !important;
+	border: 1px solid #3c424d !important;
+	border-top: none !important;
+	border-bottom: none !important;
+	-webkit-user-select: text !important;
+	user-select: text !important;
+	touch-action: auto !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite .mvp-live-own-textarea::placeholder {
+	color: #8b95a3 !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-meta {
+	box-sizing: border-box !important;
+	clear: both !important;
+	display: flow-root !important;
+	min-height: 56px !important;
+	width: 100% !important;
+	padding: 8px !important;
+	background: #232830 !important;
+	border: 1px solid #3c424d !important;
+	border-top: none !important;
+	border-radius: 0 !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-meta > * {
+	visibility: visible !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .mvp-live-footer,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor [id^='mvp-toolbar-state-'],
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .mvp-toolbar-btn,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .mvp-char-counter,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .mvp-draft-host {
+	display: none !important;
+}
+
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor #cuerpo,
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor textarea[name='cuerpo'],
+#mvp-live-editor-wrapper.mvp-live-mobile-lite #post-editor .editor-body textarea {
+	box-sizing: border-box !important;
+	display: block !important;
+	width: 100% !important;
+	min-height: 132px !important;
+	height: auto !important;
+	max-height: none !important;
+	overflow-y: auto !important;
+	pointer-events: auto !important;
+	position: relative !important;
+	z-index: 2 !important;
+	touch-action: auto !important;
+	user-select: text !important;
+	visibility: visible !important;
+	-webkit-user-select: text !important;
 }

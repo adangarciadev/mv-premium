@@ -167,6 +167,7 @@ export const DOM_MARKERS = {
 		LIVE_HEADER_UI: 'mvp-live-header-ui',
 		LIVE_EDITOR_WRAPPER: 'mvp-live-editor-wrapper',
 		LIVE_BUTTON_CONTAINER: 'mvp-live-button-container',
+		LIVE_BOTTOM_REPLY: 'mvp-live-bottom-reply',
 		INFINITE_SCROLL_BUTTON_CONTAINER: 'mvp-infinite-scroll-button-container',
 		// Media Hover
 		MEDIA_HOVER_CARD_CONTAINER: 'mvp-media-hover-card-container',

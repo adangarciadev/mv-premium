@@ -11,6 +11,7 @@ import Shield from 'lucide-react/dist/esm/icons/shield'
 import Rocket from 'lucide-react/dist/esm/icons/rocket'
 import Cog from 'lucide-react/dist/esm/icons/cog'
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase'
+import AtSign from 'lucide-react/dist/esm/icons/at-sign'
 import CircleUserRound from 'lucide-react/dist/esm/icons/circle-user-round'
 import Image from 'lucide-react/dist/esm/icons/image'
 import Play from 'lucide-react/dist/esm/icons/play'
@@ -197,6 +198,17 @@ export function ContentTabContent({ settingFilter }: { settingFilter?: SettingsC
 						<Switch
 							checked={workModeOptions.hideAvatars}
 							onCheckedChange={checked => updateWorkModeOption('hideAvatars', checked)}
+						/>
+					</div>
+
+					<div className="flex items-center justify-between py-1.5">
+						<div className="flex items-center gap-2">
+							<AtSign className="h-3.5 w-3.5 text-muted-foreground" />
+							<span className="text-sm">Tu nick en la cabecera (hover para mostrarlo)</span>
+						</div>
+						<Switch
+							checked={workModeOptions.hideUsername !== false}
+							onCheckedChange={checked => updateWorkModeOption('hideUsername', checked)}
 						/>
 					</div>
 

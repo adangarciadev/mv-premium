@@ -31,22 +31,36 @@ import { setupIgdbHandlers } from './igdb-handlers'
 import { setupItadHandlers } from './itad-handlers'
 import { highlightCode } from './prism-highlighter'
 import { setupTwitterLiteNetworkGuard } from './twitter-lite-network-guard'
-import { clearCache } from '@/services/media/cache'
+
+/**
+ * Every API cache prefix is memory-only now, so any persisted entry under
+ * these prefixes is stale garbage from older versions. The worst offender was
+ * IGDB upcoming-releases (~500KB per time-window key), which could exhaust
+ * Firefox's 5MB storage quota on its own.
+ */
+const LEGACY_API_CACHE_KEY_PREFIXES = [
+	'mv-cache:',
+	'mv-resolver:',
+	'mv-tmdb-v2:',
+	'mv-igdb-v1:',
+	'mv-anilist-v1:',
+	'mv-anilist-image-v1:',
+	// Steam cache used the format "steam-game-{id}" directly, without prefix:key
+	'steam-game-',
+]
 
 /**
  * Clean up legacy API cache entries that should not persist to storage.
- * APIs like TMDB, IMDB, Steam now use memory-only cache.
+ * Single snapshot pass over all known cache prefixes.
  */
 async function cleanupLegacyApiCache(): Promise<void> {
-	// Clean caches that use the format "prefix:key"
-	await Promise.all([clearCache({ prefix: 'mv-resolver' }), clearCache({ prefix: 'mv-tmdb-v2' })])
-
-	// Clean Steam cache which uses format "steam-game-{id}" directly
 	try {
 		const snapshot = await storage.snapshot('local')
-		const steamKeys = Object.keys(snapshot).filter(key => key.startsWith('steam-game-'))
-		if (steamKeys.length > 0) {
-			await Promise.all(steamKeys.map(k => storage.removeItem(`local:${k}` as `local:${string}`)))
+		const staleKeys = Object.keys(snapshot).filter(key =>
+			LEGACY_API_CACHE_KEY_PREFIXES.some(prefix => key.startsWith(prefix))
+		)
+		if (staleKeys.length > 0) {
+			await Promise.all(staleKeys.map(k => storage.removeItem(`local:${k}` as `local:${string}`)))
 		}
 	} catch {
 		// Ignore errors

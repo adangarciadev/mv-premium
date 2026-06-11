@@ -3,6 +3,7 @@ import path from 'path'
 
 const FIREFOX_ANDROID_MIN_VERSION = '120.0'
 const ENABLE_FIREFOX_ANDROID = process.env.MVP_ENABLE_FIREFOX_ANDROID === 'true'
+const EXTENSION_DISPLAY_NAME = 'MV Premium'
 
 function getBrowserSpecificSettings() {
 	const geckoSettings = {
@@ -30,6 +31,22 @@ function getBrowserSpecificSettings() {
 export default defineConfig({
 	modules: ['@wxt-dev/module-react'],
 	imports: false, // Disable auto-imports to avoid duplicated imports warnings
+	hooks: {
+		'build:manifestGenerated': (_, manifest) => {
+			if (manifest.action) {
+				manifest.action.default_title = EXTENSION_DISPLAY_NAME
+			}
+
+			if (manifest.browser_action) {
+				manifest.browser_action.default_title = EXTENSION_DISPLAY_NAME
+			}
+
+			if (!ENABLE_FIREFOX_ANDROID) return
+
+			delete manifest.options_page
+			delete manifest.options_ui
+		},
+	},
 
 	manifest: {
 		permissions: ['storage', 'activeTab', 'contextMenus', 'scripting', 'declarativeNetRequest'],
