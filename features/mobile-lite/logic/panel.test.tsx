@@ -41,6 +41,7 @@ const mocks = vi.hoisted(() => ({
 	setSetting: vi.fn(),
 	applyMobileLiteHiddenThreads: vi.fn(),
 	syncMobileLiteLiveThreadButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
+	syncMobileLiteGalleryButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	sendMessage: vi.fn<() => Promise<MvUserAvatarResult>>(() => Promise.resolve({ success: false })),
 	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
@@ -100,6 +101,10 @@ vi.mock('../logic/hidden-threads', () => ({
 vi.mock('../logic/imgbb-api-key-storage', () => ({
 	getMobileLiteImgbbApiKey: mocks.getMobileLiteImgbbApiKey,
 	saveMobileLiteImgbbApiKey: mocks.saveMobileLiteImgbbApiKey,
+}))
+
+vi.mock('../logic/gallery', () => ({
+	syncMobileLiteGalleryButton: mocks.syncMobileLiteGalleryButton,
 }))
 
 vi.mock('../logic/live-thread', () => ({
@@ -173,6 +178,7 @@ describe('Mobile Lite panel injection', () => {
 		mocks.setSetting.mockReset()
 		mocks.applyMobileLiteHiddenThreads.mockReset()
 		mocks.syncMobileLiteLiveThreadButton.mockResolvedValue(undefined)
+		mocks.syncMobileLiteGalleryButton.mockResolvedValue(undefined)
 		mocks.sendMessage.mockResolvedValue({ success: false })
 		document.body.innerHTML = `
 			<ul id="usermenu">
@@ -886,6 +892,21 @@ describe('Mobile Lite panel injection', () => {
 		})
 		expect(mocks.syncMobileLiteLiveThreadButton).toHaveBeenCalledWith(true)
 		expect(await screen.findByText('Modo Live activado.')).toBeInTheDocument()
+	})
+
+	it('toggles the Mobile Lite gallery button from settings', async () => {
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+		await user.click(await screen.findByRole('switch', { name: 'Botón galería' }))
+
+		await waitFor(() => {
+			expect(mocks.setSetting).toHaveBeenCalledWith('galleryButtonEnabled', false)
+		})
+		expect(mocks.syncMobileLiteGalleryButton).toHaveBeenCalledWith(false)
+		expect(await screen.findByText('Botón de galería desactivado.')).toBeInTheDocument()
 	})
 
 	it('toggles the Mobile Lite hide-thread button from settings', async () => {

@@ -111,7 +111,7 @@ For native light-DOM `.btn` elements injected outside the panel (Live, Galería)
 `features/mobile-lite/logic/panel.test.tsx` asserts accessible names. When restyling, **never change**:
 
 - Roles: `tab` (Usuarios / Hilos / Ajustes), `switch`, `alertdialog`, `status`, `alert`.
-- `aria-label`s: `Cerrar`, `Silenciar`/`Silenciado`, `Ocultar`/`Ocultado`, `Quitar`, `Mostrar`, `Mostrar todos`, `Hilos`, `Color personalizado`, `Modo Live`, `Botón ocultar hilos`, `Editar color de negrita`, `Guardar color de negrita`, `Guardar API key de ImgBB`.
+- `aria-label`s: `Cerrar`, `Silenciar`/`Silenciado`, `Ocultar`/`Ocultado`, `Quitar`, `Mostrar`, `Mostrar todos`, `Hilos`, `Color personalizado`, `Modo Live`, `Botón galería`, `Botón ocultar hilos`, `Editar color de negrita`, `Guardar color de negrita`, `Guardar API key de ImgBB`.
 - Filter chip accessible names follow `<label> (<count>)`.
 - Badges and decorative icons stay `aria-hidden="true"`.
 

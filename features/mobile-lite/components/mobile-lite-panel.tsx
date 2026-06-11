@@ -5,6 +5,7 @@ import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
 import CircleAlert from 'lucide-react/dist/esm/icons/circle-alert'
 import CircleCheck from 'lucide-react/dist/esm/icons/circle-check'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
+import Images from 'lucide-react/dist/esm/icons/images'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
 import Radio from 'lucide-react/dist/esm/icons/radio'
@@ -50,6 +51,7 @@ import {
 } from '../logic/bold-color'
 import { applyMobileLiteHiddenThreads } from '../logic/hidden-threads'
 import { getMobileLiteImgbbApiKey, saveMobileLiteImgbbApiKey } from '../logic/imgbb-api-key-storage'
+import { syncMobileLiteGalleryButton } from '../logic/gallery'
 import { syncMobileLiteLiveThreadButton } from '../logic/live-thread'
 
 export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
@@ -250,6 +252,7 @@ export function MobileLitePanel() {
 	const [boldColorEnabled, setBoldColorEnabled] = useState(false)
 	const [boldColorExpanded, setBoldColorExpanded] = useState(false)
 	const [liveThreadEnabled, setLiveThreadEnabled] = useState(false)
+	const [galleryButtonEnabled, setGalleryButtonEnabled] = useState(true)
 	const [hideThreadButtonEnabled, setHideThreadButtonEnabled] = useState(true)
 	const [hiddenThreads, setHiddenThreads] = useState<HiddenThread[]>([])
 	const [hiddenThreadQuery, setHiddenThreadQuery] = useState('')
@@ -265,7 +268,9 @@ export function MobileLitePanel() {
 	const [savingBoldColor, setSavingBoldColor] = useState(false)
 	const [boldColorStatusMessage, setBoldColorStatusMessage] = useState<string | null>(null)
 	const [boldColorErrorMessage, setBoldColorErrorMessage] = useState<string | null>(null)
-	const [savingMobileLiteSetting, setSavingMobileLiteSetting] = useState<'liveThreadEnabled' | 'hideThreadEnabled' | null>(null)
+	const [savingMobileLiteSetting, setSavingMobileLiteSetting] = useState<
+		'liveThreadEnabled' | 'galleryButtonEnabled' | 'hideThreadEnabled' | null
+	>(null)
 	const [mobileLiteSettingsStatusMessage, setMobileLiteSettingsStatusMessage] = useState<string | null>(null)
 	const [mobileLiteSettingsErrorMessage, setMobileLiteSettingsErrorMessage] = useState<string | null>(null)
 	const avatarHydrationInFlight = useRef<Set<string>>(new Set())
@@ -356,6 +361,7 @@ export function MobileLitePanel() {
 			.then(settings => {
 				if (!mounted) return
 				setLiveThreadEnabled(settings.liveThreadEnabled === true)
+				setGalleryButtonEnabled(settings.galleryButtonEnabled !== false)
 				setHideThreadButtonEnabled(settings.hideThreadEnabled !== false)
 				setMobileLiteSettingsStatusMessage(null)
 				setMobileLiteSettingsErrorMessage(null)
@@ -728,6 +734,24 @@ export function MobileLitePanel() {
 		} catch {
 			setLiveThreadEnabled(!nextEnabled)
 			setMobileLiteSettingsErrorMessage('No se pudo cambiar el Modo Live.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
+
+	const toggleGalleryButtonSetting = async () => {
+		const nextEnabled = !galleryButtonEnabled
+		setSavingMobileLiteSetting('galleryButtonEnabled')
+		setMobileLiteSettingsErrorMessage(null)
+		setMobileLiteSettingsStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('galleryButtonEnabled', nextEnabled)
+			setGalleryButtonEnabled(nextEnabled)
+			await syncMobileLiteGalleryButton(nextEnabled)
+			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Botón de galería activado.' : 'Botón de galería desactivado.')
+		} catch {
+			setGalleryButtonEnabled(!nextEnabled)
+			setMobileLiteSettingsErrorMessage('No se pudo cambiar el botón de galería.')
 		} finally {
 			setSavingMobileLiteSetting(null)
 		}
@@ -1321,6 +1345,33 @@ export function MobileLitePanel() {
 									>
 										<span className={`${SWITCH_TRACK_BASE_CLASS} ${liveThreadEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
 											<span className={`${SWITCH_THUMB_BASE_CLASS} ${liveThreadEnabled ? 'translate-x-5' : ''}`} />
+										</span>
+									</button>
+								</div>
+
+								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
+									<div className="flex min-w-0 items-center gap-3">
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+											<Images className="h-4 w-4" aria-hidden="true" />
+										</div>
+										<div className="min-w-0">
+											<div className="text-[15px] font-semibold text-[#eef1f6]">Botón galería</div>
+											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
+												{galleryButtonEnabled ? 'Muestra el botón Galería en los hilos' : 'No muestra el botón Galería'}
+											</div>
+										</div>
+									</div>
+									<button
+										type="button"
+										role="switch"
+										aria-label="Botón galería"
+										aria-checked={galleryButtonEnabled}
+										className={SWITCH_WRAPPER_CLASS}
+										disabled={savingMobileLiteSetting === 'galleryButtonEnabled'}
+										onClick={toggleGalleryButtonSetting}
+									>
+										<span className={`${SWITCH_TRACK_BASE_CLASS} ${galleryButtonEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+											<span className={`${SWITCH_THUMB_BASE_CLASS} ${galleryButtonEnabled ? 'translate-x-5' : ''}`} />
 										</span>
 									</button>
 								</div>
