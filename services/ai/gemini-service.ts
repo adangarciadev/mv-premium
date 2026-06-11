@@ -21,21 +21,20 @@ export function setLastModelUsed(model: string | null) {
 
 // --- GEMINI SERVICE ---
 class GeminiService implements AIService {
-	constructor(private apiKey: string, private model: string) {}
+	constructor(private model: string) {}
 
 	getName() {
 		return this.model
 	}
 
 	async isAvailable() {
-		return !!this.apiKey
+		return true
 	}
 
 	async chat(history: ChatMessage[]): Promise<ChatMessage[]> {
 		const sanitized = sanitizeHistory(history)
 
 		const result = await sendMessage('generateGemini', {
-			apiKey: this.apiKey,
 			model: this.model,
 			history: sanitized,
 		})
@@ -71,7 +70,7 @@ export async function getAIService(): Promise<AIService | null> {
 	const { geminiApiKey, aiModel = 'gemini-3-flash-preview' } = settings
 
 	if (geminiApiKey) {
-		return new GeminiService(geminiApiKey, aiModel)
+		return new GeminiService(aiModel)
 	}
 
 	return null
@@ -80,32 +79,8 @@ export async function getAIService(): Promise<AIService | null> {
 /**
  * Test Gemini API connection
  */
-export async function testGeminiConnection(
-	apiKey: string
-): Promise<{ success: boolean; message: string; availableModelIds?: string[] }> {
-	try {
-		const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`)
-
-		if (response.ok) {
-			const data = await response.json()
-			const models: { name: string }[] = data.models || []
-
-			const geminiIds = models
-				.map(m => m.name.replace(/^models\//, ''))
-				.filter(id => id.startsWith('gemini'))
-
-			return {
-				success: true,
-				message: `Conexion correcta. ${models.length} modelos disponibles (${geminiIds.length} Gemini).`,
-				availableModelIds: geminiIds,
-			}
-		}
-
-		const error = await response.json()
-		return { success: false, message: error.error?.message || 'Invalid API Key' }
-	} catch {
-		return { success: false, message: 'Error de conexion' }
-	}
+export async function testGeminiConnection(): Promise<{ success: boolean; message: string; availableModelIds?: string[] }> {
+	return sendMessage('testGeminiConnection', undefined)
 }
 
 /**

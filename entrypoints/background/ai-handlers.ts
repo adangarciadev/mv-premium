@@ -6,9 +6,15 @@
  * sends its own instructions as part of the user prompt for full control.
  */
 
+import { storage } from '#imports'
 import { onMessage } from '@/lib/messaging'
 import { logger } from '@/lib/logger'
+import { STORAGE_KEYS } from '@/constants/storage-keys'
 import type { GeminiAPIResponse, GeminiRequestBody, GeminiResponsePart } from '@/types'
+
+const settingsStorageItem = storage.defineItem<string | null>(`local:${STORAGE_KEYS.SETTINGS}`, {
+	defaultValue: null,
+})
 
 async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs: number): Promise<Response> {
 	const controller = new AbortController()
@@ -42,13 +48,61 @@ const GEMINI_MAX_TOTAL_RETRY_WINDOW_MS = 95_000
 // Gemini Handler
 // =============================================================================
 
+async function getConfiguredGeminiApiKey(): Promise<string> {
+	const rawSettings = await settingsStorageItem.getValue()
+	if (!rawSettings) return ''
+
+	try {
+		const parsed = JSON.parse(rawSettings)
+		const apiKey = parsed.state?.geminiApiKey
+		return typeof apiKey === 'string' && apiKey.trim().length > 0 ? apiKey : ''
+	} catch (error) {
+		logger.error('Failed to parse Gemini settings in background', error)
+		return ''
+	}
+}
+
+async function testGeminiConnection() {
+	const apiKey = await getConfiguredGeminiApiKey()
+	if (!apiKey) return { success: false, message: 'Configura una API key de Gemini.' }
+
+	try {
+		const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`)
+
+		if (response.ok) {
+			const data = await response.json()
+			const models: { name: string }[] = data.models || []
+
+			const geminiIds = models
+				.map(m => m.name.replace(/^models\//, ''))
+				.filter(id => id.startsWith('gemini'))
+
+			return {
+				success: true,
+				message: `Conexion correcta. ${models.length} modelos disponibles (${geminiIds.length} Gemini).`,
+				availableModelIds: geminiIds,
+			}
+		}
+
+		const error = await response.json()
+		return { success: false, message: error.error?.message || 'Invalid API Key' }
+	} catch {
+		return { success: false, message: 'Error de conexion' }
+	}
+}
+
 /**
  * Setup Gemini AI generation handler
- * API key comes in the message payload (BYOK - Bring Your Own Key)
+ * API key is read from background storage (BYOK - Bring Your Own Key)
  */
 export function setupGeminiHandler(): void {
 	onMessage('generateGemini', async ({ data }) => {
-		const { apiKey, model, prompt, history } = data
+		const { model, prompt, history } = data
+		const apiKey = await getConfiguredGeminiApiKey()
+
+		if (!apiKey) {
+			return { success: false, error: 'Configura una API key de Gemini antes de usar IA.' }
+		}
 
 		// Start with requested model, or use first fallback
 		const startModel = model || GEMINI_FALLBACK_MODELS[0]
@@ -176,6 +230,8 @@ export function setupGeminiHandler(): void {
 
 		return { success: false, error: 'Todos los modelos agotados' }
 	})
+
+	onMessage('testGeminiConnection', async () => testGeminiConnection())
 }
 
 // =============================================================================

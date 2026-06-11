@@ -49,6 +49,12 @@ export interface GeminiResult {
 	modelUsed?: string
 }
 
+export interface GeminiConnectionResult {
+	success: boolean
+	message: string
+	availableModelIds?: string[]
+}
+
 export interface TweetLiteData {
 	username: string
 	displayName: string
@@ -227,11 +233,16 @@ interface ProtocolMap {
 	 * Supports full chat history with model fallback on rate limits
 	 */
 	generateGemini: (data: {
-		apiKey: string
 		model: string
 		history?: ChatMessage[]
 		prompt?: string
 	}) => GeminiResult
+
+	/**
+	 * Test Gemini API connectivity via background script.
+	 * Background reads the configured API key from extension storage.
+	 */
+	testGeminiConnection: () => GeminiConnectionResult
 
 	/**
 	 * Syntax highlight code using PrismJS in background script

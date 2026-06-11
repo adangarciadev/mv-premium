@@ -41,7 +41,7 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 		if (!geminiApiKey) return
 		setTestingGemini(true)
 		try {
-			const result = await testGeminiConnection(geminiApiKey)
+			const result = await testGeminiConnection()
 
 			if (result.success) {
 				toast.success('Conexión exitosa', { description: result.message })
