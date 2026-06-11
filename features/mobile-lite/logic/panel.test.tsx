@@ -509,6 +509,94 @@ describe('Mobile Lite panel injection', () => {
 		})
 	})
 
+	it('does not resolve the avatar again when toggling between mute and hide', async () => {
+		const user = userEvent.setup()
+		const initialData = createCustomizationData({
+			ToggleUser: {
+				isIgnored: true,
+				ignoreType: 'mute',
+				avatarUrl: 'https://www.mediavida.com/img/users/avatar/toggle-user.png',
+			},
+		})
+		mocks.getUserCustomizations.mockImplementation(() => Promise.resolve(cloneCustomizationData(initialData)))
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await user.click(await screen.findByRole('button', { name: 'Ocultar' }))
+
+		await waitFor(() => {
+			expect(mocks.saveUserCustomizations).toHaveBeenCalled()
+		})
+		expect(mocks.sendMessage).not.toHaveBeenCalled()
+		const savedData = mocks.saveUserCustomizations.mock.calls[mocks.saveUserCustomizations.mock.calls.length - 1][0]
+		expect(savedData.users.ToggleUser).toMatchObject({
+			isIgnored: true,
+			ignoreType: 'hide',
+			avatarUrl: 'https://www.mediavida.com/img/users/avatar/toggle-user.png',
+		})
+	})
+
+	it('updates the row state optimistically while the toggle is saving', async () => {
+		const user = userEvent.setup()
+		const initialData = createCustomizationData({
+			ToggleUser: {
+				isIgnored: true,
+				ignoreType: 'mute',
+				avatarUrl: 'https://www.mediavida.com/img/users/avatar/toggle-user.png',
+			},
+		})
+		mocks.getUserCustomizations.mockImplementation(() => Promise.resolve(cloneCustomizationData(initialData)))
+		let resolveSave: () => void = () => {}
+		mocks.saveUserCustomizations.mockImplementationOnce(
+			() =>
+				new Promise<void>(resolve => {
+					resolveSave = resolve
+				})
+		)
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await user.click(await screen.findByRole('button', { name: 'Ocultar' }))
+
+		const hideButton = screen.getByRole('button', { name: 'Ocultado' })
+		expect(hideButton).toHaveAttribute('aria-pressed', 'true')
+		expect(hideButton).toBeDisabled()
+
+		await act(async () => {
+			resolveSave()
+		})
+
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: 'Ocultado' })).toBeEnabled()
+		})
+	})
+
+	it('rolls back the toggle when saving fails', async () => {
+		const user = userEvent.setup()
+		const initialData = createCustomizationData({
+			ToggleUser: {
+				isIgnored: true,
+				ignoreType: 'mute',
+				avatarUrl: 'https://www.mediavida.com/img/users/avatar/toggle-user.png',
+			},
+		})
+		mocks.getUserCustomizations.mockImplementation(() => Promise.resolve(cloneCustomizationData(initialData)))
+		mocks.saveUserCustomizations.mockRejectedValueOnce(new Error('storage failed'))
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		await user.click(await screen.findByRole('button', { name: 'Ocultar' }))
+
+		await waitFor(() => {
+			expect(screen.getByRole('alert')).toHaveTextContent('No se pudo guardar el filtro. Inténtalo de nuevo.')
+		})
+		expect(screen.getByRole('button', { name: 'Silenciado' })).toHaveAttribute('aria-pressed', 'true')
+		expect(screen.queryByRole('button', { name: 'Ocultado' })).not.toBeInTheDocument()
+	})
+
 	it('hydrates missing avatars for already filtered users when the panel opens', async () => {
 		const importedData = createCustomizationData({
 			ImportedUser: { isIgnored: true, ignoreType: 'hide' },

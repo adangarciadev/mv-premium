@@ -220,7 +220,8 @@ async function resolveUserAvatar(username: string): Promise<string | undefined> 
 async function updateUserIgnore(username: string, ignoreType: MobileLiteIgnoreType | null): Promise<UserCustomizationsData> {
 	const data = await getUserCustomizations()
 	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
-	const avatarUrl = ignoreType ? await resolveUserAvatar(storageKey) : undefined
+	const storedAvatarUrl = sanitizeAvatarUrl(data.users[storageKey]?.avatarUrl)
+	const avatarUrl = ignoreType && !storedAvatarUrl ? await resolveUserAvatar(storageKey) : undefined
 	if (avatarUrl) {
 		data.users[storageKey] = { ...data.users[storageKey], avatarUrl }
 	}
@@ -589,14 +590,23 @@ export function MobileLitePanel() {
 		const normalizedUsername = normalizeUsername(username)
 		if (!normalizedUsername) return false
 
+		const previousData = data
+		const optimisticData: UserCustomizationsData = {
+			...data,
+			users: { ...data.users },
+		}
+		setUserIgnoreInData(optimisticData, normalizedUsername, ignoreType)
+
 		setSavingUser(normalizedUsername)
 		setErrorMessage(null)
 		setStatusMessage(null)
+		setData(optimisticData)
 		try {
 			const nextData = await updateUserIgnore(normalizedUsername, ignoreType)
 			setData(nextData)
 			return true
 		} catch {
+			setData(previousData)
 			setErrorMessage('No se pudo guardar el filtro. Inténtalo de nuevo.')
 			return false
 		} finally {
