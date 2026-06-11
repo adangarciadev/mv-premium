@@ -225,6 +225,25 @@ describe('Mobile Lite ignored users', () => {
 		expect(document.querySelector('[data-mvp-mobile-lite-user-actions-menu="true"]')).toBeNull()
 	})
 
+	it('cancels delayed native user-card action injection on teardown', () => {
+		vi.useFakeTimers()
+		renderThread()
+
+		initMobileLiteIgnoredUsers()
+		applyMobileLiteIgnoredUsers(userCustomizations({}))
+
+		document
+			.querySelector<HTMLAnchorElement>('#post-2 a.autor')
+			?.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+		teardownMobileLiteIgnoredUsers()
+		renderNativeUserCard('HiddenUser')
+
+		vi.runOnlyPendingTimers()
+
+		expect(document.querySelector('[data-mvp-mobile-lite-user-card-actions="true"]')).toBeNull()
+		vi.useRealTimers()
+	})
+
 	it('injects manual actions into the native Mediavida user card', () => {
 		renderThread()
 		renderNativeUserCard()

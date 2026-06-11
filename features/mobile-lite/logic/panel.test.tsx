@@ -52,6 +52,7 @@ const mocks = vi.hoisted(() => ({
 	}),
 	isFeatureMounted: vi.fn(() => false),
 	mountFeatureWithBoundary: vi.fn(),
+	unmountFeature: vi.fn(),
 }))
 
 vi.mock('@/lib/platform', () => ({
@@ -69,6 +70,7 @@ vi.mock('@/lib/content-modules/utils/react-helpers', () => ({
 	createContainer: mocks.createContainer,
 	isFeatureMounted: mocks.isFeatureMounted,
 	mountFeatureWithBoundary: mocks.mountFeatureWithBoundary,
+	unmountFeature: mocks.unmountFeature,
 }))
 
 vi.mock('@/features/user-customizations/storage', () => ({
@@ -204,6 +206,39 @@ describe('Mobile Lite panel injection', () => {
 			expect(links).toEqual(['Notificaciones', 'Nuevo hilo', 'Panel MVPremium', 'Configuración', 'Salir'])
 		})
 		expect(mocks.mountFeatureWithBoundary).toHaveBeenCalledOnce()
+	})
+
+	it('unmounts the panel root and removes injected menu entries on teardown', async () => {
+		initMobileLitePanel()
+
+		await waitFor(() => {
+			expect(document.getElementById('mvp-mobile-lite-panel-root')).not.toBeNull()
+			expect(document.querySelector('[data-mvp-mobile-lite-panel-menu-item]')).not.toBeNull()
+		})
+
+		teardownMobileLitePanel()
+
+		expect(mocks.unmountFeature).toHaveBeenCalledWith('mobile-lite-panel')
+		expect(document.getElementById('mvp-mobile-lite-panel-root')).toBeNull()
+		expect(document.querySelector('[data-mvp-mobile-lite-panel-menu-item]')).toBeNull()
+		expect(document.querySelector('[data-mvp-mobile-lite-new-thread-menu-item]')).toBeNull()
+	})
+
+	it('cancels delayed menu injection checks on teardown', async () => {
+		vi.useFakeTimers()
+		initMobileLitePanel()
+
+		expect(document.querySelector('[data-mvp-mobile-lite-panel-menu-item]')).not.toBeNull()
+
+		document.querySelector<HTMLElement>('#usermenu')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+		teardownMobileLitePanel()
+		document.querySelectorAll('[data-mvp-mobile-lite-panel-menu-item], [data-mvp-mobile-lite-new-thread-menu-item]').forEach(item => item.remove())
+
+		vi.runOnlyPendingTimers()
+
+		expect(document.querySelector('[data-mvp-mobile-lite-panel-menu-item]')).toBeNull()
+		expect(document.querySelector('[data-mvp-mobile-lite-new-thread-menu-item]')).toBeNull()
+		vi.useRealTimers()
 	})
 
 	it('adds the new thread and Panel MVPremium entries to Mediavida mobile side user menu', async () => {

@@ -46,6 +46,7 @@ let currentData: UserCustomizationsData | null = null
 let unwatchUserCustomizations: (() => void) | null = null
 let contentObserver: MutationObserver | null = null
 let applyTimeout: ReturnType<typeof setTimeout> | null = null
+let userCardInjectionTimeouts: number[] = []
 let documentUserCardClickListenerAttached = false
 let mutePlaceholderGuardAttached = false
 let syncEventListenerAttached = false
@@ -342,11 +343,18 @@ function ensureMutePlaceholderGuard(): void {
 
 function scheduleMobileLiteUserCardInjection(data: UserCustomizationsData): void {
 	for (const delay of USER_CARD_INJECTION_DELAYS_MS) {
-		window.setTimeout(() => {
-			if (!isMobileLiteIgnoredUsersAllowed()) return
+		const timeoutId = window.setTimeout(() => {
+			userCardInjectionTimeouts = userCardInjectionTimeouts.filter(id => id !== timeoutId)
+			if (!initialized || !isMobileLiteIgnoredUsersAllowed()) return
 			injectVisibleMobileLiteUserCards(data)
 		}, delay)
+		userCardInjectionTimeouts.push(timeoutId)
 	}
+}
+
+function clearUserCardInjectionTimeouts(): void {
+	userCardInjectionTimeouts.forEach(timeoutId => window.clearTimeout(timeoutId))
+	userCardInjectionTimeouts = []
 }
 
 function handleDocumentUserCardClick(event: MouseEvent): void {
@@ -609,6 +617,7 @@ export function teardownMobileLiteIgnoredUsers(): void {
 		clearTimeout(applyTimeout)
 		applyTimeout = null
 	}
+	clearUserCardInjectionTimeouts()
 
 	contentObserver?.disconnect()
 	contentObserver = null
