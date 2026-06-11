@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 	getPlatformKind: vi.fn(() => 'firefox-android'),
 	isFeatureEnabled: vi.fn(() => true),
 	getUserCustomizations: vi.fn(),
+	loggerError: vi.fn(),
 	saveUserCustomizations: vi.fn(),
 	watchUserCustomizations: vi.fn<WatchUserCustomizations>(() => vi.fn()),
 }))
@@ -27,6 +28,12 @@ vi.mock('@/lib/feature-flags', () => ({
 		MobileLite: 'mobile-lite',
 	},
 	isFeatureEnabled: mocks.isFeatureEnabled,
+}))
+
+vi.mock('@/lib/logger', () => ({
+	logger: {
+		error: mocks.loggerError,
+	},
 }))
 
 vi.mock('@/features/user-customizations/storage', async importOriginal => {
@@ -401,6 +408,46 @@ describe('Mobile Lite ignored users', () => {
 		await setMobileLiteUserIgnore('Trolencio', null)
 		toast = document.getElementById('mvp-mobile-lite-action-toast')
 		expect(toast?.textContent).toContain('Trolencio vuelve a ser visible')
+	})
+
+	it('rolls back optimistic ignored state when saving a manual ignore fails', async () => {
+		renderThread()
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+		mocks.saveUserCustomizations.mockRejectedValueOnce(new Error('storage failed'))
+
+		await expect(setMobileLiteUserIgnore('MutedUser', 'mute')).rejects.toThrow('storage failed')
+
+		const mutedPost = document.querySelector<HTMLElement>('.rep[data-num="3"]')
+		const toast = document.getElementById('mvp-mobile-lite-action-toast')
+		expect(mutedPost).not.toHaveClass('mvp-muted-user')
+		expect(mutedPost?.querySelector('.mvp-mute-placeholder')).toBeNull()
+		expect(toast?.textContent).toContain('No se pudo guardar el filtro. Inténtalo de nuevo.')
+		expect(toast?.textContent).not.toContain('MutedUser ha sido silenciado')
+		expect(mocks.loggerError).toHaveBeenCalledWith('Error saving Mobile Lite ignore:', expect.any(Error))
+	})
+
+	it('keeps user-card clicks handled when saving a manual ignore fails', async () => {
+		renderThread()
+		renderNativeUserCard('HiddenUser')
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+		mocks.saveUserCustomizations.mockRejectedValueOnce(new Error('storage failed'))
+
+		applyMobileLiteIgnoredUsers(userCustomizations({}))
+		const muteButton = Array.from(
+			document.querySelectorAll<HTMLButtonElement>('[data-mvp-mobile-lite-user-card-actions="true"] button')
+		).find(button => button.textContent?.includes('Silenciar'))
+		expect(muteButton).not.toBeNull()
+
+		muteButton!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+
+		await vi.waitFor(() => {
+			expect(document.getElementById('mvp-mobile-lite-action-toast')?.textContent).toContain(
+				'No se pudo guardar el filtro. Inténtalo de nuevo.'
+			)
+		})
+		expect(document.querySelector<HTMLElement>('#post-2')).not.toHaveClass('mvp-muted-user')
+		expect(document.querySelector<HTMLElement>('#user-card')).not.toBeNull()
+		expect(mocks.loggerError).toHaveBeenCalledWith('Error applying Mobile Lite user-card ignore:', expect.any(Error))
 	})
 
 	it('undoes an ignore from the toast Deshacer button', async () => {

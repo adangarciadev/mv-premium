@@ -258,7 +258,9 @@ function createUserCardActionButton(
 	button.addEventListener('click', event => {
 		event.preventDefault()
 		event.stopPropagation()
-		void onClick()
+		void Promise.resolve(onClick()).catch(error => {
+			logger.error('Error applying Mobile Lite user-card ignore:', error)
+		})
 	})
 	return button
 }
@@ -493,6 +495,21 @@ function ensureMobileLiteIgnoredUsersSyncListener(): void {
 	syncEventListenerAttached = true
 }
 
+function cloneUserCustomizationsData(data: UserCustomizationsData): UserCustomizationsData {
+	return {
+		...data,
+		users: Object.fromEntries(
+			Object.entries(data.users).map(([username, customization]) => [username, { ...customization }])
+		),
+		globalSettings: { ...data.globalSettings },
+	}
+}
+
+function forgetManualIgnoreChange(storageKey: string): void {
+	recentManualIgnoreChanges.delete(normalizeUsernameKey(storageKey))
+	suppressWatchUntil = 0
+}
+
 export async function setMobileLiteUserIgnore(
 	username: string,
 	ignoreType: MobileLiteIgnoreType | null,
@@ -500,7 +517,8 @@ export async function setMobileLiteUserIgnore(
 ): Promise<void> {
 	if (!isMobileLiteIgnoredUsersAllowed()) return
 
-	const data = await getUserCustomizations()
+	const previousData = await getUserCustomizations()
+	const data = cloneUserCustomizationsData(previousData)
 	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
 	if (ignoreType && avatarUrl) {
 		data.users[storageKey] = { ...data.users[storageKey], avatarUrl }
@@ -508,9 +526,17 @@ export async function setMobileLiteUserIgnore(
 
 	markMobileLiteIgnoredUsersManualChange(storageKey, ignoreType)
 	syncMobileLiteIgnoredUsers(data)
-	dismissVisibleMobileLiteUserCards()
-	showUserIgnoreToast(username, ignoreType)
-	await saveUserCustomizations(data)
+	try {
+		await saveUserCustomizations(data)
+		dismissVisibleMobileLiteUserCards()
+		showUserIgnoreToast(username, ignoreType)
+	} catch (error) {
+		forgetManualIgnoreChange(storageKey)
+		syncMobileLiteIgnoredUsers(previousData)
+		showMobileLiteActionToast('No se pudo guardar el filtro. Inténtalo de nuevo.', 'fa-exclamation-triangle')
+		logger.error('Error saving Mobile Lite ignore:', error)
+		throw error
+	}
 }
 
 function createUndoIgnoreAction(username: string) {
