@@ -14,6 +14,7 @@ import {
 import { initMobileLiteGallery, teardownMobileLiteGallery } from './gallery'
 import { initMobileLiteLiveThread, teardownMobileLiteLiveThread } from './live-thread'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
+import { initMobileLitePostGestures, teardownMobileLitePostGestures } from './post-gestures'
 import { initMobileLiteThreadCompanion, teardownMobileLiteThreadCompanion } from './thread-companion'
 
 export interface MobileLiteContext {
@@ -76,6 +77,12 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		init: initMobileLiteIgnoredUsers,
 		teardown: teardownMobileLiteIgnoredUsers,
 		shouldRun: context => context.hasPosts || context.hasUserCard,
+	},
+	{
+		id: 'post-gestures',
+		init: initMobileLitePostGestures,
+		teardown: teardownMobileLitePostGestures,
+		shouldRun: context => context.hasPosts || context.isThreadPage,
 	},
 	{
 		id: 'ignored-user-threads',

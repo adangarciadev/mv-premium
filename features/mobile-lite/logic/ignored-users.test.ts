@@ -366,6 +366,24 @@ describe('Mobile Lite ignored users', () => {
 		expect(mutedPost?.dataset.mvpHasPlaceholder).toBeUndefined()
 	})
 
+	it('shows a confirmation toast when ignoring a user (swipe or user card)', async () => {
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+
+		await setMobileLiteUserIgnore('Trolencio', 'mute')
+
+		let toast = document.getElementById('mvp-mobile-lite-action-toast')
+		expect(toast?.textContent).toContain('Trolencio ha sido silenciado')
+		expect(toast?.getAttribute('role')).toBe('status')
+
+		await setMobileLiteUserIgnore('Trolencio', 'hide')
+		toast = document.getElementById('mvp-mobile-lite-action-toast')
+		expect(toast?.textContent).toContain('Trolencio ha sido ocultado')
+
+		await setMobileLiteUserIgnore('Trolencio', null)
+		toast = document.getElementById('mvp-mobile-lite-action-toast')
+		expect(toast?.textContent).toContain('Trolencio vuelve a ser visible')
+	})
+
 	it('ignores stale storage snapshots after clearing a manual mute', async () => {
 		renderThread()
 		let watchCallback: (data: UserCustomizationsData) => void = () => undefined

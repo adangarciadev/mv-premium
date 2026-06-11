@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
 	teardownThreadCompanion: vi.fn(),
 	initPanel: vi.fn(),
 	teardownPanel: vi.fn(),
+	initPostGestures: vi.fn(),
+	teardownPostGestures: vi.fn(),
 }))
 
 vi.mock('@/lib/platform', () => ({
@@ -102,6 +104,11 @@ vi.mock('./panel', () => ({
 	teardownMobileLitePanel: mocks.teardownPanel,
 }))
 
+vi.mock('./post-gestures', () => ({
+	initMobileLitePostGestures: mocks.initPostGestures,
+	teardownMobileLitePostGestures: mocks.teardownPostGestures,
+}))
+
 vi.mock('./thread-companion', () => ({
 	initMobileLiteThreadCompanion: mocks.initThreadCompanion,
 	teardownMobileLiteThreadCompanion: mocks.teardownThreadCompanion,
@@ -139,7 +146,7 @@ describe('Mobile Lite registry', () => {
 					hasUserMenu: true,
 				})
 			)
-		).toEqual(['bold-color', 'live-thread', 'gallery', 'ignored-users', 'panel'])
+		).toEqual(['bold-color', 'live-thread', 'gallery', 'ignored-users', 'post-gestures', 'panel'])
 	})
 
 	it('runs the panel on forum pages even if the user menu is mounted later', () => {
@@ -175,7 +182,7 @@ describe('Mobile Lite registry', () => {
 		window.history.replaceState({}, '', '/foro/deportes/pretemporada-2026-123456')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'post-gestures', 'editor-lite', 'panel'])
 	})
 
 	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
@@ -196,6 +203,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initBoldColor).toHaveBeenCalledOnce()
 		expect(mocks.initEditor).toHaveBeenCalledOnce()
 		expect(mocks.initGallery).not.toHaveBeenCalled()
+		expect(mocks.initPostGestures).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
@@ -214,6 +222,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initLiveThread).toHaveBeenCalledOnce()
 		expect(mocks.initGallery).toHaveBeenCalledOnce()
 		expect(mocks.initIgnoredUsers).toHaveBeenCalledOnce()
+		expect(mocks.initPostGestures).toHaveBeenCalledOnce()
 	})
 
 	it('initializes the thread companion fix only on thread pages', () => {
@@ -251,6 +260,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initBoldColor).not.toHaveBeenCalled()
 		expect(mocks.initEditor).not.toHaveBeenCalled()
 		expect(mocks.initGallery).not.toHaveBeenCalled()
+		expect(mocks.initPostGestures).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
 		expect(mocks.initHiddenThreads).not.toHaveBeenCalled()
@@ -274,6 +284,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initLiveThread).not.toHaveBeenCalled()
 		expect(mocks.initGallery).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsers).not.toHaveBeenCalled()
+		expect(mocks.initPostGestures).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
 		expect(mocks.initHiddenThreads).not.toHaveBeenCalled()
 		expect(mocks.initPanel).not.toHaveBeenCalled()
@@ -288,6 +299,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.teardownGallery).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUsers).toHaveBeenCalledOnce()
+		expect(mocks.teardownPostGestures).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUserThreads).toHaveBeenCalledOnce()
 		expect(mocks.teardownHiddenThreads).toHaveBeenCalledOnce()
 		expect(mocks.teardownEditor).toHaveBeenCalledOnce()

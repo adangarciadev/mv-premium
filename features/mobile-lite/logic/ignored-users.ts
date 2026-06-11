@@ -7,6 +7,7 @@ import {
 	type UserCustomizationsData,
 } from '@/features/user-customizations/storage'
 import { applyHideToPost, applyMuteToPost } from '@/features/user-customizations/logic/mute-placeholder'
+import { showMobileLiteActionToast, teardownMobileLiteActionToast } from './action-toast'
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
@@ -28,7 +29,7 @@ const AUTHOR_SELECTORS = [
 ] as const
 
 const STYLE_ID = 'mvp-mobile-lite-ignored-users-styles'
-const MOBILE_LITE_IGNORED_ATTR = 'data-mvp-mobile-lite-ignored-user'
+export const MOBILE_LITE_IGNORED_ATTR = 'data-mvp-mobile-lite-ignored-user'
 const MOBILE_LITE_AUTHOR_ACTION_ATTR = 'data-mvp-mobile-lite-user-actions'
 const MOBILE_LITE_USER_CARD_ACTIONS_ATTR = 'data-mvp-mobile-lite-user-card-actions'
 const MOBILE_LITE_USER_CARD_ACTIONS_KEY_ATTR = 'data-mvp-mobile-lite-user-card-actions-key'
@@ -499,7 +500,20 @@ export async function setMobileLiteUserIgnore(
 	markMobileLiteIgnoredUsersManualChange(storageKey, ignoreType)
 	syncMobileLiteIgnoredUsers(data)
 	dismissVisibleMobileLiteUserCards()
+	showUserIgnoreToast(username, ignoreType)
 	await saveUserCustomizations(data)
+}
+
+function showUserIgnoreToast(username: string, ignoreType: MobileLiteIgnoreType | null): void {
+	if (ignoreType === 'mute') {
+		showMobileLiteActionToast(`${username} ha sido silenciado`, 'fa-user-times')
+		return
+	}
+	if (ignoreType === 'hide') {
+		showMobileLiteActionToast(`${username} ha sido ocultado`, 'fa-eye-slash')
+		return
+	}
+	showMobileLiteActionToast(`${username} vuelve a ser visible`, 'fa-eye')
 }
 
 function hasUserCardContent(mutations: MutationRecord[]): boolean {
@@ -606,6 +620,7 @@ export function teardownMobileLiteIgnoredUsers(): void {
 	unwatchUserCustomizations = null
 
 	resetMobileLiteIgnoredUsers()
+	teardownMobileLiteActionToast()
 	document.getElementById(STYLE_ID)?.remove()
 
 	currentData = null
