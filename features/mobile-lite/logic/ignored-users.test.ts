@@ -384,6 +384,26 @@ describe('Mobile Lite ignored users', () => {
 		expect(toast?.textContent).toContain('Trolencio vuelve a ser visible')
 	})
 
+	it('undoes an ignore from the toast Deshacer button', async () => {
+		mocks.getUserCustomizations.mockResolvedValue(userCustomizations({}))
+
+		await setMobileLiteUserIgnore('Trolencio', 'mute')
+
+		const undoButton = document.querySelector<HTMLButtonElement>(
+			'#mvp-mobile-lite-action-toast .mvp-mobile-lite-action-toast-button'
+		)
+		expect(undoButton?.textContent).toBe('Deshacer')
+
+		undoButton?.click()
+
+		await vi.waitFor(() => {
+			const toast = document.getElementById('mvp-mobile-lite-action-toast')
+			expect(toast?.textContent).toContain('Trolencio vuelve a ser visible')
+		})
+		// The follow-up toast must not offer another undo
+		expect(document.querySelector('#mvp-mobile-lite-action-toast .mvp-mobile-lite-action-toast-button')).toBeNull()
+	})
+
 	it('ignores stale storage snapshots after clearing a manual mute', async () => {
 		renderThread()
 		let watchCallback: (data: UserCustomizationsData) => void = () => undefined

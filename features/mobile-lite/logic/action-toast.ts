@@ -13,6 +13,11 @@ const TOAST_HIDE_CLASS = 'mvp-mobile-lite-action-toast-hide'
 const TOAST_VISIBLE_MS = 3500
 const TOAST_FADE_MS = 250
 
+export interface MobileLiteToastAction {
+	label: string
+	onAction: () => void
+}
+
 let toastTimeout: ReturnType<typeof setTimeout> | null = null
 
 function ensureStyles(): void {
@@ -49,6 +54,30 @@ function ensureStyles(): void {
 		#${TOAST_ID} i {
 			color: #41d97e;
 		}
+		#${TOAST_ID} > span {
+			min-width: 0;
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		#${TOAST_ID} .mvp-mobile-lite-action-toast-button {
+			background: transparent;
+			border: none;
+			border-left: 1px solid rgba(65, 217, 126, 0.35);
+			color: #41d97e;
+			flex-shrink: 0;
+			font-size: 12px;
+			font-weight: 800;
+			letter-spacing: 0.04em;
+			/* Negative margins grow the tap target without growing the pill */
+			margin: -10px -10px -10px 0;
+			padding: 14px 12px 14px 10px;
+			pointer-events: auto;
+			text-transform: uppercase;
+		}
+		#${TOAST_ID} .mvp-mobile-lite-action-toast-button:active {
+			color: #d3f9e0;
+		}
 		#${TOAST_ID}.${TOAST_HIDE_CLASS} {
 			opacity: 0;
 			transform: translateX(-50%) translateY(8px);
@@ -67,7 +96,7 @@ function ensureStyles(): void {
 	document.head.appendChild(style)
 }
 
-export function showMobileLiteActionToast(message: string, iconClass = 'fa-check'): void {
+export function showMobileLiteActionToast(message: string, iconClass = 'fa-check', action?: MobileLiteToastAction): void {
 	if (!document.body) return
 
 	ensureStyles()
@@ -84,6 +113,24 @@ export function showMobileLiteActionToast(message: string, iconClass = 'fa-check
 	// textContent so a hostile username can never inject markup
 	const label = toast.querySelector('span')
 	if (label) label.textContent = message
+
+	if (action) {
+		const actionButton = document.createElement('button')
+		actionButton.type = 'button'
+		actionButton.className = 'mvp-mobile-lite-action-toast-button'
+		actionButton.textContent = action.label
+		actionButton.addEventListener('click', () => {
+			// Instant feedback: the action usually shows its own follow-up toast
+			if (toastTimeout) {
+				clearTimeout(toastTimeout)
+				toastTimeout = null
+			}
+			toast.remove()
+			action.onAction()
+		})
+		toast.appendChild(actionButton)
+	}
+
 	document.body.appendChild(toast)
 
 	toastTimeout = setTimeout(() => {

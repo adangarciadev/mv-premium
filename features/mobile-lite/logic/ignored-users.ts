@@ -505,15 +505,27 @@ export async function setMobileLiteUserIgnore(
 	await saveUserCustomizations(data)
 }
 
+function createUndoIgnoreAction(username: string) {
+	return {
+		label: 'Deshacer',
+		onAction: () => {
+			void setMobileLiteUserIgnore(username, null).catch(error => {
+				logger.error('Error undoing Mobile Lite ignore:', error)
+			})
+		},
+	}
+}
+
 function showUserIgnoreToast(username: string, ignoreType: MobileLiteIgnoreType | null): void {
 	if (ignoreType === 'mute') {
-		showMobileLiteActionToast(`${username} ha sido silenciado`, 'fa-user-times')
+		showMobileLiteActionToast(`${username} ha sido silenciado`, 'fa-user-times', createUndoIgnoreAction(username))
 		return
 	}
 	if (ignoreType === 'hide') {
-		showMobileLiteActionToast(`${username} ha sido ocultado`, 'fa-eye-slash')
+		showMobileLiteActionToast(`${username} ha sido ocultado`, 'fa-eye-slash', createUndoIgnoreAction(username))
 		return
 	}
+	// No undo here: re-ignoring is a deliberate choice, not an accident to revert
 	showMobileLiteActionToast(`${username} vuelve a ser visible`, 'fa-eye')
 }
 
