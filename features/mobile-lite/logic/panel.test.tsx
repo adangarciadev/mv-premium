@@ -44,6 +44,39 @@ const mocks = vi.hoisted(() => ({
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	sendMessage: vi.fn<(name: string, data?: unknown) => Promise<unknown>>(() => Promise.resolve({ success: false })),
 	getOwnUsername: vi.fn<() => string | null>(() => null),
+	getLatestMobileLiteEntry: vi.fn(() => ({
+		version: '3.1.0',
+		date: '2026-06-13',
+		title: 'Mobile Lite con novedades visibles',
+		summary: 'Resumen de cambios para Mobile Lite.',
+		changes: [
+			{
+				type: 'feature',
+				category: 'Mobile Lite',
+				description: 'Ahora Mobile Lite muestra las novedades dentro del panel.',
+				surface: 'mobile-lite',
+			},
+		],
+	})),
+	getMobileLiteChangelog: vi.fn(() => [
+		{
+			version: '3.1.0',
+			date: '2026-06-13',
+			title: 'Mobile Lite con novedades visibles',
+			summary: 'Resumen de cambios para Mobile Lite.',
+			changes: [
+				{
+					type: 'feature',
+					category: 'Mobile Lite',
+					description: 'Ahora Mobile Lite muestra las novedades dentro del panel.',
+					surface: 'mobile-lite',
+				},
+			],
+		},
+	]),
+	hasUnseenMobileLiteChanges: vi.fn(() => Promise.resolve(false)),
+	markCurrentMobileLiteVersionAsSeen: vi.fn(() => Promise.resolve()),
+	watchMobileLiteVersionChanges: vi.fn(() => vi.fn()),
 	createContainer: vi.fn((options: { id?: string; parent: Element }) => {
 		const container = document.createElement('div')
 		if (options.id) container.id = options.id
@@ -117,6 +150,14 @@ vi.mock('../logic/live-thread', () => ({
 	syncMobileLiteLiveThreadButton: mocks.syncMobileLiteLiveThreadButton,
 }))
 
+vi.mock('./whats-new', () => ({
+	getLatestMobileLiteEntry: mocks.getLatestMobileLiteEntry,
+	getMobileLiteChangelog: mocks.getMobileLiteChangelog,
+	hasUnseenMobileLiteChanges: mocks.hasUnseenMobileLiteChanges,
+	markCurrentMobileLiteVersionAsSeen: mocks.markCurrentMobileLiteVersionAsSeen,
+	watchMobileLiteVersionChanges: mocks.watchMobileLiteVersionChanges,
+}))
+
 vi.mock('@/lib/messaging', () => ({
 	sendMessage: mocks.sendMessage,
 }))
@@ -187,6 +228,39 @@ describe('Mobile Lite panel injection', () => {
 		mocks.syncMobileLiteGalleryButton.mockResolvedValue(undefined)
 		mocks.sendMessage.mockResolvedValue({ success: false })
 		mocks.getOwnUsername.mockReturnValue(null)
+		mocks.getLatestMobileLiteEntry.mockReturnValue({
+			version: '3.1.0',
+			date: '2026-06-13',
+			title: 'Mobile Lite con novedades visibles',
+			summary: 'Resumen de cambios para Mobile Lite.',
+			changes: [
+				{
+					type: 'feature',
+					category: 'Mobile Lite',
+					description: 'Ahora Mobile Lite muestra las novedades dentro del panel.',
+					surface: 'mobile-lite',
+				},
+			],
+		})
+		mocks.getMobileLiteChangelog.mockReturnValue([
+			{
+				version: '3.1.0',
+				date: '2026-06-13',
+				title: 'Mobile Lite con novedades visibles',
+				summary: 'Resumen de cambios para Mobile Lite.',
+				changes: [
+					{
+						type: 'feature',
+						category: 'Mobile Lite',
+						description: 'Ahora Mobile Lite muestra las novedades dentro del panel.',
+						surface: 'mobile-lite',
+					},
+				],
+			},
+		])
+		mocks.hasUnseenMobileLiteChanges.mockResolvedValue(false)
+		mocks.markCurrentMobileLiteVersionAsSeen.mockResolvedValue(undefined)
+		mocks.watchMobileLiteVersionChanges.mockReturnValue(vi.fn())
 		document.body.innerHTML = `
 			<ul id="usermenu">
 				<li><a href="/notificaciones">Notificaciones</a></li>
@@ -211,6 +285,25 @@ describe('Mobile Lite panel injection', () => {
 			expect(links).toEqual(['Notificaciones', 'Nuevo hilo', 'Panel MVPremium', 'Configuración', 'Salir'])
 		})
 		expect(mocks.mountFeatureWithBoundary).toHaveBeenCalledOnce()
+	})
+
+	it('shows a NEW badge on the Panel MVPremium menu entry when Mobile Lite changes are unseen', async () => {
+		mocks.hasUnseenMobileLiteChanges.mockResolvedValue(true)
+
+		initMobileLitePanel()
+
+		await waitFor(() => {
+			expect(document.querySelector('[data-mvp-mobile-lite-whats-new-badge="true"]')).not.toBeNull()
+		})
+		const badge = document.querySelector<HTMLElement>('[data-mvp-mobile-lite-whats-new-badge="true"]')
+		const panelLink = document.querySelector<HTMLAnchorElement>('[data-mvp-mobile-lite-panel-menu-item] > a')
+
+		expect(badge).not.toBeNull()
+		expect(badge?.textContent).toBe('NEW!')
+		expect(badge).toHaveAttribute('aria-hidden', 'true')
+		expect(badge?.style.position).toBe('absolute')
+		expect(badge?.parentElement).toBe(panelLink)
+		expect(panelLink).toHaveAttribute('aria-label', 'Abrir panel MVPremium, hay novedades')
 	})
 
 	it('unmounts the panel root and removes injected menu entries on teardown', async () => {
@@ -390,6 +483,38 @@ describe('Mobile Lite panel injection', () => {
 		expect(openSpy).toHaveBeenCalledOnce()
 
 		window.removeEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, openSpy)
+	})
+
+	it('shows unseen Mobile Lite changes in the panel and lets users dismiss them', async () => {
+		mocks.hasUnseenMobileLiteChanges.mockResolvedValue(true)
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+
+		expect(await screen.findByText('Nuevo en v3.1.0')).toBeInTheDocument()
+		expect(screen.getByText('Ahora Mobile Lite muestra las novedades dentro del panel.')).toBeInTheDocument()
+
+		await user.click(screen.getByRole('button', { name: 'Entendido' }))
+
+		await waitFor(() => {
+			expect(mocks.markCurrentMobileLiteVersionAsSeen).toHaveBeenCalledOnce()
+		})
+		expect(screen.queryByText('Nuevo en v3.1.0')).not.toBeInTheDocument()
+	})
+
+	it('opens the Mobile Lite changelog view from the unseen changes prompt', async () => {
+		mocks.hasUnseenMobileLiteChanges.mockResolvedValue(true)
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(await screen.findByRole('button', { name: 'Ver novedades' }))
+
+		expect(await screen.findByText('Novedades Mobile Lite')).toBeInTheDocument()
+		expect(screen.getByText('Mobile Lite con novedades visibles')).toBeInTheDocument()
+		expect(screen.getByText('Ahora Mobile Lite muestra las novedades dentro del panel.')).toBeInTheDocument()
+		expect(mocks.markCurrentMobileLiteVersionAsSeen).toHaveBeenCalledOnce()
 	})
 
 	it('closes the new thread panel and restores menu width before opening Panel MVPremium', async () => {
@@ -1061,6 +1186,23 @@ describe('Mobile Lite panel injection', () => {
 			})
 		})
 		expect(await screen.findByText('Color de negrita guardado.')).toBeInTheDocument()
+	})
+
+	it('keeps a Mobile Lite changelog entry available from settings', async () => {
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+
+		expect(await screen.findByRole('button', { name: /Novedades/ })).toBeInTheDocument()
+		expect(screen.getByText('v3.1.0 - 1 cambios')).toBeInTheDocument()
+
+		await user.click(screen.getByRole('button', { name: /Novedades/ }))
+
+		expect(await screen.findByText('Novedades Mobile Lite')).toBeInTheDocument()
+		expect(screen.getByText('Ahora Mobile Lite muestra las novedades dentro del panel.')).toBeInTheDocument()
+		expect(mocks.markCurrentMobileLiteVersionAsSeen).toHaveBeenCalledOnce()
 	})
 
 	it('toggles the Mobile Lite bold color setting', async () => {

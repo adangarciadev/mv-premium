@@ -3,6 +3,7 @@ import { MV_SELECTORS } from '@/constants'
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { createContainer, isFeatureMounted, mountFeatureWithBoundary, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import { getPlatformKind } from '@/lib/platform'
+import { hasUnseenMobileLiteChanges, watchMobileLiteVersionChanges } from './whats-new'
 import {
 	SUBFORUMS,
 	SUBFORUMS_COMUNIDAD,
@@ -16,6 +17,7 @@ import { MobileLitePanel, MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mob
 const FEATURE_ID = 'mobile-lite-panel'
 const CONTAINER_ID = 'mvp-mobile-lite-panel-root'
 const MENU_ITEM_ATTR = 'data-mvp-mobile-lite-panel-menu-item'
+const MENU_BADGE_ATTR = 'data-mvp-mobile-lite-whats-new-badge'
 const NEW_THREAD_MENU_ITEM_ATTR = 'data-mvp-mobile-lite-new-thread-menu-item'
 const MENU_PREVIOUS_MAX_WIDTH_ATTR = 'data-mvp-mobile-lite-prev-max-width'
 const MENU_PREVIOUS_MIN_WIDTH_ATTR = 'data-mvp-mobile-lite-prev-min-width'
@@ -32,6 +34,7 @@ let initialized = false
 let menuObserver: MutationObserver | null = null
 let userMenuClickListenerAttached = false
 let userMenuInjectionTimeouts: number[] = []
+let unwatchMobileLiteVersionChanges: (() => void) | null = null
 
 function isUserMenuRelatedClick(event: MouseEvent): boolean {
 	const target = event.target
@@ -87,6 +90,61 @@ function createPanelMenuItem(): HTMLLIElement {
 
 	item.appendChild(link)
 	return item
+}
+
+async function updatePanelMenuBadge(): Promise<void> {
+	const link = document.querySelector<HTMLAnchorElement>(`[${MENU_ITEM_ATTR}="true"] > a`)
+	if (!link) return
+
+	const badge = link.querySelector<HTMLElement>(`[${MENU_BADGE_ATTR}="true"]`)
+	const hasUnseen = await hasUnseenMobileLiteChanges()
+
+	if (!hasUnseen) {
+		badge?.remove()
+		link.style.removeProperty('position')
+		link.setAttribute('aria-label', 'Abrir panel MVPremium')
+		return
+	}
+
+	link.setAttribute('aria-label', 'Abrir panel MVPremium, hay novedades')
+	if (badge) return
+
+	link.style.position = 'relative'
+	link.style.overflow = 'visible'
+
+	const badgeEl = document.createElement('span')
+	badgeEl.setAttribute(MENU_BADGE_ATTR, 'true')
+	badgeEl.setAttribute('aria-hidden', 'true')
+	badgeEl.textContent = 'NEW!'
+	badgeEl.style.alignItems = 'center'
+	badgeEl.style.background = 'linear-gradient(180deg, #ffd46b 0%, #f0a020 100%)'
+	badgeEl.style.border = '1px solid rgba(255, 228, 170, 0.82)'
+	badgeEl.style.borderRadius = '9999px'
+	badgeEl.style.boxShadow = '0 2px 7px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.38)'
+	badgeEl.style.color = '#221604'
+	badgeEl.style.display = 'inline-flex'
+	badgeEl.style.fontSize = '12px'
+	badgeEl.style.fontWeight = '900'
+	badgeEl.style.justifyContent = 'center'
+	badgeEl.style.letterSpacing = '0'
+	badgeEl.style.lineHeight = '1'
+	badgeEl.style.minHeight = '16px'
+	badgeEl.style.minWidth = '0'
+	badgeEl.style.padding = '1px 5px'
+	badgeEl.style.pointerEvents = 'none'
+	badgeEl.style.position = 'absolute'
+	badgeEl.style.right = '6px'
+	badgeEl.style.top = '-7px'
+	badgeEl.style.zIndex = '1'
+	link.appendChild(badgeEl)
+}
+
+function ensureMobileLiteVersionWatcher(): void {
+	if (unwatchMobileLiteVersionChanges) return
+
+	unwatchMobileLiteVersionChanges = watchMobileLiteVersionChanges(() => {
+		void updatePanelMenuBadge()
+	})
 }
 
 function createSubforumLink(subforum: SubforumInfo, options: { fullWidth?: boolean } = {}): HTMLLIElement {
@@ -320,6 +378,7 @@ function injectPanelMenuItem(): void {
 	)
 	if (existingPanelItem) {
 		ensureNewThreadMenuItem(menu, existingPanelItem)
+		void updatePanelMenuBadge()
 		return
 	}
 
@@ -328,11 +387,13 @@ function injectPanelMenuItem(): void {
 	if (insertionTarget) {
 		menu.insertBefore(item, insertionTarget)
 		ensureNewThreadMenuItem(menu, item)
+		void updatePanelMenuBadge()
 		return
 	}
 
 	menu.appendChild(item)
 	ensureNewThreadMenuItem(menu, item)
+	void updatePanelMenuBadge()
 }
 
 function ensurePanelRoot(): void {
@@ -377,6 +438,7 @@ export function initMobileLitePanel(): void {
 	if (!isMobileLitePanelAllowed()) return
 	if (initialized) {
 		injectPanelMenuItem()
+		ensureMobileLiteVersionWatcher()
 		return
 	}
 
@@ -385,12 +447,15 @@ export function initMobileLitePanel(): void {
 	injectPanelMenuItem()
 	ensureUserMenuClickListener()
 	ensureUserMenuObserver()
+	ensureMobileLiteVersionWatcher()
 }
 
 export function teardownMobileLitePanel(): void {
 	clearPanelMenuInjectionTimeouts()
 	menuObserver?.disconnect()
 	menuObserver = null
+	unwatchMobileLiteVersionChanges?.()
+	unwatchMobileLiteVersionChanges = null
 	if (userMenuClickListenerAttached) {
 		document.removeEventListener('click', handleUserMenuClick, true)
 		userMenuClickListenerAttached = false

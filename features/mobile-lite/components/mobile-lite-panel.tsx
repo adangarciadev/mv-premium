@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react'
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left'
 import Bold from 'lucide-react/dist/esm/icons/bold'
 import Check from 'lucide-react/dist/esm/icons/check'
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
 import CircleAlert from 'lucide-react/dist/esm/icons/circle-alert'
 import CircleCheck from 'lucide-react/dist/esm/icons/circle-check'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
+import Gift from 'lucide-react/dist/esm/icons/gift'
 import Images from 'lucide-react/dist/esm/icons/images'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
@@ -54,6 +56,13 @@ import { applyMobileLiteHiddenThreads } from '../logic/hidden-threads'
 import { getMobileLiteImgbbApiKey, saveMobileLiteImgbbApiKey } from '../logic/imgbb-api-key-storage'
 import { syncMobileLiteGalleryButton } from '../logic/gallery'
 import { syncMobileLiteLiveThreadButton } from '../logic/live-thread'
+import {
+	getLatestMobileLiteEntry,
+	getMobileLiteChangelog,
+	hasUnseenMobileLiteChanges,
+	markCurrentMobileLiteVersionAsSeen,
+	type MobileLiteChangelogEntry,
+} from '../logic/whats-new'
 
 export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
 
@@ -138,6 +147,7 @@ interface FilteredUser {
 
 type ActiveFilter = 'all' | MobileLiteIgnoreType
 type PanelTab = 'users' | 'threads' | 'settings'
+type PanelView = 'main' | 'whats-new'
 
 function getEmptyData(): UserCustomizationsData {
 	return {
@@ -185,6 +195,148 @@ function getUsernameValidationMessage(username: string): string | null {
 	if (username.length > USERNAME_MAX_LENGTH) return 'El nick no puede tener más de 13 caracteres.'
 	if (!USERNAME_PATTERN.test(username)) return 'Usa solo letras, números, guiones y guiones bajos.'
 	return null
+}
+
+function getChangeTypeLabel(type: MobileLiteChangelogEntry['changes'][number]['type']): string {
+	switch (type) {
+		case 'feature':
+			return 'Nuevo'
+		case 'improvement':
+			return 'Mejora'
+		case 'fix':
+			return 'Fix'
+		default:
+			return 'Cambio'
+	}
+}
+
+function MobileLiteWhatsNewPrompt({
+	entry,
+	changeCount,
+	onOpen,
+	onDismiss,
+}: {
+	entry: MobileLiteChangelogEntry
+	changeCount: number
+	onOpen: () => void
+	onDismiss: () => void
+}) {
+	const previewChanges = entry.changes.slice(0, 3)
+
+	return (
+		<div className="pb-1">
+			<div className={SECTION_LABEL_CLASS}>Novedades</div>
+			<section className={GROUP_CLASS}>
+				<div className="p-4">
+					<div className="flex items-start gap-3">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#14171d] text-[#f0a020]">
+							<Gift className="h-5 w-5" aria-hidden="true" />
+						</div>
+						<div className="min-w-0 flex-1">
+							<div className="flex flex-wrap items-center gap-2">
+								<div className="text-[15px] font-semibold">Nuevo en v{entry.version}</div>
+								<span className="inline-flex items-center rounded-full bg-[#f0a020] px-2 py-0.5 text-[11px] font-black text-[#221604]">
+									{changeCount}
+								</span>
+							</div>
+							<p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#9aa5b4]">{entry.title}</p>
+						</div>
+					</div>
+
+					<ul className="mt-3 space-y-1.5">
+						{previewChanges.map((change, index) => (
+							<li key={`${entry.version}-${index}`} className="flex gap-2 text-xs leading-relaxed text-[#cfd5db]">
+								<span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f0a020]" aria-hidden="true" />
+								<span className="line-clamp-2">{change.description}</span>
+							</li>
+						))}
+					</ul>
+
+					<div className="mt-4 grid grid-cols-2 gap-2">
+						<button type="button" className={SECONDARY_BUTTON_CLASS} onClick={onOpen}>
+							Ver novedades
+						</button>
+						<button type="button" className={PRIMARY_BUTTON_CLASS} onClick={onDismiss}>
+							<Check className="h-4 w-4" aria-hidden="true" />
+							Entendido
+						</button>
+					</div>
+				</div>
+			</section>
+		</div>
+	)
+}
+
+function MobileLiteWhatsNewView({
+	entries,
+	onBack,
+	onDone,
+}: {
+	entries: MobileLiteChangelogEntry[]
+	onBack: () => void
+	onDone: () => void
+}) {
+	return (
+		<div className="pb-6">
+			<div className="sticky top-0 z-20 -mx-4 bg-[#1c1f27] px-4 pb-2 pt-1">
+				<div className="flex items-center gap-3">
+					<button
+						type="button"
+						aria-label="Volver"
+						className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#8b95a3] transition-colors active:bg-[#2e3543]"
+						onClick={onBack}
+					>
+						<ArrowLeft className="h-5 w-5" aria-hidden="true" />
+					</button>
+					<div className="min-w-0 flex-1">
+						<h3 className="truncate text-base font-bold text-[#eef1f6]">Novedades Mobile Lite</h3>
+						<p className="truncate text-xs text-[#8b95a3]">Cambios pensados para Firefox Android</p>
+					</div>
+				</div>
+			</div>
+
+			{entries.map(entry => (
+				<section key={entry.version}>
+					<div className={SECTION_LABEL_CLASS}>v{entry.version}</div>
+					<div className={GROUP_CLASS}>
+						<div className="p-4">
+							<div className="flex items-start gap-3">
+								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#14171d] text-[#f0a020]">
+									<Gift className="h-5 w-5" aria-hidden="true" />
+								</div>
+								<div className="min-w-0 flex-1">
+									<div className="text-[15px] font-semibold text-[#eef1f6]">{entry.title}</div>
+									{entry.summary && <p className="mt-1 text-xs leading-relaxed text-[#9aa5b4]">{entry.summary}</p>}
+								</div>
+							</div>
+						</div>
+						<div className="divide-y divide-[#2d3442]">
+							{entry.changes.map((change, index) => (
+								<div key={`${entry.version}-${index}`} className="flex gap-3 px-4 py-3">
+									<span className="mt-0.5 inline-flex h-6 shrink-0 items-center rounded-full bg-[#14171d] px-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[#f0a020]">
+										{getChangeTypeLabel(change.type)}
+									</span>
+									<div className="min-w-0 flex-1">
+										{change.category && (
+											<div className="mb-0.5 truncate text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]">
+												{change.category}
+											</div>
+										)}
+										<p className="text-sm leading-relaxed text-[#cfd5db]">{change.description}</p>
+									</div>
+								</div>
+							))}
+						</div>
+					</div>
+				</section>
+			))}
+
+			<button type="button" className={`${PRIMARY_BUTTON_CLASS} mt-5 w-full`} onClick={onDone}>
+				<Check className="h-4 w-4" aria-hidden="true" />
+				Entendido
+			</button>
+		</div>
+	)
 }
 
 function findVisibleUserAvatar(username: string): string | undefined {
@@ -250,6 +402,7 @@ async function updateUserIgnore(
 
 export function MobileLitePanel() {
 	const [open, setOpen] = useState(false)
+	const [panelView, setPanelView] = useState<PanelView>('main')
 	const [activeTab, setActiveTab] = useState<PanelTab>('users')
 	const [data, setData] = useState<UserCustomizationsData>(getEmptyData)
 	const [query, setQuery] = useState('')
@@ -286,6 +439,7 @@ export function MobileLitePanel() {
 	>(null)
 	const [mobileLiteSettingsStatusMessage, setMobileLiteSettingsStatusMessage] = useState<string | null>(null)
 	const [mobileLiteSettingsErrorMessage, setMobileLiteSettingsErrorMessage] = useState<string | null>(null)
+	const [hasUnseenWhatsNew, setHasUnseenWhatsNew] = useState(false)
 	const avatarHydrationInFlight = useRef<Set<string>>(new Set())
 	const panelBodyRef = useRef<HTMLDivElement>(null)
 	const dragStartYRef = useRef<number | null>(null)
@@ -296,7 +450,10 @@ export function MobileLitePanel() {
 	useEffect(() => {
 		let mounted = true
 
-		const handleOpen = () => setOpen(true)
+		const handleOpen = () => {
+			setPanelView('main')
+			setOpen(true)
+		}
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') setOpen(false)
 		}
@@ -332,6 +489,23 @@ export function MobileLitePanel() {
 			window.removeEventListener('keydown', handleKeyDown)
 		}
 	}, [])
+
+	useEffect(() => {
+		if (!open) return
+
+		let mounted = true
+		hasUnseenMobileLiteChanges()
+			.then(hasUnseen => {
+				if (mounted) setHasUnseenWhatsNew(hasUnseen)
+			})
+			.catch(() => {
+				if (mounted) setHasUnseenWhatsNew(false)
+			})
+
+		return () => {
+			mounted = false
+		}
+	}, [open])
 
 	useEffect(() => {
 		if (!open) return
@@ -514,6 +688,9 @@ export function MobileLitePanel() {
 			.slice(0, USER_SUGGESTIONS_MAX)
 	}, [canSearchUserSuggestions, data, exactQueryUsername, ownUsername, userSuggestions])
 	const hasAnyFilteredUsers = allFilteredUsers.length > 0
+	const latestMobileLiteEntry = useMemo(() => getLatestMobileLiteEntry(), [])
+	const mobileLiteChangelog = useMemo(() => getMobileLiteChangelog(), [])
+	const latestMobileLiteChangeCount = latestMobileLiteEntry?.changes.length ?? 0
 	// Placeholder URLs (lazy-load pixels) count as missing so the refresh button
 	// can replace them with the real avatar.
 	const missingAvatarCount = allFilteredUsers.filter(user => !sanitizeAvatarUrl(user.customization.avatarUrl)).length
@@ -522,6 +699,17 @@ export function MobileLitePanel() {
 	const normalizedBoldColorDraft = normalizeMobileLiteBoldColor(boldColorDraft)
 	const isBoldColorDirty = normalizedBoldColorDraft !== boldColor
 	const logoUrl = browser.runtime.getURL('/icon/48.png')
+
+	const markWhatsNewAsSeen = useCallback(async () => {
+		await markCurrentMobileLiteVersionAsSeen()
+		setHasUnseenWhatsNew(false)
+	}, [])
+
+	const openWhatsNewView = useCallback(() => {
+		setPanelView('whats-new')
+		void markWhatsNewAsSeen()
+		panelBodyRef.current?.scrollTo?.({ top: 0 })
+	}, [markWhatsNewAsSeen])
 
 	const hydrateMissingAvatars = useCallback(
 		async (users: FilteredUser[], options: { cancelled?: () => boolean; showStatus?: boolean } = {}) => {
@@ -968,9 +1156,27 @@ export function MobileLitePanel() {
 				</header>
 
 				<div ref={panelBodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
-
-					{activeTab === 'users' ? (
+					{panelView === 'whats-new' ? (
+						<MobileLiteWhatsNewView
+							entries={mobileLiteChangelog}
+							onBack={() => setPanelView('main')}
+							onDone={() => {
+								void markWhatsNewAsSeen()
+								setPanelView('main')
+							}}
+						/>
+					) : activeTab === 'users' ? (
 						<>
+							{hasUnseenWhatsNew && latestMobileLiteEntry && (
+								<MobileLiteWhatsNewPrompt
+									entry={latestMobileLiteEntry}
+									changeCount={latestMobileLiteChangeCount}
+									onOpen={openWhatsNewView}
+									onDismiss={() => {
+										void markWhatsNewAsSeen()
+									}}
+								/>
+							)}
 							<div className="sticky top-0 z-20 -mx-4 bg-[#1c1f27] px-4 pb-2 pt-1">
 								<label className="relative block">
 									<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#707b8e]" aria-hidden="true" />
@@ -1282,6 +1488,39 @@ export function MobileLitePanel() {
 						</>
 					) : (
 						<div className="pb-1">
+							{latestMobileLiteEntry && (
+								<>
+									<div className={SECTION_LABEL_CLASS}>MVPremium</div>
+									<section className={GROUP_CLASS}>
+										<button
+											type="button"
+											className="flex min-h-[60px] w-full items-center gap-3 py-2 pl-4 pr-2 text-left transition-colors active:bg-[#2e3543]"
+											onClick={openWhatsNewView}
+										>
+											<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#14171d] text-[#f0a020]">
+												<Gift className="h-5 w-5" aria-hidden="true" />
+											</div>
+											<div className="min-w-0 flex-1">
+												<div className="flex min-w-0 items-center gap-2">
+													<div className="truncate text-[15px] font-semibold text-[#eef1f6]">Novedades</div>
+													{hasUnseenWhatsNew && (
+														<span
+															aria-hidden="true"
+															className="inline-flex shrink-0 items-center rounded-full bg-[#f0a020] px-2 py-0.5 text-[10px] font-black leading-none text-[#221604]"
+														>
+															NEW
+														</span>
+													)}
+												</div>
+												<div className="mt-0.5 truncate text-xs text-[#8b95a3]">
+													v{latestMobileLiteEntry.version} - {latestMobileLiteChangeCount} cambios
+												</div>
+											</div>
+											<ChevronDown className="h-5 w-5 shrink-0 -rotate-90 text-[#707b8e]" aria-hidden="true" />
+										</button>
+									</section>
+								</>
+							)}
 							<div className={SECTION_LABEL_CLASS}>Imágenes</div>
 							<div className={GROUP_CLASS}>
 								<div className="p-4">
@@ -1574,7 +1813,10 @@ export function MobileLitePanel() {
 							aria-selected={activeTab === 'users'}
 							aria-label="Usuarios"
 							className={`${TAB_BASE_CLASS} ${activeTab === 'users' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
-							onClick={() => setActiveTab('users')}
+							onClick={() => {
+								setPanelView('main')
+								setActiveTab('users')
+							}}
 						>
 							<span className="relative">
 								<UserX className="h-5 w-5" aria-hidden="true" />
@@ -1595,7 +1837,10 @@ export function MobileLitePanel() {
 							aria-selected={activeTab === 'threads'}
 							aria-label="Hilos"
 							className={`${TAB_BASE_CLASS} ${activeTab === 'threads' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
-							onClick={() => setActiveTab('threads')}
+							onClick={() => {
+								setPanelView('main')
+								setActiveTab('threads')
+							}}
 						>
 							<span className="relative">
 								<EyeOff className="h-5 w-5" aria-hidden="true" />
@@ -1615,7 +1860,10 @@ export function MobileLitePanel() {
 							role="tab"
 							aria-selected={activeTab === 'settings'}
 							className={`${TAB_BASE_CLASS} ${activeTab === 'settings' ? TAB_ACTIVE_CLASS : TAB_IDLE_CLASS}`}
-							onClick={() => setActiveTab('settings')}
+							onClick={() => {
+								setPanelView('main')
+								setActiveTab('settings')
+							}}
 						>
 							<Settings className="h-5 w-5" aria-hidden="true" />
 							Ajustes

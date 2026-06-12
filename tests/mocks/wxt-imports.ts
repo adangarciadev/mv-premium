@@ -22,6 +22,7 @@ export const storage = {
 	getItem: vi.fn((_key: string) => Promise.resolve(null)),
 	setItem: vi.fn((_key: string, _value: unknown) => Promise.resolve()),
 	removeItem: vi.fn((_key: string) => Promise.resolve()),
+	watch: vi.fn((_key: string, _callback: (value: unknown) => void) => vi.fn()),
 	local: mockBrowser.storage.local,
 }
 

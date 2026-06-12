@@ -47,6 +47,7 @@ export const STORAGE_KEYS = {
 	PENDING_POST_EDIT: 'mvp-pending-post-edit',
 	PENDING_REPLY: 'mvp-pending-reply',
 	LAST_SEEN_VERSION: 'mvp-last-seen-version',
+	MOBILE_LITE_LAST_SEEN_VERSION: 'mvp-mobile-lite-last-seen-version',
 	STORAGE_VERSION: 'mvp-storage-version',
 	DRAFTS: 'mvp-drafts',
 	EDITOR_PRESERVE: 'mvp-editor-preserve',

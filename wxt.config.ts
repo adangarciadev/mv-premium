@@ -175,5 +175,8 @@ export default defineConfig({
 				},
 			},
 		},
+		define: {
+			__MVP_BUILD_ID__: JSON.stringify(process.env.MVP_BUILD_ID ?? new Date().toISOString()),
+		},
 	}),
 })
