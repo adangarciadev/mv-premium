@@ -135,6 +135,12 @@ function executeAction(actionId: string) {
 			}).catch(err => logger.error('Release calendar import error:', err))
 			break
 
+		case 'release-calendar-juegos-movil-toggle':
+			import('@/features/release-calendar').then(({ toggleReleaseCalendarJuegosMovil }) => {
+				toggleReleaseCalendarJuegosMovil().catch(err => logger.error('Release calendar mobile toggle error:', err))
+			}).catch(err => logger.error('Release calendar mobile import error:', err))
+			break
+
 		case 'release-calendar-cine-toggle':
 			import('@/features/movie-release-calendar').then(({ toggleMovieReleaseCalendarCine }) => {
 				toggleMovieReleaseCalendarCine().catch(err => logger.error('Movie release calendar toggle error:', err))

@@ -82,6 +82,10 @@ export async function setReleaseCalendarJuegosEnabled(enabled: boolean): Promise
 	// Operates on the calendar of the current page (juegos or juegos-movil),
 	// falling back to the juegos setting outside both subforums.
 	const calendarTarget = getCurrentCalendarTarget() ?? CALENDAR_TARGETS[0]
+	await setReleaseCalendarTargetEnabled(calendarTarget, enabled)
+}
+
+async function setReleaseCalendarTargetEnabled(calendarTarget: CalendarTarget, enabled: boolean): Promise<void> {
 	useSettingsStore.getState().setSetting(calendarTarget.settingKey, enabled)
 
 	if (enabled) {
@@ -93,8 +97,18 @@ export async function setReleaseCalendarJuegosEnabled(enabled: boolean): Promise
 	document.getElementById(calendarTarget.domId)?.remove()
 }
 
+export async function setReleaseCalendarJuegosMovilEnabled(enabled: boolean): Promise<void> {
+	await setReleaseCalendarTargetEnabled(CALENDAR_TARGETS[1], enabled)
+}
+
 export async function toggleReleaseCalendarJuegos(): Promise<void> {
 	const calendarTarget = getCurrentCalendarTarget() ?? CALENDAR_TARGETS[0]
 	const enabled = !useSettingsStore.getState()[calendarTarget.settingKey]
 	await setReleaseCalendarJuegosEnabled(enabled)
+}
+
+export async function toggleReleaseCalendarJuegosMovil(): Promise<void> {
+	const calendarTarget = CALENDAR_TARGETS[1]
+	const enabled = !useSettingsStore.getState()[calendarTarget.settingKey]
+	await setReleaseCalendarJuegosMovilEnabled(enabled)
 }

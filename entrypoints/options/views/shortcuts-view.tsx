@@ -45,6 +45,7 @@ const SHORTCUT_ACTIONS = [
 	{ id: 'itad-search-juegos-toggle', label: 'Ofertas en Juegos', icon: Store, description: 'Activar o desactivar el buscador de ofertas en Juegos' },
 	{ id: 'itad-search-hucha-toggle', label: 'Ofertas en Hucha', icon: Store, description: 'Activar o desactivar el buscador de ofertas en Club de la hucha' },
 	{ id: 'release-calendar-juegos-toggle', label: 'Lanzamientos en Juegos', icon: CalendarDays, description: 'Activar o desactivar próximos lanzamientos en Juegos' },
+	{ id: 'release-calendar-juegos-movil-toggle', label: 'Lanzamientos en Juegos de móvil', icon: CalendarDays, description: 'Activar o desactivar próximos lanzamientos en Juegos de móvil' },
 	{ id: 'release-calendar-cine-toggle', label: 'Estrenos en Cine', icon: CalendarDays, description: 'Activar o desactivar próximos estrenos en Cine' },
 ]
 
