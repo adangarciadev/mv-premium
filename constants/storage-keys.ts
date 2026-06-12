@@ -41,6 +41,7 @@ export const STORAGE_KEYS = {
 	PENDING_THREAD_CREATION: 'mvp-pending-thread-creation',
 	PENDING_RELEASE_THREAD_PREFILL: 'mvp-pending-release-thread-prefill',
 	PENDING_CLIPPED_THREAD_PREFILL: 'mvp-pending-clipped-thread-prefill',
+	PENDING_DASHBOARD_THREAD_PUBLISH: 'mvp-pending-dashboard-thread-publish',
 	THREAD_CLIPPER_BASKET: 'mvp-thread-clipper-basket',
 	THREAD_CLIPPER_HISTORY: 'mvp-thread-clipper-history',
 	PENDING_POST_EDIT: 'mvp-pending-post-edit',

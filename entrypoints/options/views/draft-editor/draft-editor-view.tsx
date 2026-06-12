@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import ChevronLeft from 'lucide-react/dist/esm/icons/chevron-left'
@@ -13,6 +13,8 @@ import Eye from 'lucide-react/dist/esm/icons/eye'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import Plus from 'lucide-react/dist/esm/icons/plus'
+import Send from 'lucide-react/dist/esm/icons/send'
+import { toast } from 'sonner'
 import { useSettingsStore } from '@/store/settings-store'
 import { useTheme } from '@/providers/theme-provider'
 import { Button } from '@/components/ui/button'
@@ -21,6 +23,12 @@ import { SharedEditorToolbar } from '@/components/editor'
 import { DEFAULT_TOOLBAR_BUTTONS } from '@/types/editor'
 import { SlashCommandPopover } from '@/features/drafts/components/slash-command-popover'
 import { useSlashCommand } from '@/features/drafts/hooks'
+import {
+	getDashboardThreadPublishValidationError,
+	openDashboardThreadPublish,
+	type DashboardThreadPublishMode,
+} from '@/features/drafts/logic/thread-publish'
+import type { Draft } from '@/features/drafts/storage'
 import { cn } from '@/lib/utils'
 
 // Local modules
@@ -35,9 +43,11 @@ import { EditorDialogs } from './editor-dialogs'
 import { useFullPageEditor } from '@/hooks/use-full-page-editor'
 import { FullPageEditorLayout } from '@/components/layouts/full-page-editor-layout'
 import { SharedEditorStack } from '@/components/editor/shared-editor-stack'
+import { PublishDraftDialog } from '../drafts-view/drafts-dialogs'
 
 export function DraftEditorView({ docType = 'draft' }: DraftEditorViewProps) {
 	const navigate = useNavigate()
+	const { id } = useParams<{ id: string }>()
 	const { theme } = useTheme()
 
 	// Form state with react-hook-form + zod validation
@@ -61,6 +71,8 @@ export function DraftEditorView({ docType = 'draft' }: DraftEditorViewProps) {
 
 	// Local state
 	const [showPreview, setShowPreview] = useState(true)
+	const [pendingPublishDraft, setPendingPublishDraft] = useState<Draft | null>(null)
+	const [publishDialogOpen, setPublishDialogOpen] = useState(false)
 
 	// Settings
 	const { boldColor } = useSettingsStore()
@@ -148,6 +160,64 @@ export function DraftEditorView({ docType = 'draft' }: DraftEditorViewProps) {
 		draftEditor.handleSubmit()
 	}
 
+	const buildCurrentDraftSnapshot = (): Draft => {
+		const values = form.getValues()
+		const now = Date.now()
+		return {
+			id: id ? decodeURIComponent(id) : `dashboard-${docType}-${now}`,
+			title: values.title,
+			content: values.content,
+			type: docType,
+			subforum: values.subforum === 'none' ? undefined : values.subforum,
+			category: values.category === 'none' ? undefined : values.category,
+			folderId: values.folderId === 'none' ? undefined : values.folderId,
+			trigger: docType === 'template' ? values.trigger || undefined : undefined,
+			createdAt: now,
+			updatedAt: now,
+		}
+	}
+
+	const startPublishFlow = async (draft: Draft, mode: DashboardThreadPublishMode) => {
+		try {
+			await openDashboardThreadPublish(draft, mode)
+			toast.success(mode === 'dry-run' ? 'Modo prueba abierto' : 'Publicación enviada a Mediavida', {
+				description:
+					mode === 'dry-run'
+						? 'Se rellenará el nuevo hilo sin pulsar Crear tema.'
+						: 'Se abrirá Mediavida y se pulsará Crear tema automáticamente.',
+			})
+		} catch (error) {
+			toast.error('No se puede publicar', {
+				description: error instanceof Error ? error.message : 'Revisa los datos del borrador.',
+			})
+		}
+	}
+
+	const handlePublishRequest = async (mode: DashboardThreadPublishMode) => {
+		const draft = buildCurrentDraftSnapshot()
+		const validationError = getDashboardThreadPublishValidationError(draft)
+		if (validationError) {
+			toast.error('No se puede publicar', { description: validationError })
+			return
+		}
+
+		if (mode === 'dry-run') {
+			await startPublishFlow(draft, mode)
+			return
+		}
+
+		setPendingPublishDraft(draft)
+		setPublishDialogOpen(true)
+	}
+
+	const handlePublishConfirm = async () => {
+		if (!pendingPublishDraft) return
+		const draft = pendingPublishDraft
+		setPublishDialogOpen(false)
+		setPendingPublishDraft(null)
+		await startPublishFlow(draft, 'publish')
+	}
+
 	return (
 		<>
 			<FullPageEditorLayout
@@ -212,6 +282,28 @@ export function DraftEditorView({ docType = 'draft' }: DraftEditorViewProps) {
 										<span className="hidden sm:inline">Mostrar vista previa</span>
 									</>
 								)}
+							</Button>
+
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => void handlePublishRequest('dry-run')}
+								className="gap-2 px-3 h-9"
+								title="Abrir Mediavida y rellenar sin publicar"
+							>
+								<Eye className="h-4 w-4" />
+								<span className="hidden sm:inline">Probar MV</span>
+							</Button>
+
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={() => void handlePublishRequest('publish')}
+								className="gap-2 px-3 h-9"
+								title="Abrir Mediavida y publicar automáticamente"
+							>
+								<Send className="h-4 w-4" />
+								<span className="hidden sm:inline">Publicar</span>
 							</Button>
 
 							{draftEditor.isEditing && (
@@ -413,6 +505,16 @@ export function DraftEditorView({ docType = 'draft' }: DraftEditorViewProps) {
 						form.setValue('category', insertCategory, { shouldDirty: true })
 					}
 				}}
+			/>
+
+			<PublishDraftDialog
+				open={publishDialogOpen}
+				onOpenChange={open => {
+					setPublishDialogOpen(open)
+					if (!open) setPendingPublishDraft(null)
+				}}
+				draft={pendingPublishDraft}
+				onConfirm={handlePublishConfirm}
 			/>
 		</>
 	)

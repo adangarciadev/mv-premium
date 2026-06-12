@@ -12,6 +12,8 @@ import MoreHorizontal from 'lucide-react/dist/esm/icons/more-horizontal'
 import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
 import Tag from 'lucide-react/dist/esm/icons/tag'
 import Check from 'lucide-react/dist/esm/icons/check'
+import Eye from 'lucide-react/dist/esm/icons/eye'
+import Send from 'lucide-react/dist/esm/icons/send'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -27,6 +29,7 @@ import { formatRelativeDate } from '@/lib/date-utils'
 import { ALL_SUBFORUMS } from '@/lib/subforums'
 import { getCategoriesForSubforum } from '@/lib/subforum-categories'
 import type { Draft } from '@/features/drafts/storage'
+import type { DashboardThreadPublishMode } from '@/features/drafts/logic/thread-publish'
 
 // ============================================================================
 // Types
@@ -46,6 +49,8 @@ export interface DraftCardProps {
 	onMove: (draft: Draft) => void
 	/** Called when converting draft to template or vice versa */
 	onConvert?: (draft: Draft) => void
+	/** Called when starting a Mediavida thread publish flow */
+	onPublish?: (draft: Draft, mode: DashboardThreadPublishMode) => void
 }
 
 // ============================================================================
@@ -62,6 +67,7 @@ export const DraftCard = memo(function DraftCard({
 	onDelete,
 	onMove,
 	onConvert,
+	onPublish,
 }: DraftCardProps) {
 	const subforum = ALL_SUBFORUMS.find(s => s.slug === draft.subforum)
 	const isTemplate = draft.type === 'template'
@@ -158,6 +164,19 @@ export const DraftCard = memo(function DraftCard({
 								<Copy className="h-4 w-4 mr-2" />
 								Duplicar
 							</DropdownMenuItem>
+							{onPublish && (
+								<>
+									<DropdownMenuSeparator />
+									<DropdownMenuItem onSelect={() => onPublish(draft, 'dry-run')}>
+										<Eye className="h-4 w-4 mr-2" />
+										Probar sin publicar
+									</DropdownMenuItem>
+									<DropdownMenuItem onSelect={() => onPublish(draft, 'publish')}>
+										<Send className="h-4 w-4 mr-2" />
+										Publicar en Mediavida
+									</DropdownMenuItem>
+								</>
+							)}
 							{onConvert && (
 								<DropdownMenuItem onSelect={() => onConvert(draft)}>
 									<RefreshCw className="h-4 w-4 mr-2" />

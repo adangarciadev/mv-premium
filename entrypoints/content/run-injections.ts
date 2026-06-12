@@ -240,6 +240,9 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		})
 
 		if (window.location.pathname.includes('/nuevo-hilo')) {
+			import('@/features/drafts/logic/thread-publish').then(({ applyDashboardThreadPublish }) => {
+				void applyDashboardThreadPublish()
+			})
 			import('@/features/release-calendar').then(({ applyReleaseThreadPrefill }) => {
 				applyReleaseThreadPrefill()
 			})
@@ -315,7 +318,7 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 
 	if (
 		pageContext?.isSubforum &&
-		/^\/foro\/juegos\/?$/.test(window.location.pathname)
+		/^\/foro\/juegos(?:-movil)?\/?$/.test(window.location.pathname)
 	) {
 		const { injectReleaseCalendar } = await import('@/features/release-calendar')
 		injectReleaseCalendar()

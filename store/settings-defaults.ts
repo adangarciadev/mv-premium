@@ -57,6 +57,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	itadCountry: 'ES',
 	gameReleaseCalendarEnabled: true,
 	gameReleaseCalendarJuegosEnabled: true,
+	gameReleaseCalendarJuegosMovilEnabled: true,
 	gameReleaseCalendarLayout: 'minimal',
 	movieReleaseCalendarCineEnabled: true,
 	movieReleaseCalendarLayout: 'minimal',

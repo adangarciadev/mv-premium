@@ -85,6 +85,7 @@ export const settingsSchema = z.object({
 	itadCountry: itadCountrySchema.default('ES'),
 	gameReleaseCalendarEnabled: z.boolean().default(true),
 	gameReleaseCalendarJuegosEnabled: z.boolean().default(true),
+	gameReleaseCalendarJuegosMovilEnabled: z.boolean().default(true),
 	gameReleaseCalendarLayout: gameReleaseCalendarLayoutSchema.default('minimal'),
 	movieReleaseCalendarCineEnabled: z.boolean().default(true),
 	movieReleaseCalendarLayout: gameReleaseCalendarLayoutSchema.default('minimal'),

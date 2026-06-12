@@ -2,12 +2,38 @@ import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { DOM_MARKERS, FEATURE_IDS } from '@/constants'
 import { isFeatureMounted, mountFeatureWithBoundary, unmountFeature } from '@/lib/content-modules/utils/react-helpers'
 import { useSettingsStore } from '@/store/settings-store'
-import { ReleaseCalendar } from '../components/release-calendar'
+import { ReleaseCalendar, type ReleaseCalendarVariant } from '../components/release-calendar'
 
 const JUEGOS_SUBFORUM_PATH_PATTERN = /^\/foro\/juegos\/?$/
+const JUEGOS_MOVIL_SUBFORUM_PATH_PATTERN = /^\/foro\/juegos-movil\/?$/
 
-function isJuegosSubforumPage(): boolean {
-	return JUEGOS_SUBFORUM_PATH_PATTERN.test(window.location.pathname)
+interface CalendarTarget {
+	variant: ReleaseCalendarVariant
+	featureId: string
+	domId: string
+	settingKey: 'gameReleaseCalendarJuegosEnabled' | 'gameReleaseCalendarJuegosMovilEnabled'
+}
+
+const CALENDAR_TARGETS: CalendarTarget[] = [
+	{
+		variant: 'juegos',
+		featureId: FEATURE_IDS.GAME_RELEASE_CALENDAR,
+		domId: DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR,
+		settingKey: 'gameReleaseCalendarJuegosEnabled',
+	},
+	{
+		variant: 'juegos-movil',
+		featureId: FEATURE_IDS.GAME_RELEASE_CALENDAR_MOVIL,
+		domId: DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR_MOVIL,
+		settingKey: 'gameReleaseCalendarJuegosMovilEnabled',
+	},
+]
+
+function getCurrentCalendarTarget(): CalendarTarget | null {
+	const pathname = window.location.pathname
+	if (JUEGOS_SUBFORUM_PATH_PATTERN.test(pathname)) return CALENDAR_TARGETS[0]
+	if (JUEGOS_MOVIL_SUBFORUM_PATH_PATTERN.test(pathname)) return CALENDAR_TARGETS[1]
+	return null
 }
 
 function findInsertionTarget(): Element | null {
@@ -20,47 +46,55 @@ function findInsertionTarget(): Element | null {
 }
 
 export function injectReleaseCalendar(): void {
-	if (!isJuegosSubforumPage()) return
-	if (!useSettingsStore.getState().gameReleaseCalendarJuegosEnabled) return
-	if (isFeatureMounted(FEATURE_IDS.GAME_RELEASE_CALENDAR)) return
-	if (document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR)) return
+	const calendarTarget = getCurrentCalendarTarget()
+	if (!calendarTarget) return
+	if (!useSettingsStore.getState()[calendarTarget.settingKey]) return
+	if (isFeatureMounted(calendarTarget.featureId)) return
+	if (document.getElementById(calendarTarget.domId)) return
 
 	const target = findInsertionTarget()
 	if (!target) return
 
 	const container = document.createElement('div')
-	container.id = DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR
+	container.id = calendarTarget.domId
 	container.style.cssText = 'display: block; margin-bottom: 10px;'
 
 	target.insertBefore(container, target.firstChild)
 
 	mountFeatureWithBoundary(
-		FEATURE_IDS.GAME_RELEASE_CALENDAR,
+		calendarTarget.featureId,
 		container,
 		<ShadowWrapper>
-			<ReleaseCalendar />
+			<ReleaseCalendar variant={calendarTarget.variant} />
 		</ShadowWrapper>,
 		'Calendario de lanzamientos'
 	)
 }
 
 export function removeReleaseCalendar(): void {
-	unmountFeature(FEATURE_IDS.GAME_RELEASE_CALENDAR)
-	document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR)?.remove()
+	for (const calendarTarget of CALENDAR_TARGETS) {
+		unmountFeature(calendarTarget.featureId)
+		document.getElementById(calendarTarget.domId)?.remove()
+	}
 }
 
 export async function setReleaseCalendarJuegosEnabled(enabled: boolean): Promise<void> {
-	useSettingsStore.getState().setSetting('gameReleaseCalendarJuegosEnabled', enabled)
+	// Operates on the calendar of the current page (juegos or juegos-movil),
+	// falling back to the juegos setting outside both subforums.
+	const calendarTarget = getCurrentCalendarTarget() ?? CALENDAR_TARGETS[0]
+	useSettingsStore.getState().setSetting(calendarTarget.settingKey, enabled)
 
 	if (enabled) {
 		injectReleaseCalendar()
 		return
 	}
 
-	removeReleaseCalendar()
+	unmountFeature(calendarTarget.featureId)
+	document.getElementById(calendarTarget.domId)?.remove()
 }
 
 export async function toggleReleaseCalendarJuegos(): Promise<void> {
-	const enabled = !useSettingsStore.getState().gameReleaseCalendarJuegosEnabled
+	const calendarTarget = getCurrentCalendarTarget() ?? CALENDAR_TARGETS[0]
+	const enabled = !useSettingsStore.getState()[calendarTarget.settingKey]
 	await setReleaseCalendarJuegosEnabled(enabled)
 }

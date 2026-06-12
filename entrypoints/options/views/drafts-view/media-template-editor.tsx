@@ -43,6 +43,8 @@ import { getPosterUrl } from '@/services/api/tmdb'
 
 import {
 	getFieldsForType,
+	isGameTemplateType,
+	DEFAULT_USER_TEMPLATES,
 	TVSHOW_FIELDS,
 	SEASON_FIELDS,
 	type TemplateType,
@@ -93,6 +95,11 @@ const MEDIA_TYPES: { value: TemplateType; label: string; tooltip: string }[] = [
 		tooltip: 'Plantilla para fichas de una temporada específica de una serie (busca en TMDB)',
 	},
 	{ value: 'game', label: 'Videojuegos', tooltip: 'Plantilla para fichas de videojuegos (busca en IGDB)' },
+	{
+		value: 'mobile-game',
+		label: 'Juegos de móvil',
+		tooltip: 'Plantilla para fichas de juegos de móvil con tarjetas de Google Play y App Store (busca en IGDB)',
+	},
 	{ value: 'anime', label: 'Anime', tooltip: 'Plantilla para fichas de anime (busca en AniList)' },
 	{ value: 'manga', label: 'Manga', tooltip: 'Plantilla para fichas de manga (busca en AniList)' },
 ]
@@ -104,7 +111,7 @@ export function MediaTemplateEditor() {
 
 	// Current media type from URL
 	const currentType = (searchParams.get('type') as TemplateType) || 'movie'
-	const validTypes: TemplateType[] = ['movie', 'tvshow', 'season', 'game', 'anime', 'manga']
+	const validTypes: TemplateType[] = ['movie', 'tvshow', 'season', 'game', 'mobile-game', 'anime', 'manga']
 	const mediaType = validTypes.includes(currentType) ? currentType : 'movie'
 
 	// Settings
@@ -231,7 +238,7 @@ export function MediaTemplateEditor() {
 		const newTemplate: MediaTemplate = createEmptyTemplate(mediaType, `Plantilla Personalizada (${mediaType})`)
 		newTemplate.blocks = [createRawBlock(content)]
 
-		const currentTemplates = mediaTemplates || { movie: null, tvshow: null, season: null, game: null, anime: null, manga: null }
+		const currentTemplates = mediaTemplates || DEFAULT_USER_TEMPLATES
 		const updatedTemplates = {
 			...currentTemplates,
 			[mediaType]: newTemplate,
@@ -253,7 +260,7 @@ export function MediaTemplateEditor() {
 	// Handle clear confirm — removes custom template from store and loads default
 	const handleClearConfirm = () => {
 		// Remove the custom template from settings
-		const currentTemplates = mediaTemplates || { movie: null, tvshow: null, season: null, game: null, anime: null, manga: null }
+		const currentTemplates = mediaTemplates || DEFAULT_USER_TEMPLATES
 		const updatedTemplates = {
 			...currentTemplates,
 			[mediaType]: null,
@@ -616,7 +623,7 @@ export function MediaTemplateEditor() {
 										</div>
 									)}
 							</div>
-						) : mediaType === 'game' ? (
+						) : isGameTemplateType(mediaType) ? (
 							<div ref={searchContainerRef} className="relative flex-1 min-w-[240px] max-w-sm group">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground group-focus-within:text-primary transition-colors" />
 								<Input
@@ -762,7 +769,7 @@ export function MediaTemplateEditor() {
 								</button>
 							</Badge>
 						)}
-						{mediaType === 'game' && gameSelection.selectedGameTitle && (
+						{isGameTemplateType(mediaType) && gameSelection.selectedGameTitle && (
 							<Badge
 								variant="secondary"
 								className="shrink-0 gap-1.5 max-w-[220px] bg-muted/40 hover:bg-muted/60 border-border/50 text-foreground transition-all animate-in fade-in slide-in-from-left-2 duration-300"
@@ -990,7 +997,7 @@ export function MediaTemplateEditor() {
 							}
 						/>
 						{/* Loading overlay — game (with step detail) */}
-						{mediaType === 'game' && gameSelection.isLoadingGameData && (
+						{isGameTemplateType(mediaType) && gameSelection.isLoadingGameData && (
 							<div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-card/80 backdrop-blur-[1px] rounded-r-lg">
 								<Loader2 className="h-5 w-5 animate-spin text-primary mb-2" />
 								<span className="text-xs text-muted-foreground">
@@ -1001,7 +1008,7 @@ export function MediaTemplateEditor() {
 							</div>
 						)}
 						{/* Loading overlay — movie/TV (generic) */}
-						{mediaType !== 'game' &&
+						{!isGameTemplateType(mediaType) &&
 							(tmdbSelection.isLoadingMovieData ||
 								tmdbSelection.isLoadingTVData ||
 								tmdbSelection.isLoadingSeasonData) && (
@@ -1085,6 +1092,8 @@ function getTypeName(type: TemplateType): string {
 			return 'Temporadas'
 		case 'game':
 			return 'Videojuegos'
+		case 'mobile-game':
+			return 'Juegos de móvil'
 		case 'anime':
 			return 'Anime'
 		case 'manga':

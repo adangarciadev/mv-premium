@@ -12,11 +12,20 @@ import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle'
 import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
 import ChevronRight from 'lucide-react/dist/esm/icons/chevron-right'
+import Smartphone from 'lucide-react/dist/esm/icons/smartphone'
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
-import { generateGameTemplate, generateSteamMediaTemplate, getIGDBImageUrl } from '@/services/api/igdb'
+import {
+	generateGameTemplate,
+	generateMobileStoresMediaTemplate,
+	generateSteamMediaTemplate,
+	getIGDBImageUrl,
+	IGDB_MOBILE_PLATFORM_IDS,
+	type GameTemplateType,
+} from '@/services/api/igdb'
 import { browser } from 'wxt/browser'
 import type { IGDBGame } from '@/services/api/igdb'
 import type { GameTemplateDataInput } from '@/types/templates'
+import { cn } from '@/lib/utils'
 import { useGameSearch, useGameTemplateDataWithProgress, useIgdbCredentials } from '../hooks/use-igdb'
 import { useDebounce } from 'use-debounce'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -47,6 +56,7 @@ interface DialogState {
 	selectedGame: IGDBGame | null
 	templateData: GameTemplateDataInput | null
 	template: string
+	templateType: GameTemplateType
 	error: string | null
 	copied: boolean
 	isEditing: boolean
@@ -56,12 +66,13 @@ type DialogAction =
 	| { type: 'SELECT_GAME'; game: IGDBGame }
 	| { type: 'DATA_LOADED'; data: GameTemplateDataInput; template: string }
 	| { type: 'SET_SEARCH_QUERY'; query: string }
+	| { type: 'SET_TEMPLATE_TYPE'; templateType: GameTemplateType }
 	| { type: 'SET_ERROR'; error: string | null }
 	| { type: 'SET_TEMPLATE'; template: string }
 	| { type: 'SET_COPIED'; copied: boolean }
 	| { type: 'TOGGLE_EDITING' }
 	| { type: 'BACK' }
-	| { type: 'RESET' }
+	| { type: 'RESET'; templateType: GameTemplateType }
 
 const initialState: DialogState = {
 	step: 'search',
@@ -70,9 +81,17 @@ const initialState: DialogState = {
 	selectedGame: null,
 	templateData: null,
 	template: '',
+	templateType: 'game',
 	error: null,
 	copied: false,
 	isEditing: false,
+}
+
+/**
+ * Inside the Juegos de móvil subforum the mobile template is the sensible default.
+ */
+function getDefaultGameTemplateType(): GameTemplateType {
+	return window.location.pathname.startsWith('/foro/juegos-movil') ? 'mobile-game' : 'game'
 }
 
 function dialogReducer(state: DialogState, action: DialogAction): DialogState {
@@ -83,6 +102,8 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 			return { ...state, templateData: action.data, template: action.template, step: 'preview', selectedId: null }
 		case 'SET_SEARCH_QUERY':
 			return { ...state, searchQuery: action.query }
+		case 'SET_TEMPLATE_TYPE':
+			return { ...state, templateType: action.templateType }
 		case 'SET_ERROR':
 			return { ...state, error: action.error }
 		case 'SET_TEMPLATE':
@@ -94,13 +115,14 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 		case 'BACK':
 			return { ...state, selectedGame: null, templateData: null, template: '', isEditing: false, step: 'search' }
 		case 'RESET':
-			return initialState
+			return { ...initialState, templateType: action.templateType }
 	}
 }
 
 export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDialogProps) {
 	const [state, dispatch] = useReducer(dialogReducer, initialState)
-	const { step, searchQuery, selectedId, selectedGame, templateData, template, error, copied, isEditing } = state
+	const { step, searchQuery, selectedId, selectedGame, templateData, template, templateType, error, copied, isEditing } =
+		state
 
 	const searchInputRef = useRef<HTMLInputElement>(null)
 
@@ -110,12 +132,17 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 	// Check if credentials are configured
 	const { data: hasCredentials, isLoading: isCheckingCredentials } = useIgdbCredentials()
 
-	// Game search hook
+	// Game search hook. In mobile mode only games available on Android/iOS
+	// make sense (multi-platform is fine, console/PC-only is not).
 	const {
 		data: searchResults = [],
 		isLoading: isSearching,
 		error: searchError,
-	} = useGameSearch(debouncedQuery, isOpen && !!hasCredentials)
+	} = useGameSearch(
+		debouncedQuery,
+		isOpen && !!hasCredentials,
+		templateType === 'mobile-game' ? IGDB_MOBILE_PLATFORM_IDS : undefined
+	)
 
 	// Game template data hook (with step-by-step loading progress)
 	const { data: fetchedGameData, isLoading: isLoadingDetails, loadingStep } = useGameTemplateDataWithProgress(
@@ -126,9 +153,13 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 	// Process game data when it loads
 	useEffect(() => {
 		if (fetchedGameData && selectedId !== null) {
-			dispatch({ type: 'DATA_LOADED', data: fetchedGameData, template: generateGameTemplate(fetchedGameData) })
+			dispatch({
+				type: 'DATA_LOADED',
+				data: fetchedGameData,
+				template: generateGameTemplate(fetchedGameData, templateType),
+			})
 		}
-	}, [fetchedGameData, selectedId])
+	}, [fetchedGameData, selectedId, templateType])
 
 	// Handle search error
 	useEffect(() => {
@@ -142,13 +173,13 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 	// Focus search input when dialog opens
 	useEffect(() => {
 		if (isOpen && hasCredentials) {
-			dispatch({ type: 'RESET' })
+			dispatch({ type: 'RESET', templateType: getDefaultGameTemplateType() })
 			setTimeout(() => searchInputRef.current?.focus(), 100)
 		}
 	}, [isOpen, hasCredentials])
 
 	const handleClose = () => {
-		dispatch({ type: 'RESET' })
+		dispatch({ type: 'RESET', templateType: getDefaultGameTemplateType() })
 		onClose()
 	}
 
@@ -163,14 +194,22 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 		handleClose()
 	}
 
-	const handleInsertSteamMedia = () => {
+	const handleInsertStoreMedia = () => {
 		if (!templateData) return
-		const steamMediaTemplate = generateSteamMediaTemplate(templateData)
-		if (!steamMediaTemplate) return
+		const storeMediaTemplate =
+			templateType === 'mobile-game'
+				? generateMobileStoresMediaTemplate(templateData)
+				: generateSteamMediaTemplate(templateData)
+		if (!storeMediaTemplate) return
 
-		onInsert(steamMediaTemplate)
+		onInsert(storeMediaTemplate)
 		handleClose()
 	}
+
+	const hasStoreMedia =
+		templateType === 'mobile-game'
+			? Boolean(templateData?.googlePlayUrl || templateData?.appStoreUrl)
+			: Boolean(templateData?.steamStoreUrl)
 
 	// Get title for dialog header
 	const getDialogTitle = () => {
@@ -194,13 +233,17 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 						backLabel="← Buscar otro"
 						onCopy={handleCopy}
 						copied={copied}
-						secondaryInsertLabel="Media Steam"
-						onSecondaryInsert={handleInsertSteamMedia}
-						secondaryInsertDisabled={!templateData?.steamStoreUrl}
+						secondaryInsertLabel={templateType === 'mobile-game' ? 'Media Stores' : 'Media Steam'}
+						onSecondaryInsert={handleInsertStoreMedia}
+						secondaryInsertDisabled={!hasStoreMedia}
 						secondaryInsertTitle={
-							templateData?.steamStoreUrl
-								? 'Insertar [media] con la URL de Steam'
-								: 'No se ha encontrado enlace de Steam para este juego'
+							templateType === 'mobile-game'
+								? hasStoreMedia
+									? 'Insertar [media] con las tarjetas de Google Play / App Store'
+									: 'No se han encontrado enlaces de Google Play ni App Store para este juego'
+								: hasStoreMedia
+									? 'Insertar [media] con la URL de Steam'
+									: 'No se ha encontrado enlace de Steam para este juego'
 						}
 						onInsert={handleInsert}
 					/>
@@ -229,6 +272,38 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 					{/* Search Step */}
 					{step === 'search' && (
 						<div className="flex min-h-full flex-col">
+							{/* Template type toggle (mirrors the movie dialog media-type toggle) */}
+							<div className="mb-4 grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted/40 p-1">
+								{([
+									{ type: 'game' as const, label: 'Videojuegos', icon: <Gamepad2 className="h-4 w-4" /> },
+									{ type: 'mobile-game' as const, label: 'Juegos de móvil', icon: <Smartphone className="h-4 w-4" /> },
+								]).map(item => (
+									<button
+										key={item.type}
+										onClick={() => dispatch({ type: 'SET_TEMPLATE_TYPE', templateType: item.type })}
+										className={cn(
+											'flex min-w-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border-none px-1.5 h-10 text-[11px] font-medium transition-all',
+											templateType === item.type
+												? 'bg-primary text-primary-foreground shadow-sm'
+												: 'bg-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground'
+										)}
+									>
+										<span className="shrink-0">{item.icon}</span>
+										<span className="shrink-0 whitespace-nowrap">{item.label}</span>
+										<span
+											className={cn(
+												'shrink-0 rounded-sm border px-1 py-0.5 font-mono text-[7px] uppercase leading-none',
+												templateType === item.type
+													? 'border-primary-foreground/25 bg-primary-foreground/15 text-primary-foreground/80'
+													: 'border-border bg-background/70 text-muted-foreground/70'
+											)}
+										>
+											IGDB
+										</span>
+									</button>
+								))}
+							</div>
+
 							<div className="mb-4 rounded-lg border border-border bg-gradient-to-r from-primary/10 via-muted/15 to-background p-4">
 								<div className="flex items-center gap-3">
 									<div className="flex h-10 w-10 items-center justify-center rounded-lg border border-primary/20 bg-background text-primary shadow-sm">
@@ -330,6 +405,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 								<MediaEmptyState
 									icon={<Gamepad2 className="w-6 h-6 text-muted-foreground" />}
 									text="No se encontraron videojuegos"
+									className="mb-4 min-h-[224px] flex-1"
 								/>
 							)}
 
@@ -337,6 +413,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 								<MediaEmptyState
 									icon={<Search className="w-6 h-6 text-muted-foreground" />}
 									text="Escribe para buscar videojuegos"
+									className="mb-4 min-h-[224px] flex-1"
 								/>
 							)}
 
@@ -363,8 +440,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 										{templateData.name}
 									</div>
 									<div className="mb-1 truncate text-xs text-muted-foreground">
-										{templateData.releaseDate ? new Date(templateData.releaseDate).getFullYear() : '—'} ·{' '}
-										{templateData.developers.join(', ') || 'Desarrollador desconocido'}
+										{templateData.releaseYear || '—'} · {templateData.developers.join(', ') || 'Desarrollador desconocido'}
 									</div>
 									<div className="truncate text-xs text-muted-foreground/80">
 										{templateData.platforms.slice(0, 4).join(', ')}
@@ -373,7 +449,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 							}
 							onCustomize={() => {
 								browser.tabs.create({
-									url: browser.runtime.getURL('/options.html#/templates?tab=media&type=game'),
+									url: browser.runtime.getURL(`/options.html#/templates?tab=media&type=${templateType}`),
 								})
 							}}
 							template={template}

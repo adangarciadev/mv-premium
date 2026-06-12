@@ -8,6 +8,7 @@ const { mountFeatureWithBoundary, isFeatureMounted, settingsState } = vi.hoisted
 	isFeatureMounted: vi.fn(() => false),
 	settingsState: {
 		gameReleaseCalendarJuegosEnabled: true,
+		gameReleaseCalendarJuegosMovilEnabled: true,
 	},
 }))
 
@@ -41,6 +42,7 @@ describe('injectReleaseCalendar', () => {
 		mountFeatureWithBoundary.mockClear()
 		isFeatureMounted.mockReturnValue(false)
 		settingsState.gameReleaseCalendarJuegosEnabled = true
+		settingsState.gameReleaseCalendarJuegosMovilEnabled = true
 		setPath('/foro/juegos')
 	})
 
@@ -72,5 +74,36 @@ describe('injectReleaseCalendar', () => {
 
 		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR)).toBeNull()
 		expect(mountFeatureWithBoundary).not.toHaveBeenCalled()
+	})
+
+	it('mounts the mobile calendar on the Juegos de móvil subforum', () => {
+		setPath('/foro/juegos-movil')
+
+		injectReleaseCalendar()
+
+		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR_MOVIL)).not.toBeNull()
+		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR)).toBeNull()
+		expect(mountFeatureWithBoundary).toHaveBeenCalledWith(
+			FEATURE_IDS.GAME_RELEASE_CALENDAR_MOVIL,
+			expect.any(HTMLDivElement),
+			expect.anything(),
+			'Calendario de lanzamientos'
+		)
+	})
+
+	it('respects the Juegos de móvil setting independently', () => {
+		settingsState.gameReleaseCalendarJuegosMovilEnabled = false
+		setPath('/foro/juegos-movil')
+
+		injectReleaseCalendar()
+
+		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR_MOVIL)).toBeNull()
+		expect(mountFeatureWithBoundary).not.toHaveBeenCalled()
+
+		// The Juegos calendar must keep working with its own setting
+		setPath('/foro/juegos')
+		injectReleaseCalendar()
+
+		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR)).not.toBeNull()
 	})
 })

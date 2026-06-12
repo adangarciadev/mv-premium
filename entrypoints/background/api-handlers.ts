@@ -6,6 +6,7 @@
 import { browser } from 'wxt/browser'
 import { logger } from '@/lib/logger'
 import { fetchSteamBundleDetails, fetchSteamGameDetails, searchSteamApps } from '@/services/api/steam'
+import { searchGooglePlayApp, searchItunesApp } from '@/services/api/mobile-stores'
 import {
 	onMessage,
 	type MvUserAvatarResult,
@@ -780,6 +781,24 @@ export function setupSteamHandler(): void {
 			return await fetchSteamBundleDetails(bundleId)
 		} catch (error) {
 			logger.error('Steam bundle fetch error:', error)
+			return null
+		}
+	})
+
+	onMessage('searchItunesApp', async ({ data }) => {
+		try {
+			return await searchItunesApp(data.query)
+		} catch (error) {
+			logger.error('iTunes search error:', error)
+			return null
+		}
+	})
+
+	onMessage('searchGooglePlayApp', async ({ data }) => {
+		try {
+			return await searchGooglePlayApp(data.query)
+		} catch (error) {
+			logger.error('Google Play search error:', error)
 			return null
 		}
 	})

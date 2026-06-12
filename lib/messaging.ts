@@ -13,6 +13,7 @@
  */
 import { defineExtensionMessaging } from '@webext-core/messaging'
 import type { SteamGameDetails, SteamBundleDetails, SteamAppSearchResult } from '@/services/api/steam'
+import type { MobileStoreSearchResult } from '@/services/api/mobile-stores'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import type { ItadGamePriceOverview, ItadGamePrices, ItadGameSearchResult } from '@/services/api/itad'
 import type { ChatMessage } from '@/types/ai'
@@ -195,6 +196,20 @@ interface ProtocolMap {
 	 * @returns Steam app search results
 	 */
 	searchSteamApps: (data: { query: string; limit?: number }) => SteamAppSearchResult[]
+
+	/**
+	 * Search the Apple App Store by title via the iTunes Search API (CORS proxy)
+	 * @param data - Search query
+	 * @returns Best matching app or null
+	 */
+	searchItunesApp: (data: { query: string }) => MobileStoreSearchResult | null
+
+	/**
+	 * Search Google Play by title via the public store search page (CORS proxy)
+	 * @param data - Search query
+	 * @returns First app result or null
+	 */
+	searchGooglePlayApp: (data: { query: string }) => MobileStoreSearchResult | null
 
 	/**
 	 * Fetch Steam bundle details (CORS proxy)

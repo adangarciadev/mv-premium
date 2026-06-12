@@ -83,6 +83,7 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		itadSubforumSearchHuchaEnabled,
 		itadCountry,
 		gameReleaseCalendarJuegosEnabled,
+		gameReleaseCalendarJuegosMovilEnabled,
 		movieReleaseCalendarCineEnabled,
 		threadClipperSubforums,
 		contentRulesEnabled,
@@ -125,6 +126,7 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				| 'itadSubforumSearchJuegosEnabled'
 				| 'itadSubforumSearchHuchaEnabled'
 				| 'gameReleaseCalendarJuegosEnabled'
+				| 'gameReleaseCalendarJuegosMovilEnabled'
 				| 'movieReleaseCalendarCineEnabled'
 				| 'contentRulesEnabled'
 				| 'classicThreadActionsEnabled'
@@ -397,12 +399,24 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				{...rowState('game-release-calendar')}
 				icon={<CalendarDays className="h-4 w-4" />}
 				label="Próximos lanzamientos"
-				description="Muestra próximos lanzamientos de videojuegos en el subforo Juegos y permite preparar hilos con plantilla IGDB."
+				description="Muestra próximos lanzamientos de videojuegos en los subforos Juegos y Juegos de móvil, y permite preparar hilos con plantilla IGDB."
 			>
-				<Switch
-					checked={gameReleaseCalendarJuegosEnabled}
-					onCheckedChange={withToastAndReload('gameReleaseCalendarJuegosEnabled', true)}
-				/>
+				<div className="grid gap-2 min-w-[190px]">
+					<label className="flex items-center justify-between gap-3 text-sm font-medium">
+						<span>Juegos</span>
+						<Switch
+							checked={gameReleaseCalendarJuegosEnabled}
+							onCheckedChange={withToastAndReload('gameReleaseCalendarJuegosEnabled', true)}
+						/>
+					</label>
+					<label className="flex items-center justify-between gap-3 text-sm font-medium">
+						<span>Juegos de móvil</span>
+						<Switch
+							checked={gameReleaseCalendarJuegosMovilEnabled}
+							onCheckedChange={withToastAndReload('gameReleaseCalendarJuegosMovilEnabled', true)}
+						/>
+					</label>
+				</div>
 			</SettingRow>
 
 			<SettingRow

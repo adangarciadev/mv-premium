@@ -97,6 +97,7 @@ export interface Settings {
 	itadCountry: ItadCountry
 	gameReleaseCalendarEnabled: boolean
 	gameReleaseCalendarJuegosEnabled: boolean
+	gameReleaseCalendarJuegosMovilEnabled: boolean
 	gameReleaseCalendarLayout: GameReleaseCalendarLayout
 	movieReleaseCalendarCineEnabled: boolean
 	movieReleaseCalendarLayout: GameReleaseCalendarLayout

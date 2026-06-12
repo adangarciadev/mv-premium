@@ -5,6 +5,7 @@
 import { useMemo, useCallback } from 'react'
 import { DraftCard } from './draft-card'
 import type { Draft } from '@/features/drafts/storage'
+import type { DashboardThreadPublishMode } from '@/features/drafts/logic/thread-publish'
 
 // ============================================================================
 // Types
@@ -27,6 +28,8 @@ export interface DraftGridProps {
 	onMove: (draft: Draft) => void
 	/** Callback when converting draft to template or vice versa */
 	onConvert?: (draft: Draft) => void
+	/** Callback when starting a Mediavida thread publish flow */
+	onPublish?: (draft: Draft, mode: DashboardThreadPublishMode) => void
 	/** Number of columns in grid view (default: 3) */
 	columns?: number
 	/** Last clicked draft ID for shift-select range */
@@ -48,6 +51,7 @@ export function DraftGrid({
 	onDelete,
 	onMove,
 	onConvert,
+	onPublish,
 	columns = 3,
 	lastClickedId,
 	onLastClickedChange,
@@ -128,6 +132,7 @@ export function DraftGrid({
 					onDelete={onDelete}
 					onMove={onMove}
 					onConvert={onConvert}
+					onPublish={onPublish}
 				/>
 			))}
 		</div>

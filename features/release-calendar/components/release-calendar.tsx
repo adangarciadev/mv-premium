@@ -18,6 +18,7 @@ import {
 	getGameTemplateString,
 	getUpcomingGameReleases,
 	hasIgdbCredentials,
+	IGDB_MOBILE_PLATFORM_IDS,
 	type UpcomingGameRelease,
 } from '@/services/api/igdb'
 import { logger } from '@/lib/logger'
@@ -32,25 +33,61 @@ interface ReleaseState {
 	hasCredentials: boolean | null
 }
 
-type PlatformFilter = 'all' | 'pc' | 'playstation' | 'xbox' | 'switch'
-type PlatformKind = 'pc' | 'playstation' | 'xbox' | 'switch' | 'other'
+type PlatformKind = 'pc' | 'playstation' | 'xbox' | 'switch' | 'android' | 'ios' | 'other'
+type PlatformFilter = 'all' | Exclude<PlatformKind, 'other'>
 
 interface PlatformBadge {
 	kind: PlatformKind
 	label: string
 }
 
-const PLATFORM_FILTERS: Array<{ id: PlatformFilter; label: string; tokens: string[] }> = [
-	{ id: 'all', label: 'Todos', tokens: [] },
-	{ id: 'pc', label: 'PC', tokens: ['pc', 'windows'] },
-	{ id: 'playstation', label: 'PlayStation', tokens: ['playstation', 'ps4', 'ps5'] },
-	{ id: 'xbox', label: 'Xbox', tokens: ['xbox'] },
-	{ id: 'switch', label: 'Switch', tokens: ['switch', 'nintendo'] },
-]
+export type ReleaseCalendarVariant = 'juegos' | 'juegos-movil'
+
+interface ReleaseCalendarVariantConfig {
+	/** IGDB platform IDs to constrain the query. Undefined = all platforms. */
+	queryPlatformIds?: number[]
+	platformFilters: Array<{ id: PlatformFilter; label: string }>
+	/** Mobile games have far lower hypes/follows on IGDB, so thresholds differ per variant. */
+	minFeaturedScore: number
+	minFallbackScore: number
+	/** Max featured releases per day. Null = no cap (mobile has far fewer releases). */
+	maxFeaturedPerDay: number | null
+	threadSubforum: 'juegos' | 'juegos-movil'
+	templateType: 'game' | 'mobile-game'
+}
+
+
+const VARIANT_CONFIGS: Record<ReleaseCalendarVariant, ReleaseCalendarVariantConfig> = {
+	juegos: {
+		platformFilters: [
+			{ id: 'all', label: 'Todos' },
+			{ id: 'pc', label: 'PC' },
+			{ id: 'playstation', label: 'PlayStation' },
+			{ id: 'xbox', label: 'Xbox' },
+			{ id: 'switch', label: 'Switch' },
+		],
+		minFeaturedScore: 40,
+		minFallbackScore: 25,
+		maxFeaturedPerDay: 5,
+		threadSubforum: 'juegos',
+		templateType: 'game',
+	},
+	'juegos-movil': {
+		queryPlatformIds: IGDB_MOBILE_PLATFORM_IDS,
+		platformFilters: [
+			{ id: 'all', label: 'Todos' },
+			{ id: 'android', label: 'Android' },
+			{ id: 'ios', label: 'iOS' },
+		],
+		minFeaturedScore: 24,
+		minFallbackScore: 12,
+		maxFeaturedPerDay: null,
+		threadSubforum: 'juegos-movil',
+		templateType: 'mobile-game',
+	},
+}
+
 const RELEASE_WINDOW_DAYS = 30
-const MAX_FEATURED_RELEASES_PER_DAY = 5
-const MIN_FEATURED_RELEASE_SCORE = 40
-const MIN_FALLBACK_RELEASE_SCORE = 25
 const LOADING_SKELETON_COUNT = 24
 const MAX_PLATFORM_BADGES = 5
 
@@ -67,6 +104,8 @@ function formatReleaseDate(dateString: string): string {
 
 function getPlatformBadge(platform: string): PlatformBadge {
 	const normalized = platform.toLowerCase()
+	if (normalized.includes('android')) return { kind: 'android', label: 'Android' }
+	if (normalized === 'ios' || normalized.includes('ios')) return { kind: 'ios', label: 'iOS' }
 	if (normalized.includes('pc') || normalized.includes('win')) return { kind: 'pc', label: 'PC' }
 	if (normalized.includes('switch') || normalized.includes('nintendo'))
 		return { kind: 'switch', label: 'Nintendo Switch' }
@@ -124,6 +163,12 @@ function getPlatformBadgeClass(platform: PlatformBadge): string {
 	if (platform.kind === 'playstation') {
 		return 'border-[color-mix(in_srgb,var(--chart-4)45%,var(--border))] bg-[color-mix(in_srgb,var(--chart-4)18%,var(--card))] text-foreground'
 	}
+	if (platform.kind === 'android') {
+		return 'border-[color-mix(in_srgb,var(--chart-5)45%,var(--border))] bg-[color-mix(in_srgb,var(--chart-5)18%,var(--card))] text-foreground'
+	}
+	if (platform.kind === 'ios') {
+		return 'border-[color-mix(in_srgb,var(--primary)45%,var(--border))] bg-[color-mix(in_srgb,var(--primary)14%,var(--card))] text-foreground'
+	}
 	return 'border-border bg-muted text-muted-foreground'
 }
 
@@ -154,18 +199,8 @@ function getDateBadgeClass(dateString: string): string {
 function matchesPlatformFilter(release: UpcomingGameRelease, filter: PlatformFilter): boolean {
 	if (filter === 'all') return true
 
-	const config = PLATFORM_FILTERS.find(item => item.id === filter)
-	if (!config) return true
-
 	const platforms = release.platforms.length > 0 ? release.platforms : release.releasePlatforms
-	const platformBadges = platforms.map(getPlatformBadge)
-
-	if (filter === 'pc') return platformBadges.some(platform => platform.kind === 'pc')
-	if (filter === 'playstation') return platformBadges.some(platform => platform.kind === 'playstation')
-	if (filter === 'xbox') return platformBadges.some(platform => platform.kind === 'xbox')
-	if (filter === 'switch') return platformBadges.some(platform => platform.kind === 'switch')
-
-	return config.tokens.some(token => platforms.join(' ').toLowerCase().includes(token))
+	return platforms.map(getPlatformBadge).some(platform => platform.kind === filter)
 }
 
 function getDisplayPlatforms(release: UpcomingGameRelease): string[] {
@@ -179,9 +214,9 @@ function getReleasePlatformSummary(release: UpcomingGameRelease): string {
 	return badges.map(platform => platform.label).join(', ')
 }
 
-function isNotableRelease(release: UpcomingGameRelease): boolean {
+function isNotableRelease(release: UpcomingGameRelease, config: ReleaseCalendarVariantConfig): boolean {
 	return (
-		release.relevanceScore >= MIN_FEATURED_RELEASE_SCORE ||
+		release.relevanceScore >= config.minFeaturedScore ||
 		release.hypes > 0 ||
 		release.follows >= 10 ||
 		release.ratingCount >= 5
@@ -198,7 +233,10 @@ function sortByImportance(a: UpcomingGameRelease, b: UpcomingGameRelease): numbe
 	)
 }
 
-function selectFeaturedReleases(releases: UpcomingGameRelease[]): UpcomingGameRelease[] {
+function selectFeaturedReleases(
+	releases: UpcomingGameRelease[],
+	config: ReleaseCalendarVariantConfig
+): UpcomingGameRelease[] {
 	const byDay = new Map<string, UpcomingGameRelease[]>()
 
 	for (const release of releases) {
@@ -210,16 +248,17 @@ function selectFeaturedReleases(releases: UpcomingGameRelease[]): UpcomingGameRe
 	const selected: UpcomingGameRelease[] = []
 	for (const [, dayReleases] of byDay) {
 		const ranked = [...dayReleases].sort(sortByImportance)
-		const notable = ranked.filter(isNotableRelease)
+		const notable = ranked.filter(release => isNotableRelease(release, config))
 		const candidates =
-			notable.length > 0 ? notable : ranked.filter(release => release.relevanceScore >= MIN_FALLBACK_RELEASE_SCORE)
-		selected.push(...candidates.slice(0, MAX_FEATURED_RELEASES_PER_DAY))
+			notable.length > 0 ? notable : ranked.filter(release => release.relevanceScore >= config.minFallbackScore)
+		selected.push(...(config.maxFeaturedPerDay !== null ? candidates.slice(0, config.maxFeaturedPerDay) : candidates))
 	}
 
 	return selected.sort((a, b) => a.releaseTimestamp - b.releaseTimestamp || sortByImportance(a, b))
 }
 
-export function ReleaseCalendar() {
+export function ReleaseCalendar({ variant = 'juegos' }: { variant?: ReleaseCalendarVariant } = {}) {
+	const variantConfig = VARIANT_CONFIGS[variant]
 	const railRef = useRef<HTMLDivElement | null>(null)
 	const bottomBarRef = useRef<HTMLDivElement | null>(null)
 	const previousBodyPaddingRef = useRef<string | null>(null)
@@ -253,7 +292,7 @@ export function ReleaseCalendar() {
 				return
 			}
 
-			const releases = await getUpcomingGameReleases(dateRange)
+			const releases = await getUpcomingGameReleases({ ...dateRange, platforms: variantConfig.queryPlatformIds })
 			setState({ releases, loading: false, error: null, hasCredentials: true })
 		} catch (error) {
 			logger.error('Release calendar: failed to load upcoming games', error)
@@ -310,8 +349,8 @@ export function ReleaseCalendar() {
 
 	const filteredReleases = useMemo(() => {
 		const releases = state.releases.filter(release => matchesPlatformFilter(release, platformFilter))
-		return selectFeaturedReleases(releases)
-	}, [state.releases, platformFilter])
+		return selectFeaturedReleases(releases, variantConfig)
+	}, [state.releases, platformFilter, variantConfig])
 
 	function updateScrollState() {
 		const rail = railRef.current
@@ -365,15 +404,15 @@ export function ReleaseCalendar() {
 
 		setCreatingId(release.id)
 		try {
-			const body = await getGameTemplateString(release.id)
+			const body = await getGameTemplateString(release.id, variantConfig.templateType)
 			if (!body) throw new Error('Empty game template')
 
 			saveReleaseThreadPrefill({
-				subforum: 'juegos',
+				subforum: variantConfig.threadSubforum,
 				title: `[Hilo Oficial] ${release.name}`,
 				body,
 			})
-			window.location.assign('/foro/juegos/nuevo-hilo')
+			window.location.assign(`/foro/${variantConfig.threadSubforum}/nuevo-hilo`)
 		} catch (error) {
 			logger.error('Release calendar: failed to prepare thread prefill', error)
 			setState(prev => ({
@@ -533,7 +572,7 @@ export function ReleaseCalendar() {
 
 	const platformControls = (
 		<div className="flex max-w-full gap-1 overflow-x-auto rounded-md bg-muted p-1">
-			{PLATFORM_FILTERS.map(filter => (
+			{variantConfig.platformFilters.map(filter => (
 				<button
 					key={filter.id}
 					type="button"
@@ -606,21 +645,49 @@ export function ReleaseCalendar() {
 			<PopoverContent align="start" sideOffset={8} className="w-80 p-3 text-xs leading-relaxed">
 				<div className="space-y-2">
 					<p className="text-sm font-black text-foreground">Cómo se eligen</p>
-					<p className="text-muted-foreground">
-						Muestra lanzamientos de los próximos {RELEASE_WINDOW_DAYS} días. Incluye juegos base, remakes, remasters y
-						estrenos por plataforma.
-					</p>
-					<p className="text-muted-foreground">
-						Se descartan DLCs, expansiones, versiones hijas y fechas no finales como betas, alpha, early access o
-						cancelados.
-					</p>
-					<p className="text-muted-foreground">
-						Los destacados se priorizan con señales de IGDB: hypes, follows, valoraciones, rating, plataformas y si la
-						ficha tiene carátula.
-					</p>
-					<p className="text-[11px] font-semibold text-primary">
-						Para evitar ruido, se muestran hasta {MAX_FEATURED_RELEASES_PER_DAY} destacados por día.
-					</p>
+					{variant === 'juegos-movil' ? (
+						<>
+							<p className="text-muted-foreground">
+								Muestra juegos con lanzamiento en <b>iOS o Android</b> en los próximos {RELEASE_WINDOW_DAYS} días,
+								según las fechas de IGDB. Incluye juegos nativos de móvil y también ports de PC/consola cuya versión
+								móvil sale en ese periodo.
+							</p>
+							<p className="text-muted-foreground">
+								Se descartan DLCs, expansiones, versiones hijas y fechas no finales (betas, alpha, early access o
+								cancelados). Los soft-launch regionales pueden no aparecer si IGDB no tiene fecha global.
+							</p>
+							<p className="text-muted-foreground">
+								Los destacados se priorizan con señales de IGDB (hypes, follows, valoraciones y carátula), con
+								umbrales más bajos que en PC/consola porque los juegos de móvil tienen menos actividad en IGDB.
+							</p>
+							<p className="text-muted-foreground">
+								Al crear un hilo, la ficha incluye las tarjetas de <b>Google Play y App Store</b> prácticamente
+								siempre: en juegos publicados y en próximos estrenos con ficha de pre-registro en la tienda. Si la
+								tienda aún no ha publicado nada, la sección se omite y puede añadirse después con el botón Media
+								Stores del buscador de juegos del editor.
+							</p>
+						</>
+					) : (
+						<>
+							<p className="text-muted-foreground">
+								Muestra lanzamientos de los próximos {RELEASE_WINDOW_DAYS} días. Incluye juegos base, remakes,
+								remasters y estrenos por plataforma.
+							</p>
+							<p className="text-muted-foreground">
+								Se descartan DLCs, expansiones, versiones hijas y fechas no finales como betas, alpha, early access o
+								cancelados.
+							</p>
+							<p className="text-muted-foreground">
+								Los destacados se priorizan con señales de IGDB: hypes, follows, valoraciones, rating, plataformas y
+								si la ficha tiene carátula.
+							</p>
+						</>
+					)}
+					{variantConfig.maxFeaturedPerDay !== null ? (
+						<p className="text-[11px] font-semibold text-primary">
+							Para evitar ruido, se muestran hasta {variantConfig.maxFeaturedPerDay} destacados por día.
+						</p>
+					) : null}
 				</div>
 			</PopoverContent>
 		</Popover>
