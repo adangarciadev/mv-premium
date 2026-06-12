@@ -2,23 +2,17 @@
 
 ## Estado actual
 
-MV Premium no declara compatibilidad con Firefox Android por defecto. El manifest solo añade
-`browser_specific_settings.gecko_android` cuando el build se ejecuta con:
+MV Premium declara compatibilidad con Firefox Android en los builds Firefox publicados en AMO.
+El mismo XPI sirve para Firefox Desktop y Firefox Android.
 
-```sh
-MVP_ENABLE_FIREFOX_ANDROID=true npm run build:firefox
-```
+El manifest Firefox siempre incluye `browser_specific_settings.gecko_android` y elimina
+`options_ui` / `options_page` para que Firefox Android no muestre la entrada nativa de
+`Ajustes`. El dashboard no se elimina: `options.html` sigue empaquetado y se abre desde los
+accesos propios de MV Premium, como el botón del navbar de Mediavida.
 
-En Windows/cmd, o en WSL cuando el build acaba ejecutando Node de Windows, usar:
-
-```bat
-set MVP_ENABLE_FIREFOX_ANDROID=true&& npm run build:firefox
-```
-
-`mobileLiteEnabled` existe como flag interno persistido, pero su valor por defecto es `false`
-y no se muestra en opciones. En Firefox Android, los content scripts tempranos salen sin
-inyectar cambios y el content script principal no inicializa features mientras el flag siga
-desactivado.
+`mobileLiteEnabled` existe como flag interno persistido y su valor por defecto es `true`. En
+Firefox Android, los content scripts tempranos de escritorio salen sin inyectar cambios y el
+content script principal inicializa solo las funciones Mobile Lite.
 
 ## Funcionalidades que podrían funcionar en móvil
 
@@ -58,7 +52,7 @@ Estas funciones siguen desactivadas en Android hasta validar DOM, UX y permisos 
 - `storage`, `runtime`, content scripts y messaging son la base más segura para mobile lite.
 - El build Firefox actual de WXT genera Manifest V2 con `background.scripts`; se configura
   `persistent: { firefox: false }` para alinearlo con event pages.
-- Chrome sigue generando MV3 con service worker; no se añade `gecko_android` en builds normales.
+- Chrome sigue generando MV3 con service worker; no se añade `gecko_android` en builds Chrome.
 - Permisos actuales que requieren cautela móvil:
   - `contextMenus`: no usar en Android.
   - `scripting`: validar cada uso antes de exponerlo.
@@ -78,8 +72,10 @@ Estas funciones siguen desactivadas en Android hasta validar DOM, UX y permisos 
 
 ## Checklist antes de marcar Firefox Android en AMO
 
-- Generar un build Firefox con `MVP_ENABLE_FIREFOX_ANDROID=true`.
-- Confirmar que el manifest contiene `browser_specific_settings.gecko_android` solo en ese build.
+- Generar un build Firefox normal con `npm run build:firefox`.
+- Confirmar que el manifest Firefox contiene `browser_specific_settings.gecko_android`.
+- Confirmar que el manifest Firefox no contiene `options_ui` ni `options_page`.
+- Confirmar que `options.html` sigue presente en `.output/firefox-mv2`.
 - Ejecutar lint de WebExtension para Firefox Android y revisar incompatibilidades.
 - Probar en Firefox Android Release, Beta o Nightly con un dispositivo real o emulador.
 - Validar que el background event page despierta y atiende mensajes correctamente.
