@@ -4,7 +4,7 @@
  * self-ignoring with the same detection.
  */
 
-let cachedOwnUsername: string | null | undefined
+let cachedOwnUsername: string | undefined
 
 /** Lowercased own username, or null when logged out / not detectable. */
 export function getOwnUsername(): string | null {
@@ -12,7 +12,9 @@ export function getOwnUsername(): string | null {
 
 	const ownLink = document.querySelector<HTMLAnchorElement>('#usermenu a[href^="/id/"]')
 	const match = ownLink?.getAttribute('href')?.match(/\/id\/([^/?#]+)/)
-	cachedOwnUsername = match?.[1] ? safeDecodeUsername(match[1]).toLowerCase() : null
+	if (!match?.[1]) return null
+
+	cachedOwnUsername = safeDecodeUsername(match[1]).toLowerCase()
 	return cachedOwnUsername
 }
 

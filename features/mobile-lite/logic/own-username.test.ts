@@ -19,7 +19,15 @@ describe('getOwnUsername', () => {
 		expect(getOwnUsername()).toBeNull()
 	})
 
-	it('caches the result until reset', () => {
+	it('does not cache a missing profile link before the user menu is ready', () => {
+		document.body.innerHTML = ''
+		expect(getOwnUsername()).toBeNull()
+
+		document.body.innerHTML = '<ul id="usermenu"><li><a href="/id/LateUser">LateUser</a></li></ul>'
+		expect(getOwnUsername()).toBe('lateuser')
+	})
+
+	it('caches detected usernames until reset', () => {
 		document.body.innerHTML = '<ul id="usermenu"><li><a href="/id/MiNick">MiNick</a></li></ul>'
 		expect(getOwnUsername()).toBe('minick')
 
