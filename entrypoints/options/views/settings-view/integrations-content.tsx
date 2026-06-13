@@ -210,7 +210,7 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 			<div className="flex flex-col gap-4 py-4">
 				<div className="flex items-start justify-between gap-4">
 					<div className="flex gap-3">
-						<Sparkles className="h-5 w-5 mt-0.5 text-purple-500" />
+						<Sparkles className="h-5 w-5 mt-0.5 text-primary" />
 						<div>
 							<h4 className="text-sm font-medium leading-none flex items-center gap-2">
 								Google Gemini API
@@ -234,7 +234,7 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 									<button
 										onClick={handleTestGemini}
 										disabled={testingGemini}
-										className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-purple-500 transition-colors disabled:opacity-50"
+										className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
 									>
 										{testingGemini ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
 										Probar conexión

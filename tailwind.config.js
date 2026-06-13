@@ -83,6 +83,12 @@ export default {
 					'row-selected': 'var(--table-row-selected)',
 					border: 'var(--table-border)',
 				},
+				// Premium elevation scale (derived from preset tokens in options/style.css)
+				surface: {
+					1: 'var(--surface-1)',
+					2: 'var(--surface-2)',
+					3: 'var(--surface-3)',
+				},
 			},
 			borderRadius: {
 				xl: 'calc(var(--radius) + 4px)',
@@ -91,8 +97,16 @@ export default {
 				sm: 'calc(var(--radius) - 4px)',
 			},
 			fontFamily: {
-				sans: ['proxima-nova', 'Helvetica Neue', 'Arial', 'sans-serif'],
+				// var(--font-sans) resolves per context: Instrument Sans on the options
+				// page, proxima-nova in Light DOM / Shadow DOM (theme.css fallback).
+				sans: ['var(--font-sans)', 'proxima-nova', 'Helvetica Neue', 'Arial', 'sans-serif'],
+				display: ['var(--font-display)', 'proxima-nova', 'sans-serif'],
+				data: ['var(--font-data)', 'ui-monospace', 'Consolas', 'monospace'],
 				mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+			},
+			boxShadow: {
+				rest: 'var(--shadow-rest)',
+				lift: 'var(--shadow-lift)',
 			},
 			keyframes: {
 				'accordion-down': {

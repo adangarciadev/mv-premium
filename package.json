@@ -31,6 +31,9 @@
 		"generate:mv-color-map": "tsx scripts/generate-mv-color-map.ts"
 	},
 	"dependencies": {
+		"@fontsource-variable/bricolage-grotesque": "^5.2.10",
+		"@fontsource-variable/instrument-sans": "^5.2.8",
+		"@fontsource-variable/spline-sans-mono": "^5.2.8",
 		"@hookform/resolvers": "^5.2.2",
 		"@radix-ui/react-accordion": "^1.2.12",
 		"@radix-ui/react-alert-dialog": "^1.1.15",

@@ -86,7 +86,9 @@ export default defineConfig({
 				process.env.NODE_ENV === 'development'
 					? 'ws://localhost:3000 http://localhost:3000 ws://localhost:3001 http://localhost:3001'
 					: ''
-			}; img-src 'self' data: blob: https: http:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;`,
+			}; img-src 'self' data: blob: https: http:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com ${
+					process.env.NODE_ENV === 'development' ? 'http://localhost:3000 http://localhost:3001' : ''
+				};`,
 		},
 	}),
 	webExt: {

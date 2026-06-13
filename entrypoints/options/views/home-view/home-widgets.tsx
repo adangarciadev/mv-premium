@@ -1,7 +1,7 @@
 /**
  * Home Widgets - Stats cards, activity graph, and storage widget
  */
-import { memo, useEffect, lazy, Suspense } from 'react'
+import { memo, useEffect, useRef, useState, lazy, Suspense } from 'react'
 import Send from 'lucide-react/dist/esm/icons/send'
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square'
 import Clock from 'lucide-react/dist/esm/icons/clock'
@@ -100,16 +100,6 @@ export function HomeWidgets() {
 			slug,
 			name: getSubforumName(slug),
 			timeMs: time,
-			icon:
-				slug.includes('off-topic')
-					? '☕'
-					: slug.includes('juegos')
-						? '🎮'
-						: slug.includes('cine')
-							? '🎬'
-							: slug.includes('tecnologia')
-								? '💻'
-								: 'msg',
 		}))
 		.sort((a, b) => b.timeMs - a.timeMs)
 
@@ -149,10 +139,22 @@ export function HomeWidgets() {
 			{/* Main Stats Grid */}
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
 				{/* Posts Card */}
-				<StatCard icon={Send} label="Posts" value={totalPosts} subtext={`en ${currentYear}`} />
+				<StatCard
+					icon={Send}
+					label="Posts"
+					value={totalPosts}
+					subtext={`en ${currentYear}`}
+					className="reveal reveal-d2"
+				/>
 
 				{/* Threads Card */}
-				<StatCard icon={MessageSquare} label="Hilos" value={threadsCreated} subtext="creados" />
+				<StatCard
+					icon={MessageSquare}
+					label="Hilos"
+					value={threadsCreated}
+					subtext="creados"
+					className="reveal reveal-d3"
+				/>
 
 				{/* Active Time Card */}
 				<StatCard
@@ -160,6 +162,7 @@ export function HomeWidgets() {
 					label="Subforo Más Activo"
 					value={formatPreciseTime(activeSubforum.timeMs)}
 					subtext={`en ${activeSubforum.name}`}
+					className="reveal reveal-d4"
 				/>
 
 				{/* Total Time Card */}
@@ -169,13 +172,14 @@ export function HomeWidgets() {
 					value={formatPreciseTime(totalTimeMs)}
 					subtext=""
 					variant="featured"
+					className="reveal reveal-d5"
 				/>
 			</div>
 
 			{/* Full Width Heatmap */}
-			<div className="w-full">
-				<ActivityGraph 
-					activityData={activityData} 
+			<div className="w-full reveal reveal-d5">
+				<ActivityGraph
+					activityData={activityData}
 					username={username}
 					onClearData={async () => {
 						await clearActivityData()
@@ -186,8 +190,12 @@ export function HomeWidgets() {
 
 			{/* Secondary Grid: Top Subforums + Storage */}
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-				<TopSubforumsCard topSubforums={topSubforums} />
-				<StorageCard storageStats={storageStats} />
+				<div className="reveal reveal-d6 h-full">
+					<TopSubforumsCard topSubforums={topSubforums} totalTimeMs={totalTimeMs} />
+				</div>
+				<div className="reveal reveal-d6 h-full">
+					<StorageCard storageStats={storageStats} />
+				</div>
 			</div>
 		</>
 	)
@@ -202,86 +210,177 @@ interface StatCardProps {
 	label: string
 	value: string | number
 	subtext: string
-	variant?: 'default' | 'featured'
+	variant?: 'default' | 'featured' | 'disabled'
+	className?: string
 }
 
-const StatCard = memo(function StatCard({ icon: Icon, label, value, subtext, variant = 'default' }: StatCardProps) {
-	// Format numeric values with locale-aware thousands separators
-	const displayValue = typeof value === 'number' ? value.toLocaleString('es-ES') : value
+/**
+ * Animates a number from 0 to target on first mount (ease-out cubic).
+ * Subsequent target changes (refetches) jump directly — no re-animation.
+ * Respects prefers-reduced-motion.
+ */
+function useCountUp(target: number, durationMs = 800): number {
+	const reduced =
+		typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+	const animatedOnce = useRef(false)
+	const [value, setValue] = useState(reduced ? target : 0)
 
+	useEffect(() => {
+		if (reduced || animatedOnce.current) {
+			setValue(target)
+			return
+		}
+		animatedOnce.current = true
+		let raf: number
+		const t0 = performance.now()
+		const tick = (now: number) => {
+			const progress = Math.min((now - t0) / durationMs, 1)
+			setValue(Math.round(target * (1 - Math.pow(1 - progress, 3))))
+			if (progress < 1) raf = requestAnimationFrame(tick)
+		}
+		raf = requestAnimationFrame(tick)
+		return () => cancelAnimationFrame(raf)
+	}, [target, durationMs, reduced])
+
+	return value
+}
+
+/**
+ * Renders time strings ("19h 57m 23s") with de-emphasized unit letters.
+ * Numeric values count up on mount; non-time strings render as-is.
+ */
+function StatValue({ value }: { value: string | number }) {
+	const animated = useCountUp(typeof value === 'number' ? value : 0)
+	if (typeof value === 'number') return <>{animated.toLocaleString('es-ES')}</>
+
+	const parts = value.split(/(\d+)/).filter(Boolean)
+	const isTime = /\d+\s*[hms]/.test(value)
+	if (!isTime) return <>{value}</>
+
+	return (
+		<>
+			{parts.map((part, i) =>
+				/^\d+$/.test(part) ? (
+					<span key={i}>{part}</span>
+				) : (
+					<span key={i} className="text-base font-medium text-muted-foreground">
+						{part}
+					</span>
+				)
+			)}
+		</>
+	)
+}
+
+const StatCard = memo(function StatCard({
+	icon: Icon,
+	label,
+	value,
+	subtext,
+	variant = 'default',
+	className,
+}: StatCardProps) {
 	const isFeatured = variant === 'featured'
-	const styles = isFeatured
-		? {
-				wrapper:
-					'bg-gradient-to-br from-secondary/80 via-accent/30 to-card/40 border-primary/40 shadow-md backdrop-blur-sm hover:from-secondary hover:via-accent/40 hover:border-primary/60 transition-all duration-300',
-				text: 'bg-gradient-to-br from-foreground via-primary to-primary bg-clip-text text-transparent font-black tracking-tight drop-shadow-sm',
-				label: 'text-primary font-bold tracking-widest',
-				subtext: 'text-muted-foreground font-normal',
-		  }
-		: {
-				wrapper:
-					'bg-gradient-to-br from-primary/25 via-primary/5 to-transparent border-primary/40 hover:bg-primary/10 hover:border-primary/50 hover:shadow-primary/10',
-				text: 'text-primary',
-				label: 'text-primary/80',
-				subtext: 'text-muted-foreground/60 font-bold',
-		  }
+	const isDisabled = variant === 'disabled'
 
 	return (
 		<div
+			data-slot="card"
 			className={cn(
-				'relative overflow-hidden rounded-xl border p-5 shadow-lg shadow-primary/5 transition-all duration-300 group',
-				styles.wrapper
+				'relative overflow-hidden rounded-xl border bg-card p-5',
+				isFeatured && 'glint-border card-hero',
+				isDisabled && 'opacity-50 blur-[1.5px] pointer-events-none select-none',
+				className
 			)}
 		>
-			<div className="flex flex-col gap-1 relative z-10">
-				<span className={cn('text-xs font-bold uppercase tracking-widest', styles.label)}>{label}</span>
-				<span className={cn('text-4xl font-black tabular-nums tracking-tight', styles.text)}>{displayValue}</span>
-				<span className={cn('text-[10px] uppercase tracking-wider line-clamp-1', styles.subtext)}>
-					{subtext}
+			{/* Hero corner glow — only on the featured (selected) metric */}
+			{isFeatured && (
+				<div
+					aria-hidden
+					className="pointer-events-none absolute -right-10 -top-12 h-28 w-28 rounded-full opacity-70 blur-2xl"
+					style={{ background: 'var(--glow-primary)' }}
+				/>
+			)}
+
+			{/* Label + faint marker icon (icon de-emphasized, analytics style) */}
+			<div className="relative flex items-start justify-between">
+				<span className="font-data text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+					{label}
 				</span>
+				<Icon
+					className={cn('h-3.5 w-3.5 shrink-0', isFeatured ? 'text-primary/35' : 'text-muted-foreground/25')}
+				/>
 			</div>
-			<Icon className="absolute -right-3 -bottom-3 h-24 w-24 text-foreground opacity-5 transition-transform duration-700 group-hover:scale-110 group-hover:rotate-12 group-hover:opacity-10" />
+
+			{/* The number — the hero of the card */}
+			<div
+				className={cn(
+					'relative mt-5 font-data text-[2rem] font-bold leading-none tracking-tight tabular-nums',
+					isFeatured ? 'text-primary text-glow' : isDisabled ? 'text-muted-foreground' : 'text-foreground'
+				)}
+			>
+				<StatValue value={value} />
+			</div>
+
+			{subtext && <p className="relative mt-2.5 line-clamp-1 text-xs text-muted-foreground">{subtext}</p>}
 		</div>
 	)
 })
 
 interface TopSubforumsCardProps {
 	topSubforums: Array<{ slug: string; name: string; timeMs: number; percent: number }>
+	totalTimeMs: number
 }
 
-const TopSubforumsCard = memo(function TopSubforumsCard({ topSubforums }: TopSubforumsCardProps) {
+const TopSubforumsCard = memo(function TopSubforumsCard({ topSubforums, totalTimeMs }: TopSubforumsCardProps) {
 	return (
-		<div className="bg-card border border-border rounded-xl p-5 backdrop-blur-sm h-full shadow-sm">
-			<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-				<Clock className="h-4 w-4" />
-				Tiempo por Subforo
-			</h3>
+		<div data-slot="card" className="bg-card border rounded-xl p-5 h-full">
+			<div className="flex items-center justify-between mb-4">
+				<h3 className="text-[15px] font-semibold text-foreground flex items-center gap-2.5">
+					<Clock className="h-4 w-4 text-primary" />
+					Tiempo por subforo
+				</h3>
+				<span className="font-data text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+					Top 5
+				</span>
+			</div>
 
-			<div className="space-y-4">
-				{topSubforums.length > 0 ? (
-					topSubforums.map((sub, index) => (
-						<div key={sub.slug} className="group">
-							<div className="flex items-center justify-between text-sm mb-1.5">
-								<div className="flex items-center gap-2">
-									<span className="text-muted-foreground w-4 text-center text-xs opacity-50">#{index + 1}</span>
-									<span className="font-medium text-foreground">{sub.name}</span>
-								</div>
-								<span className="text-xs text-muted-foreground tabular-nums font-mono">
+			{topSubforums.length > 0 ? (
+				<div className="divide-y divide-foreground/[0.06]">
+					{topSubforums.map((sub, index) => {
+						const isTop = index === 0
+						const share = totalTimeMs > 0 ? Math.round((sub.timeMs / totalTimeMs) * 100) : 0
+						return (
+							<div key={sub.slug} className="flex items-center gap-3 py-3 first:pt-1">
+								<span
+									className={cn(
+										'w-4 shrink-0 text-right font-data text-[11px] font-semibold tabular-nums',
+										isTop ? 'text-primary' : 'text-muted-foreground/60'
+									)}
+								>
+									{index + 1}
+								</span>
+								<span
+									className={cn(
+										'min-w-0 flex-1 truncate text-[13px]',
+										isTop ? 'font-semibold text-foreground' : 'font-medium text-foreground/90'
+									)}
+								>
+									{sub.name}
+								</span>
+								<span className="shrink-0 font-data text-[12px] tabular-nums text-foreground/80">
 									{formatPreciseTime(sub.timeMs)}
 								</span>
+								<span className="w-9 shrink-0 text-right font-data text-[11px] tabular-nums text-muted-foreground/50">
+									{share}%
+								</span>
 							</div>
-							<div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
-								<div
-									className="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-500 ease-out group-hover:brightness-125"
-									style={{ width: `${sub.percent}%` }}
-								/>
-							</div>
-						</div>
-					))
-				) : (
-					<div className="text-center py-8 text-muted-foreground text-sm italic">Aún no hay datos de actividad</div>
-				)}
-			</div>
+						)
+					})}
+				</div>
+			) : (
+				<div className="text-center py-8 text-muted-foreground text-sm italic">Aún no hay datos de actividad</div>
+			)}
 		</div>
 	)
 })
@@ -296,58 +395,77 @@ interface StorageCardProps {
 }
 
 function StorageCard({ storageStats }: StorageCardProps) {
-	return (
-		<div className="bg-card border border-border rounded-xl p-5 backdrop-blur-sm h-full flex flex-col shadow-sm">
-			<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
-				<Database className="h-4 w-4" />
-				Almacenamiento Local
-			</h3>
+	const isCritical = storageStats.percentage > 90
+	const isWarning = storageStats.percentage > 75
 
-			<div className="flex-1 flex flex-col justify-center gap-6">
+	return (
+		<div data-slot="card" className="bg-card border rounded-xl p-5 h-full flex flex-col">
+			<div className="flex items-center justify-between mb-4">
+				<h3 className="text-[15px] font-semibold text-foreground flex items-center gap-2.5">
+					<Database className="h-4 w-4 text-primary" />
+					Almacenamiento
+				</h3>
+				<span className="font-data text-[10px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+					Local
+				</span>
+			</div>
+
+			<div className="flex-1 flex flex-col gap-5">
 				{/* Usage Bar */}
-				<div className="space-y-2">
-					<div className="flex justify-between text-sm">
-						<span className="text-muted-foreground">Uso del disco</span>
-						<span className="font-mono font-medium">
-							{formatBytes(storageStats.used)} / {formatBytes(storageStats.quota)}
+				<div>
+					<div className="flex items-baseline justify-between mb-2">
+						<span className="font-data text-2xl font-semibold tabular-nums text-foreground">
+							{formatBytes(storageStats.used)}{' '}
+							<span className="text-xs font-medium text-muted-foreground">/ {formatBytes(storageStats.quota)}</span>
+						</span>
+						<span
+							className={cn(
+								'font-data text-xs font-semibold tabular-nums',
+								isCritical ? 'text-destructive' : 'text-primary'
+							)}
+						>
+							{storageStats.percentage.toFixed(1)}%
 						</span>
 					</div>
-					<div className="h-3 w-full bg-secondary rounded-full overflow-hidden border border-border/50">
+					<div className="h-[7px] w-full bg-foreground/[0.06] rounded-full overflow-hidden">
 						<div
 							className={cn(
-								'h-full rounded-full transition-all duration-1000 ease-out',
-								storageStats.percentage > 90
+								'bar-grow h-full rounded-full transition-all duration-1000 ease-out',
+								isCritical
 									? 'bg-destructive'
-									: storageStats.percentage > 75
+									: isWarning
 										? 'bg-amber-500'
-										: 'bg-primary'
+										: 'bg-gradient-to-r from-primary/60 to-primary shadow-[0_0_10px_var(--glow-primary)]'
 							)}
 							style={{ width: `${storageStats.percentage}%` }}
 						/>
 					</div>
-					<p className="text-xs text-muted-foreground text-right pt-1">{storageStats.percentage.toFixed(1)}% utilizado</p>
 				</div>
 
 				<div className="grid grid-cols-2 gap-3 text-xs">
-					<div className="bg-muted/50 rounded-lg p-3 border border-border/50">
-						<span className="block text-muted-foreground mb-1">Items Totales</span>
-						<span className="text-lg font-mono font-medium text-foreground">{storageStats.items}</span>
+					<div className="bg-foreground/[0.04] rounded-lg p-3 border border-border/50">
+						<span className="block font-data text-[9px] font-medium uppercase tracking-[0.18em] text-muted-foreground mb-1.5">
+							Items totales
+						</span>
+						<span className="font-data text-base font-semibold tabular-nums text-foreground">{storageStats.items}</span>
 					</div>
-					<div className="bg-muted/50 rounded-lg p-3 border border-border/50">
-						<span className="block text-muted-foreground mb-1">Estado</span>
+					<div className="bg-foreground/[0.04] rounded-lg p-3 border border-border/50">
+						<span className="block font-data text-[9px] font-medium uppercase tracking-[0.18em] text-muted-foreground mb-1.5">
+							Estado
+						</span>
 						<span
 							className={cn(
-								'font-medium flex items-center gap-1.5',
-								storageStats.percentage > 90 ? 'text-destructive' : 'text-primary'
+								'font-data text-base font-semibold flex items-center gap-2',
+								isCritical ? 'text-destructive' : 'text-foreground'
 							)}
 						>
-							<div
+							<span
 								className={cn(
-									'w-1.5 h-1.5 rounded-full animate-pulse',
-									storageStats.percentage > 90 ? 'bg-destructive' : 'bg-primary'
+									'w-1.5 h-1.5 rounded-full shrink-0',
+									isCritical ? 'bg-destructive' : 'bg-primary shadow-[0_0_8px_var(--glow-primary)]'
 								)}
 							/>
-							{storageStats.percentage > 90 ? 'Crítico' : 'Saludable'}
+							{isCritical ? 'Crítico' : 'Saludable'}
 						</span>
 					</div>
 
@@ -406,27 +524,9 @@ function DisabledActivityView({
 		<>
 			{/* Main Stats Grid */}
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-				{/* Posts Card - Disabled */}
-				<div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-muted/25 via-muted/5 to-transparent border border-muted/40 p-5 opacity-50 blur-[1.5px]">
-					<div className="flex flex-col gap-1 relative z-10">
-						<span className="text-xs font-bold text-muted-foreground/80 uppercase tracking-widest">Posts</span>
-						<span className="text-4xl font-black text-muted-foreground tabular-nums tracking-tight">-</span>
-						<span className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">
-							en {currentYear}
-						</span>
-					</div>
-					<Send className="absolute -right-3 -bottom-3 h-24 w-24 text-foreground opacity-5" />
-				</div>
-
-				{/* Threads Card - Disabled */}
-				<div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-muted/25 via-muted/5 to-transparent border border-muted/40 p-5 opacity-50 blur-[1.5px]">
-					<div className="flex flex-col gap-1 relative z-10">
-						<span className="text-xs font-bold text-muted-foreground/80 uppercase tracking-widest">Hilos</span>
-						<span className="text-4xl font-black text-muted-foreground tabular-nums tracking-tight">-</span>
-						<span className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">creados</span>
-					</div>
-					<MessageSquare className="absolute -right-3 -bottom-3 h-24 w-24 text-foreground opacity-5" />
-				</div>
+				{/* Posts & Threads Cards - Disabled */}
+				<StatCard icon={Send} label="Posts" value="-" subtext={`en ${currentYear}`} variant="disabled" />
+				<StatCard icon={MessageSquare} label="Hilos" value="-" subtext="creados" variant="disabled" />
 
 				{/* Active Time Card - STAYS VISIBLE (uses timeStats, not activityData) */}
 				<StatCard
@@ -468,7 +568,7 @@ function DisabledActivityView({
 
 			{/* Secondary Grid remains visible (time by subforum + storage) */}
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-				<TopSubforumsCard topSubforums={topSubforums} />
+				<TopSubforumsCard topSubforums={topSubforums} totalTimeMs={totalTimeMs} />
 				<StorageCard storageStats={storageStats} />
 			</div>
 		</>

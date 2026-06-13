@@ -7,7 +7,10 @@
  * The ThemeColorsProvider applies preset colors (in hex) that override these defaults.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Bundled variable fonts (no remote CDN — CSP-safe and offline-friendly) */
+@import '@fontsource-variable/bricolage-grotesque';
+@import '@fontsource-variable/instrument-sans';
+@import '@fontsource-variable/spline-sans-mono';
 
 @tailwind base;
 @tailwind components;
@@ -60,8 +63,27 @@
   /* --- Config --- */
   --radius: 0.625rem;
 
-  /* --- Font --- */
-  --font-sans: 'proxima-nova', 'Helvetica Neue', Arial, sans-serif;
+  /* --- Fonts (options page only; theme.css keeps proxima-nova for Light DOM) --- */
+  --font-sans: 'Instrument Sans Variable', 'proxima-nova', 'Helvetica Neue', Arial, sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', var(--font-sans);
+  --font-data: 'Spline Sans Mono Variable', ui-monospace, 'Consolas', monospace;
+
+  /*
+   * --- Premium derived tokens ---
+   * Everything below DERIVES from preset-controlled vars (--card, --primary,
+   * --foreground...) via color-mix, so any theme preset inherits the treatment.
+   * Presets never need to know these exist.
+   */
+  --surface-1: color-mix(in oklab, var(--card) 55%, var(--background));
+  --surface-2: var(--card);
+  --surface-3: color-mix(in oklab, var(--card) 84%, var(--foreground) 8%);
+
+  --border-soft: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --glow-primary: color-mix(in oklab, var(--primary) 14%, transparent);
+  --shadow-rest: 0 1px 2px rgb(0 0 0 / 0.25), 0 6px 18px -10px rgb(0 0 0 / 0.35);
+  --shadow-lift:
+    0 1px 2px rgb(0 0 0 / 0.35),
+    0 12px 32px -12px color-mix(in oklab, var(--primary) 22%, rgb(0 0 0 / 0.5));
 }
 
 /* Layout defaults for options page */
@@ -71,7 +93,7 @@ html, body, #root {
   margin: 0;
   padding: 0;
   overflow: auto;
-  font-family: var(--font-sans, "Inter", "proxima-nova", -apple-system, sans-serif);
+  font-family: var(--font-sans, 'proxima-nova', -apple-system, sans-serif);
   background-color: var(--background);
   color: var(--foreground);
 }
@@ -118,4 +140,167 @@ html.dark * {
 }
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--foreground);
+}
+
+/* ============================================================
+ * Premium visual layer (options page only — never loaded in
+ * content scripts or Shadow DOM, so injected UI is unaffected).
+ * Purely presentational: no logic, no layout structure changes.
+ * ============================================================ */
+
+/* --- Typography hierarchy: display font for headings --- */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+}
+
+/* Data text: tabular numerals for timers/counters (no layout shift) */
+.font-data {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Atmosphere: radial glow + grain over the main canvas.
+ * Composes with the existing bg-background color (background-image
+ * vs background-color), and adapts to any preset via --primary. --- */
+[data-slot='sidebar-inset'] {
+  background-image:
+    radial-gradient(1000px 520px at 75% -12%, var(--glow-primary), transparent 65%),
+    radial-gradient(800px 600px at -12% 112%, color-mix(in oklab, var(--primary) 6%, transparent), transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
+}
+
+/* --- Card elevation: soft derived border + resting shadow + subtle
+ * top-light. background-image only, so explicit bg-* utilities on
+ * special cards keep working. No hover motion on static surfaces. --- */
+[data-slot='card'] {
+  border-color: var(--border-soft);
+  background-image: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--foreground) 4%, transparent),
+    transparent 45%
+  );
+  box-shadow: var(--shadow-rest);
+}
+/* Needed to win the tie against the `.dark [class*='border-']` override above */
+.dark [data-slot='card'] {
+  border-color: var(--border-soft);
+}
+
+/* --- Glint border utility: 1px gradient border tinted with the
+ * preset primary. Reserved for hero/featured cards (opt-in). --- */
+.glint-border {
+  position: relative;
+}
+.glint-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    160deg,
+    color-mix(in oklab, var(--primary) 38%, transparent),
+    color-mix(in oklab, var(--foreground) 8%, transparent) 38%,
+    color-mix(in oklab, var(--foreground) 5%, transparent) 70%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* --- Hero card: interior primary-tinted gradient (background-image,
+ * composes with bg-card). Pair with .glint-border. Wins over the
+ * generic [data-slot='card'] background-image by source order. --- */
+.card-hero {
+  background-image: linear-gradient(
+    165deg,
+    color-mix(in oklab, var(--primary) 10%, transparent),
+    transparent 55%
+  );
+}
+
+/* --- Soft text glow for hero numbers (derives from preset primary) --- */
+.text-glow {
+  text-shadow: 0 0 28px var(--glow-primary);
+}
+
+/* --- Interactive-only hover feedback: reserved for clickable cards
+ * (opt-in via .card-interactive). Static cards stay still. --- */
+.card-interactive {
+  cursor: pointer;
+  transition: box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.card-interactive:hover {
+  box-shadow: var(--shadow-lift);
+  border-color: color-mix(in oklab, var(--primary) 30%, var(--border-soft));
+}
+
+/* --- Entrance motion: one orchestrated staggered reveal on mount.
+ * transform/opacity only (GPU-friendly, no layout shift). --- */
+@keyframes mvp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.reveal {
+  animation: mvp-rise 0.5s cubic-bezier(0.22, 0.68, 0.43, 1) backwards;
+}
+.reveal-d1 { animation-delay: 0.05s; }
+.reveal-d2 { animation-delay: 0.1s; }
+.reveal-d3 { animation-delay: 0.15s; }
+.reveal-d4 { animation-delay: 0.2s; }
+.reveal-d5 { animation-delay: 0.28s; }
+.reveal-d6 { animation-delay: 0.36s; }
+
+/* Progress bars grow from the left on mount (scaleX, not width). */
+@keyframes mvp-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+.bar-grow {
+  transform-origin: left;
+  animation: mvp-grow-x 0.9s cubic-bezier(0.22, 0.68, 0.43, 1) backwards;
+  animation-delay: 0.35s;
+}
+
+/* Collapsible (Radix) — slide open/close using the measured content height. */
+@keyframes mvp-collapsible-down {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+@keyframes mvp-collapsible-up {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+[data-slot='collapsible-content'] {
+  overflow: hidden;
+}
+[data-slot='collapsible-content'][data-state='open'] {
+  animation: mvp-collapsible-down 0.24s cubic-bezier(0.22, 0.68, 0.43, 1);
+}
+[data-slot='collapsible-content'][data-state='closed'] {
+  animation: mvp-collapsible-up 0.2s cubic-bezier(0.22, 0.68, 0.43, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-interactive {
+    transition: none;
+  }
+  .reveal,
+  .bar-grow {
+    animation: none;
+  }
+  [data-slot='collapsible-content'][data-state='open'],
+  [data-slot='collapsible-content'][data-state='closed'] {
+    animation: none;
+  }
 }
