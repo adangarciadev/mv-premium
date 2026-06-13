@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
-import { getMobileLiteGeminiApiKey, saveMobileLiteGeminiApiKey } from '../logic/gemini-api-key-storage'
+import { getAvailableModels } from '@/services/ai/gemini-service'
+import type { GeminiModel } from '@/store/settings-types'
+import {
+	getMobileLiteAiModel,
+	getMobileLiteGeminiApiKey,
+	saveMobileLiteAiModel,
+	saveMobileLiteGeminiApiKey,
+} from '../logic/gemini-api-key-storage'
 import { useAutoDismiss } from './use-auto-dismiss'
+
+const AVAILABLE_AI_MODELS = getAvailableModels()
 
 /**
  * Gemini API key settings: the persisted key, its editable draft and the
@@ -11,6 +20,8 @@ export function useGeminiApiKey(open: boolean) {
 	const [geminiApiKey, setGeminiApiKey] = useState('')
 	const [geminiApiKeyDraft, setGeminiApiKeyDraft] = useState('')
 	const [savingGeminiApiKey, setSavingGeminiApiKey] = useState(false)
+	const [aiModel, setAiModelState] = useState<GeminiModel>('gemini-3-flash-preview')
+	const [savingAiModel, setSavingAiModel] = useState(false)
 	const [statusMessage, setStatusMessage] = useState<string | null>(null)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -30,6 +41,13 @@ export function useGeminiApiKey(open: boolean) {
 			})
 			.catch(() => {
 				if (mounted) setErrorMessage('No se pudo cargar la API key de Gemini.')
+			})
+		getMobileLiteAiModel()
+			.then(model => {
+				if (mounted) setAiModelState(model)
+			})
+			.catch(() => {
+				// Model load is non-critical; the default stays selected.
 			})
 
 		return () => {
@@ -63,14 +81,36 @@ export function useGeminiApiKey(open: boolean) {
 		}
 	}
 
+	const selectAiModel = async (model: GeminiModel) => {
+		if (model === aiModel || savingAiModel) return
+
+		setSavingAiModel(true)
+		setErrorMessage(null)
+		setStatusMessage(null)
+		try {
+			await saveMobileLiteAiModel(model)
+			setAiModelState(model)
+			const label = AVAILABLE_AI_MODELS.find(m => m.value === model)?.label ?? model
+			setStatusMessage(`Modelo ${label} seleccionado.`)
+		} catch {
+			setErrorMessage('No se pudo cambiar el modelo de IA.')
+		} finally {
+			setSavingAiModel(false)
+		}
+	}
+
 	return {
 		geminiApiKeyDraft,
 		isGeminiConfigured,
 		isGeminiDirty,
 		savingGeminiApiKey,
+		aiModel,
+		savingAiModel,
+		availableModels: AVAILABLE_AI_MODELS,
 		statusMessage,
 		errorMessage,
 		handleDraftChange,
 		saveGeminiApiKey,
+		selectAiModel,
 	}
 }

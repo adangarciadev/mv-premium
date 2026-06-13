@@ -1,6 +1,14 @@
 import { storage } from '#imports'
 import { STORAGE_KEYS } from '@/constants'
 import { logger } from '@/lib/logger'
+import { getAvailableModels } from '@/services/ai/gemini-service'
+import type { GeminiModel } from '@/store/settings-types'
+
+const DEFAULT_AI_MODEL: GeminiModel = 'gemini-3-flash-preview'
+
+function isGeminiModel(value: unknown): value is GeminiModel {
+	return typeof value === 'string' && getAvailableModels().some(model => model.value === value)
+}
 
 const settingsStorageItem = storage.defineItem<string | null>(`local:${STORAGE_KEYS.SETTINGS}`, {
 	fallback: null,
@@ -43,6 +51,26 @@ export async function saveMobileLiteGeminiApiKey(apiKey: string): Promise<void> 
 			state: {
 				...parsed.state,
 				geminiApiKey: apiKey.trim(),
+			},
+		})
+	)
+}
+
+export async function getMobileLiteAiModel(): Promise<GeminiModel> {
+	const parsed = parsePersistedSettings(await settingsStorageItem.getValue())
+	const value = parsed.state?.aiModel
+	return isGeminiModel(value) ? value : DEFAULT_AI_MODEL
+}
+
+export async function saveMobileLiteAiModel(model: GeminiModel): Promise<void> {
+	const rawSettings = await settingsStorageItem.getValue()
+	const parsed = parsePersistedSettings(rawSettings)
+	await settingsStorageItem.setValue(
+		JSON.stringify({
+			...parsed,
+			state: {
+				...parsed.state,
+				aiModel: model,
 			},
 		})
 	)

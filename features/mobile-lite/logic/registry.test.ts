@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
 	teardownThreadCompanion: vi.fn(),
 	initThreadSummary: vi.fn(),
 	teardownThreadSummary: vi.fn(),
+	initPostSummary: vi.fn(),
+	teardownPostSummary: vi.fn(),
 	initPanel: vi.fn(),
 	teardownPanel: vi.fn(),
 	initPostGestures: vi.fn(),
@@ -128,6 +130,11 @@ vi.mock('./thread-summary', () => ({
 	teardownMobileLiteThreadSummary: mocks.teardownThreadSummary,
 }))
 
+vi.mock('./post-summary', () => ({
+	initMobileLitePostSummary: mocks.initPostSummary,
+	teardownMobileLitePostSummary: mocks.teardownPostSummary,
+}))
+
 function context(overrides: Partial<MobileLiteContext> = {}): MobileLiteContext {
 	return {
 		hasEditor: false,
@@ -196,7 +203,7 @@ describe('Mobile Lite registry', () => {
 		window.history.replaceState({}, '', '/foro/deportes/pretemporada-2026-123456')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'thread-summary', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'thread-summary', 'post-summary', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
 	})
 
 	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
@@ -239,14 +246,16 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initPostGestures).toHaveBeenCalledOnce()
 	})
 
-	it('initializes the thread companion and summary only on thread pages', () => {
+	it('initializes the thread companion and summaries only on thread pages', () => {
 		initMobileLite(context({ hasPosts: true }))
 		expect(mocks.initThreadCompanion).not.toHaveBeenCalled()
 		expect(mocks.initThreadSummary).not.toHaveBeenCalled()
+		expect(mocks.initPostSummary).not.toHaveBeenCalled()
 
 		initMobileLite(context({ isThreadPage: true }))
 		expect(mocks.initThreadCompanion).toHaveBeenCalledOnce()
 		expect(mocks.initThreadSummary).toHaveBeenCalledOnce()
+		expect(mocks.initPostSummary).toHaveBeenCalledOnce()
 	})
 
 	it('initializes the quote selection fix only on thread pages', () => {
@@ -323,6 +332,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.teardownGallery).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadSummary).toHaveBeenCalledOnce()
+		expect(mocks.teardownPostSummary).toHaveBeenCalledOnce()
 		expect(mocks.teardownQuoteSelection).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUsers).toHaveBeenCalledOnce()
 		expect(mocks.teardownPostGestures).toHaveBeenCalledOnce()

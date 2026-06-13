@@ -23,12 +23,25 @@ import {
 import { summarizeCurrentThread } from '@/features/thread-summarizer/logic/summarize'
 import { getCurrentPageNumber } from '@/features/thread-summarizer/logic/extract-posts'
 import {
+	formatCacheAge,
+	getCachedSingleAge,
 	getCachedSingleSummary,
 	setCachedSingleSummary,
 } from '@/features/thread-summarizer/logic/summary-cache'
-import { toThreadSummaryBBCode, toThreadSummaryViewModel, type ThreadSummaryViewModel } from './thread-summary-view-model'
+import {
+	summaryNeedsAiConfig,
+	toThreadSummaryBBCode,
+	toThreadSummaryViewModel,
+	type ThreadSummaryViewModel,
+} from './thread-summary-view-model'
 import { getPremiumPillButtonCss } from './native-button-styles'
+import {
+	ensureSummarySheetChromeStyles,
+	setSummarySheetOpen,
+	teardownSummarySheetChrome,
+} from './summary-sheet-chrome'
 import { ThreadSummarySheet } from '../components/thread-summary-sheet'
+import { MOBILE_LITE_PANEL_OPEN_EVENT } from '../components/mobile-lite-panel'
 
 // =============================================================================
 // CONSTANTS
@@ -69,6 +82,7 @@ function ThreadSummaryReactRoot() {
 	const [isLoading, setIsLoading] = useState(false)
 	const [isOpen, setIsOpen] = useState(false)
 	const [viewModel, setViewModel] = useState<ThreadSummaryViewModel | null>(null)
+	const [cachedLabel, setCachedLabel] = useState<string | null>(null)
 
 	useEffect(() => {
 		const handler = async () => {
@@ -81,6 +95,8 @@ function ThreadSummaryReactRoot() {
 			const cached = getCachedSingleSummary(pageNumber)
 			if (cached) {
 				logger.debug('[MobileLite] ThreadSummary: serving from cache')
+				const ageMs = getCachedSingleAge(pageNumber)
+				setCachedLabel(ageMs !== null ? formatCacheAge(ageMs) : null)
 				setViewModel(toThreadSummaryViewModel(cached))
 				setIsOpen(true)
 				return
@@ -89,6 +105,7 @@ function ThreadSummaryReactRoot() {
 			setIsLoading(true)
 			setIsOpen(true)
 			setViewModel(null)
+			setCachedLabel(null)
 
 			try {
 				logger.debug('[MobileLite] ThreadSummary: calling summarizeCurrentThread')
@@ -125,15 +142,30 @@ function ThreadSummaryReactRoot() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [])
 
+	// Hide MV's fixed bottom nav while the sheet is open so it can't cover the footer.
+	useEffect(() => {
+		setSummarySheetOpen(isOpen)
+		return () => setSummarySheetOpen(false)
+	}, [isOpen])
+
+	const handleConfigureAi = () => {
+		setIsOpen(false)
+		// Open the panel straight to the Settings tab (Gemini key + model live there).
+		window.dispatchEvent(new CustomEvent(MOBILE_LITE_PANEL_OPEN_EVENT, { detail: { tab: 'settings' } }))
+	}
+
 	if (!isOpen) return null
 
 	const bbcode = viewModel && !viewModel.hasError ? toThreadSummaryBBCode(viewModel) : null
+	const needsAiConfig = viewModel ? summaryNeedsAiConfig(viewModel) : false
 
 	return (
 		<ThreadSummarySheet
 			isLoading={isLoading}
 			viewModel={viewModel}
 			bbcode={bbcode}
+			cachedLabel={cachedLabel}
+			onConfigureAi={needsAiConfig ? handleConfigureAi : undefined}
 			onClose={() => setIsOpen(false)}
 		/>
 	)
@@ -224,8 +256,9 @@ export function initMobileLiteThreadSummary(): void {
 		)
 	}
 
-	// Inject the native Light-DOM trigger button.
+	// Inject the native Light-DOM trigger button + the shared sheet chrome.
 	ensureButtonStyles()
+	ensureSummarySheetChromeStyles()
 	injectSummarizeButton()
 }
 
@@ -234,5 +267,6 @@ export function teardownMobileLiteThreadSummary(): void {
 	document.getElementById(STYLE_ID)?.remove()
 	unmountFeature(FEATURE_ID)
 	document.getElementById(CONTAINER_ID)?.remove()
+	teardownSummarySheetChrome()
 	initialized = false
 }

@@ -7,11 +7,12 @@ import Images from 'lucide-react/dist/esm/icons/images'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
 import Radio from 'lucide-react/dist/esm/icons/radio'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import TextQuote from 'lucide-react/dist/esm/icons/text-quote'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
+import type { GeminiModel } from '@/store/settings-types'
 import type { MobileLiteChangelogEntry } from '../../logic/whats-new'
 import type { StorageUsage } from '../../hooks/use-storage-usage'
+import { GoogleGIcon } from '../google-g-icon'
 import { StorageCard } from '../storage-card'
 import { DEFAULT_BOLD_COLOR, type SavingMobileLiteSetting } from '../panel-helpers'
 import {
@@ -42,6 +43,10 @@ export function SettingsTab({
 	savingGeminiApiKey,
 	onGeminiDraftChange,
 	onSaveGeminiApiKey,
+	aiModel,
+	savingAiModel,
+	availableModels,
+	onSelectAiModel,
 	boldColor,
 	boldColorDraft,
 	normalizedBoldColorDraft,
@@ -81,6 +86,10 @@ export function SettingsTab({
 	savingGeminiApiKey: boolean
 	onGeminiDraftChange: (value: string) => void
 	onSaveGeminiApiKey: () => void
+	aiModel: string
+	savingAiModel: boolean
+	availableModels: Array<{ value: string; label: string; description: string }>
+	onSelectAiModel: (model: GeminiModel) => void
 	boldColor: string
 	boldColorDraft: string
 	normalizedBoldColorDraft: string
@@ -212,8 +221,8 @@ export function SettingsTab({
 			<div className={GROUP_CLASS}>
 				<div className="p-4">
 					<div className="flex items-start gap-3">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f0a020]/[0.16] text-[#f0a020]">
-							<Sparkles className="h-5 w-5" aria-hidden="true" />
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#14171d]">
+							<GoogleGIcon className="h-5 w-5" />
 						</div>
 						<div className="min-w-0 flex-1">
 							<div className="flex flex-wrap items-center gap-2">
@@ -260,6 +269,34 @@ export function SettingsTab({
 						<Check className="h-4 w-4" aria-hidden="true" />
 						{savingGeminiApiKey ? 'Guardando' : 'Guardar'}
 					</button>
+
+					<div className="mt-4" role="radiogroup" aria-label="Modelo de IA">
+						<span className="block px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]">
+							Modelo
+						</span>
+						<div className="mt-2 overflow-hidden rounded-xl bg-[#14171d]">
+							{availableModels.map((model, index) => {
+								const isActive = model.value === aiModel
+								return (
+									<button
+										key={model.value}
+										type="button"
+										role="radio"
+										aria-checked={isActive}
+										disabled={savingAiModel}
+										className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors active:bg-[#242a36] disabled:opacity-60 ${index > 0 ? 'border-t border-[#2d3442]' : ''}`}
+										onClick={() => onSelectAiModel(model.value as GeminiModel)}
+									>
+										<div className="min-w-0 flex-1">
+											<div className="text-sm font-semibold text-[#eef1f6]">{model.label}</div>
+											<div className="mt-0.5 text-xs text-[#8b95a3]">{model.description}</div>
+										</div>
+										{isActive && <Check className="h-4 w-4 shrink-0 text-[#f0a020]" aria-hidden="true" />}
+									</button>
+								)
+							})}
+						</div>
+					</div>
 				</div>
 
 				<a

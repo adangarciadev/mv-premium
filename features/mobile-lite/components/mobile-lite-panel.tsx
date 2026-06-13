@@ -44,8 +44,10 @@ export function MobileLitePanel() {
 	const { markWhatsNewAsSeen } = whatsNew
 
 	useEffect(() => {
-		const handleOpen = () => {
+		const handleOpen = (event: Event) => {
+			const tab = (event as CustomEvent<{ tab?: PanelTab }>).detail?.tab
 			setPanelView('main')
+			if (tab) setActiveTab(tab)
 			setOpen(true)
 		}
 		const handleKeyDown = (event: KeyboardEvent) => {
@@ -204,6 +206,10 @@ export function MobileLitePanel() {
 							savingGeminiApiKey={gemini.savingGeminiApiKey}
 							onGeminiDraftChange={gemini.handleDraftChange}
 							onSaveGeminiApiKey={gemini.saveGeminiApiKey}
+							aiModel={gemini.aiModel}
+							savingAiModel={gemini.savingAiModel}
+							availableModels={gemini.availableModels}
+							onSelectAiModel={gemini.selectAiModel}
 							boldColor={boldColor.boldColor}
 							boldColorDraft={boldColor.boldColorDraft}
 							normalizedBoldColorDraft={boldColor.normalizedBoldColorDraft}

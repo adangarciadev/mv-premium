@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ThreadSummary } from '@/features/thread-summarizer/logic/summarize'
-import { toThreadSummaryBBCode, toThreadSummaryViewModel } from './thread-summary-view-model'
+import { summaryNeedsAiConfig, toThreadSummaryBBCode, toThreadSummaryViewModel } from './thread-summary-view-model'
 
 const BASE_SUMMARY: ThreadSummary = {
 	topic: 'Debate sobre las mejoras en el foro',
@@ -106,5 +106,27 @@ describe('toThreadSummaryBBCode', () => {
 		expect(bbcode).toContain('[bar]PARTICIPANTES DESTACADOS[/bar]')
 		expect(bbcode).toContain('[*] [b]UserA[/b]: Defiende los cambios')
 		expect(bbcode).toContain('[quote][b]📝 ESTADO DEL DEBATE:[/b]')
+	})
+})
+
+describe('summaryNeedsAiConfig', () => {
+	it('is true for the missing-key error', () => {
+		const vm = toThreadSummaryViewModel({
+			...BASE_SUMMARY,
+			error: 'IA no configurada. Ve a Ajustes > Inteligencia Artificial.',
+		})
+		expect(summaryNeedsAiConfig(vm)).toBe(true)
+	})
+
+	it('is false for a transient (rate-limit) error', () => {
+		const vm = toThreadSummaryViewModel({
+			...BASE_SUMMARY,
+			error: 'Límite de velocidad excedido. Espera un momento e inténtalo de nuevo.',
+		})
+		expect(summaryNeedsAiConfig(vm)).toBe(false)
+	})
+
+	it('is false for a successful summary', () => {
+		expect(summaryNeedsAiConfig(toThreadSummaryViewModel(BASE_SUMMARY))).toBe(false)
 	})
 })

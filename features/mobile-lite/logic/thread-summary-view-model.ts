@@ -87,3 +87,13 @@ export function toThreadSummaryBBCode(vm: ThreadSummaryViewModel): string {
 		pageNumber: vm.pageNumber,
 	})
 }
+
+/**
+ * Whether the summary failed because no AI key is configured (vs. a transient
+ * error like a 429). The engine returns the literal "IA no configurada…" for
+ * the missing-key case; matched leniently so a non-match just hides the
+ * "Configurar IA" shortcut rather than breaking.
+ */
+export function summaryNeedsAiConfig(vm: ThreadSummaryViewModel): boolean {
+	return vm.hasError && vm.errorMessage.trim().toLowerCase().startsWith('ia no configurada')
+}

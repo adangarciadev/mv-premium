@@ -18,6 +18,7 @@ import { initMobileLitePostGestures, teardownMobileLitePostGestures } from './po
 import { initMobileLiteQuoteSelection, teardownMobileLiteQuoteSelection } from './quote-selection'
 import { initMobileLiteThreadCompanion, teardownMobileLiteThreadCompanion } from './thread-companion'
 import { initMobileLiteThreadSummary, teardownMobileLiteThreadSummary } from './thread-summary'
+import { initMobileLitePostSummary, teardownMobileLitePostSummary } from './post-summary'
 
 export interface MobileLiteContext {
 	hasEditor: boolean
@@ -78,6 +79,12 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		id: 'thread-summary',
 		init: initMobileLiteThreadSummary,
 		teardown: teardownMobileLiteThreadSummary,
+		shouldRun: context => context.isThreadPage,
+	},
+	{
+		id: 'post-summary',
+		init: initMobileLitePostSummary,
+		teardown: teardownMobileLitePostSummary,
 		shouldRun: context => context.isThreadPage,
 	},
 	{
