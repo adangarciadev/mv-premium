@@ -1,65 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import Settings from 'lucide-react/dist/esm/icons/settings'
 import UserX from 'lucide-react/dist/esm/icons/user-x'
 import X from 'lucide-react/dist/esm/icons/x'
 import { browser } from 'wxt/browser'
-import { sendMessage, type MvUserSearchUser } from '@/lib/messaging'
-import { getSettings, useSettingsStore } from '@/store/settings-store'
-import {
-	clearHiddenThreads,
-	getHiddenThreads,
-	unhideThread,
-	watchHiddenThreads,
-	type HiddenThread,
-} from '@/features/hidden-threads/logic/storage'
-import {
-	getUserCustomizations,
-	saveUserCustomizations,
-	watchUserCustomizations,
-	type UserCustomizationsData,
-} from '@/features/user-customizations/storage'
-import {
-	getCustomizationEntryForUser,
-	getIgnoreTypeFromCustomization,
-	setUserIgnoreInData,
-	type MobileLiteIgnoreType,
-} from '../logic/ignore-helpers'
-import { dispatchMobileLiteIgnoredUsersSync } from '../logic/ignored-users-sync-event'
-import { getAvatarUrlFromImage, sanitizeAvatarUrl } from '../logic/avatar-utils'
-import { getOwnUsername } from '../logic/own-username'
-import {
-	getMobileLiteBoldColorSettings,
-	normalizeMobileLiteBoldColor,
-	saveMobileLiteBoldColorSettings,
-} from '../logic/bold-color'
-import { applyMobileLiteHiddenThreads } from '../logic/hidden-threads'
-import { getMobileLiteImgbbApiKey, saveMobileLiteImgbbApiKey } from '../logic/imgbb-api-key-storage'
-import { syncMobileLiteGalleryButton } from '../logic/gallery'
-import { syncMobileLiteLiveThreadButton } from '../logic/live-thread'
-import { syncMobileLiteQuoteSelection } from '../logic/quote-selection'
-import {
-	getLatestMobileLiteEntry,
-	getMobileLiteChangelog,
-	hasUnseenMobileLiteChanges,
-	markCurrentMobileLiteVersionAsSeen,
-} from '../logic/whats-new'
-import {
-	DEFAULT_BOLD_COLOR,
-	getEmptyData,
-	getFilteredUsers,
-	getSubforumSlugFromId,
-	getUsernameValidationMessage,
-	normalizeUsername,
-	safeDecodeURIComponent,
-	SELF_IGNORE_MESSAGE,
-	USER_SUGGESTIONS_DEBOUNCE_MS,
-	USER_SUGGESTIONS_MAX,
-	type ActiveFilter,
-	type FilteredUser,
-	type PanelTab,
-	type PanelView,
-} from './panel-helpers'
+import { useBoldColor } from '../hooks/use-bold-color'
+import { useHiddenThreads } from '../hooks/use-hidden-threads'
+import { useIgnoredUsers } from '../hooks/use-ignored-users'
+import { useImgbbApiKey } from '../hooks/use-imgbb-api-key'
+import { useMobileLiteToggles } from '../hooks/use-mobile-lite-toggles'
+import { useSheetDrag } from '../hooks/use-sheet-drag'
+import { useWhatsNew } from '../hooks/use-whats-new'
+import { type PanelTab, type PanelView } from './panel-helpers'
 import { TAB_ACTIVE_CLASS, TAB_BASE_CLASS, TAB_IDLE_CLASS } from './panel-tokens'
 import { PanelToast } from './panel-toast'
 import { MobileLiteWhatsNewView } from './whats-new-view'
@@ -70,118 +22,24 @@ import { UsersTab } from './tabs/users-tab'
 
 export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
 
-function findVisibleUserAvatar(username: string): string | undefined {
-	const normalizedUsername = username.toLowerCase()
-	const userLinks = Array.from(
-		document.querySelectorAll<HTMLAnchorElement>('a.user-card[href^="/id/"], a.autor[href^="/id/"], a[href^="/id/"]')
-	)
-
-	for (const link of userLinks) {
-		const hrefUsername = link.getAttribute('href')?.match(/\/id\/([^/?#]+)/)?.[1] || ''
-		const linkUsername = safeDecodeURIComponent(hrefUsername || link.querySelector('img')?.alt?.trim() || link.textContent?.trim() || '')
-		if (linkUsername.toLowerCase() !== normalizedUsername) continue
-
-		const avatarUrl = getAvatarUrlFromImage(link.querySelector<HTMLImageElement>('img.avatar, img'))
-		if (avatarUrl) return avatarUrl
-
-		const postContainer = link.closest('.post, .respuesta, .msg, article, li, div[id^="post"], div[id^="respuesta"]')
-		const postAvatarUrl = getAvatarUrlFromImage(
-			postContainer?.querySelector<HTMLImageElement>(
-				'img.avatar, .avatar img, .post-avatar img, .user-avatar img, img[src*="/img/users/avatar/"]'
-			)
-		)
-		if (postAvatarUrl) return postAvatarUrl
-	}
-
-	return undefined
-}
-
-async function resolveUserAvatar(username: string): Promise<string | undefined> {
-	const visibleAvatar = findVisibleUserAvatar(username)
-	if (visibleAvatar) return visibleAvatar
-
-	const result = await sendMessage('resolveMvUserAvatar', { username })
-	return result.success ? sanitizeAvatarUrl(result.avatarUrl) : undefined
-}
-
-async function updateUserIgnore(
-	username: string,
-	ignoreType: MobileLiteIgnoreType | null,
-	knownAvatarUrl?: string
-): Promise<UserCustomizationsData> {
-	const data = await getUserCustomizations()
-	const { storageKey } = setUserIgnoreInData(data, username, ignoreType)
-	const storedAvatarUrl = sanitizeAvatarUrl(data.users[storageKey]?.avatarUrl)
-	const avatarUrl =
-		ignoreType && !storedAvatarUrl
-			? (sanitizeAvatarUrl(knownAvatarUrl) ?? (await resolveUserAvatar(storageKey)))
-			: undefined
-	if (avatarUrl) {
-		data.users[storageKey] = { ...data.users[storageKey], avatarUrl }
-	}
-
-	await saveUserCustomizations(data)
-	dispatchMobileLiteIgnoredUsersSync({
-		data,
-		manualChange: {
-			storageKey,
-			ignoreType,
-		},
-	})
-	return data
-}
-
 export function MobileLitePanel() {
 	const [open, setOpen] = useState(false)
 	const [panelView, setPanelView] = useState<PanelView>('main')
 	const [activeTab, setActiveTab] = useState<PanelTab>('users')
-	const [data, setData] = useState<UserCustomizationsData>(getEmptyData)
-	const [query, setQuery] = useState('')
-	const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all')
-	const [savingUser, setSavingUser] = useState<string | null>(null)
-	const [userSuggestions, setUserSuggestions] = useState<MvUserSearchUser[]>([])
-	const [errorMessage, setErrorMessage] = useState<string | null>(null)
-	const [statusMessage, setStatusMessage] = useState<string | null>(null)
-	const [imgbbApiKey, setImgbbApiKey] = useState('')
-	const [imgbbApiKeyDraft, setImgbbApiKeyDraft] = useState('')
-	const [boldColor, setBoldColor] = useState(DEFAULT_BOLD_COLOR)
-	const [boldColorDraft, setBoldColorDraft] = useState(DEFAULT_BOLD_COLOR)
-	const [boldColorEnabled, setBoldColorEnabled] = useState(false)
-	const [boldColorExpanded, setBoldColorExpanded] = useState(false)
-	const [liveThreadEnabled, setLiveThreadEnabled] = useState(false)
-	const [galleryButtonEnabled, setGalleryButtonEnabled] = useState(true)
-	const [quoteSelectionEnabled, setQuoteSelectionEnabled] = useState(true)
-	const [hideThreadButtonEnabled, setHideThreadButtonEnabled] = useState(true)
-	const [hiddenThreads, setHiddenThreads] = useState<HiddenThread[]>([])
-	const [hiddenThreadQuery, setHiddenThreadQuery] = useState('')
-	const [restoringThread, setRestoringThread] = useState<string | null>(null)
-	const [clearingHiddenThreads, setClearingHiddenThreads] = useState(false)
-	const [confirmClearHiddenThreads, setConfirmClearHiddenThreads] = useState(false)
-	const [savingImgbbApiKey, setSavingImgbbApiKey] = useState(false)
-	const [refreshingAvatars, setRefreshingAvatars] = useState(false)
-	const [hiddenThreadsStatusMessage, setHiddenThreadsStatusMessage] = useState<string | null>(null)
-	const [hiddenThreadsErrorMessage, setHiddenThreadsErrorMessage] = useState<string | null>(null)
-	const [imgbbStatusMessage, setImgbbStatusMessage] = useState<string | null>(null)
-	const [imgbbErrorMessage, setImgbbErrorMessage] = useState<string | null>(null)
-	const [savingBoldColor, setSavingBoldColor] = useState(false)
-	const [boldColorStatusMessage, setBoldColorStatusMessage] = useState<string | null>(null)
-	const [boldColorErrorMessage, setBoldColorErrorMessage] = useState<string | null>(null)
-	const [savingMobileLiteSetting, setSavingMobileLiteSetting] = useState<
-		'liveThreadEnabled' | 'galleryButtonEnabled' | 'quoteSelectionEnabled' | 'hideThreadEnabled' | null
-	>(null)
-	const [mobileLiteSettingsStatusMessage, setMobileLiteSettingsStatusMessage] = useState<string | null>(null)
-	const [mobileLiteSettingsErrorMessage, setMobileLiteSettingsErrorMessage] = useState<string | null>(null)
-	const [hasUnseenWhatsNew, setHasUnseenWhatsNew] = useState(false)
-	const avatarHydrationInFlight = useRef<Set<string>>(new Set())
 	const panelBodyRef = useRef<HTMLDivElement>(null)
-	const dragStartYRef = useRef<number | null>(null)
-	const sheetRef = useRef<HTMLElement>(null)
-	const [dragOffset, setDragOffset] = useState(0)
-	const [isDragging, setIsDragging] = useState(false)
+	const logoUrl = browser.runtime.getURL('/icon/48.png')
+
+	const drag = useSheetDrag(() => setOpen(false))
+	const whatsNew = useWhatsNew(open)
+	const ignoredUsers = useIgnoredUsers({ open, activeTab, panelBodyRef })
+	const hiddenThreads = useHiddenThreads({ open, panelBodyRef })
+	const imgbb = useImgbbApiKey(open)
+	const boldColor = useBoldColor(open)
+	const toggles = useMobileLiteToggles(open)
+
+	const { markWhatsNewAsSeen } = whatsNew
 
 	useEffect(() => {
-		let mounted = true
-
 		const handleOpen = () => {
 			setPanelView('main')
 			setOpen(true)
@@ -193,30 +51,7 @@ export function MobileLitePanel() {
 		window.addEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
 		window.addEventListener('keydown', handleKeyDown)
 
-		getUserCustomizations()
-			.then(nextData => {
-				if (mounted) setData(nextData)
-			})
-			.catch(() => {
-				if (mounted) setData(getEmptyData())
-			})
-
-		const unwatch = watchUserCustomizations(nextData => {
-			setData(nextData)
-		})
-		let unwatchHiddenThreads: (() => void) | null = null
-		try {
-			unwatchHiddenThreads = watchHiddenThreads(nextThreads => {
-				setHiddenThreads(nextThreads)
-			})
-		} catch {
-			// Hidden-thread management should not prevent the panel from opening.
-		}
-
 		return () => {
-			mounted = false
-			unwatch()
-			unwatchHiddenThreads?.()
 			window.removeEventListener(MOBILE_LITE_PANEL_OPEN_EVENT, handleOpen)
 			window.removeEventListener('keydown', handleKeyDown)
 		}
@@ -225,647 +60,19 @@ export function MobileLitePanel() {
 	useEffect(() => {
 		if (!open) return
 
-		let mounted = true
-		hasUnseenMobileLiteChanges()
-			.then(hasUnseen => {
-				if (mounted) setHasUnseenWhatsNew(hasUnseen)
-			})
-			.catch(() => {
-				if (mounted) setHasUnseenWhatsNew(false)
-			})
-
-		return () => {
-			mounted = false
-		}
-	}, [open])
-
-	useEffect(() => {
-		if (!open) return
-
-		let mounted = true
 		const previousOverflow = document.body.style.overflow
 		document.body.style.overflow = 'hidden'
 
-		getUserCustomizations()
-			.then(nextData => {
-				if (mounted) setData(nextData)
-			})
-			.catch(() => {
-				if (mounted) setData(getEmptyData())
-			})
-		getMobileLiteImgbbApiKey()
-			.then(apiKey => {
-				if (!mounted) return
-				setImgbbApiKey(apiKey)
-				setImgbbApiKeyDraft(apiKey)
-				setImgbbStatusMessage(null)
-				setImgbbErrorMessage(null)
-			})
-			.catch(() => {
-				if (mounted) setImgbbErrorMessage('No se pudo cargar la API key de ImgBB.')
-			})
-		getMobileLiteBoldColorSettings()
-			.then(settings => {
-				if (!mounted) return
-				setBoldColor(settings.color)
-				setBoldColorDraft(settings.color)
-				setBoldColorEnabled(settings.enabled)
-				setBoldColorStatusMessage(null)
-				setBoldColorErrorMessage(null)
-			})
-			.catch(() => {
-				if (mounted) setBoldColorErrorMessage('No se pudo cargar el color de negrita.')
-			})
-		getSettings()
-			.then(settings => {
-				if (!mounted) return
-				setLiveThreadEnabled(settings.liveThreadEnabled === true)
-				setGalleryButtonEnabled(settings.galleryButtonEnabled !== false)
-				setQuoteSelectionEnabled(settings.quoteSelectionEnabled !== false)
-				setHideThreadButtonEnabled(settings.hideThreadEnabled !== false)
-				setMobileLiteSettingsStatusMessage(null)
-				setMobileLiteSettingsErrorMessage(null)
-			})
-			.catch(() => {
-				if (mounted) setMobileLiteSettingsErrorMessage('No se pudieron cargar los ajustes de Mobile Lite.')
-			})
-		getHiddenThreads()
-			.then(nextThreads => {
-				if (mounted) setHiddenThreads(nextThreads)
-			})
-			.catch(() => {
-				if (mounted) setHiddenThreadsErrorMessage('No se pudieron cargar los hilos ocultos.')
-			})
-
 		return () => {
-			mounted = false
 			document.body.style.overflow = previousOverflow
 		}
 	}, [open])
-
-	// Success feedback is transient (toast above the tab bar); errors persist until the next action.
-	useEffect(() => {
-		if (
-			!statusMessage &&
-			!hiddenThreadsStatusMessage &&
-			!imgbbStatusMessage &&
-			!boldColorStatusMessage &&
-			!mobileLiteSettingsStatusMessage
-		) {
-			return
-		}
-
-		const timeout = window.setTimeout(() => {
-			setStatusMessage(null)
-			setHiddenThreadsStatusMessage(null)
-			setImgbbStatusMessage(null)
-			setBoldColorStatusMessage(null)
-			setMobileLiteSettingsStatusMessage(null)
-		}, 3500)
-
-		return () => window.clearTimeout(timeout)
-	}, [statusMessage, hiddenThreadsStatusMessage, imgbbStatusMessage, boldColorStatusMessage, mobileLiteSettingsStatusMessage])
-
-	const handleSheetTouchStart = (event: ReactTouchEvent) => {
-		dragStartYRef.current = event.touches[0]?.clientY ?? null
-		setIsDragging(true)
-	}
-
-	const handleSheetTouchMove = (event: ReactTouchEvent) => {
-		if (dragStartYRef.current === null) return
-		const currentY = event.touches[0]?.clientY ?? dragStartYRef.current
-		setDragOffset(Math.max(0, currentY - dragStartYRef.current))
-	}
-
-	const handleSheetTouchEnd = () => {
-		const sheetHeight = sheetRef.current?.offsetHeight ?? 0
-		// Dismiss only after a deliberate pull: ~1/4 of the sheet height (140px minimum on any screen).
-		const dismissThreshold = Math.max(140, sheetHeight * 0.25)
-		const shouldClose = dragOffset > dismissThreshold
-		dragStartYRef.current = null
-		setIsDragging(false)
-
-		if (shouldClose && sheetHeight > 0) {
-			// Animated exit: slide the sheet fully down, then unmount.
-			setDragOffset(sheetHeight)
-			window.setTimeout(() => {
-				setOpen(false)
-				setDragOffset(0)
-			}, 220)
-			return
-		}
-
-		// Below the threshold: snap back (animated by the transform transition).
-		setDragOffset(0)
-	}
-
-	const allFilteredUsers = useMemo(() => getFilteredUsers(data), [data])
-	const mutedUsers = useMemo(
-		() => allFilteredUsers.filter(user => getIgnoreTypeFromCustomization(user.customization) === 'mute'),
-		[allFilteredUsers]
-	)
-	const hiddenUsers = useMemo(
-		() => allFilteredUsers.filter(user => getIgnoreTypeFromCustomization(user.customization) === 'hide'),
-		[allFilteredUsers]
-	)
-	const usersForActiveFilter = activeFilter === 'mute' ? mutedUsers : activeFilter === 'hide' ? hiddenUsers : allFilteredUsers
-	const filteredUsers = useMemo(() => {
-		const normalizedQuery = query.trim().toLowerCase()
-		if (!normalizedQuery) return usersForActiveFilter
-
-		return usersForActiveFilter.filter(user => user.username.toLowerCase().includes(normalizedQuery))
-	}, [query, usersForActiveFilter])
-	const filterOptions = [
-		{ id: 'all', label: 'Todos', count: allFilteredUsers.length },
-		{ id: 'mute', label: 'Silenciados', count: mutedUsers.length },
-		{ id: 'hide', label: 'Ocultos', count: hiddenUsers.length },
-	] satisfies Array<{ id: ActiveFilter; label: string; count: number }>
-	const filteredHiddenThreads = useMemo(() => {
-		const normalizedQuery = hiddenThreadQuery.trim().toLowerCase()
-		if (!normalizedQuery) return hiddenThreads
-
-		return hiddenThreads.filter(thread => {
-			return (
-				thread.title.toLowerCase().includes(normalizedQuery) ||
-				thread.subforum.toLowerCase().includes(normalizedQuery) ||
-				getSubforumSlugFromId(thread.subforumId).toLowerCase().includes(normalizedQuery)
-			)
-		})
-	}, [hiddenThreadQuery, hiddenThreads])
-	const exactQueryUsername = normalizeUsername(query)
-	const ownUsername = getOwnUsername()
-	const isOwnQueryUser = Boolean(exactQueryUsername) && exactQueryUsername.toLowerCase() === ownUsername
-	const exactQueryEntry = exactQueryUsername ? getCustomizationEntryForUser(data, exactQueryUsername) : null
-	const exactQueryCustomization = exactQueryEntry?.customization
-	const usernameValidationMessage = isOwnQueryUser
-		? SELF_IGNORE_MESSAGE
-		: getUsernameValidationMessage(exactQueryUsername)
-	const canAddQueryUser = Boolean(exactQueryUsername && !usernameValidationMessage && !exactQueryCustomization?.isIgnored)
-	const canSearchUserSuggestions = Boolean(exactQueryUsername) && !usernameValidationMessage
-	const exactQuerySuggestion =
-		userSuggestions.find(user => user.username.toLowerCase() === exactQueryUsername.toLowerCase()) ?? null
-	const exactQueryDisplayName = exactQueryEntry?.storageKey ?? exactQuerySuggestion?.username ?? exactQueryUsername
-	const addUserSuggestions = useMemo(() => {
-		if (!canSearchUserSuggestions) return []
-
-		// Suggestions may be one keystroke behind the query (debounce), so they are
-		// re-filtered here; self and already-filtered users never show up.
-		const queryKey = exactQueryUsername.toLowerCase()
-		return userSuggestions
-			.filter(user => {
-				const usernameKey = user.username.toLowerCase()
-				if (usernameKey === queryKey || usernameKey === ownUsername) return false
-				if (getCustomizationEntryForUser(data, user.username)?.customization.isIgnored) return false
-				return usernameKey.includes(queryKey)
-			})
-			.slice(0, USER_SUGGESTIONS_MAX)
-	}, [canSearchUserSuggestions, data, exactQueryUsername, ownUsername, userSuggestions])
-	const hasAnyFilteredUsers = allFilteredUsers.length > 0
-	const latestMobileLiteEntry = useMemo(() => getLatestMobileLiteEntry(), [])
-	const mobileLiteChangelog = useMemo(() => getMobileLiteChangelog(), [])
-	const latestMobileLiteChangeCount = latestMobileLiteEntry?.changes.length ?? 0
-	// Placeholder URLs (lazy-load pixels) count as missing so the refresh button
-	// can replace them with the real avatar.
-	const missingAvatarCount = allFilteredUsers.filter(user => !sanitizeAvatarUrl(user.customization.avatarUrl)).length
-	const isImgbbConfigured = Boolean(imgbbApiKey.trim())
-	const isImgbbDirty = imgbbApiKeyDraft.trim() !== imgbbApiKey
-	const normalizedBoldColorDraft = normalizeMobileLiteBoldColor(boldColorDraft)
-	const isBoldColorDirty = normalizedBoldColorDraft !== boldColor
-	const logoUrl = browser.runtime.getURL('/icon/48.png')
-
-	const markWhatsNewAsSeen = useCallback(async () => {
-		await markCurrentMobileLiteVersionAsSeen()
-		setHasUnseenWhatsNew(false)
-	}, [])
 
 	const openWhatsNewView = useCallback(() => {
 		setPanelView('whats-new')
 		void markWhatsNewAsSeen()
 		panelBodyRef.current?.scrollTo?.({ top: 0 })
 	}, [markWhatsNewAsSeen])
-
-	const hydrateMissingAvatars = useCallback(
-		async (users: FilteredUser[], options: { cancelled?: () => boolean; showStatus?: boolean } = {}) => {
-			const missingAvatarUsers = users.filter(user => {
-				if (sanitizeAvatarUrl(user.customization.avatarUrl)) return false
-				const key = user.username.toLowerCase()
-				if (avatarHydrationInFlight.current.has(key)) return false
-				avatarHydrationInFlight.current.add(key)
-				return true
-			})
-			if (missingAvatarUsers.length === 0) {
-				if (options.showStatus) setStatusMessage('No hay avatares pendientes de actualizar.')
-				return
-			}
-
-			const resolvedAvatars: Array<{ username: string; avatarUrl: string }> = []
-
-			try {
-				for (const user of missingAvatarUsers) {
-					if (options.cancelled?.()) break
-
-					try {
-						const avatarUrl = await resolveUserAvatar(user.username)
-						if (avatarUrl) {
-							resolvedAvatars.push({ username: user.username, avatarUrl })
-						}
-					} catch {
-						// Avatar hydration is opportunistic; failing should not block panel usage.
-					} finally {
-						avatarHydrationInFlight.current.delete(user.username.toLowerCase())
-					}
-				}
-
-				if (options.cancelled?.() || resolvedAvatars.length === 0) {
-					if (options.showStatus && !options.cancelled?.()) setStatusMessage('No se encontraron avatares nuevos.')
-					return
-				}
-
-				const nextData = await getUserCustomizations()
-				let changed = false
-				for (const { username, avatarUrl } of resolvedAvatars) {
-					const entry = getCustomizationEntryForUser(nextData, username)
-					if (!entry?.customization.isIgnored || sanitizeAvatarUrl(entry.customization.avatarUrl)) continue
-
-					nextData.users[entry.storageKey] = { ...entry.customization, avatarUrl }
-					changed = true
-				}
-
-				if (!changed || options.cancelled?.()) {
-					if (options.showStatus && !options.cancelled?.()) setStatusMessage('No se encontraron avatares nuevos.')
-					return
-				}
-
-				await saveUserCustomizations(nextData)
-				setData(nextData)
-				dispatchMobileLiteIgnoredUsersSync({ data: nextData })
-				if (options.showStatus) {
-					setStatusMessage(
-						resolvedAvatars.length === 1
-							? 'Avatar actualizado.'
-							: `${resolvedAvatars.length} avatares actualizados.`
-					)
-				}
-			} finally {
-				for (const user of missingAvatarUsers) {
-					avatarHydrationInFlight.current.delete(user.username.toLowerCase())
-				}
-			}
-		},
-		[]
-	)
-
-	useEffect(() => {
-		// While a save is in flight the list reflects optimistic data; wait for the
-		// final data before hydrating so primed avatars are not resolved again.
-		if (!open || savingUser !== null || allFilteredUsers.length === 0) return
-
-		let cancelled = false
-		void hydrateMissingAvatars(allFilteredUsers, { cancelled: () => cancelled }).catch(() => {
-			// Avatar hydration is opportunistic; failing should not block panel usage.
-		})
-
-		return () => {
-			cancelled = true
-		}
-	}, [allFilteredUsers, hydrateMissingAvatars, open, savingUser])
-
-	useEffect(() => {
-		if (!open || activeTab !== 'users' || !canSearchUserSuggestions) {
-			setUserSuggestions([])
-			return
-		}
-
-		let cancelled = false
-		const timeout = window.setTimeout(() => {
-			void sendMessage('searchMvUsers', { query: exactQueryUsername })
-				.then(result => {
-					if (cancelled || !result.success) return
-					setUserSuggestions(result.users ?? [])
-				})
-				.catch(() => {
-					// Autocomplete is opportunistic; adding by exact nick still works.
-				})
-		}, USER_SUGGESTIONS_DEBOUNCE_MS)
-
-		return () => {
-			cancelled = true
-			window.clearTimeout(timeout)
-		}
-	}, [activeTab, canSearchUserSuggestions, exactQueryUsername, open])
-
-	// Input handlers grouped here so the tab subcomponents stay presentational:
-	// each clears its own transient feedback alongside the value update.
-	const handleQueryChange = (value: string) => {
-		setQuery(value)
-		setStatusMessage(null)
-	}
-
-	const handleImgbbDraftChange = (value: string) => {
-		setImgbbApiKeyDraft(value)
-		setImgbbStatusMessage(null)
-		setImgbbErrorMessage(null)
-	}
-
-	const handleBoldColorDraftChange = (value: string) => {
-		setBoldColorDraft(value)
-		setBoldColorStatusMessage(null)
-		setBoldColorErrorMessage(null)
-	}
-
-	const refreshMissingAvatars = async () => {
-		setRefreshingAvatars(true)
-		setErrorMessage(null)
-		setStatusMessage(null)
-		try {
-			await hydrateMissingAvatars(allFilteredUsers, { showStatus: true })
-		} catch {
-			setErrorMessage('No se pudieron actualizar los avatares. Inténtalo de nuevo.')
-		} finally {
-			setRefreshingAvatars(false)
-		}
-	}
-
-	const updateFilter = async (
-		username: string,
-		ignoreType: MobileLiteIgnoreType | null,
-		options: { avatarUrl?: string } = {}
-	) => {
-		const normalizedUsername = normalizeUsername(username)
-		if (!normalizedUsername) return false
-		if (ignoreType && normalizedUsername.toLowerCase() === getOwnUsername()) {
-			setErrorMessage(SELF_IGNORE_MESSAGE)
-			return false
-		}
-
-		const previousData = data
-		const optimisticData: UserCustomizationsData = {
-			...data,
-			users: { ...data.users },
-		}
-		const { storageKey: optimisticKey } = setUserIgnoreInData(optimisticData, normalizedUsername, ignoreType)
-		// Prime the known avatar optimistically too; otherwise the avatar hydration
-		// effect sees the new row without avatar and fires a redundant resolve.
-		const knownAvatarUrl = sanitizeAvatarUrl(options.avatarUrl)
-		if (ignoreType && knownAvatarUrl && !sanitizeAvatarUrl(optimisticData.users[optimisticKey]?.avatarUrl)) {
-			optimisticData.users[optimisticKey] = { ...optimisticData.users[optimisticKey], avatarUrl: knownAvatarUrl }
-		}
-
-		setSavingUser(normalizedUsername)
-		setErrorMessage(null)
-		setStatusMessage(null)
-		setData(optimisticData)
-		try {
-			const nextData = await updateUserIgnore(normalizedUsername, ignoreType, options.avatarUrl)
-			setData(nextData)
-			return true
-		} catch {
-			setData(previousData)
-			setErrorMessage('No se pudo guardar el filtro. Inténtalo de nuevo.')
-			return false
-		} finally {
-			setSavingUser(null)
-		}
-	}
-
-	const removeUserFilter = async (username: string) => {
-		const previousData = data
-		const previousScrollTop = panelBodyRef.current?.scrollTop
-		const optimisticData: UserCustomizationsData = {
-			...data,
-			users: { ...data.users },
-		}
-		setUserIgnoreInData(optimisticData, username, null)
-
-		setSavingUser(username)
-		setErrorMessage(null)
-		setStatusMessage(null)
-		setData(optimisticData)
-		try {
-			const nextData = await updateUserIgnore(username, null)
-			setData(nextData)
-			if (previousScrollTop !== undefined) {
-				window.requestAnimationFrame(() => {
-					if (panelBodyRef.current) panelBodyRef.current.scrollTop = previousScrollTop
-				})
-			}
-			return true
-		} catch {
-			setData(previousData)
-			setErrorMessage('No se pudo guardar el filtro. Inténtalo de nuevo.')
-			return false
-		} finally {
-			setSavingUser(null)
-		}
-	}
-
-	const addQueryFilter = async (ignoreType: MobileLiteIgnoreType) => {
-		// Prefer the remote suggestion match: real casing + avatar with no extra request.
-		const username = exactQuerySuggestion?.username ?? exactQueryUsername
-		const displayName = exactQueryDisplayName
-		const saved = await updateFilter(username, ignoreType, { avatarUrl: exactQuerySuggestion?.avatarUrl })
-		if (!saved) return
-
-		setQuery('')
-		setStatusMessage(ignoreType === 'mute' ? `${displayName} silenciado.` : `${displayName} ocultado.`)
-	}
-
-	const addSuggestionFilter = async (suggestion: MvUserSearchUser, ignoreType: MobileLiteIgnoreType) => {
-		const saved = await updateFilter(suggestion.username, ignoreType, { avatarUrl: suggestion.avatarUrl })
-		if (!saved) return
-
-		setQuery('')
-		setStatusMessage(ignoreType === 'mute' ? `${suggestion.username} silenciado.` : `${suggestion.username} ocultado.`)
-	}
-
-	const saveImgbbApiKey = async () => {
-		setSavingImgbbApiKey(true)
-		setImgbbErrorMessage(null)
-		setImgbbStatusMessage(null)
-		try {
-			const nextApiKey = imgbbApiKeyDraft.trim()
-			await saveMobileLiteImgbbApiKey(nextApiKey)
-			setImgbbApiKey(nextApiKey)
-			setImgbbApiKeyDraft(nextApiKey)
-			setImgbbStatusMessage(nextApiKey ? 'API key de ImgBB guardada.' : 'API key de ImgBB eliminada.')
-		} catch {
-			setImgbbErrorMessage('No se pudo guardar la API key de ImgBB.')
-		} finally {
-			setSavingImgbbApiKey(false)
-		}
-	}
-
-	const saveBoldColor = async () => {
-		setSavingBoldColor(true)
-		setBoldColorErrorMessage(null)
-		setBoldColorStatusMessage(null)
-		try {
-			const nextSettings = await saveMobileLiteBoldColorSettings({
-				color: normalizedBoldColorDraft,
-				enabled: boldColorEnabled,
-			})
-			setBoldColor(nextSettings.color)
-			setBoldColorDraft(nextSettings.color)
-			setBoldColorEnabled(nextSettings.enabled)
-			setBoldColorStatusMessage('Color de negrita guardado.')
-		} catch {
-			setBoldColorErrorMessage('No se pudo guardar el color de negrita.')
-		} finally {
-			setSavingBoldColor(false)
-		}
-	}
-
-	const toggleBoldColor = async () => {
-		const nextEnabled = !boldColorEnabled
-		setSavingBoldColor(true)
-		setBoldColorErrorMessage(null)
-		setBoldColorStatusMessage(null)
-		try {
-			const nextSettings = await saveMobileLiteBoldColorSettings({
-				enabled: nextEnabled,
-			})
-			setBoldColor(nextSettings.color)
-			setBoldColorDraft(nextSettings.color)
-			setBoldColorEnabled(nextSettings.enabled)
-			setBoldColorStatusMessage(nextSettings.enabled ? 'Color personalizado activado.' : 'Color personalizado desactivado.')
-		} catch {
-			setBoldColorErrorMessage('No se pudo cambiar el color de negrita.')
-		} finally {
-			setSavingBoldColor(false)
-		}
-	}
-
-	const resetBoldColor = async () => {
-		setSavingBoldColor(true)
-		setBoldColorErrorMessage(null)
-		setBoldColorStatusMessage(null)
-		try {
-			const nextSettings = await saveMobileLiteBoldColorSettings({
-				color: DEFAULT_BOLD_COLOR,
-				enabled: boldColorEnabled,
-			})
-			setBoldColor(nextSettings.color)
-			setBoldColorDraft(nextSettings.color)
-			setBoldColorEnabled(nextSettings.enabled)
-			setBoldColorStatusMessage('Color de negrita restaurado.')
-		} catch {
-			setBoldColorErrorMessage('No se pudo restaurar el color de negrita.')
-		} finally {
-			setSavingBoldColor(false)
-		}
-	}
-
-	const toggleLiveThreadSetting = async () => {
-		const nextEnabled = !liveThreadEnabled
-		setSavingMobileLiteSetting('liveThreadEnabled')
-		setMobileLiteSettingsErrorMessage(null)
-		setMobileLiteSettingsStatusMessage(null)
-		try {
-			useSettingsStore.getState().setSetting('liveThreadEnabled', nextEnabled)
-			setLiveThreadEnabled(nextEnabled)
-			await syncMobileLiteLiveThreadButton(nextEnabled)
-			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Modo Live activado.' : 'Modo Live desactivado.')
-		} catch {
-			setLiveThreadEnabled(!nextEnabled)
-			setMobileLiteSettingsErrorMessage('No se pudo cambiar el Modo Live.')
-		} finally {
-			setSavingMobileLiteSetting(null)
-		}
-	}
-
-	const toggleGalleryButtonSetting = async () => {
-		const nextEnabled = !galleryButtonEnabled
-		setSavingMobileLiteSetting('galleryButtonEnabled')
-		setMobileLiteSettingsErrorMessage(null)
-		setMobileLiteSettingsStatusMessage(null)
-		try {
-			useSettingsStore.getState().setSetting('galleryButtonEnabled', nextEnabled)
-			setGalleryButtonEnabled(nextEnabled)
-			await syncMobileLiteGalleryButton(nextEnabled)
-			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Botón de galería activado.' : 'Botón de galería desactivado.')
-		} catch {
-			setGalleryButtonEnabled(!nextEnabled)
-			setMobileLiteSettingsErrorMessage('No se pudo cambiar el botón de galería.')
-		} finally {
-			setSavingMobileLiteSetting(null)
-		}
-	}
-
-	const toggleQuoteSelectionSetting = async () => {
-		const nextEnabled = !quoteSelectionEnabled
-		setSavingMobileLiteSetting('quoteSelectionEnabled')
-		setMobileLiteSettingsErrorMessage(null)
-		setMobileLiteSettingsStatusMessage(null)
-		try {
-			useSettingsStore.getState().setSetting('quoteSelectionEnabled', nextEnabled)
-			setQuoteSelectionEnabled(nextEnabled)
-			await syncMobileLiteQuoteSelection(nextEnabled)
-			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Citar selección activado.' : 'Citar selección desactivado.')
-		} catch {
-			setQuoteSelectionEnabled(!nextEnabled)
-			setMobileLiteSettingsErrorMessage('No se pudo cambiar Citar selección.')
-		} finally {
-			setSavingMobileLiteSetting(null)
-		}
-	}
-
-	const toggleHideThreadButtonSetting = () => {
-		const nextEnabled = !hideThreadButtonEnabled
-		setSavingMobileLiteSetting('hideThreadEnabled')
-		setMobileLiteSettingsErrorMessage(null)
-		setMobileLiteSettingsStatusMessage(null)
-		try {
-			useSettingsStore.getState().setSetting('hideThreadEnabled', nextEnabled)
-			setHideThreadButtonEnabled(nextEnabled)
-			applyMobileLiteHiddenThreads()
-			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Botón de ocultar hilos activado.' : 'Botón de ocultar hilos desactivado.')
-		} catch {
-			setHideThreadButtonEnabled(!nextEnabled)
-			setMobileLiteSettingsErrorMessage('No se pudo cambiar el botón de ocultar hilos.')
-		} finally {
-			setSavingMobileLiteSetting(null)
-		}
-	}
-
-	const restoreHiddenThread = async (thread: HiddenThread) => {
-		const previousThreads = hiddenThreads
-		const previousScrollTop = panelBodyRef.current?.scrollTop
-		setRestoringThread(thread.id)
-		setHiddenThreadsStatusMessage(null)
-		setHiddenThreadsErrorMessage(null)
-		setHiddenThreads(currentThreads => currentThreads.filter(currentThread => currentThread.id !== thread.id))
-		try {
-			await unhideThread(thread.id)
-			const nextThreads = await getHiddenThreads()
-			setHiddenThreads(nextThreads)
-			if (previousScrollTop !== undefined) {
-				window.requestAnimationFrame(() => {
-					if (panelBodyRef.current) panelBodyRef.current.scrollTop = previousScrollTop
-				})
-			}
-		} catch {
-			setHiddenThreads(previousThreads)
-			setHiddenThreadsErrorMessage('No se pudo restaurar el hilo. Inténtalo de nuevo.')
-		} finally {
-			setRestoringThread(null)
-		}
-	}
-
-	const restoreAllHiddenThreads = async () => {
-		setClearingHiddenThreads(true)
-		setHiddenThreadsStatusMessage(null)
-		setHiddenThreadsErrorMessage(null)
-		try {
-			await clearHiddenThreads()
-			setHiddenThreads([])
-			setHiddenThreadQuery('')
-			setConfirmClearHiddenThreads(false)
-		} catch {
-			setHiddenThreadsErrorMessage('No se pudieron restaurar todos los hilos. Inténtalo de nuevo.')
-		} finally {
-			setClearingHiddenThreads(false)
-		}
-	}
 
 	if (!open) return null
 
@@ -884,18 +91,18 @@ export function MobileLitePanel() {
 			<div aria-hidden="true" className="absolute inset-x-0 top-full mx-auto h-28 w-full max-w-[34rem] bg-[#14171d]" />
 
 			<section
-				ref={sheetRef}
+				ref={drag.sheetRef}
 				className="relative flex h-[90%] w-full max-w-[34rem] flex-col overflow-hidden rounded-t-[24px] bg-[#1c1f27] text-[#eef1f6] shadow-[0_-12px_48px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom-8 duration-300 ease-out"
 				style={{
-					transform: `translateY(${dragOffset}px)`,
-					transition: isDragging ? 'none' : 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
+					transform: `translateY(${drag.dragOffset}px)`,
+					transition: drag.isDragging ? 'none' : 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
 				}}
 			>
 				<header
 					className="shrink-0 touch-none select-none pt-[max(4px,env(safe-area-inset-top))]"
-					onTouchStart={handleSheetTouchStart}
-					onTouchMove={handleSheetTouchMove}
-					onTouchEnd={handleSheetTouchEnd}
+					onTouchStart={drag.handleSheetTouchStart}
+					onTouchMove={drag.handleSheetTouchMove}
+					onTouchEnd={drag.handleSheetTouchEnd}
 				>
 					{/* Grab handle (drag down to dismiss) */}
 					<div className="flex justify-center pb-1 pt-2">
@@ -928,7 +135,7 @@ export function MobileLitePanel() {
 				<div ref={panelBodyRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
 					{panelView === 'whats-new' ? (
 						<MobileLiteWhatsNewView
-							entries={mobileLiteChangelog}
+							entries={whatsNew.mobileLiteChangelog}
 							onBack={() => setPanelView('main')}
 							onDone={() => {
 								void markWhatsNewAsSeen()
@@ -937,93 +144,93 @@ export function MobileLitePanel() {
 						/>
 					) : activeTab === 'users' ? (
 						<UsersTab
-							hasUnseenWhatsNew={hasUnseenWhatsNew}
-							latestMobileLiteEntry={latestMobileLiteEntry}
-							latestMobileLiteChangeCount={latestMobileLiteChangeCount}
+							hasUnseenWhatsNew={whatsNew.hasUnseenWhatsNew}
+							latestMobileLiteEntry={whatsNew.latestMobileLiteEntry}
+							latestMobileLiteChangeCount={whatsNew.latestMobileLiteChangeCount}
 							onOpenWhatsNew={openWhatsNewView}
 							onDismissWhatsNew={() => void markWhatsNewAsSeen()}
-							query={query}
-							onQueryChange={handleQueryChange}
-							usernameValidationMessage={usernameValidationMessage}
-							hasAnyFilteredUsers={hasAnyFilteredUsers}
-							filterOptions={filterOptions}
-							activeFilter={activeFilter}
-							onActiveFilterChange={setActiveFilter}
-							canAddQueryUser={canAddQueryUser}
-							addUserSuggestions={addUserSuggestions}
-							exactQuerySuggestion={exactQuerySuggestion}
-							exactQueryDisplayName={exactQueryDisplayName}
-							exactQueryUsername={exactQueryUsername}
-							savingUser={savingUser}
-							onAddQueryFilter={addQueryFilter}
-							onAddSuggestionFilter={addSuggestionFilter}
-							missingAvatarCount={missingAvatarCount}
-							refreshingAvatars={refreshingAvatars}
-							onRefreshAvatars={refreshMissingAvatars}
-							filteredUsers={filteredUsers}
-							onUpdateFilter={updateFilter}
-							onRemoveUserFilter={removeUserFilter}
+							query={ignoredUsers.query}
+							onQueryChange={ignoredUsers.handleQueryChange}
+							usernameValidationMessage={ignoredUsers.usernameValidationMessage}
+							hasAnyFilteredUsers={ignoredUsers.hasAnyFilteredUsers}
+							filterOptions={ignoredUsers.filterOptions}
+							activeFilter={ignoredUsers.activeFilter}
+							onActiveFilterChange={ignoredUsers.setActiveFilter}
+							canAddQueryUser={ignoredUsers.canAddQueryUser}
+							addUserSuggestions={ignoredUsers.addUserSuggestions}
+							exactQuerySuggestion={ignoredUsers.exactQuerySuggestion}
+							exactQueryDisplayName={ignoredUsers.exactQueryDisplayName}
+							exactQueryUsername={ignoredUsers.exactQueryUsername}
+							savingUser={ignoredUsers.savingUser}
+							onAddQueryFilter={ignoredUsers.addQueryFilter}
+							onAddSuggestionFilter={ignoredUsers.addSuggestionFilter}
+							missingAvatarCount={ignoredUsers.missingAvatarCount}
+							refreshingAvatars={ignoredUsers.refreshingAvatars}
+							onRefreshAvatars={ignoredUsers.refreshMissingAvatars}
+							filteredUsers={ignoredUsers.filteredUsers}
+							onUpdateFilter={ignoredUsers.updateFilter}
+							onRemoveUserFilter={ignoredUsers.removeUserFilter}
 						/>
 					) : activeTab === 'threads' ? (
 						<ThreadsTab
-							hiddenThreads={hiddenThreads}
-							hiddenThreadQuery={hiddenThreadQuery}
-							filteredHiddenThreads={filteredHiddenThreads}
-							restoringThread={restoringThread}
-							clearingHiddenThreads={clearingHiddenThreads}
-							onHiddenThreadQueryChange={setHiddenThreadQuery}
-							onRequestClearAll={() => setConfirmClearHiddenThreads(true)}
-							onRestoreThread={restoreHiddenThread}
+							hiddenThreads={hiddenThreads.hiddenThreads}
+							hiddenThreadQuery={hiddenThreads.hiddenThreadQuery}
+							filteredHiddenThreads={hiddenThreads.filteredHiddenThreads}
+							restoringThread={hiddenThreads.restoringThread}
+							clearingHiddenThreads={hiddenThreads.clearingHiddenThreads}
+							onHiddenThreadQueryChange={hiddenThreads.setHiddenThreadQuery}
+							onRequestClearAll={() => hiddenThreads.setConfirmClearHiddenThreads(true)}
+							onRestoreThread={hiddenThreads.restoreHiddenThread}
 						/>
 					) : (
 						<SettingsTab
-							latestMobileLiteEntry={latestMobileLiteEntry}
-							latestMobileLiteChangeCount={latestMobileLiteChangeCount}
-							hasUnseenWhatsNew={hasUnseenWhatsNew}
+							latestMobileLiteEntry={whatsNew.latestMobileLiteEntry}
+							latestMobileLiteChangeCount={whatsNew.latestMobileLiteChangeCount}
+							hasUnseenWhatsNew={whatsNew.hasUnseenWhatsNew}
 							onOpenWhatsNew={openWhatsNewView}
-							imgbbApiKeyDraft={imgbbApiKeyDraft}
-							isImgbbConfigured={isImgbbConfigured}
-							isImgbbDirty={isImgbbDirty}
-							savingImgbbApiKey={savingImgbbApiKey}
-							onImgbbDraftChange={handleImgbbDraftChange}
-							onSaveImgbbApiKey={saveImgbbApiKey}
-							boldColor={boldColor}
-							boldColorDraft={boldColorDraft}
-							normalizedBoldColorDraft={normalizedBoldColorDraft}
-							boldColorEnabled={boldColorEnabled}
-							boldColorExpanded={boldColorExpanded}
-							isBoldColorDirty={isBoldColorDirty}
-							savingBoldColor={savingBoldColor}
-							onToggleBoldColor={toggleBoldColor}
-							onToggleBoldColorExpanded={() => setBoldColorExpanded(value => !value)}
-							onBoldColorDraftChange={handleBoldColorDraftChange}
-							onResetBoldColor={resetBoldColor}
-							onSaveBoldColor={saveBoldColor}
-							liveThreadEnabled={liveThreadEnabled}
-							galleryButtonEnabled={galleryButtonEnabled}
-							quoteSelectionEnabled={quoteSelectionEnabled}
-							hideThreadButtonEnabled={hideThreadButtonEnabled}
-							savingMobileLiteSetting={savingMobileLiteSetting}
-							onToggleLiveThread={toggleLiveThreadSetting}
-							onToggleGallery={toggleGalleryButtonSetting}
-							onToggleQuoteSelection={toggleQuoteSelectionSetting}
-							onToggleHideThread={toggleHideThreadButtonSetting}
+							imgbbApiKeyDraft={imgbb.imgbbApiKeyDraft}
+							isImgbbConfigured={imgbb.isImgbbConfigured}
+							isImgbbDirty={imgbb.isImgbbDirty}
+							savingImgbbApiKey={imgbb.savingImgbbApiKey}
+							onImgbbDraftChange={imgbb.handleDraftChange}
+							onSaveImgbbApiKey={imgbb.saveImgbbApiKey}
+							boldColor={boldColor.boldColor}
+							boldColorDraft={boldColor.boldColorDraft}
+							normalizedBoldColorDraft={boldColor.normalizedBoldColorDraft}
+							boldColorEnabled={boldColor.boldColorEnabled}
+							boldColorExpanded={boldColor.boldColorExpanded}
+							isBoldColorDirty={boldColor.isBoldColorDirty}
+							savingBoldColor={boldColor.savingBoldColor}
+							onToggleBoldColor={boldColor.toggleBoldColor}
+							onToggleBoldColorExpanded={boldColor.toggleExpanded}
+							onBoldColorDraftChange={boldColor.handleDraftChange}
+							onResetBoldColor={boldColor.resetBoldColor}
+							onSaveBoldColor={boldColor.saveBoldColor}
+							liveThreadEnabled={toggles.liveThreadEnabled}
+							galleryButtonEnabled={toggles.galleryButtonEnabled}
+							quoteSelectionEnabled={toggles.quoteSelectionEnabled}
+							hideThreadButtonEnabled={toggles.hideThreadButtonEnabled}
+							savingMobileLiteSetting={toggles.savingMobileLiteSetting}
+							onToggleLiveThread={toggles.toggleLiveThread}
+							onToggleGallery={toggles.toggleGallery}
+							onToggleQuoteSelection={toggles.toggleQuoteSelection}
+							onToggleHideThread={toggles.toggleHideThread}
 						/>
 					)}
 				</div>
 
 				{/* Single feedback channel: transient toasts floating above the tab bar */}
 				<div className="pointer-events-none absolute inset-x-0 bottom-24 z-30 flex flex-col items-center gap-2 px-4">
-					{statusMessage && <PanelToast kind="success">{statusMessage}</PanelToast>}
-					{hiddenThreadsStatusMessage && <PanelToast kind="success">{hiddenThreadsStatusMessage}</PanelToast>}
-					{imgbbStatusMessage && <PanelToast kind="success">{imgbbStatusMessage}</PanelToast>}
-					{boldColorStatusMessage && <PanelToast kind="success">{boldColorStatusMessage}</PanelToast>}
-					{mobileLiteSettingsStatusMessage && <PanelToast kind="success">{mobileLiteSettingsStatusMessage}</PanelToast>}
-					{errorMessage && <PanelToast kind="error">{errorMessage}</PanelToast>}
-					{hiddenThreadsErrorMessage && <PanelToast kind="error">{hiddenThreadsErrorMessage}</PanelToast>}
-					{imgbbErrorMessage && <PanelToast kind="error">{imgbbErrorMessage}</PanelToast>}
-					{boldColorErrorMessage && <PanelToast kind="error">{boldColorErrorMessage}</PanelToast>}
-					{mobileLiteSettingsErrorMessage && <PanelToast kind="error">{mobileLiteSettingsErrorMessage}</PanelToast>}
+					{ignoredUsers.statusMessage && <PanelToast kind="success">{ignoredUsers.statusMessage}</PanelToast>}
+					{hiddenThreads.statusMessage && <PanelToast kind="success">{hiddenThreads.statusMessage}</PanelToast>}
+					{imgbb.statusMessage && <PanelToast kind="success">{imgbb.statusMessage}</PanelToast>}
+					{boldColor.statusMessage && <PanelToast kind="success">{boldColor.statusMessage}</PanelToast>}
+					{toggles.statusMessage && <PanelToast kind="success">{toggles.statusMessage}</PanelToast>}
+					{ignoredUsers.errorMessage && <PanelToast kind="error">{ignoredUsers.errorMessage}</PanelToast>}
+					{hiddenThreads.errorMessage && <PanelToast kind="error">{hiddenThreads.errorMessage}</PanelToast>}
+					{imgbb.errorMessage && <PanelToast kind="error">{imgbb.errorMessage}</PanelToast>}
+					{boldColor.errorMessage && <PanelToast kind="error">{boldColor.errorMessage}</PanelToast>}
+					{toggles.errorMessage && <PanelToast kind="error">{toggles.errorMessage}</PanelToast>}
 				</div>
 
 				{/* Bottom tab bar: thumb-reachable primary navigation */}
@@ -1042,12 +249,12 @@ export function MobileLitePanel() {
 						>
 							<span className="relative">
 								<UserX className="h-5 w-5" aria-hidden="true" />
-								{allFilteredUsers.length > 0 && (
+								{ignoredUsers.allFilteredUsers.length > 0 && (
 									<span
 										aria-hidden="true"
 										className="absolute -right-2.5 -top-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#f0a020] px-1 text-[10px] font-black leading-[18px] text-[#221604] ring-2 ring-[#14171d]"
 									>
-										{allFilteredUsers.length}
+										{ignoredUsers.allFilteredUsers.length}
 									</span>
 								)}
 							</span>
@@ -1066,12 +273,12 @@ export function MobileLitePanel() {
 						>
 							<span className="relative">
 								<EyeOff className="h-5 w-5" aria-hidden="true" />
-								{hiddenThreads.length > 0 && (
+								{hiddenThreads.hiddenThreads.length > 0 && (
 									<span
 										aria-hidden="true"
 										className="absolute -right-2.5 -top-2 inline-flex min-w-[18px] items-center justify-center rounded-full bg-[#f0a020] px-1 text-[10px] font-black leading-[18px] text-[#221604] ring-2 ring-[#14171d]"
 									>
-										{hiddenThreads.length}
+										{hiddenThreads.hiddenThreads.length}
 									</span>
 								)}
 							</span>
@@ -1094,11 +301,11 @@ export function MobileLitePanel() {
 				</nav>
 			</section>
 
-			{confirmClearHiddenThreads && (
+			{hiddenThreads.confirmClearHiddenThreads && (
 				<ConfirmClearHiddenThreadsDialog
-					clearing={clearingHiddenThreads}
-					onCancel={() => setConfirmClearHiddenThreads(false)}
-					onConfirm={restoreAllHiddenThreads}
+					clearing={hiddenThreads.clearingHiddenThreads}
+					onCancel={() => hiddenThreads.setConfirmClearHiddenThreads(false)}
+					onConfirm={hiddenThreads.restoreAllHiddenThreads}
 				/>
 			)}
 		</div>
