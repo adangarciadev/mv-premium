@@ -13,6 +13,12 @@ export interface StorageUsage {
 
 const EMPTY_USAGE: StorageUsage = { used: 0, quota: DEFAULT_QUOTA_BYTES, percentage: 0, items: 0 }
 
+type StorageAreaWithUsage = typeof browser.storage.local & {
+	getBytesInUse?: (keys?: string | string[] | null) => Promise<number>
+	getKeys?: () => Promise<string[]>
+	QUOTA_BYTES?: number
+}
+
 function estimateBytes(items: Record<string, unknown>): number {
 	try {
 		return new TextEncoder().encode(JSON.stringify(items)).length
@@ -21,20 +27,40 @@ function estimateBytes(items: Record<string, unknown>): number {
 	}
 }
 
-async function readUsedBytes(items: Record<string, unknown>): Promise<number> {
-	// Firefox Android only gained storage.local.getBytesInUse recently; fall back
-	// to a serialized-size estimate when it is missing or throws.
-	const local = browser.storage.local as typeof browser.storage.local & {
-		getBytesInUse?: (keys: null) => Promise<number>
+function buildStorageUsage(used: number, quota: number, items: number): StorageUsage {
+	return {
+		used,
+		quota,
+		items,
+		percentage: quota > 0 ? Math.min((used / quota) * 100, 100) : 0,
 	}
+}
+
+async function readItemCount(local: StorageAreaWithUsage): Promise<number> {
+	if (typeof local.getKeys === 'function') {
+		return (await local.getKeys()).length
+	}
+
+	const items = (await local.get(null)) as Record<string, unknown>
+	return Object.keys(items).length
+}
+
+export async function readMobileLiteStorageUsage(): Promise<StorageUsage> {
+	const local = browser.storage.local as StorageAreaWithUsage
+	const quota = local.QUOTA_BYTES || DEFAULT_QUOTA_BYTES
+
 	if (typeof local.getBytesInUse === 'function') {
 		try {
-			return await local.getBytesInUse(null)
+			const used = await local.getBytesInUse(null)
+			const items = await readItemCount(local)
+			return buildStorageUsage(used, quota, items)
 		} catch {
-			// fall through to the estimate
+			// Fall through to the compatibility path below.
 		}
 	}
-	return estimateBytes(items)
+
+	const items = (await local.get(null)) as Record<string, unknown>
+	return buildStorageUsage(estimateBytes(items), quota, Object.keys(items).length)
 }
 
 /**
@@ -49,19 +75,10 @@ export function useStorageUsage(open: boolean): StorageUsage {
 		if (!open) return
 
 		let mounted = true
-		void browser.storage.local
-			.get(null)
-			.then(async items => {
-				const used = await readUsedBytes(items)
+		void readMobileLiteStorageUsage()
+			.then(nextUsage => {
 				if (!mounted) return
-
-				const quota = (browser.storage.local as { QUOTA_BYTES?: number }).QUOTA_BYTES || DEFAULT_QUOTA_BYTES
-				setUsage({
-					used,
-					quota,
-					items: Object.keys(items).length,
-					percentage: Math.min((used / quota) * 100, 100),
-				})
+				setUsage(nextUsage)
 			})
 			.catch(() => {
 				// Storage stats are informational; failing should not affect the panel.
