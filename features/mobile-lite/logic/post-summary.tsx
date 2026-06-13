@@ -28,6 +28,7 @@ import {
 	isPostLongEnough,
 	summarizePost,
 } from '@/features/post-summary/logic/summarize-post'
+import { formatCacheAge } from '@/features/thread-summarizer/logic/summary-cache'
 import {
 	postSummaryNeedsAiConfig,
 	toPostSummaryBBCode,
@@ -53,6 +54,8 @@ const FEATURE_ID = 'mobile-lite-post-summary'
 const CONTAINER_ID = 'mvp-mobile-lite-post-summary-root'
 const BUTTON_CLASS = 'mvp-mobile-lite-post-summary-btn'
 const INJECT_DEBOUNCE_MS = 200
+/** Re-viewing the same post within this window serves the cached summary (no AI call). */
+const POST_CACHE_TTL_MS = 5 * 60 * 1000
 
 // =============================================================================
 // MODULE STATE
@@ -61,6 +64,26 @@ const INJECT_DEBOUNCE_MS = 200
 let initialized = false
 let observer: MutationObserver | null = null
 let injectTimeout: ReturnType<typeof setTimeout> | null = null
+
+// In-memory per-post cache (keyed by the post's data-num). Cleared on teardown;
+// the module re-initialises per page so no pathname prefix is needed.
+const postSummaryCache = new Map<string, { vm: PostSummaryViewModel; timestamp: number }>()
+
+function getCachedPostSummary(postId: string): { vm: PostSummaryViewModel; ageMs: number } | null {
+	const entry = postSummaryCache.get(postId)
+	if (!entry) return null
+
+	const ageMs = Date.now() - entry.timestamp
+	if (ageMs > POST_CACHE_TTL_MS) {
+		postSummaryCache.delete(postId)
+		return null
+	}
+	return { vm: entry.vm, ageMs }
+}
+
+function setCachedPostSummary(postId: string, vm: PostSummaryViewModel): void {
+	postSummaryCache.set(postId, { vm, timestamp: Date.now() })
+}
 
 // =============================================================================
 // GUARD
@@ -78,29 +101,46 @@ function PostSummaryReactRoot() {
 	const [isLoading, setIsLoading] = useState(false)
 	const [isOpen, setIsOpen] = useState(false)
 	const [viewModel, setViewModel] = useState<PostSummaryViewModel | null>(null)
-	// Ref guard: prevents concurrent AI calls (there is no per-post cache).
+	const [cachedLabel, setCachedLabel] = useState<string | null>(null)
+	// Ref guard: prevents concurrent AI calls.
 	const busyRef = useRef(false)
 
 	useEffect(() => {
 		const handler = async (event: Event) => {
 			if (busyRef.current) return
 
-			const text = (event as CustomEvent<{ text: string }>).detail?.text ?? ''
+			const detail = (event as CustomEvent<{ text: string; postId: string }>).detail
+			const text = detail?.text ?? ''
+			const postId = detail?.postId ?? ''
 			setIsOpen(true)
 
 			// Same rule as desktop: short posts get a witty note, no AI call.
 			if (!isPostLongEnough(text)) {
 				setIsLoading(false)
+				setCachedLabel(null)
 				setViewModel({ summary: getShortPostMessage(), tone: '', hasError: false, errorMessage: '' })
+				return
+			}
+
+			// Serve from cache when re-viewing the same post — avoids redundant AI calls / quota burn.
+			const cached = postId ? getCachedPostSummary(postId) : null
+			if (cached) {
+				setIsLoading(false)
+				setCachedLabel(formatCacheAge(cached.ageMs))
+				setViewModel(cached.vm)
 				return
 			}
 
 			busyRef.current = true
 			setIsLoading(true)
 			setViewModel(null)
+			setCachedLabel(null)
 			try {
 				const result = await summarizePost(text)
-				setViewModel(toPostSummaryViewModel(result))
+				const vm = toPostSummaryViewModel(result)
+				setViewModel(vm)
+				// Cache only real AI summaries (a `tone` is present) — not errors/notes.
+				if (postId && !vm.hasError && vm.tone) setCachedPostSummary(postId, vm)
 			} catch (error) {
 				logger.error('[MobileLite] PostSummary: error', error)
 				setViewModel(
@@ -138,6 +178,7 @@ function PostSummaryReactRoot() {
 			isLoading={isLoading}
 			viewModel={viewModel}
 			bbcode={bbcode}
+			cachedLabel={cachedLabel}
 			onConfigureAi={needsAiConfig ? handleConfigureAi : undefined}
 			onClose={() => setIsOpen(false)}
 		/>
@@ -168,7 +209,8 @@ function injectPostSummaryButtons(): void {
 			event.stopPropagation()
 			const body = post.querySelector(MV_SELECTORS.THREAD.POST_BODY_ALL)
 			const text = body ? extractPostText(body) : ''
-			window.dispatchEvent(new CustomEvent(POST_SUMMARY_TRIGGER_EVENT, { detail: { text } }))
+			const postId = post.getAttribute('data-num') ?? ''
+			window.dispatchEvent(new CustomEvent(POST_SUMMARY_TRIGGER_EVENT, { detail: { text, postId } }))
 		})
 
 		li.appendChild(button)
@@ -235,5 +277,6 @@ export function teardownMobileLitePostSummary(): void {
 	unmountFeature(FEATURE_ID)
 	document.getElementById(CONTAINER_ID)?.remove()
 	teardownSummarySheetChrome()
+	postSummaryCache.clear()
 	initialized = false
 }

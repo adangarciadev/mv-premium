@@ -40,12 +40,14 @@ export interface PostSummarySheetProps {
 	viewModel: PostSummaryViewModel | null
 	/** Pre-built Mediavida BBCode, or null when not copyable (loading/error/short note). */
 	bbcode: string | null
+	/** "hace X min" when the summary was served from cache, else null. */
+	cachedLabel: string | null
 	/** Provided only when the error is a missing-key one — opens Settings. */
 	onConfigureAi?: () => void
 	onClose: () => void
 }
 
-export function PostSummarySheet({ isLoading, viewModel, bbcode, onConfigureAi, onClose }: PostSummarySheetProps) {
+export function PostSummarySheet({ isLoading, viewModel, bbcode, cachedLabel, onConfigureAi, onClose }: PostSummarySheetProps) {
 	return (
 		<MobileSheet
 			icon={<Sparkles className="h-5 w-5 shrink-0 text-[#f0a020]" aria-hidden="true" />}
@@ -58,7 +60,14 @@ export function PostSummarySheet({ isLoading, viewModel, bbcode, onConfigureAi, 
 			{!isLoading && viewModel?.hasError && (
 				<ErrorState message={viewModel.errorMessage} onConfigure={onConfigureAi} />
 			)}
-			{!isLoading && viewModel && !viewModel.hasError && <PostSummaryContent vm={viewModel} />}
+			{!isLoading && viewModel && !viewModel.hasError && (
+				<>
+					{cachedLabel && (
+						<p className="pb-1 pt-3 text-center text-[11px] text-[#8b95a3]">Resumen guardado · {cachedLabel}</p>
+					)}
+					<PostSummaryContent vm={viewModel} />
+				</>
+			)}
 		</MobileSheet>
 	)
 }
