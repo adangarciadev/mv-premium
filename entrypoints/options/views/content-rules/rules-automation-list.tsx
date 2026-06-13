@@ -268,7 +268,7 @@ function RuleAutomationRow({
 						<div className="flex flex-wrap items-center gap-2">
 							<h3 className="font-semibold">{rule.name}</h3>
 							{!rule.enabled && (
-								<Badge variant="outline" className="rounded-[var(--radius)]">
+								<Badge variant="outline">
 									Pausada
 								</Badge>
 							)}
@@ -280,7 +280,7 @@ function RuleAutomationRow({
 							{conditionPills.map(pill => (
 								<span
 									key={`${pill.label}-${pill.value}`}
-									className="inline-flex max-w-full items-center gap-1.5 rounded-[var(--radius)] border bg-background/55 px-2.5 py-1 text-xs"
+									className="inline-flex max-w-full items-center gap-1.5 rounded-md border bg-background/55 px-2.5 py-1 text-xs"
 								>
 									<span className="font-semibold text-muted-foreground">{pill.label}</span>
 									<span className="max-w-[16rem] truncate font-medium text-foreground">{pill.value}</span>
@@ -288,7 +288,7 @@ function RuleAutomationRow({
 							))}
 							<Badge
 								variant={isHighlight ? 'secondary' : 'destructive'}
-								className={cn('gap-1.5 rounded-[var(--radius)] font-semibold tracking-wide', isHighlight && 'border-transparent')}
+								className={cn('gap-1.5 font-semibold tracking-wide', isHighlight && 'border-transparent')}
 								style={
 									isHighlight
 										? {
@@ -302,7 +302,7 @@ function RuleAutomationRow({
 								{actionLabel}
 							</Badge>
 							{isHighlight && (
-								<Badge variant="outline" className="gap-1.5 rounded-[var(--radius)]">
+								<Badge variant="outline" className="gap-1.5">
 									<span className="h-2.5 w-2.5 rounded-full border" style={{ backgroundColor: color }} />
 									Tinte {color}
 								</Badge>

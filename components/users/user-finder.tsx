@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { EmptyState } from '@/components/ui/empty-state'
 import { toast } from '@/lib/lazy-toast'
 import { browser } from 'wxt/browser'
 import { MV_ROLE_COLORS } from '@/constants'
@@ -78,6 +79,9 @@ export function UserFinder({ embedded = false }: UserFinderProps) {
 	// Modal state
 	const [editingUser, setEditingUser] = useState<SearchedUser | null>(null)
 	const [editingCustomizedUser, setEditingCustomizedUser] = useState<string | null>(null)
+
+	// Controlled tabs so the Directory empty state can route to sibling tabs.
+	const [activeTab, setActiveTab] = useState('directory')
 
 	// Load initial data from storage
 	useEffect(() => {
@@ -176,18 +180,16 @@ export function UserFinder({ embedded = false }: UserFinderProps) {
 
 	return (
 		<div className={embedded ? 'w-full space-y-6' : 'w-full max-w-5xl mx-auto space-y-6 pb-20'}>
-			{/* Header */}
-			<div className="space-y-1">
-				<h1 className="text-2xl font-bold tracking-tight">{embedded ? 'Usuarios' : 'Gestión de Usuarios'}</h1>
-				<p className="text-muted-foreground text-sm">
-					{embedded
-						? 'Busca usuarios, personalízalos o ignóralos desde el centro de filtros.'
-						: 'Personaliza cómo ves a otros usuarios en el foro.'}
-				</p>
-			</div>
+			{/* Header (standalone only — the Filtros tab already labels this view) */}
+			{!embedded && (
+				<div className="space-y-1">
+					<h1 className="text-3xl font-bold tracking-tight">Gestión de Usuarios</h1>
+					<p className="text-muted-foreground text-sm">Personaliza cómo ves a otros usuarios en el foro.</p>
+				</div>
+			)}
 
 			{/* Tabs */}
-			<Tabs defaultValue="directory" className="w-full">
+			<Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
 				<TabsList className="grid w-full grid-cols-3 mb-6">
 					<TabsTrigger value="directory" className="gap-2">
 						<Search className="h-4 w-4" />
@@ -243,16 +245,32 @@ export function UserFinder({ embedded = false }: UserFinderProps) {
 					{/* Empty States */}
 					{isLoading && <div className="text-center py-12 text-muted-foreground">Buscando...</div>}
 					{!isLoading && debouncedQuery.length >= 3 && users.length === 0 && (
-						<div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg border border-dashed">
-							<UserX className="h-10 w-10 mx-auto mb-3 opacity-30" />
-							<p>No se encontraron usuarios.</p>
-						</div>
+						<EmptyState
+							icon={UserX}
+							title="No se encontraron usuarios"
+							description="Prueba con otro nombre. La búsqueda usa el directorio real de Mediavida."
+						/>
 					)}
 					{!isLoading && debouncedQuery.length < 3 && (
-						<div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg border border-dashed">
-							<Search className="h-10 w-10 mx-auto mb-3 opacity-30" />
-							<p>Escribe al menos 3 caracteres para buscar.</p>
-						</div>
+						<EmptyState
+							icon={Search}
+							title="Busca usuarios de Mediavida"
+							description="Escribe al menos 3 caracteres para buscar y personalizar o ignorar usuarios."
+							action={
+								<div className="flex flex-wrap items-center justify-center gap-2">
+									{customizedUserCount > 0 && (
+										<Button variant="outline" size="sm" onClick={() => setActiveTab('customized')}>
+											<User className="mr-2 h-4 w-4" />
+											Ver personalizados ({customizedUserCount})
+										</Button>
+									)}
+									<Button variant="outline" size="sm" onClick={() => setActiveTab('settings')}>
+										<Settings2 className="mr-2 h-4 w-4" />
+										Ajustes globales
+									</Button>
+								</div>
+							}
+						/>
 					)}
 				</TabsContent>
 
@@ -278,11 +296,11 @@ export function UserFinder({ embedded = false }: UserFinderProps) {
 							))}
 						</div>
 					) : (
-						<div className="text-center py-12 text-muted-foreground bg-muted/30 rounded-lg border border-dashed">
-							<User className="h-10 w-10 mx-auto mb-3 opacity-30" />
-							<p>No tienes usuarios personalizados.</p>
-							<p className="text-xs mt-1">Busca usuarios en el Directorio y personaliza su apariencia.</p>
-						</div>
+						<EmptyState
+							icon={User}
+							title="No tienes usuarios personalizados"
+							description="Busca usuarios en el Directorio y personaliza su apariencia o ignóralos."
+						/>
 					)}
 				</TabsContent>
 

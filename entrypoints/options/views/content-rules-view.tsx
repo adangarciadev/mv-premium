@@ -1,10 +1,6 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
-import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
+import { useEffect, useMemo, useState } from 'react'
 import Info from 'lucide-react/dist/esm/icons/info'
 import ListFilter from 'lucide-react/dist/esm/icons/list-filter'
-import Star from 'lucide-react/dist/esm/icons/star'
-import ToggleRight from 'lucide-react/dist/esm/icons/toggle-right'
-import type { LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Switch } from '@/components/ui/switch'
@@ -140,58 +136,81 @@ export function ContentRulesView({ embedded = false }: ContentRulesViewProps) {
 		toast.success('Reglas activadas')
 	}
 
+	const toggleBox = (
+		<div className="flex w-full items-center justify-between gap-4 rounded-lg border bg-background/60 px-4 py-3 lg:w-auto">
+			<div>
+				<p className="text-sm font-semibold">{contentRulesEnabled ? 'Reglas activas' : 'Reglas pausadas'}</p>
+				<p className="text-xs text-muted-foreground">Spy no permite filtrar por creador.</p>
+			</div>
+			<Switch
+				checked={contentRulesEnabled}
+				onCheckedChange={value => {
+					setSetting('contentRulesEnabled', value)
+					toast.success(value ? 'Reglas activadas' : 'Reglas desactivadas')
+				}}
+			/>
+		</div>
+	)
+
+	const infoBox = (
+		<div className="flex flex-1 gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
+			<Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+			<div className="space-y-1">
+				<p className="font-semibold">Qué son estas reglas</p>
+				<p className="text-muted-foreground">
+					Son automatizaciones: si un hilo cumple las condiciones, se destaca o se oculta. No sustituyen a los
+					hilos ocultos a mano, subforos ocultos, palabras silenciadas ni usuarios ignorados; esas opciones viven
+					en sus propias pestañas de Filtros y siguen teniendo efecto por separado.
+				</p>
+			</div>
+		</div>
+	)
+
+	const statsRow = (
+		<div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+			<span className="inline-flex items-baseline gap-1.5">
+				<span className="font-data text-base font-semibold tabular-nums text-foreground">{stats.active}</span>
+				<span className="text-muted-foreground">{contentRulesEnabled ? 'activas' : 'configuradas'}</span>
+			</span>
+			<span className="inline-flex items-baseline gap-1.5">
+				<span className="font-data text-base font-semibold tabular-nums text-primary">{stats.highlighted}</span>
+				<span className="text-muted-foreground">destacadas</span>
+			</span>
+			<span className="inline-flex items-baseline gap-1.5">
+				<span className="font-data text-base font-semibold tabular-nums text-destructive">{stats.hidden}</span>
+				<span className="text-muted-foreground">ocultas</span>
+			</span>
+		</div>
+	)
+
 	return (
 		<div className={embedded ? 'flex flex-col gap-6' : 'mx-auto flex max-w-7xl flex-col gap-6 p-6 animate-in fade-in duration-300'}>
-			<header className="rounded-xl border bg-card p-6">
-				<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-					<div className="flex items-start gap-4">
-						<div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-primary/10 text-primary">
-							<ListFilter className="h-5 w-5" />
-						</div>
-						<div className="max-w-2xl space-y-2">
-							<h1 className="text-3xl font-bold tracking-tight">Reglas de hilos</h1>
-							<p className="text-sm text-muted-foreground">
-								Automatiza qué hilos se destacan u ocultan cuando coinciden con título, autor y subforo.
-							</p>
-						</div>
+			<header className="space-y-5 rounded-xl border bg-card p-6">
+				{embedded ? (
+					<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+						{infoBox}
+						{toggleBox}
 					</div>
-
-					<div className="flex w-full items-center justify-between gap-4 rounded-lg border bg-background/60 px-4 py-3 lg:w-auto">
-						<div>
-							<p className="text-sm font-semibold">{contentRulesEnabled ? 'Reglas activas' : 'Reglas pausadas'}</p>
-							<p className="text-xs text-muted-foreground">Spy no permite filtrar por creador.</p>
+				) : (
+					<>
+						<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+							<div className="flex items-start gap-4">
+								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-primary/10 text-primary">
+									<ListFilter className="h-5 w-5" />
+								</div>
+								<div className="max-w-2xl space-y-2">
+									<h1 className="text-3xl font-bold tracking-tight">Reglas de hilos</h1>
+									<p className="text-sm text-muted-foreground">
+										Automatiza qué hilos se destacan u ocultan cuando coinciden con título, autor y subforo.
+									</p>
+								</div>
+							</div>
+							{toggleBox}
 						</div>
-						<Switch
-							checked={contentRulesEnabled}
-							onCheckedChange={value => {
-								setSetting('contentRulesEnabled', value)
-								toast.success(value ? 'Reglas activadas' : 'Reglas desactivadas')
-							}}
-						/>
-					</div>
-				</div>
-				<div className="mt-5 flex gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
-					<Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-					<div className="space-y-1">
-						<p className="font-semibold">Qué son estas reglas</p>
-						<p className="text-muted-foreground">
-							Son automatizaciones: si un hilo cumple las condiciones, se destaca o se oculta. No sustituyen a
-							los hilos ocultos a mano, subforos ocultos, palabras silenciadas ni usuarios ignorados; esas
-							opciones viven en sus propias pestañas de Filtros y siguen teniendo efecto por separado.
-						</p>
-					</div>
-				</div>
-				<div className="mt-5 grid gap-3 sm:grid-cols-3">
-					<HeaderStat
-						value={stats.active}
-						singularLabel={contentRulesEnabled ? 'ACTIVO' : 'CONFIGURADO'}
-						pluralLabel={contentRulesEnabled ? 'ACTIVOS' : 'CONFIGURADOS'}
-						tone="active"
-						icon={ToggleRight}
-					/>
-					<HeaderStat value={stats.highlighted} singularLabel="DESTACADO" pluralLabel="DESTACADOS" tone="highlight" icon={Star} />
-					<HeaderStat value={stats.hidden} singularLabel="OCULTADO" pluralLabel="OCULTADOS" tone="hide" icon={EyeOff} />
-				</div>
+						{infoBox}
+					</>
+				)}
+				{statsRow}
 			</header>
 
 			<RuleBuilder
@@ -290,62 +309,6 @@ export function ContentRulesView({ embedded = false }: ContentRulesViewProps) {
 					})
 				}}
 			/>
-		</div>
-	)
-}
-
-function HeaderStat({
-	value,
-	tone,
-	singularLabel,
-	pluralLabel,
-	icon: Icon,
-}: {
-	value: number
-	tone: 'active' | 'highlight' | 'hide'
-	singularLabel: string
-	pluralLabel: string
-	icon: LucideIcon
-}) {
-	const toneClasses = {
-		active: {
-			color: 'var(--chart-3)',
-			icon: 'text-[color:var(--stat-color)]',
-			label: 'text-[color:var(--stat-color)]',
-		},
-		highlight: {
-			color: 'var(--primary)',
-			icon: 'text-[color:var(--stat-color)]',
-			label: 'text-[color:var(--stat-color)]',
-		},
-		hide: {
-			color: 'var(--destructive)',
-			icon: 'text-[color:var(--stat-color)]',
-			label: 'text-[color:var(--stat-color)]',
-		},
-	}[tone]
-	const style = {
-		'--stat-color': toneClasses.color,
-		borderColor: 'color-mix(in srgb, var(--stat-color) 30%, var(--border))',
-		background: 'linear-gradient(135deg, color-mix(in srgb, var(--stat-color) 9%, var(--card)) 0%, var(--card) 70%)',
-	} as CSSProperties
-	const label = value === 1 ? singularLabel : pluralLabel
-
-	return (
-		<div className="flex items-center justify-between gap-4 rounded-lg border p-4 shadow-sm" style={style}>
-			<div>
-				<p className="text-3xl font-bold leading-none tabular-nums">{value}</p>
-				<p className={`mt-1 text-xs font-black uppercase tracking-wide ${toneClasses.label}`}>{label}</p>
-			</div>
-			<div
-				className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-md border ${toneClasses.icon}`}
-				style={{
-					borderColor: 'color-mix(in srgb, var(--stat-color) 38%, var(--border))',
-					background: 'color-mix(in srgb, var(--stat-color) 12%, transparent)',
-				}}
-			>
-				<Icon className="h-4 w-4" />
-			</div>
 		</div>
 	)
 }

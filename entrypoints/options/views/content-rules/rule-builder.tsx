@@ -8,6 +8,7 @@ import {
 	type SetStateAction,
 } from 'react'
 import Check from 'lucide-react/dist/esm/icons/check'
+import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import Plus from 'lucide-react/dist/esm/icons/plus'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
@@ -17,6 +18,7 @@ import X from 'lucide-react/dist/esm/icons/x'
 import { ALL_SUBFORUMS } from '@/lib/subforums'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -58,6 +60,18 @@ export function RuleBuilder({
 	onReset,
 }: RuleBuilderProps) {
 	const [subforumFilter, setSubforumFilter] = useState('')
+	const [expanded, setExpanded] = useState(false)
+
+	// Expand automatically when the user starts editing an existing rule.
+	useEffect(() => {
+		if (editing) setExpanded(true)
+	}, [editing])
+
+	const handleCancel = () => {
+		onReset()
+		setExpanded(false)
+	}
+
 	const hasMatch = Boolean(form.matchTitle.trim() || form.matchAuthor.trim())
 	const hasSubforums = form.subforumIds.length > 0
 	const titleLength = form.matchTitle.length
@@ -94,20 +108,39 @@ export function RuleBuilder({
 	return (
 		<section className="rounded-xl border bg-card">
 			<PausedRulesOverlay disabled={!contentRulesEnabled} onActivate={onActivate} title="Edición de reglas pausada">
-				<div className="flex flex-col gap-3 border-b p-5 md:flex-row md:items-center md:justify-between">
-					<div className="space-y-2">
-						<p className="text-sm font-semibold text-primary">{editing ? 'Editando regla' : 'Nueva regla'}</p>
-						<h2 className="text-xl font-semibold">Cuando coincida...</h2>
+				<Collapsible open={expanded} onOpenChange={setExpanded}>
+					<div className="flex items-center justify-between gap-3 p-5">
+						<CollapsibleTrigger asChild>
+							<button type="button" className="flex flex-1 items-center gap-3 text-left">
+								<span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border bg-primary/10 text-primary">
+									<Plus className="h-5 w-5" />
+								</span>
+								<span className="flex flex-col">
+									<span className="font-semibold">{editing ? 'Editando regla' : 'Nueva regla'}</span>
+									<span className="text-sm text-muted-foreground">
+										{expanded
+											? 'Define cuándo se aplica la regla'
+											: 'Destaca u oculta hilos por título, autor y subforo'}
+									</span>
+								</span>
+								<ChevronDown
+									className={cn(
+										'ml-auto h-5 w-5 shrink-0 text-muted-foreground transition-transform duration-200',
+										expanded && 'rotate-180'
+									)}
+								/>
+							</button>
+						</CollapsibleTrigger>
+						{editing && (
+							<Button type="button" variant="outline" disabled={!contentRulesEnabled} onClick={handleCancel}>
+								<X className="mr-2 h-4 w-4" />
+								Cancelar edición
+							</Button>
+						)}
 					</div>
-					{editing && (
-						<Button type="button" variant="outline" disabled={!contentRulesEnabled} onClick={onReset}>
-							<X className="mr-2 h-4 w-4" />
-							Cancelar edición
-						</Button>
-					)}
-				</div>
 
-				<fieldset className="space-y-5 p-5 disabled:cursor-not-allowed" disabled={!contentRulesEnabled}>
+					<CollapsibleContent>
+						<fieldset className="space-y-5 border-t p-5 disabled:cursor-not-allowed" disabled={!contentRulesEnabled}>
 					<div className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_minmax(280px,0.9fr)]">
 						<div className="space-y-4">
 							<div className="grid gap-3 md:grid-cols-2">
@@ -298,7 +331,9 @@ export function RuleBuilder({
 							)}
 						</div>
 					</div>
-				</fieldset>
+						</fieldset>
+					</CollapsibleContent>
+				</Collapsible>
 			</PausedRulesOverlay>
 		</section>
 	)

@@ -219,20 +219,16 @@ export function HiddenThreadsView({ embedded = false }: { embedded?: boolean }) 
 	return (
 		<div className={embedded ? 'flex flex-col gap-6' : 'flex flex-col gap-6 max-w-5xl mx-auto p-6 animate-in fade-in duration-300'}>
 			<div className="space-y-2">
-				<div className="flex items-center justify-between">
-					<h1 className={embedded ? 'text-2xl font-semibold tracking-tight' : 'text-3xl font-bold tracking-tight'}>
-						Hilos ocultos
-					</h1>
+				<div className={cn('flex items-center', embedded ? 'justify-end' : 'justify-between')}>
+					{!embedded && <h1 className="text-3xl font-bold tracking-tight">Hilos ocultos</h1>}
 					<Button variant="outline" size="sm" onClick={() => setShowClearDialog(true)} disabled={threads.length === 0}>
 						<Trash2 className="h-4 w-4 mr-2" />
 						Desocultar todos ({threads.length})
 					</Button>
 				</div>
 				<p className="text-sm text-muted-foreground">
-					Estos hilos se ocultan automaticamente en subforos, Spy y en perfiles (ultimos posts, /temas y /posts).
-				</p>
-				<p className="text-sm text-muted-foreground">
-					{threads.length} ocultos en total · {filteredThreads.length} visibles con filtros
+					Se ocultan en subforos, Spy y perfiles · {threads.length} ocultos · {filteredThreads.length} visibles con
+					filtros
 				</p>
 			</div>
 
@@ -260,7 +256,7 @@ export function HiddenThreadsView({ embedded = false }: { embedded?: boolean }) 
 										placeholder="Buscar por título o subforo..."
 										value={searchFilter}
 										onChange={e => setSearchFilter(e.target.value)}
-										className="pl-9 bg-secondary/50 border-input/60 focus-visible:bg-background transition-colors"
+										className="pl-9"
 									/>
 								</div>
 
@@ -355,54 +351,47 @@ export function HiddenThreadsView({ embedded = false }: { embedded?: boolean }) 
 								/>
 							) : (
 								<div className="space-y-1">
-									<div className={cn(
-										"flex items-center justify-between px-3 py-2 text-xs font-medium uppercase tracking-wider transition-colors rounded-md",
-										selectedIds.size > 0 ? "bg-primary/10 text-primary" : "text-muted-foreground"
-									)}>
-										<div className="flex items-center gap-3 w-full">
-											<Checkbox checked={isAllSelected} onCheckedChange={handleToggleSelectAll} />
-											{selectedIds.size > 0 ? (
-												<>
-													<span className="font-semibold ml-1">
-														{selectedIds.size} seleccionado{selectedIds.size !== 1 ? 's' : ''}
-													</span>
-													<div className="flex-1" />
-													<div className="flex items-center gap-2">
-														<Button 
-															variant="ghost" 
-															size="sm" 
-															onClick={() => setSelectedIds(new Set())} 
-															className="h-6 text-xs px-2 hover:bg-primary/20 hover:text-primary"
-														>
-															Cancelar
-														</Button>
-														<Button 
-															size="sm" 
-															onClick={handleUnhideSelected} 
-															className="h-6 text-xs px-2 shadow-sm"
-														>
-															<Eye className="h-3 w-3 mr-1.5" />
-															Desocultar
-														</Button>
-													</div>
-												</>
-											) : (
-												<>
-													<span className="flex-1 ml-1">Hilo</span>
-													<span className="w-24 text-right">Acciones</span>
-												</>
-											)}
-										</div>
+									<div
+										className={cn(
+											'flex items-center gap-3 rounded-md px-3 py-2 text-xs transition-colors',
+											selectedIds.size > 0 ? 'bg-primary/10 text-primary' : 'text-muted-foreground'
+										)}
+									>
+										<Checkbox checked={isAllSelected} onCheckedChange={handleToggleSelectAll} />
+										{selectedIds.size > 0 ? (
+											<>
+												<span className="ml-1 font-semibold">
+													{selectedIds.size} seleccionado{selectedIds.size !== 1 ? 's' : ''}
+												</span>
+												<div className="flex-1" />
+												<div className="flex items-center gap-2">
+													<Button
+														variant="ghost"
+														size="sm"
+														onClick={() => setSelectedIds(new Set())}
+														className="h-6 px-2 text-xs hover:bg-primary/20 hover:text-primary"
+													>
+														Cancelar
+													</Button>
+													<Button size="sm" onClick={handleUnhideSelected} className="h-6 px-2 text-xs shadow-sm">
+														<Eye className="mr-1.5 h-3 w-3" />
+														Desocultar
+													</Button>
+												</div>
+											</>
+										) : (
+											<span className="ml-1">Seleccionar todo</span>
+										)}
 									</div>
 									
-									<div className="space-y-2 mt-2">
+									<div className="mt-2 space-y-1.5">
 										{paginatedThreads.map(thread => (
 											<div
 												key={thread.id}
 												className={cn(
-													"group flex items-center gap-4 rounded-lg border p-3 transition-all duration-200",
-													selectedIds.has(thread.id) 
-														? "border-primary/50 bg-primary/5 shadow-sm" 
+													"group flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors duration-200",
+													selectedIds.has(thread.id)
+														? "border-primary/50 bg-primary/5 shadow-sm"
 														: "border-border/60 bg-card/50 hover:border-border hover:bg-accent/40"
 												)}
 											>
@@ -424,7 +413,7 @@ export function HiddenThreadsView({ embedded = false }: { embedded?: boolean }) 
 														</a>
 														<ExternalLink className="h-3.5 w-3.5 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
 													</div>
-													<div className="flex items-center gap-2 mt-1.5 text-[11px] text-muted-foreground">
+													<div className="flex items-center gap-2 mt-1 text-[11px] text-muted-foreground">
 														<Badge
 															variant="outline"
 															className="cursor-pointer font-normal rounded-md border-border bg-accent/50 text-[10px] py-0 px-1.5 hover:bg-primary/20 hover:text-primary hover:border-primary/30 transition-colors"
@@ -438,10 +427,10 @@ export function HiddenThreadsView({ embedded = false }: { embedded?: boolean }) 
 														</Badge>
 														<span className="opacity-50">•</span>
 														<span>
-															Ocultado el{' '}
-															{new Date(thread.hiddenAt).toLocaleString('es-ES', {
-																dateStyle: 'short',
-																timeStyle: 'short',
+															{new Date(thread.hiddenAt).toLocaleDateString('es-ES', {
+																day: '2-digit',
+																month: 'short',
+																year: '2-digit',
 															})}
 														</span>
 													</div>
