@@ -25,7 +25,7 @@ update the row when done.
 | 006 | [Spike - draft autosave for the Mobile Lite editor](006-spike-draft-autosave-on-mobile-lite.md) | P2 | M | - | TODO |
 | 007 | [Guard Mobile Lite thread summaries against duplicate AI calls](007-guard-mobile-lite-thread-summary-ai.md) | P1 | S | - | DONE |
 | 008 | [Do not cache missing Mobile Lite own username](008-do-not-cache-missing-mobile-lite-own-username.md) | P1 | S | - | DONE |
-| 009 | [Avoid reading all extension storage for Mobile Lite usage stats](009-avoid-reading-all-storage-for-mobile-lite-usage.md) | P1 | S | - | TODO |
+| 009 | [Avoid reading all extension storage for Mobile Lite usage stats](009-avoid-reading-all-storage-for-mobile-lite-usage.md) | P1 | S | - | DONE |
 | 010 | [Isolate Mobile Lite registry module failures](010-isolate-mobile-lite-registry-module-errors.md) | P1 | S | - | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
