@@ -15,6 +15,7 @@ import { initMobileLiteGallery, teardownMobileLiteGallery } from './gallery'
 import { initMobileLiteLiveThread, teardownMobileLiteLiveThread } from './live-thread'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 import { initMobileLitePostGestures, teardownMobileLitePostGestures } from './post-gestures'
+import { initMobileLiteQuoteSelection, teardownMobileLiteQuoteSelection } from './quote-selection'
 import { initMobileLiteThreadCompanion, teardownMobileLiteThreadCompanion } from './thread-companion'
 
 export interface MobileLiteContext {
@@ -70,6 +71,12 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		id: 'thread-companion',
 		init: initMobileLiteThreadCompanion,
 		teardown: teardownMobileLiteThreadCompanion,
+		shouldRun: context => context.isThreadPage,
+	},
+	{
+		id: 'quote-selection',
+		init: initMobileLiteQuoteSelection,
+		teardown: teardownMobileLiteQuoteSelection,
 		shouldRun: context => context.isThreadPage,
 	},
 	{

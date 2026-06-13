@@ -15,6 +15,7 @@ import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import Search from 'lucide-react/dist/esm/icons/search'
 import Settings from 'lucide-react/dist/esm/icons/settings'
+import TextQuote from 'lucide-react/dist/esm/icons/text-quote'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import UserX from 'lucide-react/dist/esm/icons/user-x'
 import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
@@ -56,6 +57,7 @@ import { applyMobileLiteHiddenThreads } from '../logic/hidden-threads'
 import { getMobileLiteImgbbApiKey, saveMobileLiteImgbbApiKey } from '../logic/imgbb-api-key-storage'
 import { syncMobileLiteGalleryButton } from '../logic/gallery'
 import { syncMobileLiteLiveThreadButton } from '../logic/live-thread'
+import { syncMobileLiteQuoteSelection } from '../logic/quote-selection'
 import {
 	getLatestMobileLiteEntry,
 	getMobileLiteChangelog,
@@ -419,6 +421,7 @@ export function MobileLitePanel() {
 	const [boldColorExpanded, setBoldColorExpanded] = useState(false)
 	const [liveThreadEnabled, setLiveThreadEnabled] = useState(false)
 	const [galleryButtonEnabled, setGalleryButtonEnabled] = useState(true)
+	const [quoteSelectionEnabled, setQuoteSelectionEnabled] = useState(true)
 	const [hideThreadButtonEnabled, setHideThreadButtonEnabled] = useState(true)
 	const [hiddenThreads, setHiddenThreads] = useState<HiddenThread[]>([])
 	const [hiddenThreadQuery, setHiddenThreadQuery] = useState('')
@@ -435,7 +438,7 @@ export function MobileLitePanel() {
 	const [boldColorStatusMessage, setBoldColorStatusMessage] = useState<string | null>(null)
 	const [boldColorErrorMessage, setBoldColorErrorMessage] = useState<string | null>(null)
 	const [savingMobileLiteSetting, setSavingMobileLiteSetting] = useState<
-		'liveThreadEnabled' | 'galleryButtonEnabled' | 'hideThreadEnabled' | null
+		'liveThreadEnabled' | 'galleryButtonEnabled' | 'quoteSelectionEnabled' | 'hideThreadEnabled' | null
 	>(null)
 	const [mobileLiteSettingsStatusMessage, setMobileLiteSettingsStatusMessage] = useState<string | null>(null)
 	const [mobileLiteSettingsErrorMessage, setMobileLiteSettingsErrorMessage] = useState<string | null>(null)
@@ -549,6 +552,7 @@ export function MobileLitePanel() {
 				if (!mounted) return
 				setLiveThreadEnabled(settings.liveThreadEnabled === true)
 				setGalleryButtonEnabled(settings.galleryButtonEnabled !== false)
+				setQuoteSelectionEnabled(settings.quoteSelectionEnabled !== false)
 				setHideThreadButtonEnabled(settings.hideThreadEnabled !== false)
 				setMobileLiteSettingsStatusMessage(null)
 				setMobileLiteSettingsErrorMessage(null)
@@ -1034,6 +1038,24 @@ export function MobileLitePanel() {
 		} catch {
 			setGalleryButtonEnabled(!nextEnabled)
 			setMobileLiteSettingsErrorMessage('No se pudo cambiar el botón de galería.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
+
+	const toggleQuoteSelectionSetting = async () => {
+		const nextEnabled = !quoteSelectionEnabled
+		setSavingMobileLiteSetting('quoteSelectionEnabled')
+		setMobileLiteSettingsErrorMessage(null)
+		setMobileLiteSettingsStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('quoteSelectionEnabled', nextEnabled)
+			setQuoteSelectionEnabled(nextEnabled)
+			await syncMobileLiteQuoteSelection(nextEnabled)
+			setMobileLiteSettingsStatusMessage(nextEnabled ? 'Citar selección activado.' : 'Citar selección desactivado.')
+		} catch {
+			setQuoteSelectionEnabled(!nextEnabled)
+			setMobileLiteSettingsErrorMessage('No se pudo cambiar Citar selección.')
 		} finally {
 			setSavingMobileLiteSetting(null)
 		}
@@ -1755,6 +1777,35 @@ export function MobileLitePanel() {
 									>
 										<span className={`${SWITCH_TRACK_BASE_CLASS} ${galleryButtonEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
 											<span className={`${SWITCH_THUMB_BASE_CLASS} ${galleryButtonEnabled ? 'translate-x-5' : ''}`} />
+										</span>
+									</button>
+								</div>
+
+								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
+									<div className="flex min-w-0 items-center gap-3">
+										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+											<TextQuote className="h-4 w-4" aria-hidden="true" />
+										</div>
+										<div className="min-w-0">
+											<div className="text-[15px] font-semibold text-[#eef1f6]">Citar selección</div>
+											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
+												{quoteSelectionEnabled
+													? 'Recoloca el botón citar bajo la selección'
+													: 'Usa el botón citar nativo (lo tapa el menú de Android)'}
+											</div>
+										</div>
+									</div>
+									<button
+										type="button"
+										role="switch"
+										aria-label="Citar selección"
+										aria-checked={quoteSelectionEnabled}
+										className={SWITCH_WRAPPER_CLASS}
+										disabled={savingMobileLiteSetting === 'quoteSelectionEnabled'}
+										onClick={toggleQuoteSelectionSetting}
+									>
+										<span className={`${SWITCH_TRACK_BASE_CLASS} ${quoteSelectionEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+											<span className={`${SWITCH_THUMB_BASE_CLASS} ${quoteSelectionEnabled ? 'translate-x-5' : ''}`} />
 										</span>
 									</button>
 								</div>

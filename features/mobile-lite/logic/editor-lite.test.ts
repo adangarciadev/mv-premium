@@ -539,6 +539,20 @@ describe('Mobile Lite editor enhancements', () => {
 		expect(document.querySelector('[data-mvp-mobile-lite-upload-control="true"]')).toBeTruthy()
 	})
 
+	it('clips the quick-reply panel collapsed to height 0 so its absolute meta row stops floating', () => {
+		renderEditor()
+
+		initMobileLiteEditorEnhancements()
+
+		const style = document.getElementById('mvp-mobile-lite-collapsed-editor-styles')
+		expect(style).toBeTruthy()
+		expect(style?.textContent).toContain('#post-editor[style*="height: 0px"]')
+		expect(style?.textContent).toContain('overflow: hidden !important')
+
+		teardownMobileLiteEditorEnhancements()
+		expect(document.getElementById('mvp-mobile-lite-collapsed-editor-styles')).toBeNull()
+	})
+
 	it('does not inject upload controls outside Firefox Android', () => {
 		renderEditor()
 		mocks.getPlatformKind.mockReturnValue('firefox-desktop')

@@ -41,6 +41,7 @@ const mocks = vi.hoisted(() => ({
 	applyMobileLiteHiddenThreads: vi.fn(),
 	syncMobileLiteLiveThreadButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
 	syncMobileLiteGalleryButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
+	syncMobileLiteQuoteSelection: vi.fn((_enabled?: boolean) => Promise.resolve()),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	sendMessage: vi.fn<(name: string, data?: unknown) => Promise<unknown>>(() => Promise.resolve({ success: false })),
 	getOwnUsername: vi.fn<() => string | null>(() => null),
@@ -150,6 +151,10 @@ vi.mock('../logic/live-thread', () => ({
 	syncMobileLiteLiveThreadButton: mocks.syncMobileLiteLiveThreadButton,
 }))
 
+vi.mock('../logic/quote-selection', () => ({
+	syncMobileLiteQuoteSelection: mocks.syncMobileLiteQuoteSelection,
+}))
+
 vi.mock('./whats-new', () => ({
 	getLatestMobileLiteEntry: mocks.getLatestMobileLiteEntry,
 	getMobileLiteChangelog: mocks.getMobileLiteChangelog,
@@ -226,6 +231,7 @@ describe('Mobile Lite panel injection', () => {
 		mocks.applyMobileLiteHiddenThreads.mockReset()
 		mocks.syncMobileLiteLiveThreadButton.mockResolvedValue(undefined)
 		mocks.syncMobileLiteGalleryButton.mockResolvedValue(undefined)
+		mocks.syncMobileLiteQuoteSelection.mockResolvedValue(undefined)
 		mocks.sendMessage.mockResolvedValue({ success: false })
 		mocks.getOwnUsername.mockReturnValue(null)
 		mocks.getLatestMobileLiteEntry.mockReturnValue({
@@ -1249,6 +1255,21 @@ describe('Mobile Lite panel injection', () => {
 		})
 		expect(mocks.syncMobileLiteGalleryButton).toHaveBeenCalledWith(false)
 		expect(await screen.findByText('Botón de galería desactivado.')).toBeInTheDocument()
+	})
+
+	it('toggles the Mobile Lite quote selection fix from settings', async () => {
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+		await user.click(await screen.findByRole('switch', { name: 'Citar selección' }))
+
+		await waitFor(() => {
+			expect(mocks.setSetting).toHaveBeenCalledWith('quoteSelectionEnabled', false)
+		})
+		expect(mocks.syncMobileLiteQuoteSelection).toHaveBeenCalledWith(false)
+		expect(await screen.findByText('Citar selección desactivado.')).toBeInTheDocument()
 	})
 
 	it('toggles the Mobile Lite hide-thread button from settings', async () => {

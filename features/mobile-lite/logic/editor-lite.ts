@@ -28,6 +28,7 @@ const UPLOAD_BUTTON_RESET_MS = 1000
 const INVISIBLE_CLIPBOARD_CHARS_PATTERN = /[\u200B-\u200D\uFEFF]/g
 const IMAGE_CROP_DIALOG_ATTR = 'data-mvp-mobile-lite-image-crop-dialog'
 const IMAGE_CROP_SUPPORTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const COLLAPSED_EDITOR_STYLE_ID = 'mvp-mobile-lite-collapsed-editor-styles'
 
 let initialized = false
 let textareaObserver: MutationObserver | null = null
@@ -1255,12 +1256,38 @@ function schedulePasteHandlerScan(): void {
 	}, PASTE_OBSERVER_DEBOUNCE_MS)
 }
 
+/**
+ * Mediavida collapses the fixed quick-reply panel (#post-editor) by animating
+ * its inline height down to 0px, but its overflow stays visible and the
+ * .editor-meta row (Enviar, favoritos, our upload button) is absolutely
+ * positioned — so when the final hide step doesn't land (it reliably fails
+ * after opening the editor via the quote-on-selection button), the row keeps
+ * floating over the page at height 0. Clipping the collapsed state is
+ * self-healing: the selector stops matching as soon as MV writes a height > 0.
+ */
+function ensureCollapsedEditorStyles(): void {
+	if (document.getElementById(COLLAPSED_EDITOR_STYLE_ID)) return
+
+	const style = document.createElement('style')
+	style.id = COLLAPSED_EDITOR_STYLE_ID
+	style.textContent = `
+		#post-editor[style*="height: 0px"],
+		#post-editor[style*="height:0px"] {
+			overflow: hidden !important;
+			padding: 0 !important;
+			border: 0 !important;
+		}
+	`
+	document.head.appendChild(style)
+}
+
 export function initMobileLiteEditorEnhancements(): void {
 	if (!isMobileLiteEditorAllowed()) return
 	if (initialized) return
 	if (!document.body) return
 
 	initialized = true
+	ensureCollapsedEditorStyles()
 	attachDocumentPasteHandler()
 	attachDocumentEditorDiscoveryHandler()
 	attachMobileLitePasteHandlers()
@@ -1342,5 +1369,6 @@ export function teardownMobileLiteEditorEnhancements(): void {
 		delete link.dataset[PRESERVE_LINK_MARKER]
 	})
 
+	document.getElementById(COLLAPSED_EDITOR_STYLE_ID)?.remove()
 	initialized = false
 }

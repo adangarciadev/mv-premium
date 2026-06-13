@@ -77,6 +77,7 @@ export interface Settings {
 	liveThreadEnabled: boolean
 	newHomepageEnabled: boolean
 	galleryButtonEnabled: boolean
+	quoteSelectionEnabled: boolean
 	nativeLiveDelayEnabled: boolean
 	liveThreadDelayEnabled: boolean
 	navbarSearchEnabled: boolean

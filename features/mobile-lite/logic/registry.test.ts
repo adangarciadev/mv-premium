@@ -26,6 +26,8 @@ const mocks = vi.hoisted(() => ({
 	teardownPanel: vi.fn(),
 	initPostGestures: vi.fn(),
 	teardownPostGestures: vi.fn(),
+	initQuoteSelection: vi.fn(),
+	teardownQuoteSelection: vi.fn(),
 }))
 
 vi.mock('@/lib/platform', () => ({
@@ -109,6 +111,11 @@ vi.mock('./post-gestures', () => ({
 	teardownMobileLitePostGestures: mocks.teardownPostGestures,
 }))
 
+vi.mock('./quote-selection', () => ({
+	initMobileLiteQuoteSelection: mocks.initQuoteSelection,
+	teardownMobileLiteQuoteSelection: mocks.teardownQuoteSelection,
+}))
+
 vi.mock('./thread-companion', () => ({
 	initMobileLiteThreadCompanion: mocks.initThreadCompanion,
 	teardownMobileLiteThreadCompanion: mocks.teardownThreadCompanion,
@@ -182,7 +189,7 @@ describe('Mobile Lite registry', () => {
 		window.history.replaceState({}, '', '/foro/deportes/pretemporada-2026-123456')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'post-gestures', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
 	})
 
 	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
@@ -231,6 +238,14 @@ describe('Mobile Lite registry', () => {
 
 		initMobileLite(context({ isThreadPage: true }))
 		expect(mocks.initThreadCompanion).toHaveBeenCalledOnce()
+	})
+
+	it('initializes the quote selection fix only on thread pages', () => {
+		initMobileLite(context({ hasPosts: true }))
+		expect(mocks.initQuoteSelection).not.toHaveBeenCalled()
+
+		initMobileLite(context({ isThreadPage: true }))
+		expect(mocks.initQuoteSelection).toHaveBeenCalledOnce()
 	})
 
 	it('initializes thread filtering modules on normal subforum pages', () => {
@@ -298,6 +313,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.teardownLiveThread).toHaveBeenCalledOnce()
 		expect(mocks.teardownGallery).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.teardownQuoteSelection).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUsers).toHaveBeenCalledOnce()
 		expect(mocks.teardownPostGestures).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUserThreads).toHaveBeenCalledOnce()
