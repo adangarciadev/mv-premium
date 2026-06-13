@@ -4,6 +4,7 @@ import { getRunnableMobileLiteModuleIds, initMobileLite, teardownMobileLite, typ
 const mocks = vi.hoisted(() => ({
 	getPlatformKind: vi.fn(() => 'firefox-android'),
 	isFeatureEnabled: vi.fn(() => true),
+	loggerError: vi.fn(),
 	initBoldColor: vi.fn(),
 	teardownBoldColor: vi.fn(),
 	initEditor: vi.fn(),
@@ -43,6 +44,12 @@ vi.mock('@/lib/feature-flags', () => ({
 		MobileLite: 'mobile-lite',
 	},
 	isFeatureEnabled: mocks.isFeatureEnabled,
+}))
+
+vi.mock('@/lib/logger', () => ({
+	logger: {
+		error: mocks.loggerError,
+	},
 }))
 
 vi.mock('./bold-color', () => ({
@@ -300,6 +307,21 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initPanel).not.toHaveBeenCalled()
 	})
 
+	it('continues initializing later modules when one runnable module throws', () => {
+		const error = new Error('gallery failed')
+		mocks.initGallery.mockImplementationOnce(() => {
+			throw error
+		})
+
+		expect(() => initMobileLite(context({ isForumRelated: true, isThreadPage: true }))).not.toThrow()
+
+		expect(mocks.initGallery).toHaveBeenCalledOnce()
+		expect(mocks.initThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.initThreadSummary).toHaveBeenCalledOnce()
+		expect(mocks.initPanel).toHaveBeenCalledOnce()
+		expect(mocks.loggerError).toHaveBeenCalledWith('Mobile Lite module "gallery" failed to initialize', error)
+	})
+
 	it('does not initialize modules outside allowed Firefox Android Mobile Lite runtime', () => {
 		mocks.getPlatformKind.mockReturnValue('firefox-desktop')
 
@@ -321,6 +343,21 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initIgnoredUserThreads).not.toHaveBeenCalled()
 		expect(mocks.initHiddenThreads).not.toHaveBeenCalled()
 		expect(mocks.initPanel).not.toHaveBeenCalled()
+	})
+
+	it('continues tearing down later modules when one teardown throws', () => {
+		const error = new Error('gallery teardown failed')
+		mocks.teardownGallery.mockImplementationOnce(() => {
+			throw error
+		})
+
+		expect(() => teardownMobileLite()).not.toThrow()
+
+		expect(mocks.teardownGallery).toHaveBeenCalledOnce()
+		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.teardownThreadSummary).toHaveBeenCalledOnce()
+		expect(mocks.teardownPanel).toHaveBeenCalledOnce()
+		expect(mocks.loggerError).toHaveBeenCalledWith('Mobile Lite module "gallery" failed to tear down', error)
 	})
 
 	it('tears down all registered modules', () => {

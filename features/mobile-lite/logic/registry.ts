@@ -1,4 +1,5 @@
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
+import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
 import { isThreadPage as detectIsThreadPage } from '@/lib/content-modules/utils/page-detection'
 import { initMobileLiteBoldColor, teardownMobileLiteBoldColor } from './bold-color'
@@ -155,17 +156,33 @@ export function initMobileLite(context: MobileLiteContext = getMobileLiteContext
 	if (!isMobileLiteAllowed()) return
 
 	for (const module of MOBILE_LITE_MODULES) {
-		if (module.shouldRun(context)) module.init()
+		initMobileLiteModule(module, context)
 	}
 }
 
 export function teardownMobileLite(): void {
 	for (const module of MOBILE_LITE_MODULES) {
-		module.teardown()
+		teardownMobileLiteModule(module)
 	}
 }
 
 export function getRunnableMobileLiteModuleIds(context: MobileLiteContext = getMobileLiteContext()): string[] {
 	if (!isMobileLiteAllowed()) return []
 	return MOBILE_LITE_MODULES.filter(module => module.shouldRun(context)).map(module => module.id)
+}
+
+function initMobileLiteModule(module: MobileLiteModule, context: MobileLiteContext): void {
+	try {
+		if (module.shouldRun(context)) module.init()
+	} catch (error) {
+		logger.error(`Mobile Lite module "${module.id}" failed to initialize`, error)
+	}
+}
+
+function teardownMobileLiteModule(module: MobileLiteModule): void {
+	try {
+		module.teardown()
+	} catch (error) {
+		logger.error(`Mobile Lite module "${module.id}" failed to tear down`, error)
+	}
 }
