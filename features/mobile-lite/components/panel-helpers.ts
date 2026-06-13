@@ -25,6 +25,18 @@ export interface FilteredUser {
 export type ActiveFilter = 'all' | MobileLiteIgnoreType
 export type PanelTab = 'users' | 'threads' | 'settings'
 export type PanelView = 'main' | 'whats-new'
+export type SavingMobileLiteSetting =
+	| 'liveThreadEnabled'
+	| 'galleryButtonEnabled'
+	| 'quoteSelectionEnabled'
+	| 'hideThreadEnabled'
+	| null
+
+export interface UserFilterOption {
+	id: ActiveFilter
+	label: string
+	count: number
+}
 
 export function getEmptyData(): UserCustomizationsData {
 	return {

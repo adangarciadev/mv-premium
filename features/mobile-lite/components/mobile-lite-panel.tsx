@@ -1,26 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from 'react'
-import Bold from 'lucide-react/dist/esm/icons/bold'
-import Check from 'lucide-react/dist/esm/icons/check'
-import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
-import Gift from 'lucide-react/dist/esm/icons/gift'
-import Images from 'lucide-react/dist/esm/icons/images'
-import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
-import KeyRound from 'lucide-react/dist/esm/icons/key-round'
-import Radio from 'lucide-react/dist/esm/icons/radio'
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw'
-import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
-import Search from 'lucide-react/dist/esm/icons/search'
 import Settings from 'lucide-react/dist/esm/icons/settings'
-import TextQuote from 'lucide-react/dist/esm/icons/text-quote'
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import UserX from 'lucide-react/dist/esm/icons/user-x'
-import VolumeX from 'lucide-react/dist/esm/icons/volume-x'
 import X from 'lucide-react/dist/esm/icons/x'
 import { browser } from 'wxt/browser'
-import { NativeFidIcon } from '@/components/native-fid-icon'
 import { sendMessage, type MvUserSearchUser } from '@/lib/messaging'
-import { getSubforumIconId } from '@/lib/subforums'
 import { getSettings, useSettingsStore } from '@/store/settings-store'
 import {
 	clearHiddenThreads,
@@ -66,40 +50,23 @@ import {
 	getFilteredUsers,
 	getSubforumSlugFromId,
 	getUsernameValidationMessage,
-	formatHiddenThreadDate,
 	normalizeUsername,
 	safeDecodeURIComponent,
 	SELF_IGNORE_MESSAGE,
 	USER_SUGGESTIONS_DEBOUNCE_MS,
 	USER_SUGGESTIONS_MAX,
-	USERNAME_VALIDATION_ID,
 	type ActiveFilter,
 	type FilteredUser,
 	type PanelTab,
 	type PanelView,
 } from './panel-helpers'
-import {
-	FILTER_ACTIVE_CLASS,
-	FILTER_BASE_CLASS,
-	FILTER_IDLE_CLASS,
-	GROUP_CLASS,
-	INPUT_CLASS,
-	PRIMARY_BUTTON_CLASS,
-	ROW_ICON_ACTIVE_CLASS,
-	ROW_ICON_BASE_CLASS,
-	ROW_ICON_IDLE_CLASS,
-	SECONDARY_BUTTON_CLASS,
-	SECTION_LABEL_CLASS,
-	SWITCH_THUMB_BASE_CLASS,
-	SWITCH_TRACK_BASE_CLASS,
-	SWITCH_WRAPPER_CLASS,
-	TAB_ACTIVE_CLASS,
-	TAB_BASE_CLASS,
-	TAB_IDLE_CLASS,
-} from './panel-tokens'
+import { TAB_ACTIVE_CLASS, TAB_BASE_CLASS, TAB_IDLE_CLASS } from './panel-tokens'
 import { PanelToast } from './panel-toast'
-import { MobileLiteWhatsNewPrompt } from './whats-new-prompt'
 import { MobileLiteWhatsNewView } from './whats-new-view'
+import { ConfirmClearHiddenThreadsDialog } from './confirm-clear-dialog'
+import { SettingsTab } from './tabs/settings-tab'
+import { ThreadsTab } from './tabs/threads-tab'
+import { UsersTab } from './tabs/users-tab'
 
 export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
 
@@ -587,6 +554,25 @@ export function MobileLitePanel() {
 		}
 	}, [activeTab, canSearchUserSuggestions, exactQueryUsername, open])
 
+	// Input handlers grouped here so the tab subcomponents stay presentational:
+	// each clears its own transient feedback alongside the value update.
+	const handleQueryChange = (value: string) => {
+		setQuery(value)
+		setStatusMessage(null)
+	}
+
+	const handleImgbbDraftChange = (value: string) => {
+		setImgbbApiKeyDraft(value)
+		setImgbbStatusMessage(null)
+		setImgbbErrorMessage(null)
+	}
+
+	const handleBoldColorDraftChange = (value: string) => {
+		setBoldColorDraft(value)
+		setBoldColorStatusMessage(null)
+		setBoldColorErrorMessage(null)
+	}
+
 	const refreshMissingAvatars = async () => {
 		setRefreshingAvatars(true)
 		setErrorMessage(null)
@@ -950,656 +936,79 @@ export function MobileLitePanel() {
 							}}
 						/>
 					) : activeTab === 'users' ? (
-						<>
-							{hasUnseenWhatsNew && latestMobileLiteEntry && (
-								<MobileLiteWhatsNewPrompt
-									entry={latestMobileLiteEntry}
-									changeCount={latestMobileLiteChangeCount}
-									onOpen={openWhatsNewView}
-									onDismiss={() => {
-										void markWhatsNewAsSeen()
-									}}
-								/>
-							)}
-							<div className="sticky top-0 z-20 -mx-4 bg-[#1c1f27] px-4 pb-2 pt-1">
-								<label className="relative block">
-									<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#707b8e]" aria-hidden="true" />
-									<input
-										type="search"
-										value={query}
-										autoCapitalize="none"
-										spellCheck={false}
-										aria-describedby={usernameValidationMessage ? USERNAME_VALIDATION_ID : undefined}
-										onChange={event => {
-											setQuery(event.target.value)
-											setStatusMessage(null)
-										}}
-										placeholder="Buscar o añadir nick (3-13)"
-										className={`${INPUT_CLASS} pl-10 pr-3`}
-									/>
-								</label>
-
-								{/* Filter chips stick together with the search so they stay
-								    reachable while scrolling a long user list */}
-								{hasAnyFilteredUsers && (
-									<div className="mt-2 flex gap-1.5" role="group" aria-label="Filtrar usuarios">
-										{filterOptions.map(option => {
-											const isActive = activeFilter === option.id
-
-											return (
-												<button
-													key={option.id}
-													type="button"
-													className={`${FILTER_BASE_CLASS} flex-1 ${isActive ? FILTER_ACTIVE_CLASS : FILTER_IDLE_CLASS}`}
-													aria-pressed={isActive}
-													onClick={() => setActiveFilter(option.id)}
-												>
-													<span className="truncate">{option.label}</span>
-													<span className="shrink-0 opacity-80">({option.count})</span>
-												</button>
-											)
-										})}
-									</div>
-								)}
-							</div>
-
-							{usernameValidationMessage && (
-								<p id={USERNAME_VALIDATION_ID} className="mt-1 px-1 text-xs text-[#d8b36a]">
-									{usernameValidationMessage}
-								</p>
-							)}
-
-							{(canAddQueryUser || addUserSuggestions.length > 0) && (
-								<div className="mt-2 overflow-hidden rounded-2xl border border-dashed border-[#3a4254] bg-[#14171d]">
-									<div className="flex items-center gap-2 px-3 pb-1 pt-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]">
-										<UserX className="h-3.5 w-3.5" aria-hidden="true" />
-										Añadir usuario
-									</div>
-									<div className="divide-y divide-[#2d3442]">
-										{canAddQueryUser && (
-											<div className="flex items-center gap-3 py-2 pl-3 pr-2">
-												<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#242a36] text-sm font-bold text-[#9aa5b4]">
-													{exactQuerySuggestion?.avatarUrl ? (
-														<img src={exactQuerySuggestion.avatarUrl} alt="" className="h-full w-full object-cover" />
-													) : (
-														exactQueryDisplayName.slice(0, 1).toUpperCase()
-													)}
-												</div>
-												<div className="min-w-0 flex-1 truncate text-[15px] font-semibold">{exactQueryDisplayName}</div>
-												<div className="flex shrink-0 items-center">
-													<button
-														type="button"
-														aria-label="Silenciar"
-														className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
-														disabled={savingUser?.toLowerCase() === exactQueryUsername.toLowerCase()}
-														onClick={() => addQueryFilter('mute')}
-													>
-														<VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
-													</button>
-													<button
-														type="button"
-														aria-label="Ocultar"
-														className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
-														disabled={savingUser?.toLowerCase() === exactQueryUsername.toLowerCase()}
-														onClick={() => addQueryFilter('hide')}
-													>
-														<EyeOff className="h-[18px] w-[18px]" aria-hidden="true" />
-													</button>
-												</div>
-											</div>
-										)}
-										{addUserSuggestions.map(suggestion => {
-											const isSavingSuggestion = savingUser?.toLowerCase() === suggestion.username.toLowerCase()
-
-											return (
-												<div key={suggestion.username} className="flex items-center gap-3 py-2 pl-3 pr-2">
-													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#242a36] text-sm font-bold text-[#9aa5b4]">
-														{suggestion.avatarUrl ? (
-															<img src={suggestion.avatarUrl} alt="" className="h-full w-full object-cover" />
-														) : (
-															suggestion.username.slice(0, 1).toUpperCase()
-														)}
-													</div>
-													<div className="min-w-0 flex-1 truncate text-[15px] font-semibold">{suggestion.username}</div>
-													<div className="flex shrink-0 items-center">
-														<button
-															type="button"
-															aria-label={`Silenciar ${suggestion.username}`}
-															className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
-															disabled={isSavingSuggestion}
-															onClick={() => addSuggestionFilter(suggestion, 'mute')}
-														>
-															<VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
-														</button>
-														<button
-															type="button"
-															aria-label={`Ocultar ${suggestion.username}`}
-															className={`${ROW_ICON_BASE_CLASS} ${ROW_ICON_IDLE_CLASS}`}
-															disabled={isSavingSuggestion}
-															onClick={() => addSuggestionFilter(suggestion, 'hide')}
-														>
-															<EyeOff className="h-[18px] w-[18px]" aria-hidden="true" />
-														</button>
-													</div>
-												</div>
-											)
-										})}
-									</div>
-								</div>
-							)}
-
-							{hasAnyFilteredUsers && (missingAvatarCount > 0 || refreshingAvatars) && (
-								<button
-									type="button"
-									className="mt-1.5 inline-flex h-9 w-full items-center justify-center gap-2 rounded-lg text-xs font-semibold text-[#9aa5b4] transition-colors active:bg-[#242a36] disabled:opacity-50"
-									disabled={refreshingAvatars}
-									onClick={refreshMissingAvatars}
-								>
-									<RefreshCw className={`h-3.5 w-3.5 ${refreshingAvatars ? 'animate-spin' : ''}`} aria-hidden="true" />
-									<span>{refreshingAvatars ? 'Actualizando avatares' : `Actualizar avatares (${missingAvatarCount})`}</span>
-								</button>
-							)}
-
-							<div className="mt-3">
-								{filteredUsers.length === 0 ? (
-									<div className="px-6 py-12 text-center">
-										<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#242a36]">
-											<UserX className="h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
-										</div>
-										<p className="text-sm font-semibold text-[#eef1f6]">
-											{hasAnyFilteredUsers ? 'No hay resultados para este filtro.' : 'No hay usuarios filtrados.'}
-										</p>
-										{!hasAnyFilteredUsers && (
-											<p className="mx-auto mt-1.5 max-w-[20rem] text-xs leading-relaxed text-[#8b95a3]">
-												Escribe un nick exacto para silenciarlo u ocultarlo desde este panel.
-											</p>
-										)}
-									</div>
-								) : (
-									<div className={`${GROUP_CLASS} divide-y divide-[#2d3442]`}>
-										{filteredUsers.map(user => {
-											const ignoreType = getIgnoreTypeFromCustomization(user.customization) ?? 'hide'
-											const isSaving = savingUser?.toLowerCase() === user.username.toLowerCase()
-											const avatarUrl = sanitizeAvatarUrl(user.customization.avatarUrl)
-
-											return (
-												<article key={user.username} className="flex items-center gap-3 py-2 pl-3 pr-2">
-													<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#14171d] text-sm font-bold text-[#9aa5b4]">
-														{avatarUrl ? (
-															<img src={avatarUrl} alt="" className="h-full w-full object-cover" />
-														) : (
-															user.username.slice(0, 1).toUpperCase()
-														)}
-													</div>
-													<div className="min-w-0 flex-1">
-														<div className="truncate text-[15px] font-semibold leading-tight">{user.username}</div>
-														<div className="mt-0.5 text-xs leading-tight text-[#8b95a3]">{ignoreType === 'mute' ? 'Silenciado' : 'Oculto'}</div>
-													</div>
-													<div className="flex shrink-0 items-center">
-														<button
-															type="button"
-															aria-label={ignoreType === 'mute' ? 'Silenciado' : 'Silenciar'}
-															aria-pressed={ignoreType === 'mute'}
-															className={`${ROW_ICON_BASE_CLASS} ${ignoreType === 'mute' ? ROW_ICON_ACTIVE_CLASS : ROW_ICON_IDLE_CLASS}`}
-															disabled={isSaving}
-															onClick={() => updateFilter(user.username, 'mute')}
-														>
-															<VolumeX className="h-[18px] w-[18px]" aria-hidden="true" />
-														</button>
-														<button
-															type="button"
-															aria-label={ignoreType === 'hide' ? 'Ocultado' : 'Ocultar'}
-															aria-pressed={ignoreType === 'hide'}
-															className={`${ROW_ICON_BASE_CLASS} ${ignoreType === 'hide' ? ROW_ICON_ACTIVE_CLASS : ROW_ICON_IDLE_CLASS}`}
-															disabled={isSaving}
-															onClick={() => updateFilter(user.username, 'hide')}
-														>
-															<EyeOff className="h-[18px] w-[18px]" aria-hidden="true" />
-														</button>
-														<button
-															type="button"
-															aria-label="Quitar"
-															className={`${ROW_ICON_BASE_CLASS} text-[#e08a8a] active:bg-[#3a2427] active:text-[#f2c2c2]`}
-															disabled={isSaving}
-															onClick={() => removeUserFilter(user.username)}
-														>
-															<Trash2 className="h-[18px] w-[18px]" aria-hidden="true" />
-														</button>
-													</div>
-												</article>
-											)
-										})}
-									</div>
-								)}
-							</div>
-						</>
+						<UsersTab
+							hasUnseenWhatsNew={hasUnseenWhatsNew}
+							latestMobileLiteEntry={latestMobileLiteEntry}
+							latestMobileLiteChangeCount={latestMobileLiteChangeCount}
+							onOpenWhatsNew={openWhatsNewView}
+							onDismissWhatsNew={() => void markWhatsNewAsSeen()}
+							query={query}
+							onQueryChange={handleQueryChange}
+							usernameValidationMessage={usernameValidationMessage}
+							hasAnyFilteredUsers={hasAnyFilteredUsers}
+							filterOptions={filterOptions}
+							activeFilter={activeFilter}
+							onActiveFilterChange={setActiveFilter}
+							canAddQueryUser={canAddQueryUser}
+							addUserSuggestions={addUserSuggestions}
+							exactQuerySuggestion={exactQuerySuggestion}
+							exactQueryDisplayName={exactQueryDisplayName}
+							exactQueryUsername={exactQueryUsername}
+							savingUser={savingUser}
+							onAddQueryFilter={addQueryFilter}
+							onAddSuggestionFilter={addSuggestionFilter}
+							missingAvatarCount={missingAvatarCount}
+							refreshingAvatars={refreshingAvatars}
+							onRefreshAvatars={refreshMissingAvatars}
+							filteredUsers={filteredUsers}
+							onUpdateFilter={updateFilter}
+							onRemoveUserFilter={removeUserFilter}
+						/>
 					) : activeTab === 'threads' ? (
-						<>
-							{hiddenThreads.length === 0 ? (
-								<div className="px-6 py-12 text-center">
-									<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#242a36]">
-										<EyeOff className="h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
-									</div>
-									<p className="text-sm font-semibold text-[#eef1f6]">No hay hilos ocultos.</p>
-									<p className="mx-auto mt-1.5 max-w-[20rem] text-xs leading-relaxed text-[#8b95a3]">
-										Los hilos que ocultes desde los listados aparecerán aquí.
-									</p>
-								</div>
-							) : (
-								<>
-									<div className="sticky top-0 z-20 -mx-4 bg-[#1c1f27] px-4 pb-2 pt-1">
-										<label className="relative block min-w-0">
-											<Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#707b8e]" aria-hidden="true" />
-											<input
-												type="search"
-												value={hiddenThreadQuery}
-												autoCapitalize="none"
-												spellCheck={false}
-												onChange={event => setHiddenThreadQuery(event.target.value)}
-												placeholder="Buscar hilo o subforo"
-												className={`${INPUT_CLASS} pl-10 pr-3`}
-											/>
-										</label>
-									</div>
-
-									<div className="mt-1 flex items-center justify-between gap-3 pl-2">
-										<span className="text-xs font-semibold text-[#8b95a3]">
-											{hiddenThreads.length === 1 ? '1 hilo oculto' : `${hiddenThreads.length} hilos ocultos`}
-										</span>
-										<button
-											type="button"
-											aria-label="Mostrar todos"
-											className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-bold text-[#f0a020] transition-colors active:bg-[#f0a020]/10 disabled:opacity-50"
-											disabled={clearingHiddenThreads}
-											onClick={() => setConfirmClearHiddenThreads(true)}
-										>
-											<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-											<span>Mostrar todos</span>
-										</button>
-									</div>
-
-									{filteredHiddenThreads.length === 0 ? (
-										<div className="px-6 py-12 text-center">
-											<div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#242a36]">
-												<Search className="h-5 w-5 text-[#8b95a3]" aria-hidden="true" />
-											</div>
-											<p className="text-sm font-semibold text-[#eef1f6]">No hay resultados.</p>
-										</div>
-									) : (
-										<div className={`mt-2 ${GROUP_CLASS} divide-y divide-[#2d3442]`}>
-											{filteredHiddenThreads.map(thread => {
-												const isRestoring = restoringThread === thread.id
-												const subforumSlug = getSubforumSlugFromId(thread.subforumId)
-												const subforumIconId = getSubforumIconId(subforumSlug)
-												const hiddenAtLabel = formatHiddenThreadDate(thread.hiddenAt)
-
-												return (
-													<article key={thread.id} className="flex items-center gap-3 py-2.5 pl-3 pr-2">
-														{subforumIconId !== null && (
-															<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d]">
-																<NativeFidIcon iconId={subforumIconId} className="h-5 w-5 shrink-0" />
-															</div>
-														)}
-														<div className="min-w-0 flex-1">
-															<div className="line-clamp-2 text-sm font-semibold leading-snug text-[#eef1f6]">{thread.title}</div>
-															<div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-medium text-[#8b95a3]">
-																<span className="min-w-0 truncate">{thread.subforum}</span>
-																{hiddenAtLabel && (
-																	<>
-																		<span aria-hidden="true">·</span>
-																		<span className="shrink-0 tabular-nums">{hiddenAtLabel}</span>
-																	</>
-																)}
-															</div>
-														</div>
-														<button
-															type="button"
-															className={`${ROW_ICON_BASE_CLASS} text-[#f0a020] active:bg-[#f0a020]/15`}
-															aria-label="Mostrar"
-															title="Mostrar"
-															disabled={isRestoring}
-															onClick={() => restoreHiddenThread(thread)}
-														>
-															<RotateCcw className="h-5 w-5" aria-hidden="true" />
-														</button>
-													</article>
-												)
-											})}
-										</div>
-									)}
-								</>
-							)}
-						</>
+						<ThreadsTab
+							hiddenThreads={hiddenThreads}
+							hiddenThreadQuery={hiddenThreadQuery}
+							filteredHiddenThreads={filteredHiddenThreads}
+							restoringThread={restoringThread}
+							clearingHiddenThreads={clearingHiddenThreads}
+							onHiddenThreadQueryChange={setHiddenThreadQuery}
+							onRequestClearAll={() => setConfirmClearHiddenThreads(true)}
+							onRestoreThread={restoreHiddenThread}
+						/>
 					) : (
-						<div className="pb-1">
-							{latestMobileLiteEntry && (
-								<>
-									<div className={SECTION_LABEL_CLASS}>MVPremium</div>
-									<section className={GROUP_CLASS}>
-										<button
-											type="button"
-											className="flex min-h-[60px] w-full items-center gap-3 py-2 pl-4 pr-2 text-left transition-colors active:bg-[#2e3543]"
-											onClick={openWhatsNewView}
-										>
-											<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#14171d] text-[#f0a020]">
-												<Gift className="h-5 w-5" aria-hidden="true" />
-											</div>
-											<div className="min-w-0 flex-1">
-												<div className="flex min-w-0 items-center gap-2">
-													<div className="truncate text-[15px] font-semibold text-[#eef1f6]">Novedades</div>
-													{hasUnseenWhatsNew && (
-														<span
-															aria-hidden="true"
-															className="inline-flex shrink-0 items-center rounded-full bg-[#f0a020] px-2 py-0.5 text-[10px] font-black leading-none text-[#221604]"
-														>
-															NEW
-														</span>
-													)}
-												</div>
-												<div className="mt-0.5 truncate text-xs text-[#8b95a3]">
-													v{latestMobileLiteEntry.version} - {latestMobileLiteChangeCount} cambios
-												</div>
-											</div>
-											<ChevronDown className="h-5 w-5 shrink-0 -rotate-90 text-[#707b8e]" aria-hidden="true" />
-										</button>
-									</section>
-								</>
-							)}
-							<div className={SECTION_LABEL_CLASS}>Imágenes</div>
-							<div className={GROUP_CLASS}>
-								<div className="p-4">
-									<div className="flex items-start gap-3">
-										<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f0a020]/[0.16] text-[#f0a020]">
-											<KeyRound className="h-5 w-5" aria-hidden="true" />
-										</div>
-										<div className="min-w-0 flex-1">
-											<div className="flex flex-wrap items-center gap-2">
-												<div className="text-[15px] font-semibold">ImgBB</div>
-												<span
-													className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-														isImgbbConfigured ? 'bg-[#274532] text-[#bdf2c7]' : 'bg-[#3b3526] text-[#e7c77f]'
-													}`}
-												>
-													{isImgbbConfigured && <Check className="h-3 w-3" aria-hidden="true" />}
-													{isImgbbConfigured ? 'ImgBB activo' : 'Freeimage gratis'}
-												</span>
-											</div>
-											<p className="mt-1 text-xs leading-relaxed text-[#9aa5b4]">
-												{isImgbbConfigured
-													? 'Tus subidas de imágenes usarán ImgBB con tu API key.'
-													: 'Sin API key se usará Freeimage, el servicio gratuito por defecto.'}
-											</p>
-										</div>
-									</div>
-
-									<label className="mt-4 block px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]" htmlFor="mvp-mobile-lite-imgbb-key">
-										API key
-									</label>
-									<input
-										id="mvp-mobile-lite-imgbb-key"
-										type="password"
-										value={imgbbApiKeyDraft}
-										autoCapitalize="none"
-										autoCorrect="off"
-										spellCheck={false}
-										onChange={event => {
-											setImgbbApiKeyDraft(event.target.value)
-											setImgbbStatusMessage(null)
-											setImgbbErrorMessage(null)
-										}}
-										placeholder="Pega tu API key de ImgBB"
-										className={`${INPUT_CLASS} mt-2 px-3 font-mono`}
-									/>
-
-									{/* No "Pegar" button on purpose: clipboard reads on Android always
-									    trigger the browser's paste-authorization bubble and there is no
-									    API to know beforehand whether the clipboard has content. The
-									    native long-press paste on the input avoids both problems. */}
-									<button
-										type="button"
-										aria-label="Guardar API key de ImgBB"
-										className={`${PRIMARY_BUTTON_CLASS} mt-3 w-full`}
-										disabled={savingImgbbApiKey || !isImgbbDirty}
-										onClick={saveImgbbApiKey}
-									>
-										<Check className="h-4 w-4" aria-hidden="true" />
-										{savingImgbbApiKey ? 'Guardando' : 'Guardar'}
-									</button>
-								</div>
-
-								<a
-									href="https://api.imgbb.com/"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex h-12 items-center justify-between gap-2 border-t border-[#2d3442] px-4 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#2e3543]"
-								>
-									<span>Obtener API key</span>
-									<ExternalLink className="h-4 w-4 shrink-0 text-[#707b8e]" aria-hidden="true" />
-								</a>
-							</div>
-
-							<div className={SECTION_LABEL_CLASS}>Apariencia</div>
-
-							<section className={GROUP_CLASS}>
-								<div className="flex min-h-[60px] items-center gap-3 py-2 pl-4 pr-2">
-									<span
-										className="h-7 w-7 shrink-0 rounded-lg border border-[#3a4254]"
-										style={{ backgroundColor: normalizedBoldColorDraft }}
-										aria-hidden="true"
-									/>
-									<div className="min-w-0 flex-1">
-										<div className="truncate text-[15px] font-semibold text-[#eef1f6]">Color de negrita</div>
-										<div className="mt-0.5 truncate text-xs text-[#8b95a3]">
-											{boldColorEnabled ? 'Activo en Mediavida' : 'Se usa el color nativo'}
-										</div>
-									</div>
-									<button
-										type="button"
-										role="switch"
-										aria-label="Color personalizado"
-										aria-checked={boldColorEnabled}
-										className={SWITCH_WRAPPER_CLASS}
-										disabled={savingBoldColor}
-										onClick={toggleBoldColor}
-									>
-										<span className={`${SWITCH_TRACK_BASE_CLASS} ${boldColorEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
-											<span className={`${SWITCH_THUMB_BASE_CLASS} ${boldColorEnabled ? 'translate-x-5' : ''}`} />
-										</span>
-									</button>
-									<button
-										type="button"
-										aria-expanded={boldColorExpanded}
-										aria-label={boldColorExpanded ? 'Ocultar ajustes de color' : 'Editar color de negrita'}
-										className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#8b95a3] transition-colors active:bg-[#2e3543]"
-										onClick={() => setBoldColorExpanded(value => !value)}
-									>
-										<ChevronDown
-											className={`h-5 w-5 transition-transform ${boldColorExpanded ? 'rotate-180' : ''}`}
-											aria-hidden="true"
-										/>
-									</button>
-								</div>
-
-								{boldColorExpanded && (
-									<div className="border-t border-[#2d3442] bg-[#1c1f27] p-4">
-										<label className="block px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]" htmlFor="mvp-mobile-lite-bold-color">
-											Color
-										</label>
-										<div className="mt-2 grid grid-cols-[56px_minmax(0,1fr)] gap-2">
-											<input
-												id="mvp-mobile-lite-bold-color"
-												type="color"
-												value={normalizedBoldColorDraft}
-												disabled={savingBoldColor}
-												onChange={event => {
-													setBoldColorDraft(event.target.value)
-													setBoldColorStatusMessage(null)
-													setBoldColorErrorMessage(null)
-												}}
-												className="h-11 w-full rounded-xl border border-transparent bg-[#14171d] p-1.5"
-											/>
-											<input
-												type="text"
-												value={boldColorDraft}
-												autoCapitalize="none"
-												autoCorrect="off"
-												spellCheck={false}
-												disabled={savingBoldColor}
-												onChange={event => {
-													setBoldColorDraft(event.target.value)
-													setBoldColorStatusMessage(null)
-													setBoldColorErrorMessage(null)
-												}}
-												className={`${INPUT_CLASS} px-3 font-mono`}
-											/>
-										</div>
-
-										<div className="mt-3 rounded-xl bg-[#14171d] px-3 py-3 text-sm leading-relaxed text-[#cfd5db]">
-											Texto normal y{' '}
-											<strong style={{ color: boldColorEnabled ? normalizedBoldColorDraft : 'inherit' }}>
-												texto en negrita
-											</strong>
-										</div>
-
-										<div className="mt-3 grid grid-cols-2 gap-2">
-											<button
-												type="button"
-												className={SECONDARY_BUTTON_CLASS}
-												disabled={savingBoldColor || (boldColor === DEFAULT_BOLD_COLOR && normalizedBoldColorDraft === DEFAULT_BOLD_COLOR)}
-												onClick={resetBoldColor}
-											>
-												<RotateCcw className="h-4 w-4" aria-hidden="true" />
-												Restaurar
-											</button>
-											<button
-												type="button"
-												aria-label="Guardar color de negrita"
-												className={PRIMARY_BUTTON_CLASS}
-												disabled={savingBoldColor || !isBoldColorDirty}
-												onClick={saveBoldColor}
-											>
-												<Bold className="h-4 w-4" aria-hidden="true" />
-												{savingBoldColor ? 'Guardando' : 'Guardar'}
-											</button>
-										</div>
-									</div>
-								)}
-							</section>
-
-							<div className={SECTION_LABEL_CLASS}>Hilos</div>
-
-							<section className={`${GROUP_CLASS} divide-y divide-[#2d3442]`}>
-								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
-									<div className="flex min-w-0 items-center gap-3">
-										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
-											<Radio className="h-4 w-4" aria-hidden="true" />
-										</div>
-										<div className="min-w-0">
-											<div className="text-[15px] font-semibold text-[#eef1f6]">Modo Live</div>
-											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
-												{liveThreadEnabled ? 'Muestra el botón Live en los hilos' : 'No muestra el botón Live'}
-											</div>
-										</div>
-									</div>
-									<button
-										type="button"
-										role="switch"
-										aria-label="Modo Live"
-										aria-checked={liveThreadEnabled}
-										className={SWITCH_WRAPPER_CLASS}
-										disabled={savingMobileLiteSetting === 'liveThreadEnabled'}
-										onClick={toggleLiveThreadSetting}
-									>
-										<span className={`${SWITCH_TRACK_BASE_CLASS} ${liveThreadEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
-											<span className={`${SWITCH_THUMB_BASE_CLASS} ${liveThreadEnabled ? 'translate-x-5' : ''}`} />
-										</span>
-									</button>
-								</div>
-
-								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
-									<div className="flex min-w-0 items-center gap-3">
-										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
-											<Images className="h-4 w-4" aria-hidden="true" />
-										</div>
-										<div className="min-w-0">
-											<div className="text-[15px] font-semibold text-[#eef1f6]">Botón galería</div>
-											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
-												{galleryButtonEnabled ? 'Muestra el botón Galería en los hilos' : 'No muestra el botón Galería'}
-											</div>
-										</div>
-									</div>
-									<button
-										type="button"
-										role="switch"
-										aria-label="Botón galería"
-										aria-checked={galleryButtonEnabled}
-										className={SWITCH_WRAPPER_CLASS}
-										disabled={savingMobileLiteSetting === 'galleryButtonEnabled'}
-										onClick={toggleGalleryButtonSetting}
-									>
-										<span className={`${SWITCH_TRACK_BASE_CLASS} ${galleryButtonEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
-											<span className={`${SWITCH_THUMB_BASE_CLASS} ${galleryButtonEnabled ? 'translate-x-5' : ''}`} />
-										</span>
-									</button>
-								</div>
-
-								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
-									<div className="flex min-w-0 items-center gap-3">
-										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
-											<TextQuote className="h-4 w-4" aria-hidden="true" />
-										</div>
-										<div className="min-w-0">
-											<div className="text-[15px] font-semibold text-[#eef1f6]">Citar selección</div>
-											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
-												{quoteSelectionEnabled
-													? 'Recoloca el botón citar bajo la selección'
-													: 'Usa el botón citar nativo (lo tapa el menú de Android)'}
-											</div>
-										</div>
-									</div>
-									<button
-										type="button"
-										role="switch"
-										aria-label="Citar selección"
-										aria-checked={quoteSelectionEnabled}
-										className={SWITCH_WRAPPER_CLASS}
-										disabled={savingMobileLiteSetting === 'quoteSelectionEnabled'}
-										onClick={toggleQuoteSelectionSetting}
-									>
-										<span className={`${SWITCH_TRACK_BASE_CLASS} ${quoteSelectionEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
-											<span className={`${SWITCH_THUMB_BASE_CLASS} ${quoteSelectionEnabled ? 'translate-x-5' : ''}`} />
-										</span>
-									</button>
-								</div>
-
-								<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
-									<div className="flex min-w-0 items-center gap-3">
-										<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
-											<EyeOff className="h-4 w-4" aria-hidden="true" />
-										</div>
-										<div className="min-w-0">
-											<div className="text-[15px] font-semibold text-[#eef1f6]">Botón ocultar hilos</div>
-											<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
-												{hideThreadButtonEnabled ? 'Muestra el botón en los listados' : 'Oculta el botón de los listados'}
-											</div>
-										</div>
-									</div>
-									<button
-										type="button"
-										role="switch"
-										aria-label="Botón ocultar hilos"
-										aria-checked={hideThreadButtonEnabled}
-										className={SWITCH_WRAPPER_CLASS}
-										disabled={savingMobileLiteSetting === 'hideThreadEnabled'}
-										onClick={toggleHideThreadButtonSetting}
-									>
-										<span className={`${SWITCH_TRACK_BASE_CLASS} ${hideThreadButtonEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
-											<span className={`${SWITCH_THUMB_BASE_CLASS} ${hideThreadButtonEnabled ? 'translate-x-5' : ''}`} />
-										</span>
-									</button>
-								</div>
-							</section>
-						</div>
+						<SettingsTab
+							latestMobileLiteEntry={latestMobileLiteEntry}
+							latestMobileLiteChangeCount={latestMobileLiteChangeCount}
+							hasUnseenWhatsNew={hasUnseenWhatsNew}
+							onOpenWhatsNew={openWhatsNewView}
+							imgbbApiKeyDraft={imgbbApiKeyDraft}
+							isImgbbConfigured={isImgbbConfigured}
+							isImgbbDirty={isImgbbDirty}
+							savingImgbbApiKey={savingImgbbApiKey}
+							onImgbbDraftChange={handleImgbbDraftChange}
+							onSaveImgbbApiKey={saveImgbbApiKey}
+							boldColor={boldColor}
+							boldColorDraft={boldColorDraft}
+							normalizedBoldColorDraft={normalizedBoldColorDraft}
+							boldColorEnabled={boldColorEnabled}
+							boldColorExpanded={boldColorExpanded}
+							isBoldColorDirty={isBoldColorDirty}
+							savingBoldColor={savingBoldColor}
+							onToggleBoldColor={toggleBoldColor}
+							onToggleBoldColorExpanded={() => setBoldColorExpanded(value => !value)}
+							onBoldColorDraftChange={handleBoldColorDraftChange}
+							onResetBoldColor={resetBoldColor}
+							onSaveBoldColor={saveBoldColor}
+							liveThreadEnabled={liveThreadEnabled}
+							galleryButtonEnabled={galleryButtonEnabled}
+							quoteSelectionEnabled={quoteSelectionEnabled}
+							hideThreadButtonEnabled={hideThreadButtonEnabled}
+							savingMobileLiteSetting={savingMobileLiteSetting}
+							onToggleLiveThread={toggleLiveThreadSetting}
+							onToggleGallery={toggleGalleryButtonSetting}
+							onToggleQuoteSelection={toggleQuoteSelectionSetting}
+							onToggleHideThread={toggleHideThreadButtonSetting}
+						/>
 					)}
 				</div>
 
@@ -1686,46 +1095,11 @@ export function MobileLitePanel() {
 			</section>
 
 			{confirmClearHiddenThreads && (
-				<div className="absolute inset-0 z-30 flex items-end justify-center bg-black/60 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-[max(12px,env(safe-area-inset-top))] animate-in fade-in-0 duration-150">
-					<button
-						type="button"
-						className="absolute inset-0 h-full w-full cursor-default"
-						aria-label="Cancelar restauración de hilos"
-						onClick={() => setConfirmClearHiddenThreads(false)}
-					/>
-					<div
-						role="alertdialog"
-						aria-modal="true"
-						aria-labelledby="mvp-mobile-lite-clear-hidden-threads-title"
-						aria-describedby="mvp-mobile-lite-clear-hidden-threads-description"
-						className="relative w-full max-w-[32rem] rounded-3xl bg-[#242a36] p-5 text-sm text-[#e5e8eb] shadow-[0_12px_48px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom-4 duration-200"
-					>
-						<p id="mvp-mobile-lite-clear-hidden-threads-title" className="text-base font-bold text-[#f2f4f7]">
-							Se mostrarán todos los hilos ocultos.
-						</p>
-						<p id="mvp-mobile-lite-clear-hidden-threads-description" className="mt-1 text-sm leading-relaxed text-[#9aa5b4]">
-							Esto vaciará tu lista de hilos ocultos en este dispositivo.
-						</p>
-						<div className="mt-5 grid grid-cols-2 gap-2">
-							<button
-								type="button"
-								className={SECONDARY_BUTTON_CLASS}
-								onClick={() => setConfirmClearHiddenThreads(false)}
-							>
-								Cancelar
-							</button>
-							<button
-								type="button"
-								className={PRIMARY_BUTTON_CLASS}
-								disabled={clearingHiddenThreads}
-								onClick={restoreAllHiddenThreads}
-							>
-								<RotateCcw className="h-4 w-4" aria-hidden="true" />
-								{clearingHiddenThreads ? 'Restaurando' : 'Continuar'}
-							</button>
-						</div>
-					</div>
-				</div>
+				<ConfirmClearHiddenThreadsDialog
+					clearing={clearingHiddenThreads}
+					onCancel={() => setConfirmClearHiddenThreads(false)}
+					onConfirm={restoreAllHiddenThreads}
+				/>
 			)}
 		</div>
 	)
