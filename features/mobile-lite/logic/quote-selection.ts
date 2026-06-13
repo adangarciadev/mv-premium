@@ -48,10 +48,17 @@ function ensureStyles(): void {
 	const style = document.createElement('style')
 	style.id = STYLE_ID
 	// 44px touch target (DESIGN.md §3) without altering the button's native look.
+	// The ::selection tint exists because MV's dark theme highlights selected text
+	// with a near-invisible dark red; the premium amber (DESIGN.md §2) makes it
+	// obvious what is about to be quoted.
 	style.textContent = `
 		${QUOTE_BUTTON_SELECTOR} {
 			min-height: 44px;
 			padding: 10px 18px;
+		}
+		.post-contents ::selection,
+		.post-contents::selection {
+			background: rgba(240, 160, 32, 0.45) !important;
 		}
 	`
 	document.head.appendChild(style)

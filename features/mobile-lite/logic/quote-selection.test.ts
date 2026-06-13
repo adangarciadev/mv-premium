@@ -154,11 +154,14 @@ describe('Mobile Lite quote selection', () => {
 		expect(button.style.left).toBe('674.3px')
 	})
 
-	it('injects the touch-target styles when enabled', async () => {
+	it('injects the touch-target and selection-highlight styles when enabled', async () => {
 		initMobileLiteQuoteSelection()
 		await flushObservers()
 
-		expect(document.getElementById(STYLE_ID)).toBeTruthy()
+		const style = document.getElementById(STYLE_ID)
+		expect(style).toBeTruthy()
+		expect(style?.textContent).toContain('min-height: 44px')
+		expect(style?.textContent).toContain('::selection')
 	})
 
 	it('does nothing when the setting is disabled', async () => {
