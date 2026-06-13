@@ -10,6 +10,7 @@ import { useIgnoredUsers } from '../hooks/use-ignored-users'
 import { useImgbbApiKey } from '../hooks/use-imgbb-api-key'
 import { useMobileLiteToggles } from '../hooks/use-mobile-lite-toggles'
 import { useSheetDrag } from '../hooks/use-sheet-drag'
+import { useStorageUsage } from '../hooks/use-storage-usage'
 import { useWhatsNew } from '../hooks/use-whats-new'
 import { type PanelTab, type PanelView } from './panel-helpers'
 import { TAB_ACTIVE_CLASS, TAB_BASE_CLASS, TAB_IDLE_CLASS } from './panel-tokens'
@@ -36,6 +37,7 @@ export function MobileLitePanel() {
 	const imgbb = useImgbbApiKey(open)
 	const boldColor = useBoldColor(open)
 	const toggles = useMobileLiteToggles(open)
+	const storageUsage = useStorageUsage(open)
 
 	const { markWhatsNewAsSeen } = whatsNew
 
@@ -215,6 +217,7 @@ export function MobileLitePanel() {
 							onToggleGallery={toggles.toggleGallery}
 							onToggleQuoteSelection={toggles.toggleQuoteSelection}
 							onToggleHideThread={toggles.toggleHideThread}
+							storageUsage={storageUsage}
 						/>
 					)}
 				</div>

@@ -10,6 +10,8 @@ import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import TextQuote from 'lucide-react/dist/esm/icons/text-quote'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import type { MobileLiteChangelogEntry } from '../../logic/whats-new'
+import type { StorageUsage } from '../../hooks/use-storage-usage'
+import { StorageCard } from '../storage-card'
 import { DEFAULT_BOLD_COLOR, type SavingMobileLiteSetting } from '../panel-helpers'
 import {
 	GROUP_CLASS,
@@ -54,6 +56,7 @@ export function SettingsTab({
 	onToggleGallery,
 	onToggleQuoteSelection,
 	onToggleHideThread,
+	storageUsage,
 }: {
 	latestMobileLiteEntry: MobileLiteChangelogEntry | null
 	latestMobileLiteChangeCount: number
@@ -86,6 +89,7 @@ export function SettingsTab({
 	onToggleGallery: () => void
 	onToggleQuoteSelection: () => void
 	onToggleHideThread: () => void
+	storageUsage: StorageUsage
 }) {
 	return (
 		<div className="pb-1">
@@ -404,6 +408,8 @@ export function SettingsTab({
 					</button>
 				</div>
 			</section>
+
+			<StorageCard usage={storageUsage} />
 		</div>
 	)
 }
