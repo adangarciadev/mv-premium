@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type TouchEvent as ReactTouchEvent } from 'react'
-import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left'
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent as ReactTouchEvent } from 'react'
 import Bold from 'lucide-react/dist/esm/icons/bold'
 import Check from 'lucide-react/dist/esm/icons/check'
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
-import CircleAlert from 'lucide-react/dist/esm/icons/circle-alert'
-import CircleCheck from 'lucide-react/dist/esm/icons/circle-check'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import Gift from 'lucide-react/dist/esm/icons/gift'
 import Images from 'lucide-react/dist/esm/icons/images'
@@ -36,7 +33,6 @@ import {
 	getUserCustomizations,
 	saveUserCustomizations,
 	watchUserCustomizations,
-	type UserCustomization,
 	type UserCustomizationsData,
 } from '@/features/user-customizations/storage'
 import {
@@ -63,283 +59,49 @@ import {
 	getMobileLiteChangelog,
 	hasUnseenMobileLiteChanges,
 	markCurrentMobileLiteVersionAsSeen,
-	type MobileLiteChangelogEntry,
 } from '../logic/whats-new'
+import {
+	DEFAULT_BOLD_COLOR,
+	getEmptyData,
+	getFilteredUsers,
+	getSubforumSlugFromId,
+	getUsernameValidationMessage,
+	formatHiddenThreadDate,
+	normalizeUsername,
+	safeDecodeURIComponent,
+	SELF_IGNORE_MESSAGE,
+	USER_SUGGESTIONS_DEBOUNCE_MS,
+	USER_SUGGESTIONS_MAX,
+	USERNAME_VALIDATION_ID,
+	type ActiveFilter,
+	type FilteredUser,
+	type PanelTab,
+	type PanelView,
+} from './panel-helpers'
+import {
+	FILTER_ACTIVE_CLASS,
+	FILTER_BASE_CLASS,
+	FILTER_IDLE_CLASS,
+	GROUP_CLASS,
+	INPUT_CLASS,
+	PRIMARY_BUTTON_CLASS,
+	ROW_ICON_ACTIVE_CLASS,
+	ROW_ICON_BASE_CLASS,
+	ROW_ICON_IDLE_CLASS,
+	SECONDARY_BUTTON_CLASS,
+	SECTION_LABEL_CLASS,
+	SWITCH_THUMB_BASE_CLASS,
+	SWITCH_TRACK_BASE_CLASS,
+	SWITCH_WRAPPER_CLASS,
+	TAB_ACTIVE_CLASS,
+	TAB_BASE_CLASS,
+	TAB_IDLE_CLASS,
+} from './panel-tokens'
+import { PanelToast } from './panel-toast'
+import { MobileLiteWhatsNewPrompt } from './whats-new-prompt'
+import { MobileLiteWhatsNewView } from './whats-new-view'
 
 export const MOBILE_LITE_PANEL_OPEN_EVENT = 'mvp-mobile-lite-panel:open'
-
-const EMPTY_GLOBAL_SETTINGS = {
-	adminColor: '',
-	subadminColor: '',
-	modColor: '',
-	userColor: '',
-}
-const USERNAME_MIN_LENGTH = 3
-const USERNAME_MAX_LENGTH = 13
-const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/
-const USERNAME_VALIDATION_ID = 'mvp-mobile-lite-username-validation'
-const SELF_IGNORE_MESSAGE = 'No puedes silenciarte a ti mismo.'
-const USER_SUGGESTIONS_DEBOUNCE_MS = 300
-const USER_SUGGESTIONS_MAX = 5
-const DEFAULT_BOLD_COLOR = '#ffffff'
-/**
- * App-like token system: one neutral surface ramp + a single amber accent (#f0a020).
- * Flat grouped lists (no per-row gradients), bottom tab bar, 44px controls and a
- * 12/16/24 radius scale. Literal hex is used throughout so Tailwind's JIT reliably
- * generates each class. These constants are the single source of truth.
- *
- *   sheet #1c1f27 · group #242a36 · input #14171d · divider #2d3442 · pressed #2e3543
- *   text #eef1f6 · muted #9aa5b4 · faint #8b95a3 · accent #f0a020 · on-accent #221604
- */
-// Bottom tab bar items: the active state fills the whole button as one pill (icon + label).
-const TAB_BASE_CLASS =
-	'flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-2xl text-[10px] font-bold uppercase tracking-[0.08em] transition-colors'
-const TAB_ACTIVE_CLASS =
-	'bg-gradient-to-b from-[#f0a020]/[0.22] to-[#f0a020]/[0.07] text-[#f0a020] ring-1 ring-inset ring-[#f0a020]/[0.25] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-1px_0_rgba(0,0,0,0.3),0_3px_10px_rgba(0,0,0,0.45)]'
-const TAB_IDLE_CLASS = 'text-[#8b95a3] active:bg-[#1d212b] active:text-[#c2cad6]'
-// Filter chips: same beveled-pill language as the bottom tab bar.
-const FILTER_BASE_CLASS =
-	'inline-flex h-9 min-w-0 items-center justify-center gap-1 rounded-full px-2.5 text-xs font-semibold transition-colors'
-const FILTER_ACTIVE_CLASS =
-	'bg-gradient-to-b from-[#f0a020]/[0.22] to-[#f0a020]/[0.07] text-[#f0a020] ring-1 ring-inset ring-[#f0a020]/[0.25] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),inset_0_-1px_0_rgba(0,0,0,0.3),0_2px_6px_rgba(0,0,0,0.35)]'
-const FILTER_IDLE_CLASS = 'bg-[#242a36] text-[#9aa5b4] ring-1 ring-inset ring-white/[0.04] active:bg-[#2e3543]'
-// Buttons: a single amber primary + one neutral secondary, both 44px.
-const PRIMARY_BUTTON_CLASS =
-	'inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#f0a020] px-4 text-sm font-bold text-[#221604] transition-colors active:bg-[#d98e12] disabled:bg-[#2e3543] disabled:text-[#707b8e]'
-const SECONDARY_BUTTON_CLASS =
-	'inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#2e3543] px-4 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#3a4254] disabled:opacity-50'
-// Row icon actions: ghost circles, accent tint only when active.
-const ROW_ICON_BASE_CLASS =
-	'inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-50'
-const ROW_ICON_IDLE_CLASS = 'text-[#8b95a3] active:bg-[#2e3543]'
-const ROW_ICON_ACTIVE_CLASS = 'bg-[#f0a020]/[0.16] text-[#f0a020]'
-// Grouped list surfaces (iOS inset-list style) and section labels.
-const GROUP_CLASS = 'overflow-hidden rounded-2xl bg-[#242a36]'
-const SECTION_LABEL_CLASS = 'px-4 pb-2 pt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]'
-// Inputs: 16px text always (prevents iOS auto-zoom), flat surface, accent focus ring.
-const INPUT_CLASS =
-	'h-11 w-full rounded-xl border border-transparent bg-[#14171d] text-base text-[#eef1f6] outline-none placeholder:text-[#707b8e] focus:border-[#f0a020]'
-// Switch: 28x48 visual track inside a 44px touch target.
-const SWITCH_WRAPPER_CLASS = 'inline-flex h-11 w-14 shrink-0 items-center justify-center disabled:opacity-60'
-const SWITCH_TRACK_BASE_CLASS = 'relative block h-7 w-12 rounded-full transition-colors'
-const SWITCH_THUMB_BASE_CLASS =
-	'pointer-events-none absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform'
-// Toasts: single feedback channel anchored above the tab bar. Saturated
-// surfaces + status icon so the outcome reads at a glance.
-const STATUS_SUCCESS_CLASS =
-	'pointer-events-auto flex w-full items-center gap-2.5 rounded-xl border border-[#2e8a52] bg-[#0e3320]/95 px-4 py-3 text-sm font-semibold text-[#d3f9e0] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
-const STATUS_ERROR_CLASS =
-	'pointer-events-auto flex w-full items-center gap-2.5 rounded-xl border border-[#a84b53] bg-[#3c181c]/95 px-4 py-3 text-sm font-semibold text-[#ffd9d9] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
-
-function PanelToast({ kind, children }: { kind: 'success' | 'error'; children: ReactNode }) {
-	const isSuccess = kind === 'success'
-	const Icon = isSuccess ? CircleCheck : CircleAlert
-	return (
-		<div role={isSuccess ? 'status' : 'alert'} className={isSuccess ? STATUS_SUCCESS_CLASS : STATUS_ERROR_CLASS}>
-			<Icon className={`h-5 w-5 shrink-0 ${isSuccess ? 'text-[#41d97e]' : 'text-[#ff8585]'}`} aria-hidden="true" />
-			<span className="min-w-0 flex-1">{children}</span>
-		</div>
-	)
-}
-
-interface FilteredUser {
-	username: string
-	customization: UserCustomization
-}
-
-type ActiveFilter = 'all' | MobileLiteIgnoreType
-type PanelTab = 'users' | 'threads' | 'settings'
-type PanelView = 'main' | 'whats-new'
-
-function getEmptyData(): UserCustomizationsData {
-	return {
-		users: {},
-		globalSettings: EMPTY_GLOBAL_SETTINGS,
-	}
-}
-
-function getFilteredUsers(data: UserCustomizationsData): FilteredUser[] {
-	return Object.entries(data.users)
-		.filter(([, customization]) => customization.isIgnored)
-		.map(([username, customization]) => ({ username, customization }))
-		.sort((a, b) => a.username.localeCompare(b.username, 'es', { sensitivity: 'base' }))
-}
-
-function normalizeUsername(username: string): string {
-	return username.trim()
-}
-
-function getSubforumSlugFromId(subforumId: string): string {
-	return subforumId.replace(/^\/foro\//, '').replace(/^foro\//, '').trim()
-}
-
-function formatHiddenThreadDate(hiddenAt: number): string {
-	if (!Number.isFinite(hiddenAt) || hiddenAt <= 0) return ''
-
-	return new Intl.DateTimeFormat('es-ES', {
-		day: '2-digit',
-		month: '2-digit',
-		year: '2-digit',
-	}).format(new Date(hiddenAt))
-}
-
-function safeDecodeURIComponent(value: string): string {
-	try {
-		return decodeURIComponent(value)
-	} catch {
-		return value
-	}
-}
-
-function getUsernameValidationMessage(username: string): string | null {
-	if (!username) return null
-	if (username.length < USERNAME_MIN_LENGTH) return 'Escribe al menos 3 caracteres para añadir un usuario.'
-	if (username.length > USERNAME_MAX_LENGTH) return 'El nick no puede tener más de 13 caracteres.'
-	if (!USERNAME_PATTERN.test(username)) return 'Usa solo letras, números, guiones y guiones bajos.'
-	return null
-}
-
-function getChangeTypeLabel(type: MobileLiteChangelogEntry['changes'][number]['type']): string {
-	switch (type) {
-		case 'feature':
-			return 'Nuevo'
-		case 'improvement':
-			return 'Mejora'
-		case 'fix':
-			return 'Fix'
-		default:
-			return 'Cambio'
-	}
-}
-
-function MobileLiteWhatsNewPrompt({
-	entry,
-	changeCount,
-	onOpen,
-	onDismiss,
-}: {
-	entry: MobileLiteChangelogEntry
-	changeCount: number
-	onOpen: () => void
-	onDismiss: () => void
-}) {
-	const previewChanges = entry.changes.slice(0, 3)
-
-	return (
-		<div className="pb-1">
-			<div className={SECTION_LABEL_CLASS}>Novedades</div>
-			<section className={GROUP_CLASS}>
-				<div className="p-4">
-					<div className="flex items-start gap-3">
-						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#14171d] text-[#f0a020]">
-							<Gift className="h-5 w-5" aria-hidden="true" />
-						</div>
-						<div className="min-w-0 flex-1">
-							<div className="flex flex-wrap items-center gap-2">
-								<div className="text-[15px] font-semibold">Nuevo en v{entry.version}</div>
-								<span className="inline-flex items-center rounded-full bg-[#f0a020] px-2 py-0.5 text-[11px] font-black text-[#221604]">
-									{changeCount}
-								</span>
-							</div>
-							<p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#9aa5b4]">{entry.title}</p>
-						</div>
-					</div>
-
-					<ul className="mt-3 space-y-1.5">
-						{previewChanges.map((change, index) => (
-							<li key={`${entry.version}-${index}`} className="flex gap-2 text-xs leading-relaxed text-[#cfd5db]">
-								<span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#f0a020]" aria-hidden="true" />
-								<span className="line-clamp-2">{change.description}</span>
-							</li>
-						))}
-					</ul>
-
-					<div className="mt-4 grid grid-cols-2 gap-2">
-						<button type="button" className={SECONDARY_BUTTON_CLASS} onClick={onOpen}>
-							Ver novedades
-						</button>
-						<button type="button" className={PRIMARY_BUTTON_CLASS} onClick={onDismiss}>
-							<Check className="h-4 w-4" aria-hidden="true" />
-							Entendido
-						</button>
-					</div>
-				</div>
-			</section>
-		</div>
-	)
-}
-
-function MobileLiteWhatsNewView({
-	entries,
-	onBack,
-	onDone,
-}: {
-	entries: MobileLiteChangelogEntry[]
-	onBack: () => void
-	onDone: () => void
-}) {
-	return (
-		<div className="pb-6">
-			<div className="sticky top-0 z-20 -mx-4 bg-[#1c1f27] px-4 pb-2 pt-1">
-				<div className="flex items-center gap-3">
-					<button
-						type="button"
-						aria-label="Volver"
-						className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[#8b95a3] transition-colors active:bg-[#2e3543]"
-						onClick={onBack}
-					>
-						<ArrowLeft className="h-5 w-5" aria-hidden="true" />
-					</button>
-					<div className="min-w-0 flex-1">
-						<h3 className="truncate text-base font-bold text-[#eef1f6]">Novedades Mobile Lite</h3>
-						<p className="truncate text-xs text-[#8b95a3]">Cambios pensados para Firefox Android</p>
-					</div>
-				</div>
-			</div>
-
-			{entries.map(entry => (
-				<section key={entry.version}>
-					<div className={SECTION_LABEL_CLASS}>v{entry.version}</div>
-					<div className={GROUP_CLASS}>
-						<div className="p-4">
-							<div className="flex items-start gap-3">
-								<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#14171d] text-[#f0a020]">
-									<Gift className="h-5 w-5" aria-hidden="true" />
-								</div>
-								<div className="min-w-0 flex-1">
-									<div className="text-[15px] font-semibold text-[#eef1f6]">{entry.title}</div>
-									{entry.summary && <p className="mt-1 text-xs leading-relaxed text-[#9aa5b4]">{entry.summary}</p>}
-								</div>
-							</div>
-						</div>
-						<div className="divide-y divide-[#2d3442]">
-							{entry.changes.map((change, index) => (
-								<div key={`${entry.version}-${index}`} className="flex gap-3 px-4 py-3">
-									<span className="mt-0.5 inline-flex h-6 shrink-0 items-center rounded-full bg-[#14171d] px-2 text-[10px] font-bold uppercase tracking-[0.08em] text-[#f0a020]">
-										{getChangeTypeLabel(change.type)}
-									</span>
-									<div className="min-w-0 flex-1">
-										{change.category && (
-											<div className="mb-0.5 truncate text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]">
-												{change.category}
-											</div>
-										)}
-										<p className="text-sm leading-relaxed text-[#cfd5db]">{change.description}</p>
-									</div>
-								</div>
-							))}
-						</div>
-					</div>
-				</section>
-			))}
-
-			<button type="button" className={`${PRIMARY_BUTTON_CLASS} mt-5 w-full`} onClick={onDone}>
-				<Check className="h-4 w-4" aria-hidden="true" />
-				Entendido
-			</button>
-		</div>
-	)
-}
 
 function findVisibleUserAvatar(username: string): string | undefined {
 	const normalizedUsername = username.toLowerCase()
