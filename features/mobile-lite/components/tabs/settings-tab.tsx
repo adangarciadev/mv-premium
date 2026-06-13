@@ -7,6 +7,7 @@ import Images from 'lucide-react/dist/esm/icons/images'
 import KeyRound from 'lucide-react/dist/esm/icons/key-round'
 import Radio from 'lucide-react/dist/esm/icons/radio'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import TextQuote from 'lucide-react/dist/esm/icons/text-quote'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import type { MobileLiteChangelogEntry } from '../../logic/whats-new'
@@ -35,6 +36,12 @@ export function SettingsTab({
 	savingImgbbApiKey,
 	onImgbbDraftChange,
 	onSaveImgbbApiKey,
+	geminiApiKeyDraft,
+	isGeminiConfigured,
+	isGeminiDirty,
+	savingGeminiApiKey,
+	onGeminiDraftChange,
+	onSaveGeminiApiKey,
 	boldColor,
 	boldColorDraft,
 	normalizedBoldColorDraft,
@@ -68,6 +75,12 @@ export function SettingsTab({
 	savingImgbbApiKey: boolean
 	onImgbbDraftChange: (value: string) => void
 	onSaveImgbbApiKey: () => void
+	geminiApiKeyDraft: string
+	isGeminiConfigured: boolean
+	isGeminiDirty: boolean
+	savingGeminiApiKey: boolean
+	onGeminiDraftChange: (value: string) => void
+	onSaveGeminiApiKey: () => void
 	boldColor: string
 	boldColorDraft: string
 	normalizedBoldColorDraft: string
@@ -186,6 +199,71 @@ export function SettingsTab({
 
 				<a
 					href="https://api.imgbb.com/"
+					target="_blank"
+					rel="noopener noreferrer"
+					className="flex h-12 items-center justify-between gap-2 border-t border-[#2d3442] px-4 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#2e3543]"
+				>
+					<span>Obtener API key</span>
+					<ExternalLink className="h-4 w-4 shrink-0 text-[#707b8e]" aria-hidden="true" />
+				</a>
+			</div>
+
+			<div className={SECTION_LABEL_CLASS}>Inteligencia Artificial</div>
+			<div className={GROUP_CLASS}>
+				<div className="p-4">
+					<div className="flex items-start gap-3">
+						<div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f0a020]/[0.16] text-[#f0a020]">
+							<Sparkles className="h-5 w-5" aria-hidden="true" />
+						</div>
+						<div className="min-w-0 flex-1">
+							<div className="flex flex-wrap items-center gap-2">
+								<div className="text-[15px] font-semibold">Gemini</div>
+								<span
+									className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+										isGeminiConfigured ? 'bg-[#274532] text-[#bdf2c7]' : 'bg-[#3b3526] text-[#e7c77f]'
+									}`}
+								>
+									{isGeminiConfigured && <Check className="h-3 w-3" aria-hidden="true" />}
+									{isGeminiConfigured ? 'IA activa' : 'Sin configurar'}
+								</span>
+							</div>
+							<p className="mt-1 text-xs leading-relaxed text-[#9aa5b4]">
+								{isGeminiConfigured
+									? 'Podrás resumir hilos con IA desde el botón Resumir.'
+									: 'Añade tu API key de Gemini para resumir hilos con IA.'}
+							</p>
+						</div>
+					</div>
+
+					<label className="mt-4 block px-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b95a3]" htmlFor="mvp-mobile-lite-gemini-key">
+						API key
+					</label>
+					<input
+						id="mvp-mobile-lite-gemini-key"
+						type="password"
+						value={geminiApiKeyDraft}
+						autoCapitalize="none"
+						autoCorrect="off"
+						spellCheck={false}
+						onChange={event => onGeminiDraftChange(event.target.value)}
+						placeholder="Pega tu API key de Gemini"
+						className={`${INPUT_CLASS} mt-2 px-3 font-mono`}
+					/>
+
+					<button
+						type="button"
+						aria-label="Guardar API key de Gemini"
+						className={`${PRIMARY_BUTTON_CLASS} mt-3 w-full`}
+						disabled={savingGeminiApiKey || !isGeminiDirty}
+						onClick={onSaveGeminiApiKey}
+					>
+						<Check className="h-4 w-4" aria-hidden="true" />
+						{savingGeminiApiKey ? 'Guardando' : 'Guardar'}
+					</button>
+				</div>
+
+				<a
+					href="https://aistudio.google.com/apikey"
 					target="_blank"
 					rel="noopener noreferrer"
 					className="flex h-12 items-center justify-between gap-2 border-t border-[#2d3442] px-4 text-sm font-semibold text-[#eef1f6] transition-colors active:bg-[#2e3543]"

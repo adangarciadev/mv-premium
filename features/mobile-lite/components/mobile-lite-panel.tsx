@@ -5,6 +5,7 @@ import UserX from 'lucide-react/dist/esm/icons/user-x'
 import X from 'lucide-react/dist/esm/icons/x'
 import { browser } from 'wxt/browser'
 import { useBoldColor } from '../hooks/use-bold-color'
+import { useGeminiApiKey } from '../hooks/use-gemini-api-key'
 import { useHiddenThreads } from '../hooks/use-hidden-threads'
 import { useIgnoredUsers } from '../hooks/use-ignored-users'
 import { useImgbbApiKey } from '../hooks/use-imgbb-api-key'
@@ -35,6 +36,7 @@ export function MobileLitePanel() {
 	const ignoredUsers = useIgnoredUsers({ open, activeTab, panelBodyRef })
 	const hiddenThreads = useHiddenThreads({ open, panelBodyRef })
 	const imgbb = useImgbbApiKey(open)
+	const gemini = useGeminiApiKey(open)
 	const boldColor = useBoldColor(open)
 	const toggles = useMobileLiteToggles(open)
 	const storageUsage = useStorageUsage(open)
@@ -196,6 +198,12 @@ export function MobileLitePanel() {
 							savingImgbbApiKey={imgbb.savingImgbbApiKey}
 							onImgbbDraftChange={imgbb.handleDraftChange}
 							onSaveImgbbApiKey={imgbb.saveImgbbApiKey}
+							geminiApiKeyDraft={gemini.geminiApiKeyDraft}
+							isGeminiConfigured={gemini.isGeminiConfigured}
+							isGeminiDirty={gemini.isGeminiDirty}
+							savingGeminiApiKey={gemini.savingGeminiApiKey}
+							onGeminiDraftChange={gemini.handleDraftChange}
+							onSaveGeminiApiKey={gemini.saveGeminiApiKey}
 							boldColor={boldColor.boldColor}
 							boldColorDraft={boldColor.boldColorDraft}
 							normalizedBoldColorDraft={boldColor.normalizedBoldColorDraft}
@@ -227,11 +235,13 @@ export function MobileLitePanel() {
 					{ignoredUsers.statusMessage && <PanelToast kind="success">{ignoredUsers.statusMessage}</PanelToast>}
 					{hiddenThreads.statusMessage && <PanelToast kind="success">{hiddenThreads.statusMessage}</PanelToast>}
 					{imgbb.statusMessage && <PanelToast kind="success">{imgbb.statusMessage}</PanelToast>}
+					{gemini.statusMessage && <PanelToast kind="success">{gemini.statusMessage}</PanelToast>}
 					{boldColor.statusMessage && <PanelToast kind="success">{boldColor.statusMessage}</PanelToast>}
 					{toggles.statusMessage && <PanelToast kind="success">{toggles.statusMessage}</PanelToast>}
 					{ignoredUsers.errorMessage && <PanelToast kind="error">{ignoredUsers.errorMessage}</PanelToast>}
 					{hiddenThreads.errorMessage && <PanelToast kind="error">{hiddenThreads.errorMessage}</PanelToast>}
 					{imgbb.errorMessage && <PanelToast kind="error">{imgbb.errorMessage}</PanelToast>}
+					{gemini.errorMessage && <PanelToast kind="error">{gemini.errorMessage}</PanelToast>}
 					{boldColor.errorMessage && <PanelToast kind="error">{boldColor.errorMessage}</PanelToast>}
 					{toggles.errorMessage && <PanelToast kind="error">{toggles.errorMessage}</PanelToast>}
 				</div>
