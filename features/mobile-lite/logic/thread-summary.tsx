@@ -9,7 +9,7 @@
  * Feature flag: MobileLite (enforced centrally by initMobileLite)
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ShadowWrapper } from '@/components/shadow-wrapper'
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
@@ -83,11 +83,11 @@ function ThreadSummaryReactRoot() {
 	const [isOpen, setIsOpen] = useState(false)
 	const [viewModel, setViewModel] = useState<ThreadSummaryViewModel | null>(null)
 	const [cachedLabel, setCachedLabel] = useState<string | null>(null)
+	const busyRef = useRef(false)
 
 	useEffect(() => {
 		const handler = async () => {
-			// Ignore if a request is already in flight — prevents duplicate AI calls.
-			if (isLoading) return
+			if (busyRef.current) return
 
 			const pageNumber = getPageNumberSafe()
 
@@ -102,6 +102,7 @@ function ThreadSummaryReactRoot() {
 				return
 			}
 
+			busyRef.current = true
 			setIsLoading(true)
 			setIsOpen(true)
 			setViewModel(null)
@@ -131,15 +132,13 @@ function ThreadSummaryReactRoot() {
 					pageNumber,
 				})
 			} finally {
+				busyRef.current = false
 				setIsLoading(false)
 			}
 		}
 
 		window.addEventListener(THREAD_SUMMARY_TRIGGER_EVENT, handler)
 		return () => window.removeEventListener(THREAD_SUMMARY_TRIGGER_EVENT, handler)
-		// isLoading intentionally excluded: the handler reads the closure value.
-		// Adding it would re-register on every state flip without benefit.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [])
 
 	// Hide MV's fixed bottom nav while the sheet is open so it can't cover the footer.
