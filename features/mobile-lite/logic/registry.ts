@@ -18,6 +18,7 @@ import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 import { initMobileLitePostGestures, teardownMobileLitePostGestures } from './post-gestures'
 import { initMobileLiteQuoteSelection, teardownMobileLiteQuoteSelection } from './quote-selection'
 import { initMobileLiteThreadCompanion, teardownMobileLiteThreadCompanion } from './thread-companion'
+import { initMobileLiteThreadPageHide, teardownMobileLiteThreadPageHide } from './thread-page-hide'
 import { initMobileLiteThreadSummary, teardownMobileLiteThreadSummary } from './thread-summary'
 import { initMobileLitePostSummary, teardownMobileLitePostSummary } from './post-summary'
 
@@ -74,6 +75,12 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		id: 'thread-companion',
 		init: initMobileLiteThreadCompanion,
 		teardown: teardownMobileLiteThreadCompanion,
+		shouldRun: context => context.isThreadPage,
+	},
+	{
+		id: 'thread-page-hide',
+		init: initMobileLiteThreadPageHide,
+		teardown: teardownMobileLiteThreadPageHide,
 		shouldRun: context => context.isThreadPage,
 	},
 	{

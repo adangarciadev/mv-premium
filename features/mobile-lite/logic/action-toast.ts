@@ -140,6 +140,15 @@ export function showMobileLiteActionToast(message: string, iconClass = 'fa-check
 	}, TOAST_VISIBLE_MS)
 }
 
+/**
+ * Updates the message of the toast currently on screen, if any, without
+ * re-animating it. Used for in-place countdowns.
+ */
+export function updateMobileLiteActionToast(message: string): void {
+	const label = document.getElementById(TOAST_ID)?.querySelector('span')
+	if (label) label.textContent = message
+}
+
 export function teardownMobileLiteActionToast(): void {
 	if (toastTimeout) {
 		clearTimeout(toastTimeout)

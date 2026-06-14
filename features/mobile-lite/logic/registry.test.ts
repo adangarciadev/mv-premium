@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => ({
 	teardownThreadCompanion: vi.fn(),
 	initThreadSummary: vi.fn(),
 	teardownThreadSummary: vi.fn(),
+	initThreadPageHide: vi.fn(),
+	teardownThreadPageHide: vi.fn(),
 	initPostSummary: vi.fn(),
 	teardownPostSummary: vi.fn(),
 	initPanel: vi.fn(),
@@ -137,6 +139,11 @@ vi.mock('./thread-summary', () => ({
 	teardownMobileLiteThreadSummary: mocks.teardownThreadSummary,
 }))
 
+vi.mock('./thread-page-hide', () => ({
+	initMobileLiteThreadPageHide: mocks.initThreadPageHide,
+	teardownMobileLiteThreadPageHide: mocks.teardownThreadPageHide,
+}))
+
 vi.mock('./post-summary', () => ({
 	initMobileLitePostSummary: mocks.initPostSummary,
 	teardownMobileLitePostSummary: mocks.teardownPostSummary,
@@ -210,7 +217,7 @@ describe('Mobile Lite registry', () => {
 		window.history.replaceState({}, '', '/foro/deportes/pretemporada-2026-123456')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'thread-summary', 'post-summary', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'thread-page-hide', 'thread-summary', 'post-summary', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
 	})
 
 	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
@@ -368,6 +375,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.teardownLiveThread).toHaveBeenCalledOnce()
 		expect(mocks.teardownGallery).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.teardownThreadPageHide).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadSummary).toHaveBeenCalledOnce()
 		expect(mocks.teardownPostSummary).toHaveBeenCalledOnce()
 		expect(mocks.teardownQuoteSelection).toHaveBeenCalledOnce()

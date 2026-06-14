@@ -6,6 +6,7 @@
 export const TOAST_IDS = {
 	CONTEXT_ACTION: 'mvp-context-toast',
 	THREAD_SAVE_ACTION: 'mvp-thread-save-action',
+	THREAD_HIDE_ACTION: 'mvp-thread-hide-action',
 	HOMEPAGE_THREAD_ACTION: 'mvp-homepage-thread-action',
 } as const
 

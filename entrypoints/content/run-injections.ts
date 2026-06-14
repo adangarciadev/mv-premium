@@ -423,6 +423,16 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 			threadModules.savedThreads.injectSaveThreadButton()
 		}
 
+		{
+			const [{ injectThreadPageHideButton, setupHiddenThreadGuard }, { desktopThreadHideNotifier }] =
+				await Promise.all([
+					import('@/features/hidden-threads/logic/thread-page-hide'),
+					import('@/features/hidden-threads/logic/hide-toast'),
+				])
+			setupHiddenThreadGuard()
+			injectThreadPageHideButton(desktopThreadHideNotifier)
+		}
+
 		if (threadModules.threadSummarizer && isFeatureEnabled(FeatureFlag.ThreadSummarizer)) {
 			threadModules.threadSummarizer.injectSummarizerButton()
 			threadModules.threadSummarizer.injectMultiPageSummarizerButton()
