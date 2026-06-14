@@ -471,8 +471,13 @@ describe('Mobile Lite editor enhancements', () => {
 		expect(control?.parentElement).toBe(editorMeta)
 		expect(control?.previousElementSibling).toBe(extendedEditorLink)
 		expect(editorMeta?.style.display).toBe('')
+		// The control drops onto its own full-width row below the native buttons
+		// (Enviar / favoritos / editor-extendido) instead of flowing inline.
 		expect(control?.style.cssFloat).toBe('none')
-		expect(control?.style.marginRight).toBe('8px')
+		expect(control?.style.display).toBe('flex')
+		expect(control?.style.clear).toBe('both')
+		expect(control?.style.width).toBe('100%')
+		expect(control?.style.marginRight).toBe('0px')
 	})
 
 	it('preserves mobile editor content before opening the extended editor link', async () => {
@@ -504,20 +509,26 @@ describe('Mobile Lite editor enhancements', () => {
 		})
 	})
 
-	it('places the image upload control in the extended editor favorites row and keeps the help link at the end', () => {
+	it('places the image upload control at the end of the extended editor form, below the submit row', () => {
 		const textarea = renderExtendedMediavidaEditor()
+		const form = document.querySelector<HTMLFormElement>('#postear')
 		const favoritesRow = document.querySelector<HTMLElement>('#tofavstuff')
-		const helpLink = document.querySelector<HTMLElement>('.pull-right')
+		const submitRow = document.querySelector<HTMLElement>('.cf')
 
 		const control = injectMobileLiteUploadControl(textarea)
 
 		expect(control).toBeTruthy()
-		expect(control?.parentElement).toBe(favoritesRow)
-		expect(control?.previousElementSibling).toBe(helpLink)
-		expect(favoritesRow?.style.display).toBe('')
+		// Lives at the very bottom of the form (after Responder), not inside the
+		// favorites row where it would split the "Añadir a favoritos" label.
+		expect(control?.parentElement).toBe(form)
+		expect(form?.lastElementChild).toBe(control)
+		expect(control?.previousElementSibling).toBe(submitRow)
+		expect(favoritesRow?.contains(control!)).toBe(false)
+		// Own full-width line.
 		expect(control?.style.cssFloat).toBe('none')
-		expect(control?.style.marginLeft).toBe('10px')
-		expect(control?.style.marginRight).toBe('0px')
+		expect(control?.style.display).toBe('flex')
+		expect(control?.style.clear).toBe('both')
+		expect(control?.style.width).toBe('100%')
 	})
 
 	it('does not reveal the collapsed normal mobile editor during the initial upload control scan', () => {

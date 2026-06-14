@@ -6,6 +6,7 @@ import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
 import { uploadImage, validateImageFile } from '@/services/api/imgbb'
+import { createMobileLiteEditorContentActions } from './editor-content-actions'
 
 export type MobileLiteUploadResult =
 	| { status: 'success'; url: string }
@@ -1110,27 +1111,27 @@ function canInjectUploadControlFromScan(textarea: HTMLTextAreaElement): boolean 
 	return !optionsRow || (isElementTreeDisplayed(optionsRow) && hasRenderedBox(optionsRow))
 }
 
-function prepareOptionsRowUploadControl(wrapper: HTMLElement, row: HTMLElement): void {
-	wrapper.style.display = 'inline-flex'
-	wrapper.style.verticalAlign = 'middle'
-	wrapper.style.clear = 'none'
-	wrapper.style.marginTop = '5px'
-	wrapper.style.marginBottom = '5px'
-
-	if (row.id === EXTENDED_EDITOR_FAVORITES_SELECTOR.slice(1)) {
-		wrapper.style.cssFloat = 'none'
-		wrapper.style.marginLeft = '10px'
-		wrapper.style.marginRight = '0'
-		return
-	}
-
+function prepareOptionsRowUploadControl(wrapper: HTMLElement): void {
+	// Always sit on a dedicated full-width row below the native controls. This
+	// keeps Mediavida's option bar intact in both editors:
+	//  - Quick-reply (.editor-meta): native row (Enviar / favoritos /
+	//    editor-extendido) stays on one line; our controls drop below it.
+	//  - Extended editor (#tofavstuff): we no longer flow inline between the
+	//    checkbox and the "Añadir a favoritos" label (which caused a wrap), but
+	//    on a clean line of our own.
+	wrapper.style.display = 'flex'
+	wrapper.style.flexWrap = 'wrap'
+	wrapper.style.clear = 'both'
 	wrapper.style.cssFloat = 'none'
-	wrapper.style.marginLeft = '8px'
-	wrapper.style.marginRight = '8px'
+	wrapper.style.width = '100%'
+	wrapper.style.marginTop = '8px'
+	wrapper.style.marginBottom = '0'
+	wrapper.style.marginLeft = '0'
+	wrapper.style.marginRight = '0'
 }
 
 function placeUploadControlInOptionsRow(wrapper: HTMLElement, row: HTMLElement): void {
-	prepareOptionsRowUploadControl(wrapper, row)
+	prepareOptionsRowUploadControl(wrapper)
 
 	const trailingLink = getOptionsRowTrailingLink(row)
 	if (!trailingLink) {
@@ -1144,6 +1145,19 @@ function placeUploadControlInOptionsRow(wrapper: HTMLElement, row: HTMLElement):
 function placeUploadControl(wrapper: HTMLElement, textarea: HTMLTextAreaElement): void {
 	const optionsRow = getLayoutOptionsRow(textarea) ?? getFavoriteTextOptionsRow(textarea)
 	if (optionsRow) {
+		// Extended editor: the favorites row (#tofavstuff) sits ABOVE the submit
+		// row, so injecting into it leaves our controls in the middle. Drop them
+		// at the very end of the form instead (below "Responder"), matching the
+		// quick-reply where the controls land below the send bar.
+		if (optionsRow.id === EXTENDED_EDITOR_FAVORITES_SELECTOR.slice(1)) {
+			const form = textarea.closest<HTMLFormElement>('form')
+			if (form) {
+				prepareOptionsRowUploadControl(wrapper)
+				form.appendChild(wrapper)
+				return
+			}
+		}
+
 		placeUploadControlInOptionsRow(wrapper, optionsRow)
 		return
 	}
@@ -1231,7 +1245,7 @@ export function injectMobileLiteUploadControl(textarea: HTMLTextAreaElement): HT
 			})
 	})
 
-	wrapper.append(button, input, status)
+	wrapper.append(button, input, status, ...createMobileLiteEditorContentActions(textarea))
 	placeUploadControl(wrapper, textarea)
 	uploadControlsByTextarea.set(textarea, wrapper)
 
@@ -1276,6 +1290,18 @@ function ensureCollapsedEditorStyles(): void {
 			overflow: hidden !important;
 			padding: 0 !important;
 			border: 0 !important;
+		}
+
+		/*
+		 * In the fixed quick-reply panel the textarea (.editor-body) is sized a
+		 * little taller than its absolutely-positioned box, so it bleeds down
+		 * under the controls bar (.editor-meta). That makes Enviar / favoritos /
+		 * editor-extendido look like they sit inside the textbox. Clipping the
+		 * overflow keeps the textbox within its own box and lets the controls bar
+		 * (and our upload row) stay cleanly below it.
+		 */
+		#post-editor .editor-body {
+			overflow: hidden !important;
 		}
 	`
 	document.head.appendChild(style)
