@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { ThreadSummary } from '@/features/thread-summarizer/logic/summarize'
-import { summaryNeedsAiConfig, toThreadSummaryBBCode, toThreadSummaryViewModel } from './thread-summary-view-model'
+import type { MultiPageSummary } from '@/features/thread-summarizer/logic/summarize-multi-page'
+import {
+	summaryNeedsAiConfig,
+	toMultiSummaryBBCode,
+	toMultiSummaryViewModel,
+	toThreadSummaryBBCode,
+	toThreadSummaryViewModel,
+} from './thread-summary-view-model'
 
 const BASE_SUMMARY: ThreadSummary = {
 	topic: 'Debate sobre las mejoras en el foro',
@@ -128,5 +135,55 @@ describe('summaryNeedsAiConfig', () => {
 
 	it('is false for a successful summary', () => {
 		expect(summaryNeedsAiConfig(toThreadSummaryViewModel(BASE_SUMMARY))).toBe(false)
+	})
+})
+
+const BASE_MULTI: MultiPageSummary = {
+	topic: 'Debate sobre las mejoras en el foro',
+	keyPoints: ['Punto 1', 'Punto 2'],
+	participants: [{ name: 'UserA', contribution: 'Defiende los cambios', avatarUrl: undefined }],
+	status: 'Debate abierto',
+	title: 'Mejoras propuestas',
+	totalPostsAnalyzed: 120,
+	totalUniqueAuthors: 15,
+	pagesAnalyzed: 5,
+	pageRange: '1-5',
+	fetchErrors: [],
+}
+
+describe('thread summary metaLabel', () => {
+	it('formats the single-page footer', () => {
+		expect(toThreadSummaryViewModel(BASE_SUMMARY).metaLabel).toBe('42 posts analizados · Pág. 2')
+	})
+
+	it('is empty on error', () => {
+		expect(toThreadSummaryViewModel({ ...BASE_SUMMARY, error: 'boom' }).metaLabel).toBe('')
+	})
+})
+
+describe('toMultiSummaryViewModel', () => {
+	it('maps a multi-page summary with a page-range footer', () => {
+		const vm = toMultiSummaryViewModel(BASE_MULTI)
+		expect(vm.hasError).toBe(false)
+		expect(vm.topic).toBe('Debate sobre las mejoras en el foro')
+		expect(vm.keyPoints).toEqual(['Punto 1', 'Punto 2'])
+		expect(vm.postsAnalyzed).toBe(120)
+		expect(vm.metaLabel).toBe('120 posts · 5 páginas · Págs. 1-5')
+	})
+
+	it('maps an error multi-page summary', () => {
+		const vm = toMultiSummaryViewModel({ ...BASE_MULTI, error: 'IA no configurada. Ve a Ajustes.' })
+		expect(vm.hasError).toBe(true)
+		expect(summaryNeedsAiConfig(vm)).toBe(true)
+	})
+})
+
+describe('toMultiSummaryBBCode', () => {
+	it('wraps the multi-page summary in BBCode', () => {
+		const bbcode = toMultiSummaryBBCode(BASE_MULTI)
+		expect(bbcode).toContain('[center][b]✨ Resumen del Hilo (Págs. 1-5)[/b][/center]')
+		expect(bbcode).toContain('[bar]PUNTOS CLAVE[/bar]')
+		expect(bbcode).toContain('[*] [b]UserA[/b]: Defiende los cambios')
+		expect(bbcode).toContain('120')
 	})
 })
