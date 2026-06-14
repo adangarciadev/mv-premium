@@ -21,11 +21,26 @@ const mocks = vi.hoisted(() => ({
 	mountFeatureWithBoundary: vi.fn(),
 	unmountFeature: vi.fn(),
 	summarizeCurrentThread: vi.fn<() => Promise<ThreadSummary>>(),
+	summarizeMultiplePages: vi.fn(),
+	analyzeUserInThread: vi.fn(),
+	analyzeUserMultiplePages: vi.fn(),
 	getCurrentPageNumber: vi.fn(() => 1),
+	getActiveUserFilter: vi.fn<() => string | null>(() => null),
+	getTotalPages: vi.fn(() => 1),
+	getMultiPageLimit: vi.fn(() => 10),
 	formatCacheAge: vi.fn(() => 'hace 2 min'),
 	getCachedSingleAge: vi.fn<() => number | null>(() => null),
 	getCachedSingleSummary: vi.fn(() => null as ThreadSummary | null),
 	setCachedSingleSummary: vi.fn(),
+	getCachedMultiSummary: vi.fn(() => null),
+	setCachedMultiSummary: vi.fn(),
+	getCachedMultiAge: vi.fn<() => number | null>(() => null),
+	getCachedUserAnalysis: vi.fn(() => null),
+	setCachedUserAnalysis: vi.fn(),
+	getCachedUserAnalysisAge: vi.fn<() => number | null>(() => null),
+	getCachedUserAnalysisMulti: vi.fn(() => null),
+	setCachedUserAnalysisMulti: vi.fn(),
+	getCachedUserAnalysisMultiAge: vi.fn<() => number | null>(() => null),
 	loggerDebug: vi.fn(),
 	loggerError: vi.fn(),
 	ensureSummarySheetChromeStyles: vi.fn(),
@@ -66,8 +81,23 @@ vi.mock('@/features/thread-summarizer/logic/summarize', () => ({
 	summarizeCurrentThread: mocks.summarizeCurrentThread,
 }))
 
+vi.mock('@/features/thread-summarizer/logic/summarize-multi-page', () => ({
+	summarizeMultiplePages: mocks.summarizeMultiplePages,
+}))
+
+vi.mock('@/features/thread-summarizer/logic/analyze-user', () => ({
+	analyzeUserInThread: mocks.analyzeUserInThread,
+	analyzeUserMultiplePages: mocks.analyzeUserMultiplePages,
+}))
+
 vi.mock('@/features/thread-summarizer/logic/extract-posts', () => ({
 	getCurrentPageNumber: mocks.getCurrentPageNumber,
+	getActiveUserFilter: mocks.getActiveUserFilter,
+}))
+
+vi.mock('@/features/thread-summarizer/logic/fetch-pages', () => ({
+	getTotalPages: mocks.getTotalPages,
+	getMultiPageLimit: mocks.getMultiPageLimit,
 }))
 
 vi.mock('@/features/thread-summarizer/logic/summary-cache', () => ({
@@ -75,6 +105,15 @@ vi.mock('@/features/thread-summarizer/logic/summary-cache', () => ({
 	getCachedSingleAge: mocks.getCachedSingleAge,
 	getCachedSingleSummary: mocks.getCachedSingleSummary,
 	setCachedSingleSummary: mocks.setCachedSingleSummary,
+	getCachedMultiSummary: mocks.getCachedMultiSummary,
+	setCachedMultiSummary: mocks.setCachedMultiSummary,
+	getCachedMultiAge: mocks.getCachedMultiAge,
+	getCachedUserAnalysis: mocks.getCachedUserAnalysis,
+	setCachedUserAnalysis: mocks.setCachedUserAnalysis,
+	getCachedUserAnalysisAge: mocks.getCachedUserAnalysisAge,
+	getCachedUserAnalysisMulti: mocks.getCachedUserAnalysisMulti,
+	setCachedUserAnalysisMulti: mocks.setCachedUserAnalysisMulti,
+	getCachedUserAnalysisMultiAge: mocks.getCachedUserAnalysisMultiAge,
 }))
 
 vi.mock('./summary-sheet-chrome', () => ({
@@ -90,19 +129,27 @@ vi.mock('../components/mobile-lite-panel', () => ({
 vi.mock('../components/thread-summary-sheet', () => ({
 	ThreadSummarySheet: ({
 		isLoading,
-		viewModel,
+		summaryVm,
 		cachedLabel,
+		rangePicker,
 		onClose,
 	}: {
 		isLoading: boolean
-		viewModel: { title: string } | null
+		summaryVm: { title: string } | null
 		cachedLabel: string | null
+		rangePicker: { onGenerate: () => void } | null
 		onClose: () => void
 	}) => (
 		<div role="dialog" aria-label="Resumen del hilo">
 			<span data-testid="thread-summary-loading">{isLoading ? 'loading' : 'idle'}</span>
-			<span data-testid="thread-summary-title">{viewModel?.title ?? ''}</span>
+			<span data-testid="thread-summary-title">{summaryVm?.title ?? ''}</span>
 			<span data-testid="thread-summary-cache">{cachedLabel ?? ''}</span>
+			<span data-testid="thread-summary-phase">{rangePicker ? 'range' : 'result'}</span>
+			{rangePicker && (
+				<button type="button" data-testid="thread-summary-generate" onClick={rangePicker.onGenerate}>
+					Generar
+				</button>
+			)}
 			<button type="button" onClick={onClose}>
 				Cerrar
 			</button>
@@ -161,53 +208,57 @@ describe('Mobile Lite thread summary', () => {
 		cleanup()
 	})
 
-	it('ignores duplicate trigger events while an AI request is pending', async () => {
-		const firstRequest = createDeferred<ThreadSummary>()
-		mocks.summarizeCurrentThread.mockReturnValueOnce(firstRequest.promise)
-
+	it('opens the page picker instead of summarising immediately', async () => {
 		initMobileLiteThreadSummary()
 
 		await act(async () => {
 			dispatchSummaryRequest()
+		})
+
+		// The trigger only opens the chooser — nothing is generated yet.
+		await waitFor(() => expect(screen.getByTestId('thread-summary-phase')).toHaveTextContent('range'))
+		expect(mocks.summarizeCurrentThread).not.toHaveBeenCalled()
+	})
+
+	it('summarises the current page and ignores duplicate generate clicks while pending', async () => {
+		const firstRequest = createDeferred<ThreadSummary>()
+		mocks.summarizeCurrentThread.mockReturnValueOnce(firstRequest.promise)
+
+		initMobileLiteThreadSummary()
+		await act(async () => {
 			dispatchSummaryRequest()
+		})
+		await waitFor(() => expect(screen.getByTestId('thread-summary-generate')).toBeInTheDocument())
+
+		// Default range = current page → "Generar" runs the single-page summariser.
+		await act(async () => {
+			screen.getByTestId('thread-summary-generate').click()
+			screen.getByTestId('thread-summary-generate').click()
 		})
 
 		expect(mocks.summarizeCurrentThread).toHaveBeenCalledOnce()
-		await waitFor(() => expect(screen.getByTestId('thread-summary-loading')).toHaveTextContent('loading'))
 
 		await act(async () => {
 			firstRequest.resolve(BASE_SUMMARY)
 			await firstRequest.promise
 		})
 
-		await waitFor(() => expect(screen.getByTestId('thread-summary-loading')).toHaveTextContent('idle'))
+		await waitFor(() => expect(screen.getByTestId('thread-summary-title')).toHaveTextContent('Hilo de pruebas'))
 		expect(mocks.setCachedSingleSummary).toHaveBeenCalledWith(1, BASE_SUMMARY)
-
-		const secondRequest = createDeferred<ThreadSummary>()
-		mocks.summarizeCurrentThread.mockReturnValueOnce(secondRequest.promise)
-
-		await act(async () => {
-			dispatchSummaryRequest()
-		})
-
-		expect(mocks.summarizeCurrentThread).toHaveBeenCalledTimes(2)
-
-		await act(async () => {
-			secondRequest.resolve({ ...BASE_SUMMARY, title: 'Segundo resumen' })
-			await secondRequest.promise
-		})
-
-		await waitFor(() => expect(screen.getByTestId('thread-summary-title')).toHaveTextContent('Segundo resumen'))
 	})
 
-	it('serves cached summaries without starting an AI request', async () => {
+	it('serves a cached current-page summary without an AI request', async () => {
 		mocks.getCachedSingleSummary.mockReturnValue(BASE_SUMMARY)
 		mocks.getCachedSingleAge.mockReturnValue(120_000)
 
 		initMobileLiteThreadSummary()
-
 		await act(async () => {
 			dispatchSummaryRequest()
+		})
+		await waitFor(() => expect(screen.getByTestId('thread-summary-generate')).toBeInTheDocument())
+
+		await act(async () => {
+			screen.getByTestId('thread-summary-generate').click()
 		})
 
 		expect(mocks.summarizeCurrentThread).not.toHaveBeenCalled()

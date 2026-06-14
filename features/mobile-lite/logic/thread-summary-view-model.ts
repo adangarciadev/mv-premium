@@ -7,7 +7,8 @@
  */
 
 import type { ThreadSummary } from '@/features/thread-summarizer/logic/summarize'
-import { buildSingleSummaryBBCode } from '@/features/thread-summarizer/logic/build-copy-bbcode'
+import type { MultiPageSummary } from '@/features/thread-summarizer/logic/summarize-multi-page'
+import { buildMultiSummaryBBCode, buildSingleSummaryBBCode } from '@/features/thread-summarizer/logic/build-copy-bbcode'
 
 // =============================================================================
 // TYPES
@@ -38,6 +39,8 @@ export interface ThreadSummaryViewModel {
 	postsAnalyzed: number
 	/** Page number this summary covers */
 	pageNumber: number
+	/** Pre-formatted metadata line for the footer (single vs multi-page differ). */
+	metaLabel: string
 }
 
 // =============================================================================
@@ -69,7 +72,53 @@ export function toThreadSummaryViewModel(summary: ThreadSummary): ThreadSummaryV
 		errorMessage: summary.error ?? '',
 		postsAnalyzed: summary.postsAnalyzed ?? 0,
 		pageNumber: summary.pageNumber ?? 1,
+		metaLabel: hasError ? '' : `${summary.postsAnalyzed ?? 0} posts analizados · Pág. ${summary.pageNumber ?? 1}`,
 	}
+}
+
+/**
+ * Maps a multi-page `MultiPageSummary` to the same view model shape (it shares
+ * topic/keyPoints/participants/status) with a multi-page metadata line.
+ */
+export function toMultiSummaryViewModel(summary: MultiPageSummary): ThreadSummaryViewModel {
+	const hasError = Boolean(summary.error)
+
+	return {
+		title: summary.title ?? '',
+		topic: hasError ? '' : (summary.topic ?? ''),
+		keyPoints: hasError ? [] : (Array.isArray(summary.keyPoints) ? summary.keyPoints : []),
+		participants: hasError
+			? []
+			: (Array.isArray(summary.participants)
+					? summary.participants.map(p => ({
+							name: p.name ?? '',
+							contribution: p.contribution ?? '',
+							avatarUrl: p.avatarUrl,
+					  }))
+					: []),
+		status: hasError ? '' : (summary.status ?? ''),
+		hasError,
+		errorMessage: summary.error ?? '',
+		postsAnalyzed: summary.totalPostsAnalyzed ?? 0,
+		pageNumber: 1,
+		metaLabel: hasError
+			? ''
+			: `${summary.totalPostsAnalyzed ?? 0} posts · ${summary.pagesAnalyzed ?? 0} páginas · Págs. ${summary.pageRange}`,
+	}
+}
+
+/** BBCode for a multi-page summary (uses the desktop multi-page builder). */
+export function toMultiSummaryBBCode(summary: MultiPageSummary): string {
+	return buildMultiSummaryBBCode({
+		topic: summary.topic,
+		keyPoints: summary.keyPoints,
+		participants: summary.participants.map(p => ({ name: p.name, contribution: p.contribution })),
+		status: summary.status,
+		pageRange: summary.pageRange,
+		totalPostsAnalyzed: summary.totalPostsAnalyzed,
+		pagesAnalyzed: summary.pagesAnalyzed,
+		totalUniqueAuthors: summary.totalUniqueAuthors,
+	})
 }
 
 /**
