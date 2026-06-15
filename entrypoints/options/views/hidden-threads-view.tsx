@@ -440,7 +440,7 @@ export function HiddenThreadsView({ embedded = false }: { embedded?: boolean }) 
 													<div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
 														<button
 															type="button"
-															className="mvp-subforum-chip cursor-pointer rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none"
+															className="mvp-subforum-chip cursor-pointer rounded-md px-1.5 py-0.5 text-[10px] font-semibold leading-none"
 															onClick={e => {
 																e.preventDefault()
 																e.stopPropagation()

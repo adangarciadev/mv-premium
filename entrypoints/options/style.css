@@ -253,23 +253,23 @@ h1, h2, h3 {
   border-color: color-mix(in srgb, var(--foreground) 50%, transparent);
 }
 .mvp-list-row[data-selected='true'] {
-  background-color: color-mix(in srgb, var(--primary) 14%, transparent);
+  background-color: color-mix(in srgb, var(--foreground) 7%, transparent);
 }
 .mvp-list-row[data-selected='true']:hover {
-  background-color: color-mix(in srgb, var(--primary) 20%, transparent);
+  background-color: color-mix(in srgb, var(--foreground) 10%, transparent);
 }
 
 /* --- Subforum chip: filled, legible pill that tints to the accent on hover
  * (it's a filter trigger). color-mix keeps it preset-aware. --- */
 .mvp-subforum-chip {
-  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
-  background-color: color-mix(in srgb, var(--foreground) 6%, transparent);
-  color: var(--muted-foreground);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  background-color: color-mix(in srgb, var(--primary) 13%, transparent);
+  color: color-mix(in srgb, var(--primary) 88%, var(--foreground));
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .mvp-subforum-chip:hover {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-  background-color: color-mix(in srgb, var(--primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+  background-color: color-mix(in srgb, var(--primary) 22%, transparent);
   color: var(--primary);
 }
 
