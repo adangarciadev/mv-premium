@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { NativeFidIcon } from '@/components/native-fid-icon'
+import { getSubforumIconId } from '@/lib/subforums'
 import {
 	clearHiddenSubforums,
 	getHiddenSubforums,
@@ -160,14 +161,17 @@ export function HiddenSubforumsView({ embedded = false }: { embedded?: boolean }
 					) : (
 						<div className="grid gap-2 sm:grid-cols-2">
 							{filteredSubforums.map(subforum => {
-								const iconId = Number(subforum.iconClass?.match(/fid-(\d+)/)?.[1])
+								// Resolve the icon from the subforum slug (reliable regardless of where it
+								// was hidden from); fall back to the scraped iconClass only if unknown.
+								const fidFromClass = Number(subforum.iconClass?.match(/fid-(\d+)/)?.[1])
+								const iconId = getSubforumIconId(subforum.id) ?? (Number.isFinite(fidFromClass) ? fidFromClass : null)
 								return (
 									<div
 										key={subforum.id}
 										className="group flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 p-2.5 transition-colors hover:border-border hover:bg-accent/40"
 										title={subforum.description || subforum.name}
 									>
-										{Number.isFinite(iconId) ? (
+										{iconId !== null ? (
 											<NativeFidIcon iconId={iconId} className="h-5 w-5 shrink-0" />
 										) : (
 											<span className="h-5 w-5 shrink-0 rounded bg-muted" />
