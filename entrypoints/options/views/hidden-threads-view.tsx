@@ -22,6 +22,7 @@ import {
 	clearHiddenThreads,
 	getHiddenThreads,
 	hideThread,
+	hideThreads,
 	unhideThread,
 	unhideThreads,
 	watchHiddenThreads,
@@ -199,14 +200,14 @@ export function HiddenThreadsView({ embedded = false }: { embedded?: boolean }) 
 			action: {
 				label: 'Deshacer',
 				onClick: () => {
-					threadsToRestore.forEach(t => {
-						void hideThread({
+					void hideThreads(
+						threadsToRestore.map(t => ({
 							id: t.id,
 							title: t.title,
 							subforum: t.subforum,
 							subforumId: t.subforumId,
-						})
-					})
+						}))
+					)
 				},
 			},
 		})
