@@ -100,6 +100,9 @@ export const mockBrowser = {
 	},
 }
 
+vi.stubGlobal('browser', mockBrowser)
+vi.stubGlobal('chrome', mockBrowser)
+
 vi.mock('wxt/browser', () => ({
 	browser: mockBrowser,
 }))
@@ -107,6 +110,7 @@ vi.mock('wxt/browser', () => ({
 // @wxt-dev/storage resolves browser APIs from this package.
 vi.mock('@wxt-dev/browser', () => ({
 	browser: mockBrowser,
+	default: mockBrowser,
 }))
 
 // =============================================================================
