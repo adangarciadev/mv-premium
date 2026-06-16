@@ -9,6 +9,7 @@ import {
 	type RhythmStats,
 } from '@/features/stats/logic/rhythm-model'
 import type { TimeStats } from '@/features/stats/logic/time-tracker'
+import { MAX_RHYTHM_CHUNK_MS } from '@/features/stats/logic/rhythm-time-constants'
 import { mockBrowser } from '../../tests/setup'
 
 const mockOnMessage = vi.hoisted(() => vi.fn())
@@ -46,11 +47,13 @@ describe('setupStatsHandlers', () => {
 	})
 
 	it('persists concurrent chunks without dropping one write', async () => {
+		const at = new Date(2026, 0, 5, 10, 15).getTime()
+		vi.useFakeTimers()
+		vi.setSystemTime(at)
 		setupStatsHandlers()
 		const handler = handlers.get('recordRhythmTimeChunk')
 		expect(handler).toBeTruthy()
 
-		const at = new Date(2026, 0, 5, 10, 15).getTime()
 		await Promise.all([
 			handler?.({ data: { subforum: 'off-topic', ms: 1000, at } }),
 			handler?.({ data: { subforum: 'off-topic', ms: 2000, at } }),
@@ -76,12 +79,74 @@ describe('setupStatsHandlers', () => {
 		await expect(getCompressed<RhythmStats>(RHYTHM_KEY)).resolves.toBeNull()
 	})
 
+	it('rejects chunks larger than the max without writing storage', async () => {
+		setupStatsHandlers()
+		const handler = handlers.get('recordRhythmTimeChunk')
+
+		const result = await handler?.({
+			data: { subforum: 'off-topic', ms: MAX_RHYTHM_CHUNK_MS + 1, at: Date.now() },
+		})
+
+		expect(result).toEqual({ success: false, error: 'invalid-payload' })
+		await expect(storage.getItem(TIME_STATS_KEY)).resolves.toBeNull()
+		await expect(getCompressed<RhythmStats>(RHYTHM_KEY)).resolves.toBeNull()
+	})
+
+	it('rejects timestamps too far in the future without writing storage', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date(2026, 0, 7, 12, 0))
+		setupStatsHandlers()
+		const handler = handlers.get('recordRhythmTimeChunk')
+
+		// 6 minutes ahead, beyond the 5 minute skew allowance.
+		const result = await handler?.({
+			data: { subforum: 'off-topic', ms: 1000, at: Date.now() + 6 * 60_000 },
+		})
+
+		expect(result).toEqual({ success: false, error: 'invalid-payload' })
+		await expect(storage.getItem(TIME_STATS_KEY)).resolves.toBeNull()
+		await expect(getCompressed<RhythmStats>(RHYTHM_KEY)).resolves.toBeNull()
+	})
+
+	it('rejects timestamps older than the past-age limit without writing storage', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date(2026, 0, 7, 12, 0))
+		setupStatsHandlers()
+		const handler = handlers.get('recordRhythmTimeChunk')
+
+		// 25 hours old, beyond the 24 hour past-age limit.
+		const result = await handler?.({
+			data: { subforum: 'off-topic', ms: 1000, at: Date.now() - 25 * 60 * 60_000 },
+		})
+
+		expect(result).toEqual({ success: false, error: 'invalid-payload' })
+		await expect(storage.getItem(TIME_STATS_KEY)).resolves.toBeNull()
+		await expect(getCompressed<RhythmStats>(RHYTHM_KEY)).resolves.toBeNull()
+	})
+
+	it('accepts a chunk exactly at the max with a current timestamp', async () => {
+		vi.useFakeTimers()
+		vi.setSystemTime(new Date(2026, 0, 7, 12, 0))
+		setupStatsHandlers()
+		const handler = handlers.get('recordRhythmTimeChunk')
+
+		const result = await handler?.({
+			data: { subforum: 'off-topic', ms: MAX_RHYTHM_CHUNK_MS, at: Date.now() },
+		})
+
+		const timeStats = await storage.getItem<TimeStats>(TIME_STATS_KEY)
+		expect(result).toEqual({ success: true })
+		expect(timeStats?.['off-topic']).toBe(MAX_RHYTHM_CHUNK_MS)
+	})
+
 	it('writes the expected hour, weekday, week, day and subforum buckets', async () => {
+		const date = new Date(2026, 0, 7, 22, 30)
+		vi.useFakeTimers()
+		vi.setSystemTime(date)
 		setupStatsHandlers()
 		const handler = handlers.get('recordRhythmTimeChunk')
 		expect(handler).toBeTruthy()
 
-		const date = new Date(2026, 0, 7, 22, 30)
 		const result = await handler?.({ data: { subforum: 'cine', ms: 4000, at: date.getTime() } })
 		const rhythm = await getCompressed<RhythmStats>(RHYTHM_KEY)
 

@@ -16,10 +16,17 @@ import {
 	prepareRhythmStatsForStorage,
 	type RhythmStats,
 } from '@/features/stats/logic/rhythm-model'
+import { MAX_RHYTHM_CHUNK_MS } from '@/features/stats/logic/rhythm-time-constants'
 import type { TimeStats } from '@/features/stats/logic/time-tracker'
 
 const TIME_STATS_KEY = `local:${STORAGE_KEYS.TIME_STATS}` as `local:${string}`
 const RHYTHM_KEY = `local:${STORAGE_KEYS.RHYTHM_STATS}` as `local:${string}`
+
+// Reject timestamps that can't be a normal `Date.now()` save: the content
+// tracker stamps chunks at save time, so meaningful future skew or day-old
+// timestamps indicate a corrupt or malicious payload.
+const MAX_FUTURE_CHUNK_SKEW_MS = 5 * 60_000
+const MAX_PAST_CHUNK_AGE_MS = 24 * 60 * 60_000
 
 const timeStatsStorage = storage.defineItem<TimeStats>(TIME_STATS_KEY, {
 	defaultValue: {},
@@ -27,13 +34,16 @@ const timeStatsStorage = storage.defineItem<TimeStats>(TIME_STATS_KEY, {
 
 let writeQueue: Promise<void> = Promise.resolve()
 
-function isValidChunk(payload: RhythmTimeChunkPayload): boolean {
+function isValidChunk(payload: RhythmTimeChunkPayload, now = Date.now()): boolean {
 	return (
 		typeof payload.subforum === 'string' &&
 		payload.subforum.trim().length > 0 &&
 		Number.isFinite(payload.ms) &&
 		payload.ms > 0 &&
-		Number.isFinite(payload.at)
+		payload.ms <= MAX_RHYTHM_CHUNK_MS &&
+		Number.isFinite(payload.at) &&
+		payload.at <= now + MAX_FUTURE_CHUNK_SKEW_MS &&
+		payload.at >= now - MAX_PAST_CHUNK_AGE_MS
 	)
 }
 

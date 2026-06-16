@@ -16,6 +16,7 @@ vi.mock('@/lib/url-helpers', () => ({
 }))
 
 import { isRhythmTrackingEnabled, initTimeTracker, resetTimeTrackerForTest } from './time-tracker'
+import { MAX_RHYTHM_CHUNK_MS } from './rhythm-time-constants'
 
 describe('isRhythmTrackingEnabled', () => {
 	it('treats a missing preference as enabled (default-on)', () => {
@@ -83,5 +84,26 @@ describe('initTimeTracker lifecycle', () => {
 		await vi.advanceTimersByTimeAsync(31_000)
 
 		expect(mocks.sendMessage).not.toHaveBeenCalled()
+	})
+
+	it('splits a large delayed save into bounded chunks', async () => {
+		// Accumulate well past the max by failing every sync for ~10 minutes.
+		mocks.sendMessage.mockResolvedValue({ success: false })
+		initTimeTracker()
+		await vi.advanceTimersByTimeAsync(MAX_RHYTHM_CHUNK_MS)
+
+		// Now let the next sync succeed; the backlog must be split, not sent whole.
+		mocks.sendMessage.mockClear()
+		mocks.sendMessage.mockResolvedValue({ success: true })
+		await vi.advanceTimersByTimeAsync(30_000)
+
+		const calls = mocks.sendMessage.mock.calls
+		expect(calls.length).toBeGreaterThan(1)
+		for (const [, payload] of calls) {
+			expect(payload.ms).toBeGreaterThan(0)
+			expect(payload.ms).toBeLessThanOrEqual(MAX_RHYTHM_CHUNK_MS)
+		}
+		// First chunk is filled to the max before the remainder.
+		expect(calls[0][1].ms).toBe(MAX_RHYTHM_CHUNK_MS)
 	})
 })

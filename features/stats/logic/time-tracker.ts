@@ -10,6 +10,7 @@ import { getSettings } from '@/store'
 import type { Settings } from '@/store/settings-types'
 import { getCompressed, setCompressed } from '@/lib/storage/compressed-storage'
 import { sendMessage } from '@/lib/messaging'
+import { MAX_RHYTHM_CHUNK_MS } from './rhythm-time-constants'
 import {
 	createEmptyRhythm,
 	getDayKey,
@@ -82,22 +83,36 @@ async function saveTime(): Promise<void> {
 			const secondsToSave = unsavedSeconds
 			unsavedSeconds = 0
 
+			let remainingMs = secondsToSave * 1000
+
 			try {
 				const settings = await getSettings()
 				if (!isRhythmTrackingEnabled(settings)) return
 
-				const result = await sendMessage('recordRhythmTimeChunk', {
-					subforum: currentSubforum,
-					ms: secondsToSave * 1000,
-					at: Date.now(),
-				})
+				// Split into bounded chunks so the background never rejects a
+				// large delayed write. The current subforum and a single save-time
+				// stamp apply to every chunk.
+				const at = Date.now()
+				while (remainingMs > 0) {
+					const chunkMs = Math.min(remainingMs, MAX_RHYTHM_CHUNK_MS)
 
-				if (!result.success) {
-					unsavedSeconds += secondsToSave
-					logger.error('Failed to save time stats:', result.error || 'Unknown background error')
+					const result = await sendMessage('recordRhythmTimeChunk', {
+						subforum: currentSubforum,
+						ms: chunkMs,
+						at,
+					})
+
+					if (!result.success) {
+						// Restore only what was not yet accepted, then retry later.
+						unsavedSeconds += Math.round(remainingMs / 1000)
+						logger.error('Failed to save time stats:', result.error || 'Unknown background error')
+						return
+					}
+
+					remainingMs -= chunkMs
 				}
 			} catch (err) {
-				unsavedSeconds += secondsToSave
+				unsavedSeconds += Math.round(remainingMs / 1000)
 				logger.error('Failed to save time stats:', err)
 			}
 		})
