@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { accumulateRhythm, createEmptyRhythm, getDayKey, getWeekKey, getWeekStart, normalizeRhythm } from './time-tracker'
+import { accumulateRhythm, createEmptyRhythm, getDayKey, getWeekKey, getWeekStart, normalizeRhythm } from './rhythm-model'
 import {
 	getActiveBand,
 	getActiveDayCount,

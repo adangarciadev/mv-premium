@@ -7,8 +7,8 @@ import {
 	getDayKey,
 	getWeekKey,
 	type RhythmStats,
-	type TimeStats,
-} from '@/features/stats/logic/time-tracker'
+} from '@/features/stats/logic/rhythm-model'
+import type { TimeStats } from '@/features/stats/logic/time-tracker'
 import { mockBrowser } from '../../tests/setup'
 
 const mockOnMessage = vi.hoisted(() => vi.fn())

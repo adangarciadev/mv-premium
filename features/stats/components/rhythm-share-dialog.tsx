@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { getSubforumName } from '@/lib/subforums'
-import { getDayKey, getWeekKey, getWeekStart, type RhythmStats } from '../logic/time-tracker'
+import { getDayKey, getWeekKey, getWeekStart, type RhythmStats } from '../logic/rhythm-model'
 import {
 	getRhythmShareAvailability,
 	MIN_SHARE_RHYTHM_MS,

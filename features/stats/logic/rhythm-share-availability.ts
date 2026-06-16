@@ -1,4 +1,4 @@
-import type { RhythmStats } from './time-tracker'
+import type { RhythmStats } from './rhythm-model'
 
 export type RhythmShareScope = 'year' | 'last30' | 'week' | 'weekday'
 

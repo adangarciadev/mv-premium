@@ -15,8 +15,8 @@ import {
 	normalizeRhythm,
 	prepareRhythmStatsForStorage,
 	type RhythmStats,
-	type TimeStats,
-} from '@/features/stats/logic/time-tracker'
+} from '@/features/stats/logic/rhythm-model'
+import type { TimeStats } from '@/features/stats/logic/time-tracker'
 
 const TIME_STATS_KEY = `local:${STORAGE_KEYS.TIME_STATS}` as `local:${string}`
 const RHYTHM_KEY = `local:${STORAGE_KEYS.RHYTHM_STATS}` as `local:${string}`

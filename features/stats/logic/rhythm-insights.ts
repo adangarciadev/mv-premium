@@ -2,7 +2,7 @@
  * Pure derivations for the "Tiempo en Mediavida" clock. No DOM / storage here so they can
  * be unit-tested in isolation.
  */
-import { getDayKey, getWeekKey, getWeekStart, type RhythmStats } from './time-tracker'
+import { getDayKey, getWeekKey, getWeekStart, type RhythmStats } from './rhythm-model'
 
 const HOUR_BUCKET_MAX_MS = 3_600_000
 const MIN_VISIBLE_SUBFORUM_MS = 1000

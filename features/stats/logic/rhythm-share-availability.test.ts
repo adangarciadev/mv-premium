@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { RhythmStats } from './time-tracker'
+import type { RhythmStats } from './rhythm-model'
 import {
 	getRhythmShareAvailability,
 	hasAnyShareableRhythmScope,

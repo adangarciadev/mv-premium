@@ -31,7 +31,7 @@ import {
 import { cn } from '@/lib/utils'
 import { getSubforumName, getSubforumIconId } from '@/lib/subforums'
 import { NativeFidIcon } from '@/components/native-fid-icon'
-import { getWeekKey, type RhythmStats } from '../logic/time-tracker'
+import { getWeekKey, type RhythmStats } from '../logic/rhythm-model'
 import { RhythmShareDialog } from './rhythm-share-dialog'
 import {
 	getActiveBand,

@@ -26,8 +26,29 @@ export { ActivityViewToggle } from './components/activity-view-toggle'
 // Content Script Utils
 export { setupPostTracker, completePendingThreadCreation, completePendingPostEdit, completePendingReply } from './post-tracker'
 
-// Time Tracker
-export * from './logic/time-tracker'
+// Rhythm model + Time Tracker runtime
+export {
+	accumulateRhythm,
+	createEmptyRhythm,
+	getDayKey,
+	getWeekKey,
+	getWeekStart,
+	normalizeRhythm,
+	prepareRhythmStatsForStorage,
+	type RhythmStats,
+} from './logic/rhythm-model'
+export {
+	clearRhythmStats,
+	generateRandomRhythm,
+	getRhythmStats,
+	getTimeStats,
+	initTimeTracker,
+	seedRandomRhythmStats,
+	timeStatsStorage,
+	watchRhythmStats,
+	watchTimeStats,
+	type TimeStats,
+} from './logic/time-tracker'
 
 // Activity view-mode preference + rhythm insights
 export {
