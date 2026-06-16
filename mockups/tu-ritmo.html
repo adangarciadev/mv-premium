@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mockup · Tu ritmo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --background:#0d0e0f; --foreground:#e2e5e7; --card:#1c1f22; --primary:#fc8f22; --primary-foreground:#0d0e0f;
+    --secondary:#252a2f; --muted:#2e3438; --muted-foreground:#8b9196; --border:#30353a;
+    --surface-1:color-mix(in oklab, var(--card) 55%, var(--background)); --surface-3:color-mix(in oklab, var(--card) 80%, white 5%);
+    --font-display:'Bricolage Grotesque',sans-serif; --font-sans:'Instrument Sans',sans-serif; --font-data:'Spline Sans Mono',monospace; --radius:12px;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:radial-gradient(900px 500px at 80% -5%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 70%), var(--background); color:var(--foreground); font-family:var(--font-sans); display:flex; justify-content:center; padding:48px 24px; }
+  .wrap { width:100%; max-width:760px; }
+  .note { font-size:12px; color:var(--muted-foreground); text-align:center; margin:0 0 22px; }
+  .note b { color:var(--primary); font-weight:600; }
+  .card { position:relative; border-radius:var(--radius); border:1px solid var(--border); background:radial-gradient(120% 120% at 100% 0%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 55%), linear-gradient(180deg, var(--surface-3), var(--surface-1)); box-shadow:0 1px 0 0 color-mix(in srgb, white 6%, transparent) inset, 0 18px 40px -24px rgba(0,0,0,.8); overflow:hidden; }
+  .card-head { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:18px 20px; border-bottom:1px solid color-mix(in srgb, var(--border) 70%, transparent); }
+  .head-left { display:flex; align-items:center; gap:12px; }
+  .ico { width:38px; height:38px; border-radius:10px; display:grid; place-content:center; background:color-mix(in srgb, var(--primary) 12%, transparent); border:1px solid color-mix(in srgb, var(--primary) 26%, transparent); color:var(--primary); }
+  .title { font-family:var(--font-display); font-weight:700; font-size:17px; letter-spacing:-.01em; }
+  .subtitle { font-size:12px; color:var(--muted-foreground); margin-top:1px; }
+  .seg { display:inline-flex; padding:3px; gap:2px; border-radius:9px; background:color-mix(in srgb, var(--background) 60%, var(--card)); border:1px solid color-mix(in srgb, var(--border) 80%, transparent); }
+  .seg button { font-family:var(--font-sans); font-size:12px; font-weight:600; color:var(--muted-foreground); background:transparent; border:0; cursor:pointer; padding:5px 11px; border-radius:6px; display:inline-flex; align-items:center; gap:6px; }
+  .seg button.on { color:var(--primary-foreground); background:var(--primary); }
+  .body { padding:18px 20px 22px; }
+  .top { display:flex; flex-direction:column; align-items:center; gap:24px; }
+  @media (min-width:680px) { .top { flex-direction:row; align-items:center; gap:40px; } }
+  svg#clock { width:100%; max-width:300px; height:auto; flex-shrink:0; }
+  .details { width:100%; min-width:0; flex:1; display:flex; flex-direction:column; gap:16px; }
+  .insight { display:flex; align-items:center; gap:12px; }
+  .insight .emoji { font-size:24px; }
+  .insight .k { font-weight:600; font-size:16px; }
+  .insight .v { font-size:12px; color:var(--muted-foreground); }
+  .insight .v b { color:var(--foreground); font-family:var(--font-data); font-variant-numeric:tabular-nums; font-weight:600; }
+  .donde { border:1px solid color-mix(in srgb, var(--border) 80%, transparent); border-radius:10px; background:color-mix(in srgb, var(--background) 30%, transparent); padding:12px; }
+  .donde-h { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-family:var(--font-data); font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-foreground); }
+  .donde-h b { color:var(--foreground); }
+  .donde-row { display:flex; align-items:center; gap:8px; font-size:13px; margin-top:6px; }
+  .donde-row .n { width:12px; text-align:right; font-family:var(--font-data); font-size:11px; color:var(--muted-foreground); }
+  .donde-row .n.top { color:var(--primary); }
+  .donde-row .nm { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:color-mix(in srgb, var(--foreground) 90%, transparent); }
+  .donde-row .t { font-family:var(--font-data); font-size:12px; color:color-mix(in srgb, var(--foreground) 80%, transparent); }
+  .legend { display:flex; align-items:center; gap:7px; font-size:11px; color:var(--muted-foreground); }
+  .legend i { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .band { margin-top:24px; border-top:1px solid color-mix(in srgb, var(--border) 60%, transparent); padding-top:20px; }
+  .band-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .band-title { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted-foreground); font-family:var(--font-data); }
+  .sub { display:inline-flex; gap:2px; padding:2px; border-radius:7px; border:1px solid color-mix(in srgb, var(--border) 80%, transparent); background:color-mix(in srgb, var(--background) 50%, var(--card)); }
+  .sub button { font-family:var(--font-sans); font-size:10px; font-weight:600; cursor:pointer; border:0; background:transparent; color:var(--muted-foreground); padding:3px 9px; border-radius:5px; }
+  .sub button.on { background:var(--primary); color:var(--primary-foreground); }
+  .wk { display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .wk .cell { height:36px; border-radius:6px; }
+  .wk .lbl { margin-top:6px; text-align:center; font-size:11px; color:var(--muted-foreground); }
+  .wk .col.peak .lbl { color:var(--primary); font-weight:600; }
+  .yr { display:flex; gap:2px; }
+  .yr .cell { height:28px; flex:1; border-radius:2px; }
+  .yr-months { position:relative; height:14px; margin-top:6px; }
+  .yr-months span { position:absolute; font-size:9px; color:var(--muted-foreground); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="note">Mockup · <b>Tu ritmo</b> — pasa el ratón por las horas del reloj para ver <b>dónde</b> estuviste. Datos de ejemplo.</p>
+    <div class="card">
+      <div class="card-head">
+        <div class="head-left">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+          <div><div class="title">Tu ritmo</div><div class="subtitle">Cuándo y dónde vives Mediavida</div></div>
+        </div>
+        <div class="seg">
+          <button><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg> Calendario</button>
+          <button class="on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l2.5 1.5"/></svg> Reloj</button>
+        </div>
+      </div>
+      <div class="body">
+        <div class="top">
+          <svg id="clock" viewBox="-30 -30 400 400" role="img" aria-label="Reloj de actividad"></svg>
+          <div class="details">
+            <div class="insight">
+              <span class="emoji">☀️</span>
+              <div>
+                <div class="k">Diurno</div>
+                <div class="v">Sueles navegar sobre las <b>12h</b> · activo de <b>9–15h</b> · <b>14h 20m</b> en total</div>
+              </div>
+            </div>
+            <div class="donde" id="donde"></div>
+            <div class="legend">
+              <span>Menos</span>
+              <i style="background:color-mix(in srgb, var(--foreground) 8%, transparent)"></i>
+              <i style="background:color-mix(in srgb, var(--primary) 40%, transparent)"></i>
+              <i style="background:color-mix(in srgb, var(--primary) 70%, transparent)"></i>
+              <i style="background:var(--primary)"></i>
+              <span>Más</span>
+            </div>
+          </div>
+        </div>
+        <div class="band">
+          <div class="band-head">
+            <span class="band-title" id="bandTitle">Por día de la semana</span>
+            <div class="sub">
+              <button id="btnDay" class="on">Día</button>
+              <button id="btnWeek">Semana</button>
+            </div>
+          </div>
+          <div id="strip"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+<script>
+  // --- sample data ---
+  const hours = [1,1,0,0,0,1,3,6,10,14,18,22,26,24,20,17,15,13,12,10,8,5,3,2];
+  const maxH = Math.max(...hours);
+  const peakH = hours.indexOf(maxH);
+  // hour -> [ [name, ms], ... ]
+  const hourSubs = {
+    8:[['Off-topic',9000],['Desarrollo y diseño',5000]],
+    9:[['Off-topic',14000],['Deportes',6000],['Cine',3000]],
+    10:[['Off-topic',18000],['Deportes',9000],['Criptomonedas',4000]],
+    11:[['Off-topic',22000],['Deportes',12000],['Cine',5000],['Política',3000]],
+    12:[['Deportes',26000],['Off-topic',14000],['Política',6000],['Cine',2000]],
+    13:[['Deportes',24000],['Off-topic',9000],['Motor',4000]],
+    14:[['Off-topic',20000],['Cine',8000]],
+    18:[['Cine',13000],['Televisión',7000]],
+    21:[['Off-topic',8000],['Música',4000]],
+  };
+
+  const cx=170, cy=170, rIn=92, rOut=150, rCenter=84, gap=2;
+  const NS='http://www.w3.org/2000/svg';
+  const svg=document.getElementById('clock');
+  let activeHour = peakH;
+
+  function ptDeg(deg,r){ const a=(deg-90)*Math.PI/180; return [cx+Math.cos(a)*r, cy+Math.sin(a)*r]; }
+  function el(n,a){ const e=document.createElementNS(NS,n); for(const k in a) e.setAttribute(k,a[k]); return e; }
+  function wedge(h){ const half=7.5-gap/2,a0=h*15-half,a1=h*15+half; const[osx,osy]=ptDeg(a0,rOut),[oex,oey]=ptDeg(a1,rOut),[iex,iey]=ptDeg(a1,rIn),[isx,isy]=ptDeg(a0,rIn); return `M ${osx} ${osy} A ${rOut} ${rOut} 0 0 1 ${oex} ${oey} L ${iex} ${iey} A ${rIn} ${rIn} 0 0 0 ${isx} ${isy} Z`; }
+  function heat(t){ return t<=0 ? 'color-mix(in srgb, var(--foreground) 8%, transparent)' : `color-mix(in srgb, var(--primary) ${Math.round(28+t*72)}%, transparent)`; }
+
+  function drawClock(){
+    svg.innerHTML='';
+    hours.forEach((v,h)=>{
+      const t=v/maxH;
+      const p=el('path',{ d:wedge(h), fill:heat(t), style:'cursor:pointer' });
+      if(h===activeHour){ p.setAttribute('stroke','var(--primary)'); p.setAttribute('stroke-width','1.5'); }
+      p.addEventListener('mouseenter',()=>{ activeHour=h; drawClock(); drawDonde(); });
+      svg.appendChild(p);
+    });
+    [0,3,6,9,12,15,18,21].forEach(h=>{ const[x,y]=ptDeg(h*15,rOut+18); const t=el('text',{x,y,fill:'var(--muted-foreground)','font-size':12,'font-family':'var(--font-data)','text-anchor':'middle','dominant-baseline':'middle'}); t.textContent=String(h).padStart(2,'0'); svg.appendChild(t); });
+    svg.appendChild(el('circle',{cx,cy,r:rCenter,fill:'var(--card)',stroke:'color-mix(in srgb, var(--border) 80%, transparent)','stroke-width':1}));
+    const big=el('text',{x:cx,y:cy-4,fill:'var(--foreground)','font-size':32,'font-family':'var(--font-data)','font-weight':600,'text-anchor':'middle'}); big.textContent=activeHour+'h'; svg.appendChild(big);
+    const sm=el('text',{x:cx,y:cy+20,fill:'var(--muted-foreground)','font-size':11,'font-family':'var(--font-sans)','text-anchor':'middle'}); sm.textContent=(activeHour===peakH?'tu hora punta':'a esta hora'); svg.appendChild(sm);
+  }
+  svg.addEventListener('mouseleave',()=>{ activeHour=peakH; drawClock(); drawDonde(); });
+
+  function fmt(ms){ const m=Math.floor(ms/60000), s=Math.floor(ms/1000)%60; const h=Math.floor(m/60); if(h>0) return h+'h '+(m%60)+'m'; if(m>0) return m+'m'; return s+'s'; }
+  function drawDonde(){
+    const subs=(hourSubs[activeHour]||[]).slice(0,4);
+    let html=`<div class="donde-h"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg> Dónde · <b>${activeHour}h</b></div>`;
+    if(subs.length){ html+=subs.map(([nm,ms],i)=>`<div class="donde-row"><span class="n${i===0?' top':''}">${i+1}</span><span class="nm">${nm}</span><span class="t">${fmt(ms)}</span></div>`).join(''); }
+    else { html+=`<div style="font-size:12px;color:var(--muted-foreground)">No estuviste por ningún subforo a esta hora.</div>`; }
+    document.getElementById('donde').innerHTML=html;
+  }
+
+  // --- strips ---
+  const months=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const weekdays=[['Lun',62],['Mar',48],['Mié',55],['Jue',88],['Vie',74],['Sáb',31],['Dom',22]];
+  // 52 weeks ending now: ramp + noise
+  const weeks=Array.from({length:52},(_,i)=>{ const base=Math.max(0, Math.sin(i/6)*40+i*1.5); return Math.round(base + (i%5===0?30:0)); });
+  const strip=document.getElementById('strip');
+
+  function drawWeekday(){
+    const max=Math.max(...weekdays.map(d=>d[1]));
+    const peak=weekdays.reduce((a,b)=>b[1]>a[1]?b:a)[0];
+    strip.innerHTML='<div class="wk">'+weekdays.map(([l,v])=>`<div class="col${l===peak?' peak':''}"><div class="cell" style="background:${heat(v/max)};${l===peak?'box-shadow:0 0 0 1px color-mix(in srgb,var(--primary) 60%,transparent) inset':''}"></div><div class="lbl">${l}</div></div>`).join('')+'</div>';
+  }
+  function drawWeeks(){
+    const max=Math.max(...weeks);
+    const peak=weeks.indexOf(max);
+    // month marks: spread roughly every ~4.3 weeks
+    let marks='';
+    for(let m=0;m<12;m++){ const i=Math.round(m*52/12); marks+=`<span style="left:${i/52*100}%">${months[m]}</span>`; }
+    strip.innerHTML='<div class="yr">'+weeks.map((v,i)=>`<div class="cell" title="Semana ${i+1} · ${v}" style="background:${heat(v/max)};${i===peak?'box-shadow:0 0 0 1px color-mix(in srgb,var(--primary) 70%,transparent) inset':''}"></div>`).join('')+'</div><div class="yr-months">'+marks+'</div>';
+  }
+
+  function setActive(id){ document.getElementById('btnDay').classList.toggle('on',id==='btnDay'); document.getElementById('btnWeek').classList.toggle('on',id==='btnWeek'); }
+  document.getElementById('btnDay').onclick=()=>{ setActive('btnDay'); document.getElementById('bandTitle').textContent='Por día de la semana'; drawWeekday(); };
+  document.getElementById('btnWeek').onclick=()=>{ setActive('btnWeek'); document.getElementById('bandTitle').textContent='Por semana (último año)'; drawWeeks(); };
+
+  drawClock(); drawDonde(); drawWeekday();
+</script>
+</body>
+</html>
