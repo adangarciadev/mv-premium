@@ -1,7 +1,7 @@
 /**
  * Home Widgets - Stats cards, activity graph, and storage widget
  */
-import { memo, useEffect, useRef, useState, lazy, Suspense } from 'react'
+import { memo, useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react'
 import Send from 'lucide-react/dist/esm/icons/send'
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square'
 import Clock from 'lucide-react/dist/esm/icons/clock'
@@ -30,10 +30,12 @@ import {
 	getRhythmAverageWeekdays,
 	getRhythmTopDailySubforum,
 	createEmptyRhythm,
+	watchRhythmStats,
+	watchTimeStats,
 	type ActivityViewMode,
 } from '@/features/stats'
 import { getCurrentUser } from '../../lib/current-user'
-import { getActivityData, clearActivityData } from '@/features/stats/storage'
+import { getActivityData, clearActivityData, watchActivity } from '@/features/stats/storage'
 import {
 	getTimeStats,
 	getRhythmStats,
@@ -88,6 +90,29 @@ const formatPeakHoursCardSubtext = (hours: number[], fallback: string): string =
 
 export function HomeWidgets() {
 	const queryClient = useQueryClient()
+	const refreshDashboard = useCallback(() => {
+		void queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'], exact: true })
+		void queryClient.invalidateQueries({ queryKey: ['current-user'], exact: true })
+	}, [queryClient])
+
+	useEffect(() => {
+		let refreshTimer: number | null = null
+		const scheduleRefresh = () => {
+			if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+			refreshTimer = window.setTimeout(refreshDashboard, 250)
+		}
+
+		const cleanupRhythm = watchRhythmStats(scheduleRefresh)
+		const cleanupTime = watchTimeStats(scheduleRefresh)
+		const cleanupActivity = watchActivity(scheduleRefresh)
+
+		return () => {
+			if (refreshTimer !== null) window.clearTimeout(refreshTimer)
+			cleanupRhythm()
+			cleanupTime()
+			cleanupActivity()
+		}
+	}, [refreshDashboard])
 
 	// Auto-refresh when tab becomes visible (not on every focus)
 	// Only invalidate after 5 minutes of inactivity to avoid excessive refetches
@@ -100,8 +125,7 @@ export function HomeWidgets() {
 				const timeSinceLastRefresh = Date.now() - lastRefresh
 				if (timeSinceLastRefresh > REFRESH_THRESHOLD_MS) {
 					// Invalidate with exact queryKey match for better control
-					queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'], exact: true })
-					queryClient.invalidateQueries({ queryKey: ['current-user'], exact: true })
+					refreshDashboard()
 					lastRefresh = Date.now()
 				}
 			}
@@ -112,7 +136,7 @@ export function HomeWidgets() {
 		return () => {
 			document.removeEventListener('visibilitychange', handleVisibilityChange)
 		}
-	}, [queryClient])
+	}, [refreshDashboard])
 
 	// 1. Fetch Dashboard Stats (Parallelized)
 	const { data } = useSuspenseQuery({
@@ -315,13 +339,13 @@ export function HomeWidgets() {
 						headerSlot={viewToggle}
 						onClearData={async () => {
 							await clearRhythmStats()
-							queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'] })
+							refreshDashboard()
 						}}
 						onSeedRandom={
 							import.meta.env.DEV
 								? async () => {
 										await seedRandomRhythmStats()
-										queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'] })
+										refreshDashboard()
 									}
 								: undefined
 						}
@@ -343,7 +367,7 @@ export function HomeWidgets() {
 						headerSlot={viewToggle}
 						onClearData={async () => {
 							await clearActivityData()
-							queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'] })
+							refreshDashboard()
 						}}
 					/>
 				) : (
