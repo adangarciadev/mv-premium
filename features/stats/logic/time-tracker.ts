@@ -51,6 +51,9 @@ let unsavedSeconds = 0
 let currentSubforum = ''
 let saveQueue: Promise<void> = Promise.resolve()
 
+// Lifecycle guard so repeated bootstraps (HMR, reinjection) don't double-count.
+let trackerCleanup: (() => void) | null = null
+
 export interface TimeStats {
 	[subforumSlug: string]: number // Total milliseconds
 }
@@ -106,19 +109,25 @@ async function saveTime(): Promise<void> {
 }
 
 /**
- * Initialize the time tracker.
+ * Initialize the time tracker. Idempotent: repeated calls within the same
+ * document reuse the active tracker and return its existing cleanup, so time is
+ * never double-counted. Returns a cleanup function that clears both intervals
+ * and removes both listeners.
  */
-export function initTimeTracker(): void {
+export function initTimeTracker(): () => void {
 	// 1. Identify context
 	const threadId = getThreadId()
 	const info = getSubforumInfo(threadId)
 
-	if (!info.slug || info.slug === 'unknown') return
+	if (!info.slug || info.slug === 'unknown') return () => {}
+
+	// Already running: reuse the existing tracker instead of stacking another.
+	if (trackerCleanup) return trackerCleanup
 
 	currentSubforum = info.slug
 
 	// 2. Setup Tracking Interval
-	setInterval(() => {
+	const trackIntervalId = window.setInterval(() => {
 		// Only track if document is visible (tab is active/visible on screen)
 		if (document.visibilityState === 'visible') {
 			unsavedSeconds++
@@ -126,20 +135,44 @@ export function initTimeTracker(): void {
 	}, TRACK_INTERVAL_MS)
 
 	// 3. Setup Sync Interval
-	setInterval(() => {
+	const syncIntervalId = window.setInterval(() => {
 		void saveTime()
 	}, SYNC_INTERVAL_MS)
 
 	// 4. Save on exit/visibility change (attempt)
-	document.addEventListener('visibilitychange', () => {
+	const onVisibilityChange = () => {
 		if (document.visibilityState === 'hidden') {
 			void saveTime()
 		}
-	})
-
-	window.addEventListener('beforeunload', () => {
+	}
+	const onBeforeUnload = () => {
 		void saveTime()
-	})
+	}
+
+	document.addEventListener('visibilitychange', onVisibilityChange)
+	window.addEventListener('beforeunload', onBeforeUnload)
+
+	trackerCleanup = () => {
+		window.clearInterval(trackIntervalId)
+		window.clearInterval(syncIntervalId)
+		document.removeEventListener('visibilitychange', onVisibilityChange)
+		window.removeEventListener('beforeunload', onBeforeUnload)
+		trackerCleanup = null
+	}
+
+	return trackerCleanup
+}
+
+/**
+ * TEST ONLY: reset module-level tracker state so each test starts clean.
+ * Never call from production code.
+ */
+export function resetTimeTrackerForTest(): void {
+	trackerCleanup?.()
+	trackerCleanup = null
+	unsavedSeconds = 0
+	currentSubforum = ''
+	saveQueue = Promise.resolve()
 }
 
 /**

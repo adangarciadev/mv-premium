@@ -42,7 +42,7 @@ update the row when done.
 | 014 | [Import stats content runtime directly](014-import-stats-content-runtime-directly.md) | P2 | S | - | DONE |
 | 015 | [Isolate the pure rhythm model from tracker runtime](015-isolate-pure-rhythm-model.md) | P2 | M | 012, 014 | DONE |
 | 016 | [Honor the default enabled state for rhythm tracking](016-honor-default-rhythm-tracking.md) | P1 | S | - | DONE |
-| 017 | [Make the rhythm time tracker idempotent](017-make-time-tracker-idempotent.md) | P1 | M | 016 | TODO |
+| 017 | [Make the rhythm time tracker idempotent](017-make-time-tracker-idempotent.md) | P1 | M | 016 | DONE |
 | 018 | [Validate and bound rhythm time chunks](018-validate-rhythm-time-chunks.md) | P1 | M | 017 | TODO |
 | 019 | [Add characterization tests for the rhythm clock and share dialog](019-add-rhythm-ui-characterization-tests.md) | P2 | M | 016, 017, 018 | TODO |
 | 020 | [Extract rhythm share summary and PNG rendering from the dialog](020-extract-rhythm-share-renderer.md) | P2 | M/L | 019 | TODO |
