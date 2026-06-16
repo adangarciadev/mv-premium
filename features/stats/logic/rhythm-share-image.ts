@@ -272,9 +272,9 @@ function drawBackground(ctx: CanvasRenderingContext2D): void {
  * minted into the center disc.
  */
 function drawSeal(ctx: CanvasRenderingContext2D, summary: ShareSummary, cx: number, cy: number): void {
-	const R_OUTER = 152
-	const R_INNER = 98
-	const R_DISC = 90
+	const R_OUTER = 198
+	const R_INNER = 128
+	const R_DISC = 118
 	const R_MIN = R_INNER + 6
 	const half = 7.5 - 1 // 15°/hour wedge minus a 2° gap
 	const toRad = (deg: number) => ((deg - 90) * Math.PI) / 180
@@ -338,7 +338,7 @@ function drawSeal(ctx: CanvasRenderingContext2D, summary: ShareSummary, cx: numb
 
 	// Hour ticks (00 / 06 / 12 / 18).
 	ctx.fillStyle = 'rgba(201, 212, 229, 0.7)'
-	ctx.font = `800 13px ${DATA_FONT}`
+	ctx.font = `800 16px ${DATA_FONT}`
 	ctx.textAlign = 'center'
 	ctx.textBaseline = 'middle'
 	for (const hour of [0, 6, 12, 18]) {
@@ -378,13 +378,13 @@ function drawSeal(ctx: CanvasRenderingContext2D, summary: ShareSummary, cx: numb
 
 	const peakHour = summary.hasEnoughData ? summary.peakLabel.slice(0, 5) : '--:--'
 	ctx.fillStyle = '#f8fafc'
-	ctx.font = `400 34px ${SANS_FONT}`
-	ctx.fillText(summary.archetypeEmoji, cx, cy - 34)
-	ctx.font = `900 40px ${DATA_FONT}`
-	ctx.fillText(peakHour, cx, cy + 8)
+	ctx.font = `400 44px ${SANS_FONT}`
+	ctx.fillText(summary.archetypeEmoji, cx, cy - 42)
+	ctx.font = `900 52px ${DATA_FONT}`
+	ctx.fillText(peakHour, cx, cy + 12)
 	ctx.fillStyle = 'rgba(201, 212, 229, 0.78)'
-	ctx.font = `700 14px ${SANS_FONT}`
-	ctx.fillText(summary.hasEnoughData ? 'hora punta' : 'pocos datos', cx, cy + 38)
+	ctx.font = `700 18px ${SANS_FONT}`
+	ctx.fillText(summary.hasEnoughData ? 'hora punta' : 'pocos datos', cx, cy + 48)
 
 	ctx.textBaseline = 'alphabetic'
 	ctx.restore()
@@ -401,7 +401,7 @@ function drawHero(ctx: CanvasRenderingContext2D, summary: ShareSummary): void {
 	const labelWidth = ctx.measureText(label).width
 	const ruleW = 48
 	const ruleGap = 22
-	const ruleY = 270
+	const ruleY = 268
 	const leftRule = ctx.createLinearGradient(
 		CENTER_X - labelWidth / 2 - ruleGap - ruleW,
 		0,
@@ -425,15 +425,10 @@ function drawHero(ctx: CanvasRenderingContext2D, summary: ShareSummary): void {
 	ctx.fillRect(CENTER_X + labelWidth / 2 + ruleGap, ruleY, ruleW, 2)
 
 	ctx.fillStyle = '#f5a400'
-	ctx.fillText(label, CENTER_X, 276)
+	ctx.fillText(label, CENTER_X, 274)
 	setTracking(ctx, '0px')
 
-	drawMainTime(ctx, summary.mainValue, CENTER_X, 374)
-
-	ctx.textAlign = 'center'
-	ctx.fillStyle = '#c9d4e5'
-	ctx.font = `750 24px ${SANS_FONT}`
-	ctx.fillText(truncateText(ctx, summary.mainCaption, CONTENT_W), CENTER_X, 418)
+	drawMainTime(ctx, summary.mainValue, CENTER_X, 366)
 	ctx.restore()
 }
 
@@ -458,8 +453,8 @@ function drawSealPills(ctx: CanvasRenderingContext2D, summary: ShareSummary, y: 
 function drawMetricTiles(ctx: CanvasRenderingContext2D, summary: ShareSummary, y: number): void {
 	const tiles: Array<[string, string]> = [
 		['Hora punta', summary.peakLabel],
-		['Franja activa', summary.bandLabel],
 		[summary.secondaryLabel, summary.secondaryValue],
+		['Días activos', summary.activeDays],
 	]
 	const gap = 20
 	const tileW = (CONTENT_W - gap * 2) / 3
@@ -676,11 +671,11 @@ export async function createShareImageBlob(summary: ShareSummary): Promise<Blob>
 	drawBackground(ctx)
 	drawHeader(ctx, summary)
 	drawHero(ctx, summary)
-	drawSeal(ctx, summary, CENTER_X, 660)
-	drawSealPills(ctx, summary, 872)
-	drawMetricTiles(ctx, summary, 962)
-	drawForumsCard(ctx, summary, 1098)
-	drawBars(ctx, summary, 1322)
+	drawSeal(ctx, summary, CENTER_X, 648)
+	drawSealPills(ctx, summary, 900)
+	drawMetricTiles(ctx, summary, 988)
+	drawForumsCard(ctx, summary, 1116)
+	drawBars(ctx, summary, 1330)
 
 	return await new Promise<Blob>((resolve, reject) => {
 		canvas.toBlob(blob => {

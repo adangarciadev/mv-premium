@@ -427,11 +427,10 @@ export function RhythmShareDialog({
 								<Download className="h-4 w-4" />
 								Descargar PNG
 							</Button>
-							{status && <p className="text-xs text-muted-foreground">{status}</p>}
 						</DialogFooter>
 					</aside>
 
-					<section className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-background/60 p-5 pb-8">
+					<section className="relative grid min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-background/60 p-5 pb-8">
 						<div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
 							<ImageIcon className="h-4 w-4 text-primary" />
 							Vista previa
@@ -467,6 +466,18 @@ export function RhythmShareDialog({
 								)}
 							</div>
 						</div>
+						{/* Floating toast: out of layout flow, so a status message never shifts
+						    the footer buttons or introduces a scroll in the sidebar. */}
+						{status && (
+							<div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center px-6">
+								<p
+									aria-live="polite"
+									className="pointer-events-auto max-w-sm rounded-lg border border-border/60 bg-card/95 px-3.5 py-2 text-center text-xs text-muted-foreground shadow-lg backdrop-blur"
+								>
+									{status}
+								</p>
+							</div>
+						)}
 					</section>
 				</div>
 			</DialogContent>

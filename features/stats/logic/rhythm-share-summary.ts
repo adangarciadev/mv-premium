@@ -8,7 +8,6 @@
 import { getDayKey, getWeekKey, getWeekStart, type RhythmStats } from './rhythm-model'
 import type { RhythmShareScope } from './rhythm-share-availability'
 import {
-	getActiveBand,
 	getArchetype,
 	getAverageRhythmHours,
 	getDailyAverageForDays,
@@ -47,9 +46,9 @@ export interface ShareSummary {
 	mainCaption: string
 	secondaryLabel: string
 	secondaryValue: string
+	activeDays: string
 	hours: number[]
 	peakLabel: string
-	bandLabel: string
 	archetypeLabel: string
 	archetypeEmoji: string
 	forumTitle: string
@@ -222,8 +221,8 @@ export function buildShareSummary(
 	let mainLabel = `TOTAL ${year}`
 	let mainValue = fmtTime(buildYearBars(stats).reduce((total, bar) => total + bar.value, 0))
 	let mainCaption = `Media diaria ${year}: ${fmtTime(yearDailyAverageMs)}`
-	let secondaryLabel = 'Días activos'
-	let secondaryValue = String(Object.keys(stats.days).length)
+	let secondaryLabel = 'Media diaria'
+	let secondaryValue = fmtTime(yearDailyAverageMs)
 	let hours = getRhythmDailyAverageHours(stats)
 	let bars = buildYearBars(stats)
 	let barTitle = 'Total por mes'
@@ -278,7 +277,6 @@ export function buildShareSummary(
 
 	const peakHour = getPeakHour(hours)
 	const archetype = hasEnoughData ? getArchetype(peakHour) : { emoji: '·', label: 'Pocos datos' }
-	const band = hasEnoughData ? getActiveBand(hours) : null
 	const forums = buildForums(stats, scope, weekKey, weekday)
 	const topForum = forums[0]?.label
 	const badgeUsername = username && username.trim().toLowerCase() !== 'usuario' ? username.trim() : undefined
@@ -327,9 +325,9 @@ export function buildShareSummary(
 		mainCaption,
 		secondaryLabel,
 		secondaryValue,
+		activeDays: String(Object.keys(stats.days).length),
 		hours,
 		peakLabel: hasEnoughData ? hourRange(peakHour) : 'Aún sin patrón',
-		bandLabel: band ? `${hourLabel(band.start)}-${String(band.end).padStart(2, '0')}:59` : 'Aún sin tramo',
 		archetypeLabel: archetype.label,
 		archetypeEmoji: archetype.emoji,
 		forumTitle,
