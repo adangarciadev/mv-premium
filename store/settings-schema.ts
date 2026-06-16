@@ -101,7 +101,7 @@ export const settingsSchema = z.object({
 	mutedWords: z.array(z.string()).default([]),
 
 	// Privacy & Storage
-	enableActivityTracking: z.boolean().default(true),
+	enableActivityTracking: z.boolean().default(false),
 	enableRhythmTracking: z.boolean().default(true),
 
 	// UI State

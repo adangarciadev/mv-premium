@@ -17,6 +17,7 @@ import {
 	ActivityGraph,
 	RhythmClock,
 	ActivityViewToggle,
+	HeatmapLegacyBadge,
 	getActivityViewMode,
 	setActivityViewMode,
 	getPeakHours,
@@ -151,11 +152,13 @@ export function HomeWidgets() {
 	const navigate = useNavigate()
 
 	// Logic for Stats (calculated from data)
-	const visibleActivityData: typeof activityData = enableActivityTracking ? activityData : {}
 	const visibleTimeStats: typeof timeStats = enableRhythmTracking ? timeStats : {}
-	const allPostEntries = Object.values(visibleActivityData)
+	const allStoredPostEntries = Object.values(activityData)
 		.flat()
-		.filter(entry => entry.type === 'post' && new Date(entry.timestamp).getFullYear() === currentYear)
+		.filter(entry => entry.type === 'post')
+	const allPostEntries = allStoredPostEntries.filter(entry => new Date(entry.timestamp).getFullYear() === currentYear)
+	const hasActivityHistory = allStoredPostEntries.length > 0
+	const canShowHeatmapStats = enableActivityTracking || hasActivityHistory
 
 	// POSTS: only count new posts (create = new thread, publish = reply), NOT edits
 	const totalPosts = allPostEntries.filter(entry => entry.action !== 'update').length
@@ -244,17 +247,17 @@ export function HomeWidgets() {
 						<StatCard
 							icon={Send}
 							label="Posts"
-							value={enableActivityTracking ? totalPosts : '-'}
-							subtext={enableActivityTracking ? `en ${currentYear}` : 'heatmap desactivado'}
-							variant={enableActivityTracking ? 'default' : 'disabled'}
+							value={canShowHeatmapStats ? totalPosts : '-'}
+							subtext={enableActivityTracking ? `en ${currentYear}` : hasActivityHistory ? 'historial pausado' : 'sin historial'}
+							variant={canShowHeatmapStats ? 'default' : 'disabled'}
 							className="reveal reveal-d2"
 						/>
 						<StatCard
 							icon={MessageSquare}
 							label="Hilos"
-							value={enableActivityTracking ? threadsCreated : '-'}
-							subtext={enableActivityTracking ? 'creados' : 'heatmap desactivado'}
-							variant={enableActivityTracking ? 'default' : 'disabled'}
+							value={canShowHeatmapStats ? threadsCreated : '-'}
+							subtext={enableActivityTracking ? 'creados' : hasActivityHistory ? 'historial pausado' : 'sin historial'}
+							variant={canShowHeatmapStats ? 'default' : 'disabled'}
 							className="reveal reveal-d3"
 						/>
 					</>
@@ -332,10 +335,11 @@ export function HomeWidgets() {
 					>
 						<RhythmClock stats={createEmptyRhythm()} username={username} />
 					</DisabledTrackingPanel>
-				) : enableActivityTracking ? (
+				) : canShowHeatmapStats ? (
 					<ActivityGraph
 						activityData={activityData}
 						username={username}
+						trackingEnabled={enableActivityTracking}
 						headerSlot={viewToggle}
 						onClearData={async () => {
 							await clearActivityData()
@@ -343,14 +347,7 @@ export function HomeWidgets() {
 						}}
 					/>
 				) : (
-					<DisabledTrackingPanel
-						title="Registro de actividad desactivado"
-						description="Activa el heatmap para registrar posts creados y editados."
-						headerSlot={viewToggle}
-						navigate={navigate}
-					>
-						<ActivityGraph activityData={{}} username={username} />
-					</DisabledTrackingPanel>
+					<HeatmapLegacyEmptyPanel headerSlot={viewToggle} navigate={navigate} />
 				)}
 			</div>
 
@@ -713,6 +710,51 @@ function DisabledTrackingPanel({ title, description, headerSlot, navigate, child
 						<div className="shrink-0">{headerSlot}</div>
 					</div>
 				</div>
+			</div>
+		</div>
+	)
+}
+
+function HeatmapLegacyEmptyPanel({
+	headerSlot,
+	navigate,
+}: {
+	headerSlot: React.ReactNode
+	navigate: (path: string) => void
+}) {
+	return (
+		<div data-slot="card" className="rounded-xl border border-border/50 bg-card/50 p-5 dark:bg-muted/20">
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<div className="flex items-start gap-3">
+					<div className="rounded-lg border border-border bg-background/50 p-2">
+						<CalendarDays className="h-5 w-5 text-muted-foreground" />
+					</div>
+					<div className="min-w-0">
+						<div className="flex flex-wrap items-center gap-2">
+							<h3 className="text-lg font-semibold text-foreground">Calendario legacy sin datos</h3>
+							<HeatmapLegacyBadge />
+						</div>
+						<p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+							El heatmap de posts está pausado y no hay historial guardado. Puedes activarlo manualmente si
+							quieres mantener este registro granular de títulos, URLs y contexto.
+						</p>
+					</div>
+				</div>
+				<div className="shrink-0">{headerSlot}</div>
+			</div>
+
+			<div className="mt-5 rounded-lg border border-border/70 bg-background/35 p-4">
+				<p className="text-xs leading-relaxed text-muted-foreground">
+					El reloj de ritmo es ahora la vista principal porque usa estadísticas agregadas de tiempo y no depende de
+					confirmar envíos del editor.
+				</p>
+				<button
+					type="button"
+					onClick={() => navigate('/settings?tab=advanced&setting=activity-tracking')}
+					className="mt-3 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+				>
+					Activar en Ajustes
+				</button>
 			</div>
 		</div>
 	)

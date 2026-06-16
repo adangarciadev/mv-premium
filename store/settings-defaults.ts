@@ -78,7 +78,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	mutedWords: [],
 
 	// Privacy & Storage
-	enableActivityTracking: true,
+	enableActivityTracking: false,
 	enableRhythmTracking: true,
 
 	// UI State

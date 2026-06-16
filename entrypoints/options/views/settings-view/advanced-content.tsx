@@ -268,7 +268,7 @@ export function AdvancedContent({
 
 	const handleToggleActivityTracking = (enabled: boolean) => {
 		updateSettings({ enableActivityTracking: enabled })
-		toast.success(enabled ? 'Registro de actividad activado' : 'Registro de actividad desactivado')
+		toast.success(enabled ? 'Heatmap legacy activado' : 'Heatmap legacy pausado')
 	}
 
 	const handleToggleRhythmTracking = (enabled: boolean) => {
@@ -391,8 +391,8 @@ export function AdvancedContent({
 						<SettingRow
 							{...rowState('activity-tracking')}
 							icon={<Activity className="h-4 w-4" />}
-							label="Registro de actividad (Heatmap)"
-							description="Registra posts creados y editados para el heatmap del dashboard."
+							label="Heatmap legacy de posts"
+							description="Registra títulos, URLs y contexto de posts/hilos para el calendario legacy. Puede no ser exacto y está desactivado por defecto."
 						>
 							<Switch checked={enableActivityTracking} onCheckedChange={handleToggleActivityTracking} />
 						</SettingRow>

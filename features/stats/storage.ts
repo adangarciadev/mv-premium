@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger'
 import { getTodayKey } from '@/lib/date-utils'
 import { generateSimpleId } from '@/lib/id-generator'
 import { STORAGE_KEYS } from '@/constants'
-import { getCompressed, setCompressed } from '@/lib/storage/compressed-storage'
+import { getCompressed, removeCompressed, setCompressed } from '@/lib/storage/compressed-storage'
 import { getSettings } from '@/store'
 
 // Re-export date utils for backwards compatibility
@@ -67,25 +67,36 @@ export interface TrackActivityOptions {
 	url?: string
 }
 
+function hasActivityEntries(data: ActivityData): boolean {
+	return Object.values(data).some(entries => entries.length > 0)
+}
+
 /**
  * Records a user activity (post creation, update, etc.) into the daily statistics.
  * Supports both a simple activity type string and a complete options object.
  *
- * Respects the enableActivityTracking setting - if disabled, does nothing.
+ * Respects the legacy heatmap opt-in setting. Users without an explicit
+ * preference only keep recording if they already have activity history.
  * @param options - Activity type or detailed configuration object
  */
 export async function trackActivity(options: TrackActivityOptions | ActivityType): Promise<void> {
 	try {
-		// Check if activity tracking is enabled
+		// Activity tracking is legacy opt-in. Users with old activity data but no
+		// explicit setting keep the historical behavior until they choose otherwise.
 		const settings = await getSettings()
 		if (settings.enableActivityTracking === false) {
-			return // User has disabled activity tracking
+			return
 		}
 
 		// Support both old signature (just type) and new signature (options object)
 		const opts: TrackActivityOptions = typeof options === 'string' ? { type: options } : options
 
 		const data = await getActivityData()
+		const hasExplicitPreference = Object.prototype.hasOwnProperty.call(settings, 'enableActivityTracking')
+		if (!hasExplicitPreference && !hasActivityEntries(data)) {
+			return
+		}
+
 		const todayKey = getTodayKey()
 
 		if (!data[todayKey]) {
@@ -141,7 +152,7 @@ export function getCountForDate(data: ActivityData, dateKey: string): number {
  * Clear all activity data (for debugging/reset)
  */
 export async function clearActivityData(): Promise<void> {
-	await activityStorageWatcher.removeValue()
+	await removeCompressed(ACTIVITY_KEY)
 }
 
 /**

@@ -22,6 +22,7 @@ export {
 export { ActivityGraph, ActivityGraphSkeleton } from './components/activity-graph'
 export { RhythmClock } from './components/rhythm-clock'
 export { ActivityViewToggle } from './components/activity-view-toggle'
+export { HeatmapLegacyBadge } from './components/heatmap-legacy-badge'
 
 // Content Script Utils
 export { setupPostTracker, completePendingThreadCreation, completePendingPostEdit, completePendingReply } from './post-tracker'
