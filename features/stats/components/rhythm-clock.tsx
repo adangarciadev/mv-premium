@@ -114,6 +114,12 @@ function primaryMix(percent: number): string {
 	return `color-mix(in srgb, var(--primary) ${percent}%, transparent)`
 }
 
+function stripHeightPct(ms: number, maxMs: number, tau: number): number {
+	if (ms <= 0) return 8
+	const reference = Math.max(maxMs, tau)
+	return Math.max(10, Math.round((ms / reference) * 100))
+}
+
 /** Time with seconds, dropping zero components ("2m 10s", "2m", "10s", "1h 5s"). */
 function fmtTime(ms: number): string {
 	if (ms > 0 && ms < 1000) return '<1s'
@@ -392,7 +398,7 @@ function WeekdayStrip({
 				{WEEKDAYS.map(({ label, index }, pos) => {
 					const value = avgs[pos]
 					const hasValue = value > 0
-					const heightPct = max > 0 && hasValue ? Math.max(10, Math.round((value / max) * 100)) : 8
+					const heightPct = hasValue ? stripHeightPct(value, max, TAU_WEEKDAY) : 8
 					const isPeak = showPeak && pos === peakPos && value > 0
 					const isSelected = selected === index
 					return (
@@ -500,7 +506,7 @@ function WeekDaysStrip({
 			<div className="flex items-end justify-center gap-2">
 				{buckets.map(bucket => {
 					const hasValue = bucket.ms > 0
-					const heightPct = max > 0 && hasValue ? Math.max(10, Math.round((bucket.ms / max) * 100)) : 8
+					const heightPct = hasValue ? stripHeightPct(bucket.ms, max, TAU_WEEKDAY) : 8
 					const isPeak = peak?.key === bucket.key && hasValue
 					const isSelected = selectedWeekday === bucket.weekday
 					return (
