@@ -42,6 +42,17 @@ export interface UploadPayload {
 	fileSize?: number
 }
 
+export interface RhythmTimeChunkPayload {
+	subforum: string
+	ms: number
+	at: number
+}
+
+export interface RhythmTimeChunkResult {
+	success: boolean
+	error?: string
+}
+
 export interface GeminiResult {
 	success: boolean
 	text?: string
@@ -165,6 +176,12 @@ interface ProtocolMap {
 	 * Rebuild extension context menus after settings changes.
 	 */
 	refreshContextMenus: (data?: { threadClipperSubforums?: string[] }) => boolean
+
+	/**
+	 * Persist a time/rhythm tracking chunk through the background context so
+	 * multiple content scripts cannot overwrite each other's read-modify-write.
+	 */
+	recordRhythmTimeChunk: (data: RhythmTimeChunkPayload) => RhythmTimeChunkResult
 
 	/**
 	 * Fetch raw HTML for a Mediavida thread page via background script.

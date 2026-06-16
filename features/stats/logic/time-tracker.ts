@@ -8,6 +8,7 @@ import { getSubforumInfo, getThreadId } from '@/lib/url-helpers'
 import { STORAGE_KEYS } from '@/constants'
 import { getSettings } from '@/store'
 import { getCompressed, setCompressed } from '@/lib/storage/compressed-storage'
+import { sendMessage } from '@/lib/messaging'
 
 const STORAGE_KEY = `local:${STORAGE_KEYS.TIME_STATS}` as `local:${string}`
 const RHYTHM_KEY = `local:${STORAGE_KEYS.RHYTHM_STATS}` as `local:${string}`
@@ -17,6 +18,7 @@ const TRACK_INTERVAL_MS = 1_000 // Tick every 1s
 // In-memory counter to minimize storage writes
 let unsavedSeconds = 0
 let currentSubforum = ''
+let saveQueue: Promise<void> = Promise.resolve()
 
 export interface TimeStats {
 	[subforumSlug: string]: number // Total milliseconds
@@ -86,7 +88,7 @@ function pruneDaySubforums(map: Record<string, Record<string, number>>): void {
 	for (const key of keys.slice(0, keys.length - MAX_DAY_SUBFORUM_DAYS)) delete map[key]
 }
 
-function pruneRhythmStats(stats: RhythmStats): RhythmStats {
+export function prepareRhythmStatsForStorage(stats: RhythmStats): RhythmStats {
 	const next = normalizeRhythm(stats)
 	pruneDaySubforums(next.daySubforums)
 	pruneSubforumBuckets(next.daySubforums, MAX_SUBFORUMS_PER_DAY)
@@ -221,41 +223,44 @@ const rhythmStatsStorage = storage.defineItem<RhythmStats | string>(RHYTHM_KEY, 
 })
 
 async function writeRhythmStats(stats: RhythmStats): Promise<void> {
-	await setCompressed(RHYTHM_KEY, pruneRhythmStats(stats))
+	await setCompressed(RHYTHM_KEY, prepareRhythmStatsForStorage(stats))
 }
 
 /**
  * Persist accumulated time to storage
  */
 async function saveTime(): Promise<void> {
-	if (unsavedSeconds === 0 || !currentSubforum) return
+	saveQueue = saveQueue
+		.then(async () => {
+			if (unsavedSeconds === 0 || !currentSubforum) return
 
-	const ms = unsavedSeconds * 1000
-
-	try {
-		const settings = await getSettings()
-		if (!settings.enableRhythmTracking) {
+			const secondsToSave = unsavedSeconds
 			unsavedSeconds = 0
-			return
-		}
 
-		const currentStats = await timeStatsStorage.getValue()
-		const previousTotal = currentStats[currentSubforum] || 0
+			try {
+				const settings = await getSettings()
+				if (!settings.enableRhythmTracking) return
 
-		currentStats[currentSubforum] = previousTotal + ms
+				const result = await sendMessage('recordRhythmTimeChunk', {
+					subforum: currentSubforum,
+					ms: secondsToSave * 1000,
+					at: Date.now(),
+				})
 
-		await timeStatsStorage.setValue(currentStats)
+				if (!result.success) {
+					unsavedSeconds += secondsToSave
+					logger.error('Failed to save time stats:', result.error || 'Unknown background error')
+				}
+			} catch (err) {
+				unsavedSeconds += secondsToSave
+				logger.error('Failed to save time stats:', err)
+			}
+		})
+		.catch(error => {
+			logger.error('Failed to process time stats save queue:', error)
+		})
 
-		// Attribute this chunk to the current local hour / weekday / week (and the
-		// subforum, for the clock's per-hour breakdown). ≤30s sync window makes the
-		// hour-boundary error negligible.
-		const rhythm = await getRhythmStats()
-		await writeRhythmStats(accumulateRhythm(rhythm, ms, new Date(), currentSubforum))
-
-		unsavedSeconds = 0
-	} catch (err) {
-		logger.error('Failed to save time stats:', err)
-	}
+	return saveQueue
 }
 
 /**
@@ -316,7 +321,7 @@ export function watchTimeStats(callback: (stats: TimeStats) => void): () => void
  */
 export async function getRhythmStats(): Promise<RhythmStats> {
 	const raw = await storage.getItem<RhythmStats | string>(RHYTHM_KEY)
-	const stats = pruneRhythmStats(normalizeRhythm(await getCompressed<RhythmStats>(RHYTHM_KEY)))
+	const stats = prepareRhythmStatsForStorage(normalizeRhythm(await getCompressed<RhythmStats>(RHYTHM_KEY)))
 
 	if (raw && typeof raw !== 'string') {
 		void writeRhythmStats(stats).catch(error => {

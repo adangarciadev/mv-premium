@@ -27,6 +27,7 @@ import {
 import { setupUploadHandlers } from './upload-handlers'
 import { setupApiHandlers } from './api-handlers'
 import { setupAiHandlers } from './ai-handlers'
+import { setupStatsHandlers } from './stats-handlers'
 import { setupIgdbHandlers } from './igdb-handlers'
 import { setupItadHandlers } from './itad-handlers'
 import { highlightCode } from './prism-highlighter'
@@ -114,6 +115,9 @@ export default defineBackground({
 
 		// API handlers (Steam, TMDB, GIPHY, options page)
 		setupApiHandlers()
+
+		// Stats persistence handlers
+		setupStatsHandlers()
 
 		// AI handlers (Gemini)
 		setupAiHandlers()
