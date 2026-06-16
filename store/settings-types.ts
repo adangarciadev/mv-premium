@@ -120,6 +120,7 @@ export interface Settings {
 
 	// Privacy & Storage
 	enableActivityTracking: boolean
+	enableRhythmTracking: boolean
 
 	// UI State
 	settingsActiveTab: string

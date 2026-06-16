@@ -11,6 +11,7 @@ const PINNED_META_PREFIX = 'mvp-pinned-meta-'
 const USER_API_KEY_FIELDS = ['imgbbApiKey', 'geminiApiKey'] as const
 const EXTENSION_API_KEY_FIELDS = ['tmdbApiKey', 'giphyApiKey'] as const
 const SECRET_SETTINGS_FIELDS = [...USER_API_KEY_FIELDS, ...EXTENSION_API_KEY_FIELDS] as const
+const BACKUP_ACTIVITY_POLICY = 'time-and-rhythm-stats-only' as const
 
 type SecretSettingsField = (typeof SECRET_SETTINGS_FIELDS)[number]
 type UserApiKeyField = (typeof USER_API_KEY_FIELDS)[number]
@@ -30,7 +31,7 @@ export interface BackupData {
 	}
 	policy: {
 		secrets: 'excluded' | 'user-selected'
-		activity: 'time-stats-only'
+		activity: typeof BACKUP_ACTIVITY_POLICY
 		compressedValues: 'decompressed'
 	}
 	data: {
@@ -66,6 +67,7 @@ export interface BackupData {
 		}
 		stats: {
 			timeStats?: unknown
+			rhythmStats?: unknown
 		}
 	}
 	excluded: {
@@ -91,6 +93,7 @@ export interface BackupImportStats {
 	drafts: number
 	templates: number
 	subforumStats: number
+	rhythmStatsUpdated: boolean
 	favorites: number
 	settingsUpdated: boolean
 	themesUpdated: boolean
@@ -113,6 +116,7 @@ const EMPTY_STATS: BackupImportStats = {
 	drafts: 0,
 	templates: 0,
 	subforumStats: 0,
+	rhythmStatsUpdated: false,
 	favorites: 0,
 	settingsUpdated: false,
 	themesUpdated: false,
@@ -336,7 +340,7 @@ export function validateBackupData(input: unknown, options: BackupImportOptions 
 		},
 		policy: {
 			secrets: isRecord(input.policy) && input.policy.secrets === 'user-selected' ? 'user-selected' : 'excluded',
-			activity: 'time-stats-only',
+			activity: BACKUP_ACTIVITY_POLICY,
 			compressedValues: 'decompressed',
 		},
 		data: {
@@ -361,6 +365,7 @@ export function validateBackupData(input: unknown, options: BackupImportOptions 
 			},
 			stats: {
 				timeStats: stats.timeStats,
+				rhythmStats: stats.rhythmStats,
 			},
 		},
 		excluded: {
@@ -405,7 +410,7 @@ export async function createBackupData(options: BackupOptions = {}): Promise<Bac
 		},
 		policy: {
 			secrets: options.includePersonalApiKeys ? 'user-selected' : 'excluded',
-			activity: 'time-stats-only',
+			activity: BACKUP_ACTIVITY_POLICY,
 			compressedValues: 'decompressed',
 		},
 		data: {
@@ -441,6 +446,7 @@ export async function createBackupData(options: BackupOptions = {}): Promise<Bac
 			},
 			stats: {
 				timeStats: getSnapshotValue(snapshot, STORAGE_KEYS.TIME_STATS),
+				rhythmStats: getSnapshotValue(snapshot, STORAGE_KEYS.RHYTHM_STATS),
 			},
 		},
 		excluded: {
@@ -556,6 +562,9 @@ export async function importBackupData(input: unknown, options: BackupImportOpti
 		await writeIfDefined(STORAGE_KEYS.LIVE_THREAD_DELAY, data.preferences.liveThreadDelay)
 		if (await writeIfDefined(STORAGE_KEYS.TIME_STATS, data.stats.timeStats)) {
 			stats.subforumStats = countObjectKeys(data.stats.timeStats)
+		}
+		if (await writeIfDefined(STORAGE_KEYS.RHYTHM_STATS, data.stats.rhythmStats)) {
+			stats.rhythmStatsUpdated = true
 		}
 
 		if (stats.themesUpdated) {

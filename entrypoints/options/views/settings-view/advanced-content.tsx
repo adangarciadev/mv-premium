@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { storage } from '#imports'
 import { logger } from '@/lib/logger'
 import Activity from 'lucide-react/dist/esm/icons/activity'
+import Clock from 'lucide-react/dist/esm/icons/clock'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import Download from 'lucide-react/dist/esm/icons/download'
 import Upload from 'lucide-react/dist/esm/icons/upload'
@@ -57,6 +58,7 @@ interface BackupPreview {
 	hiddenSubforums: number
 	delayPreferences: number
 	subforumStats: number
+	rhythmDays: number
 	appearanceItems: number
 	lastExportedAt: string | null
 }
@@ -103,6 +105,13 @@ function countDefinedValues(values: unknown[]): number {
 	return values.filter(value => value !== undefined && value !== null).length
 }
 
+function countRhythmDays(value: unknown): number {
+	if (!isRecord(value)) return 0
+	if (isRecord(value.days)) return Object.keys(value.days).length
+	if (Array.isArray(value.hours)) return value.hours.filter(ms => Number(ms) > 0).length
+	return countObjectKeys(value)
+}
+
 function createBackupPreview(data: BackupData, lastExportedAt: string | null): BackupPreview {
 	const { drafts, templates } = countDraftsAndTemplates(data.data.content.drafts)
 	const uiTheme = data.data.themes.ui
@@ -124,6 +133,7 @@ function createBackupPreview(data: BackupData, lastExportedAt: string | null): B
 		hiddenSubforums: countArray(data.data.content.hiddenSubforums),
 		delayPreferences: countDefinedValues([data.data.preferences.nativeLiveDelay, data.data.preferences.liveThreadDelay]),
 		subforumStats: countObjectKeys(data.data.stats.timeStats),
+		rhythmDays: countRhythmDays(data.data.stats.rhythmStats),
 		appearanceItems: countDefinedValues([
 			uiTheme.resolvedTheme,
 			uiTheme.rawTheme,
@@ -155,14 +165,12 @@ function formatCount(value: number, singular: string, plural: string): string {
 
 export function AdvancedContent({
 	settingFilter,
-	hasActiveFinder,
 }: {
 	settingFilter?: SettingsContentFilter
 	hasActiveFinder?: boolean
 }) {
-	const { enableActivityTracking, updateSettings } = useSettingsStore()
+	const { enableActivityTracking, enableRhythmTracking, updateSettings } = useSettingsStore()
 	const [showResetDialog, setShowResetDialog] = useState(false)
-	const [showClearActivityDialog, setShowClearActivityDialog] = useState(false)
 	const [showImportReport, setShowImportReport] = useState(false)
 	const [importStats, setImportStats] = useState<BackupImportStats | null>(null)
 	const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null)
@@ -263,16 +271,9 @@ export function AdvancedContent({
 		toast.success(enabled ? 'Registro de actividad activado' : 'Registro de actividad desactivado')
 	}
 
-	const handleClearActivityHistory = async () => {
-		try {
-			const { clearActivityData } = await import('@/features/stats/storage')
-			await clearActivityData()
-			setShowClearActivityDialog(false)
-			toast.success('Historial de actividad borrado')
-		} catch (error) {
-			toast.error('Error al borrar historial')
-			logger.error('Clear activity error:', error)
-		}
+	const handleToggleRhythmTracking = (enabled: boolean) => {
+		updateSettings({ enableRhythmTracking: enabled })
+		toast.success(enabled ? 'Tiempo en Mediavida activado' : 'Tiempo en Mediavida desactivado')
 	}
 
 	const rowState = (settingId: string) => ({
@@ -287,6 +288,7 @@ export function AdvancedContent({
 			isHighlightedSetting(settingFilter, settingId) && 'border-primary/50 bg-primary/10 shadow-sm ring-1 ring-primary/20'
 		)
 	const showActivityTracking = shouldShowSetting(settingFilter, 'activity-tracking')
+	const showRhythmTracking = shouldShowSetting(settingFilter, 'rhythm-tracking')
 	const showBackupData = shouldShowSetting(settingFilter, 'backup-data')
 	const showResetData = shouldShowSetting(settingFilter, 'reset-data')
 
@@ -360,6 +362,7 @@ export function AdvancedContent({
 						formatCount(backupPreview.userCustomizations, 'personalización', 'personalizaciones'),
 						formatCount(backupPreview.favoriteSubforums, 'foro favorito', 'foros favoritos'),
 						formatCount(backupPreview.subforumStats, 'subforo con tiempo', 'subforos con tiempo'),
+						formatCount(backupPreview.rhythmDays, 'día en Tiempo en Mediavida', 'días en Tiempo en Mediavida'),
 					].join(' · '),
 				},
 				{
@@ -381,7 +384,7 @@ export function AdvancedContent({
 
 	return (
 		<>
-			{(showActivityTracking || showBackupData) && (
+			{(showActivityTracking || showRhythmTracking || showBackupData) && (
 				<SettingsSection title="Avanzado" description="Opciones para usuarios avanzados, depuración y gestión de datos.">
 					{/* Activity Tracking */}
 					{showActivityTracking && (
@@ -395,22 +398,18 @@ export function AdvancedContent({
 						</SettingRow>
 					)}
 
-					{showActivityTracking && !hasActiveFinder && (
-						<div className="flex items-center justify-between py-2 pl-8">
-							<span className="text-sm text-muted-foreground">Borrar todo el historial del heatmap</span>
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => setShowClearActivityDialog(true)}
-								className="text-destructive hover:text-destructive"
-							>
-								<Trash2 className="mr-2 h-4 w-4" />
-								Borrar historial
-							</Button>
-						</div>
+					{showRhythmTracking && (
+						<SettingRow
+							{...rowState('rhythm-tracking')}
+							icon={<Clock className="h-4 w-4" />}
+							label="Tiempo en Mediavida (Reloj)"
+							description="Registra tiempo de navegación por hora, día y subforo para el reloj y las tarjetas de ritmo."
+						>
+							<Switch checked={enableRhythmTracking} onCheckedChange={handleToggleRhythmTracking} />
+						</SettingRow>
 					)}
 
-					{showActivityTracking && showBackupData && <Separator />}
+					{(showActivityTracking || showRhythmTracking) && showBackupData && <Separator />}
 
 					{/* Data Management */}
 					<div
@@ -435,7 +434,7 @@ export function AdvancedContent({
 											<p className="text-sm font-medium">Backup local listo</p>
 											<p className="text-xs text-muted-foreground">{backupPreviewSummary}</p>
 											<p className="text-xs text-muted-foreground">
-												Sin claves personales por defecto, tokens, cachés ni historial. Incluye rutas de hilos/posts guardados para restaurarlos.
+												Sin claves personales por defecto, tokens, cachés ni historial granular. Incluye rutas de hilos/posts guardados para restaurarlos.
 											</p>
 										</div>
 										<div className="flex shrink-0 flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center lg:flex-col lg:items-end">
@@ -499,7 +498,8 @@ export function AdvancedContent({
 								<p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border">
 									Las rutas de hilos guardados y posts anclados se incluyen porque son necesarias para restaurarlos.
 									Las claves personales solo se exportan si lo activas al crear el backup. No se exportan tokens,
-									cachés, datos temporales, historial granular ni URLs visitadas.
+									cachés, datos temporales, historial granular del heatmap ni URLs visitadas. Si existen, se
+									incluyen el tiempo por subforo y Tiempo en Mediavida como estadísticas agregadas.
 								</p>
 							</div>
 						</AlertDialogDescription>
@@ -579,7 +579,7 @@ export function AdvancedContent({
 				id={getSettingDomId('reset-data')}
 				data-setting-id="reset-data"
 				className={cn(
-					(showActivityTracking || showBackupData) && 'mt-6 border-t border-destructive/30 pt-6',
+					(showActivityTracking || showRhythmTracking || showBackupData) && 'mt-6 border-t border-destructive/30 pt-6',
 					!showResetData && 'hidden',
 					isHighlightedSetting(settingFilter, 'reset-data') && 'rounded-lg border border-primary/50 bg-primary/10 p-2 shadow-sm ring-1 ring-primary/20'
 				)}
@@ -603,23 +603,6 @@ export function AdvancedContent({
 					</div>
 				</div>
 			</div>
-
-			{/* Clear Activity Confirmation Dialog */}
-			<ConfirmDialog
-				open={showClearActivityDialog}
-				onOpenChange={setShowClearActivityDialog}
-				title="¿Borrar historial de actividad?"
-				description={
-					<>
-						Esto eliminará todo el historial del heatmap de actividad. Los datos de posts creados y editados se perderán
-						permanentemente.
-						<span className="block mt-3 font-medium text-destructive">Esta acción no se puede deshacer.</span>
-					</>
-				}
-				confirmText="Sí, borrar historial"
-				variant="destructive"
-				onConfirm={handleClearActivityHistory}
-			/>
 
 			{/* Reset Confirmation Dialog */}
 			<ConfirmDialog
@@ -664,6 +647,7 @@ export function AdvancedContent({
 							importStats.contentRules +
 							importStats.hiddenThreads +
 							importStats.hiddenSubforums +
+							(importStats.rhythmStatsUpdated ? 1 : 0) +
 							(importStats.themesUpdated ? 1 : 0) +
 							(importStats.settingsUpdated ? 1 : 0)
 
@@ -748,6 +732,12 @@ export function AdvancedContent({
 												{importStats.subforumStats}{' '}
 												{importStats.subforumStats === 1 ? 'Stats de Subforo' : 'Stats de Subforos'}
 											</span>
+										</div>
+									)}
+									{importStats.rhythmStatsUpdated && (
+										<div className="flex items-center gap-2">
+											<span className="text-primary text-[8px]">●</span>
+											<span>Tiempo en Mediavida</span>
 										</div>
 									)}
 									{importStats.contentRules > 0 && (

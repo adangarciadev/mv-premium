@@ -342,11 +342,14 @@ export const ActivityGraph = memo(function ActivityGraph({
 	activityData,
 	username,
 	onClearData,
+	headerSlot,
 }: {
 	className?: string
 	activityData: ActivityData
 	username: string
 	onClearData?: () => void
+	/** Slot rendered at the header's right edge (the view toggle). */
+	headerSlot?: React.ReactNode
 }) {
 	const [selectedDay, setSelectedDay] = useState<DayData | null>(null)
 
@@ -374,6 +377,7 @@ export const ActivityGraph = memo(function ActivityGraph({
 							<CardTitle className="text-lg font-semibold text-foreground">Actividad del año {currentYear}</CardTitle>
 						</div>
 					<div className="flex items-center gap-2 text-sm tracking-tight">
+						{headerSlot}
 						<TrendingUp className="h-4 w-4 text-primary" />
 						<span className="font-black text-primary text-base">{totalActivity}</span>
 						<span className="text-muted-foreground font-medium">

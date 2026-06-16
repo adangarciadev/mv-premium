@@ -5,6 +5,7 @@ import { memo, useEffect, useRef, useState, lazy, Suspense } from 'react'
 import Send from 'lucide-react/dist/esm/icons/send'
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square'
 import Clock from 'lucide-react/dist/esm/icons/clock'
+import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
 import History from 'lucide-react/dist/esm/icons/history'
 import Database from 'lucide-react/dist/esm/icons/database'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
@@ -12,10 +13,32 @@ import Eye from 'lucide-react/dist/esm/icons/eye'
 import { useNavigate } from 'react-router-dom'
 import { useSuspenseQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { browser } from 'wxt/browser'
-import { ActivityGraph } from '@/features/stats'
+import {
+	ActivityGraph,
+	RhythmClock,
+	ActivityViewToggle,
+	getActivityViewMode,
+	setActivityViewMode,
+	getPeakHours,
+	getPeakWeekday,
+	getArchetype,
+	getTotalRhythmMs,
+	hasEnoughRhythmData,
+	getRhythmDailyAverageHours,
+	getRhythmDailyAverageMs,
+	getRhythmAverageWeekdays,
+	getRhythmTopDailySubforum,
+	createEmptyRhythm,
+	type ActivityViewMode,
+} from '@/features/stats'
 import { getCurrentUser } from '../../lib/current-user'
 import { getActivityData, clearActivityData } from '@/features/stats/storage'
-import { getTimeStats } from '@/features/stats/logic/time-tracker'
+import {
+	getTimeStats,
+	getRhythmStats,
+	clearRhythmStats,
+	seedRandomRhythmStats,
+} from '@/features/stats/logic/time-tracker'
 import { getSubforumName } from '@/lib/subforums'
 import { formatPreciseTime, formatBytes } from '@/lib/format-utils'
 import { cn } from '@/lib/utils'
@@ -26,6 +49,41 @@ const StorageInspector = lazy(() =>
 	import('./storage-inspector').then(m => ({ default: m.StorageInspector }))
 )
 import { currentYear } from './constants'
+
+const WEEKDAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']
+const hourFmt = (h: number) => `${String(h).padStart(2, '0')}:00`
+const formatRhythmTime = (ms: number) => (ms > 0 && ms < 1000 ? '<1s' : formatPreciseTime(ms))
+
+const formatPeakHoursCardValue = (hours: number[]): string => {
+	if (hours.length === 0) return '—'
+	if (hours.length === 1) return hourFmt(hours[0])
+
+	const sorted = [...hours].sort((a, b) => a - b)
+	const gaps = sorted.map((hour, index) => {
+		const next = sorted[(index + 1) % sorted.length]
+		return (next - hour + 24) % 24
+	})
+	const breakIndexes = gaps
+		.map((gap, index) => (gap > 1 ? index : -1))
+		.filter((index) => index !== -1)
+
+	if (breakIndexes.length === 0) return 'Todo el día'
+
+	if (breakIndexes.length === 1) {
+		const breakIndex = breakIndexes[0]
+		const start = sorted[(breakIndex + 1) % sorted.length]
+		const end = sorted[breakIndex]
+		return `${hourFmt(start)}-${hourFmt(end)}`
+	}
+
+	const shown = sorted.slice(0, 2).map(hourFmt).join(', ')
+	return sorted.length > 2 ? `${shown} +${sorted.length - 2}` : shown
+}
+
+const formatPeakHoursCardSubtext = (hours: number[], fallback: string): string => {
+	if (hours.length <= 1) return fallback
+	return `${hours.length} horas destacadas`
+}
 
 export function HomeWidgets() {
 	const queryClient = useQueryClient()
@@ -59,9 +117,11 @@ export function HomeWidgets() {
 	const { data } = useSuspenseQuery({
 		queryKey: ['dashboard', 'widgets'],
 		queryFn: async () => {
-			const [activityData, timeStats, storageBytes, storageItems] = await Promise.all([
+			const [activityData, timeStats, rhythmStats, activityView, storageBytes, storageItems] = await Promise.all([
 				getActivityData(),
 				getTimeStats(),
+				getRhythmStats(),
+				getActivityViewMode(),
 				browser.storage.local.getBytesInUse(null),
 				browser.storage.local.get(null).then(items => Object.keys(items).length),
 			])
@@ -71,6 +131,8 @@ export function HomeWidgets() {
 			return {
 				activityData,
 				timeStats,
+				rhythmStats,
+				activityView,
 				storageStats: {
 					used: storageBytes,
 					quota,
@@ -81,12 +143,17 @@ export function HomeWidgets() {
 		},
 	})
 
-	const { activityData, timeStats, storageStats } = data
+	const { activityData, timeStats, rhythmStats, activityView, storageStats } = data
 	const { data: user } = useQuery({ queryKey: ['current-user'], queryFn: getCurrentUser })
 	const username = user?.username || 'Usuario'
+	const enableActivityTracking = useSettingsStore(s => s.enableActivityTracking)
+	const enableRhythmTracking = useSettingsStore(s => s.enableRhythmTracking)
+	const navigate = useNavigate()
 
 	// Logic for Stats (calculated from data)
-	const allPostEntries = Object.values(activityData)
+	const visibleActivityData: typeof activityData = enableActivityTracking ? activityData : {}
+	const visibleTimeStats: typeof timeStats = enableRhythmTracking ? timeStats : {}
+	const allPostEntries = Object.values(visibleActivityData)
 		.flat()
 		.filter(entry => entry.type === 'post' && new Date(entry.timestamp).getFullYear() === currentYear)
 
@@ -95,7 +162,7 @@ export function HomeWidgets() {
 	const threadsCreated = allPostEntries.filter(entry => entry.action === 'create').length
 
 	// Process Time Stats
-	const sortedSubforums = Object.entries(timeStats)
+	const sortedSubforums = Object.entries(visibleTimeStats)
 		.map(([slug, time]) => ({
 			slug,
 			name: getSubforumName(slug),
@@ -109,83 +176,182 @@ export function HomeWidgets() {
 		percent: Math.round((s.timeMs / maxVal) * 100),
 	}))
 
-	const totalTimeMs = Object.values(timeStats).reduce((acc, curr) => acc + curr, 0)
+	const totalTimeMs = Object.values(visibleTimeStats).reduce((acc, curr) => acc + curr, 0)
 
 	const activeSubforum = {
 		name: sortedSubforums[0]?.name || '-',
 		timeMs: sortedSubforums[0]?.timeMs || 0,
 	}
 
-	// Check if activity tracking is enabled
-	const enableActivityTracking = useSettingsStore(s => s.enableActivityTracking)
-	const navigate = useNavigate()
-
-	// Early return with disabled state if tracking is off
-	if (!enableActivityTracking) {
-		return (
-			<DisabledActivityView
-				activeSubforum={activeSubforum}
-				topSubforums={topSubforums}
-				storageStats={storageStats}
-				username={username}
-				navigate={navigate}
-				totalTimeMs={totalTimeMs}
-			/>
-		)
+	// Activity card view preference (clock vs heatmap), seeded from storage
+	const [view, setView] = useState<ActivityViewMode>(activityView)
+	const handleViewChange = (mode: ActivityViewMode) => {
+		setView(mode)
+		void setActivityViewMode(mode)
 	}
+	const viewToggle = <ActivityViewToggle value={view} onChange={handleViewChange} />
+
+	// Rhythm-derived headline stats (replace Posts/Hilos in the clock view).
+	const rhythmHasAnyData = enableRhythmTracking && getTotalRhythmMs(rhythmStats) > 0
+	const rhythmHasEnoughData = enableRhythmTracking && hasEnoughRhythmData(rhythmStats)
+	const rhythmPendingSubtext = enableRhythmTracking ? (rhythmHasAnyData ? 'pocos datos aún' : 'sin datos aún') : 'tiempo desactivado'
+	const rhythmAvgHours = getRhythmDailyAverageHours(rhythmStats)
+	const rhythmPeakHours = getPeakHours(rhythmAvgHours)
+	const rhythmPeakHour = rhythmPeakHours[0] ?? 0
+	const rhythmPeakTie = rhythmPeakHours.length > 1
+	const rhythmPeakWeekday = getPeakWeekday(getRhythmAverageWeekdays(rhythmStats))
+	const rhythmArchetype = getArchetype(rhythmPeakHour)
+	const rhythmPeakValue = formatPeakHoursCardValue(rhythmPeakHours)
+	const rhythmPeakSubtext = formatPeakHoursCardSubtext(rhythmPeakHours, rhythmArchetype.label)
+	const rhythmDailyAverageMs = getRhythmDailyAverageMs(rhythmStats)
+	const rhythmTopSubforum = getRhythmTopDailySubforum(rhythmStats)
+	const rhythmTopSubforumName = rhythmTopSubforum
+		? getSubforumName(rhythmTopSubforum.slug) || rhythmTopSubforum.slug
+		: '-'
+	const rhythmTopSubforumSubtext = rhythmHasEnoughData
+		? rhythmTopSubforum
+			? `de media en ${rhythmTopSubforumName}`
+			: 'sin subforos aún'
+		: rhythmPendingSubtext
 
 	return (
 		<>
-			{/* Main Stats Grid */}
+			{/* Main Stats Grid. In the clock view, Posts/Hilos → rhythm headline stats. */}
 			<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-				{/* Posts Card */}
-				<StatCard
-					icon={Send}
-					label="Posts"
-					value={totalPosts}
-					subtext={`en ${currentYear}`}
-					className="reveal reveal-d2"
-				/>
+				{view === 'rhythm' ? (
+					<>
+						<StatCard
+							icon={Clock}
+							label={rhythmHasEnoughData && rhythmPeakTie ? 'Horas punta' : 'Hora punta'}
+							value={rhythmHasEnoughData ? rhythmPeakValue : '—'}
+							subtext={rhythmHasEnoughData ? rhythmPeakSubtext : rhythmPendingSubtext}
+							tooltip="La franja horaria en la que más tiempo pasas de media al día. Las horas muy cercanas al pico también cuentan como punta para evitar desempates artificiales por redondeo."
+							variant={enableRhythmTracking ? 'default' : 'disabled'}
+							className="reveal reveal-d2"
+						/>
+						<StatCard
+							icon={CalendarDays}
+							label="Día Más Activo"
+							value={rhythmHasEnoughData ? WEEKDAY_NAMES[rhythmPeakWeekday] : '—'}
+							subtext={rhythmHasEnoughData ? 'por tiempo medio diario' : rhythmPendingSubtext}
+							tooltip="El día de la semana en el que más tiempo pasas de media cuando ese día aparece en tus datos."
+							variant={enableRhythmTracking ? 'default' : 'disabled'}
+							className="reveal reveal-d3"
+						/>
+					</>
+				) : (
+					<>
+						<StatCard
+							icon={Send}
+							label="Posts"
+							value={enableActivityTracking ? totalPosts : '-'}
+							subtext={enableActivityTracking ? `en ${currentYear}` : 'heatmap desactivado'}
+							variant={enableActivityTracking ? 'default' : 'disabled'}
+							className="reveal reveal-d2"
+						/>
+						<StatCard
+							icon={MessageSquare}
+							label="Hilos"
+							value={enableActivityTracking ? threadsCreated : '-'}
+							subtext={enableActivityTracking ? 'creados' : 'heatmap desactivado'}
+							variant={enableActivityTracking ? 'default' : 'disabled'}
+							className="reveal reveal-d3"
+						/>
+					</>
+				)}
 
-				{/* Threads Card */}
-				<StatCard
-					icon={MessageSquare}
-					label="Hilos"
-					value={threadsCreated}
-					subtext="creados"
-					className="reveal reveal-d3"
-				/>
+				{view === 'rhythm' ? (
+					<StatCard
+						icon={Clock}
+						label="Subforo principal"
+						value={rhythmHasEnoughData && rhythmTopSubforum ? formatRhythmTime(rhythmTopSubforum.ms) : '—'}
+						subtext={rhythmTopSubforumSubtext}
+						tooltip="El subforo en el que más tiempo pasas de media al día."
+						variant={enableRhythmTracking ? 'default' : 'disabled'}
+						className="reveal reveal-d4"
+					/>
+				) : (
+					<StatCard
+						icon={Clock}
+						label="Subforo Más Activo"
+						value={enableRhythmTracking ? formatPreciseTime(activeSubforum.timeMs) : '-'}
+						subtext={enableRhythmTracking ? `en ${activeSubforum.name}` : 'tiempo desactivado'}
+						variant={enableRhythmTracking ? 'default' : 'disabled'}
+						className="reveal reveal-d4"
+					/>
+				)}
 
-				{/* Active Time Card */}
-				<StatCard
-					icon={Clock}
-					label="Subforo Más Activo"
-					value={formatPreciseTime(activeSubforum.timeMs)}
-					subtext={`en ${activeSubforum.name}`}
-					className="reveal reveal-d4"
-				/>
-
-				{/* Total Time Card */}
-				<StatCard
-					icon={History}
-					label="Tiempo Total"
-					value={formatPreciseTime(totalTimeMs)}
-					subtext=""
-					variant="featured"
-					className="reveal reveal-d5"
-				/>
+				{view === 'rhythm' ? (
+					<StatCard
+						icon={History}
+						label="Tiempo al día"
+						value={rhythmHasAnyData ? formatRhythmTime(rhythmDailyAverageMs) : '—'}
+						subtext={rhythmHasEnoughData ? 'de media en Mediavida' : rhythmPendingSubtext}
+						tooltip="Tiempo medio que pasas al día en Mediavida según los días con actividad registrada."
+						variant={enableRhythmTracking ? 'featured' : 'disabled'}
+						className="reveal reveal-d5"
+					/>
+				) : (
+					<StatCard
+						icon={History}
+						label="Tiempo Total"
+						value={enableRhythmTracking ? formatPreciseTime(totalTimeMs) : '-'}
+						subtext={enableRhythmTracking ? '' : 'tiempo desactivado'}
+						variant={enableRhythmTracking ? 'featured' : 'disabled'}
+						className="reveal reveal-d5"
+					/>
+				)}
 			</div>
 
-			{/* Full Width Heatmap */}
+			{/* Full Width Activity Card: rhythm clock (default) or heatmap */}
 			<div className="w-full reveal reveal-d5">
-				<ActivityGraph
-					activityData={activityData}
-					username={username}
-					onClearData={async () => {
-						await clearActivityData()
-						queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'] })
-					}}
-				/>
+				{view === 'rhythm' && enableRhythmTracking ? (
+					<RhythmClock
+						stats={rhythmStats}
+						username={username}
+						headerSlot={viewToggle}
+						onClearData={async () => {
+							await clearRhythmStats()
+							queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'] })
+						}}
+						onSeedRandom={
+							import.meta.env.DEV
+								? async () => {
+										await seedRandomRhythmStats()
+										queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'] })
+									}
+								: undefined
+						}
+					/>
+				) : view === 'rhythm' ? (
+					<DisabledTrackingPanel
+						title="Tiempo en Mediavida desactivado"
+						description="Activa el reloj para registrar tiempo por hora, día y subforo."
+						headerSlot={viewToggle}
+						navigate={navigate}
+					>
+						<RhythmClock stats={createEmptyRhythm()} username={username} />
+					</DisabledTrackingPanel>
+				) : enableActivityTracking ? (
+					<ActivityGraph
+						activityData={activityData}
+						username={username}
+						headerSlot={viewToggle}
+						onClearData={async () => {
+							await clearActivityData()
+							queryClient.invalidateQueries({ queryKey: ['dashboard', 'widgets'] })
+						}}
+					/>
+				) : (
+					<DisabledTrackingPanel
+						title="Registro de actividad desactivado"
+						description="Activa el heatmap para registrar posts creados y editados."
+						headerSlot={viewToggle}
+						navigate={navigate}
+					>
+						<ActivityGraph activityData={{}} username={username} />
+					</DisabledTrackingPanel>
+				)}
 			</div>
 
 			{/* Secondary Grid: Top Subforums + Storage */}
@@ -212,6 +378,8 @@ interface StatCardProps {
 	subtext: string
 	variant?: 'default' | 'featured' | 'disabled'
 	className?: string
+	/** Native tooltip explaining what the metric means. */
+	tooltip?: string
 }
 
 /**
@@ -272,6 +440,13 @@ function StatValue({ value }: { value: string | number }) {
 	)
 }
 
+function getStatValueSizeClass(value: string | number): string {
+	if (typeof value !== 'string') return 'text-[2rem]'
+	if (value.length >= 12) return 'text-[1.5rem] sm:text-[1.65rem] xl:text-[1.8rem]'
+	if (value.length >= 9) return 'text-[1.65rem] sm:text-[1.8rem] xl:text-[1.9rem]'
+	return 'text-[2rem]'
+}
+
 const StatCard = memo(function StatCard({
 	icon: Icon,
 	label,
@@ -279,6 +454,7 @@ const StatCard = memo(function StatCard({
 	subtext,
 	variant = 'default',
 	className,
+	tooltip,
 }: StatCardProps) {
 	const isFeatured = variant === 'featured'
 	const isDisabled = variant === 'disabled'
@@ -286,6 +462,7 @@ const StatCard = memo(function StatCard({
 	return (
 		<div
 			data-slot="card"
+			title={tooltip}
 			className={cn(
 				'relative overflow-hidden rounded-xl border bg-card p-5',
 				isFeatured && 'glint-border card-hero',
@@ -315,7 +492,8 @@ const StatCard = memo(function StatCard({
 			{/* The number — the hero of the card */}
 			<div
 				className={cn(
-					'relative mt-5 font-data text-[2rem] font-bold leading-none tracking-tight tabular-nums',
+					'relative mt-5 min-w-0 break-words font-data font-bold leading-none tracking-tight tabular-nums',
+					getStatValueSizeClass(value),
 					isFeatured ? 'text-primary text-glow' : isDisabled ? 'text-muted-foreground' : 'text-foreground'
 				)}
 			>
@@ -503,74 +681,39 @@ function StorageCard({ storageStats }: StorageCardProps) {
 // DISABLED STATE
 // =============================================================================
 
-interface DisabledActivityViewProps {
-	activeSubforum: { name: string; timeMs: number }
-	topSubforums: Array<{ slug: string; name: string; timeMs: number; percent: number }>
-	storageStats: StorageCardProps['storageStats']
-	username: string
+interface DisabledTrackingPanelProps {
+	title: string
+	description: string
+	headerSlot: React.ReactNode
 	navigate: (path: string) => void
-	totalTimeMs: number
+	children: React.ReactNode
 }
 
-function DisabledActivityView({
-	activeSubforum,
-	topSubforums,
-	storageStats,
-	username,
-	navigate,
-	totalTimeMs,
-}: DisabledActivityViewProps) {
+function DisabledTrackingPanel({ title, description, headerSlot, navigate, children }: DisabledTrackingPanelProps) {
 	return (
-		<>
-			{/* Main Stats Grid */}
-			<div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-				{/* Posts & Threads Cards - Disabled */}
-				<StatCard icon={Send} label="Posts" value="-" subtext={`en ${currentYear}`} variant="disabled" />
-				<StatCard icon={MessageSquare} label="Hilos" value="-" subtext="creados" variant="disabled" />
-
-				{/* Active Time Card - STAYS VISIBLE (uses timeStats, not activityData) */}
-				<StatCard
-					icon={Clock}
-					label="Subforo Más Activo"
-					value={formatPreciseTime(activeSubforum.timeMs)}
-					subtext={`en ${activeSubforum.name}`}
-				/>
-
-				{/* Total Time Card - STAYS VISIBLE */}
-				<StatCard
-					icon={History}
-					label="Tiempo Total"
-					value={formatPreciseTime(totalTimeMs)}
-					subtext=""
-					variant="featured"
-				/>
-			</div>
-
-			{/* Heatmap - disabled with overlay */}
-			<div className="w-full relative">
-				<div className="opacity-40 pointer-events-none select-none blur-[1.5px]">
-					<ActivityGraph activityData={{}} username={username} />
-				</div>
-				{/* Centered overlay on heatmap */}
-				<div className="absolute inset-0 flex items-center justify-center">
-					<button
-						onClick={() => navigate('/settings?tab=advanced')}
-						className="bg-card/95 backdrop-blur-sm border border-border rounded-xl px-5 py-3 shadow-lg flex items-center gap-3 hover:bg-card transition-colors"
-					>
-						<EyeOff className="h-5 w-5 text-muted-foreground" />
-						<div className="flex flex-col items-start">
-							<span className="text-sm font-medium text-foreground">Registro de actividad desactivado</span>
-							<span className="text-xs text-primary">Activar en Ajustes →</span>
+		<div className="relative">
+			<div className="pointer-events-none select-none opacity-35 blur-[1.5px]">{children}</div>
+			<div className="absolute inset-0 flex items-center justify-center px-4">
+				<div className="w-full max-w-[520px] rounded-xl border border-border bg-card/95 p-4 shadow-lg backdrop-blur-sm">
+					<div className="flex items-start gap-3">
+						<EyeOff className="mt-0.5 h-5 w-5 text-muted-foreground" />
+						<div className="min-w-0">
+							<span className="block text-sm font-medium text-foreground">{title}</span>
+							<span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{description}</span>
 						</div>
-					</button>
+					</div>
+					<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-3">
+						<button
+							type="button"
+							onClick={() => navigate('/settings?tab=advanced')}
+							className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
+						>
+							Activar en Ajustes
+						</button>
+						<div className="shrink-0">{headerSlot}</div>
+					</div>
 				</div>
 			</div>
-
-			{/* Secondary Grid remains visible (time by subforum + storage) */}
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-				<TopSubforumsCard topSubforums={topSubforums} totalTimeMs={totalTimeMs} />
-				<StorageCard storageStats={storageStats} />
-			</div>
-		</>
+		</div>
 	)
 }

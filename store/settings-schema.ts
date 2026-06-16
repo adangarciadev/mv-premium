@@ -102,6 +102,7 @@ export const settingsSchema = z.object({
 
 	// Privacy & Storage
 	enableActivityTracking: z.boolean().default(true),
+	enableRhythmTracking: z.boolean().default(true),
 
 	// UI State
 	settingsActiveTab: z.string().default('integrations'),

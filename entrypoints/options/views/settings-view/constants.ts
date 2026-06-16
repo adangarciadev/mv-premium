@@ -484,6 +484,16 @@ export const SETTINGS_SEARCH_INDEX: SettingSearchItem[] = [
 		isEnabled: settings => settings.enableActivityTracking,
 	},
 	{
+		id: 'rhythm-tracking',
+		category: 'advanced',
+		section: 'Actividad',
+		label: 'Tiempo en Mediavida',
+		description: 'Registra tiempo de navegación por hora, día y subforo para el reloj del dashboard.',
+		keywords: ['ritmo', 'reloj', 'tiempo', 'horas', 'subforos', 'estadisticas'],
+		settingKeys: ['enableRhythmTracking'],
+		isEnabled: settings => settings.enableRhythmTracking,
+	},
+	{
 		id: 'backup-data',
 		category: 'advanced',
 		section: 'Datos',

@@ -79,6 +79,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
 	// Privacy & Storage
 	enableActivityTracking: true,
+	enableRhythmTracking: true,
 
 	// UI State
 	settingsActiveTab: 'integrations',

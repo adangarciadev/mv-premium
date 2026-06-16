@@ -263,7 +263,7 @@ export async function runDesktopContentMain(ctx: unknown): Promise<void> {
 	initNativePreviewInterceptor()
 
 	// =====================================================================
-	// 6. ACTIVITY TRACKING (Posts/Threads/Time)
+	// 6. ACTIVITY TRACKING (Heatmap and Rhythm)
 	// =====================================================================
 	setupPostTracker()
 	initTimeTracker()

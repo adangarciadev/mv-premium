@@ -38,6 +38,8 @@ export const STORAGE_KEYS = {
 	LIVE_THREADS: 'mvp-live-threads',
 	ACTIVITY: 'mvp-activity',
 	TIME_STATS: 'mvp-time-stats',
+	RHYTHM_STATS: 'mvp-rhythm-stats',
+	ACTIVITY_VIEW_MODE: 'mvp-activity-view-mode',
 	PENDING_THREAD_CREATION: 'mvp-pending-thread-creation',
 	PENDING_RELEASE_THREAD_PREFILL: 'mvp-pending-release-thread-prefill',
 	PENDING_CLIPPED_THREAD_PREFILL: 'mvp-pending-clipped-thread-prefill',

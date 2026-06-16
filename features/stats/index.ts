@@ -20,9 +20,46 @@ export {
 
 // Components
 export { ActivityGraph, ActivityGraphSkeleton } from './components/activity-graph'
+export { RhythmClock } from './components/rhythm-clock'
+export { ActivityViewToggle } from './components/activity-view-toggle'
 
 // Content Script Utils
 export { setupPostTracker, completePendingThreadCreation, completePendingPostEdit, completePendingReply } from './post-tracker'
 
 // Time Tracker
 export * from './logic/time-tracker'
+
+// Activity view-mode preference + rhythm insights
+export {
+	getActivityViewMode,
+	setActivityViewMode,
+	type ActivityViewMode,
+} from './logic/activity-view'
+export {
+	getTotalRhythmMs,
+	hasEnoughRhythmData,
+	getAverageRhythmHours,
+	getRhythmDailyAverageHours,
+	getRhythmDailyAverageMs,
+	getRhythmAverageWeekdays,
+	getAverageSubforumTimes,
+	getRhythmTopDailySubforum,
+	getPeakHour,
+	getPeakHours,
+	getPeakWeekday,
+	getArchetype,
+	getActiveBand,
+	getRhythmWeeklySeries,
+	getRhythmCalendarWeeks,
+	getRhythmWeekDays,
+	hasWeeklyData,
+	getTopSubforumsForHour,
+	getSubforumTotals,
+	getWeekdaySubforums,
+	getActiveDayCount,
+	getWeekdayCounts,
+	type Archetype,
+	type WeekBucket,
+	type DayBucket,
+	type SubforumTime,
+} from './logic/rhythm-insights'
