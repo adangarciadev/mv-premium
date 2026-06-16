@@ -9,6 +9,10 @@ focused on the Mobile Lite frontier and agent-facing docs.
 Third batch (`007`-`010`) generated on 2026-06-13: Mobile Lite correctness,
 storage privacy, and registry resilience.
 
+Fourth batch (`011`-`015`) generated on 2026-06-16: Stats rhythm-clock
+correctness and architecture. `013` is intentionally deferred because post
+activity/heatmap tracking is not the current product focus.
+
 Execute in the order below unless dependencies say otherwise. Each executor
 should read the plan fully before starting, honor its STOP conditions, and
 update the row when done.
@@ -27,6 +31,11 @@ update the row when done.
 | 008 | [Do not cache missing Mobile Lite own username](008-do-not-cache-missing-mobile-lite-own-username.md) | P1 | S | - | DONE |
 | 009 | [Avoid reading all extension storage for Mobile Lite usage stats](009-avoid-reading-all-storage-for-mobile-lite-usage.md) | P1 | S | - | DONE |
 | 010 | [Isolate Mobile Lite registry module failures](010-isolate-mobile-lite-registry-module-errors.md) | P1 | S | - | DONE |
+| 011 | [Make the WXT storage mock stateful](011-make-wxt-storage-mock-stateful.md) | P1 | S | - | DONE |
+| 012 | [Serialize rhythm stat writes through the background context](012-serialize-rhythm-stat-writes.md) | P1 | M | 011 | TODO |
+| 013 | [Track post activity only after confirmed submission success](013-track-post-activity-only-after-confirmed-success.md) | P3 | M | 011 | BLOCKED - intentionally deferred until heatmap/post activity tracking is back in scope |
+| 014 | [Import stats content runtime directly](014-import-stats-content-runtime-directly.md) | P2 | S | - | TODO |
+| 015 | [Isolate the pure rhythm model from tracker runtime](015-isolate-pure-rhythm-model.md) | P2 | M | 012, 014 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -46,6 +55,18 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 4. `010` last or in parallel with the others: it is independent, but it makes
    the registry safer before more Mobile Lite modules are added.
 
+## Recommended order for 011-015
+
+1. `011` first: it makes the WXT storage mock stateful enough to test real
+   rhythm persistence and compressed-storage interactions.
+2. `012` next: it fixes the highest-risk rhythm-clock correctness issue by
+   serializing time/rhythm writes through the background context.
+3. `013` is documented but blocked on purpose: execute it only when heatmap/post
+   activity tracking becomes product focus again.
+4. `014` next: it is a small content-runtime import cleanup with low risk.
+5. `015` last: it isolates pure rhythm model code after the persistence and
+   import-boundary cleanup, giving future reloj work a cleaner base.
+
 ## Dependency notes
 
 - `002` and `003` depend on `001` because lifecycle cleanup should be reliable
@@ -58,8 +79,26 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   `001`-`006`.
 - `010` is a useful prerequisite before future module-heavy Mobile Lite work,
   but it is not a hard dependency for the other plans.
+- `012` depends on `011` because the concurrency fix needs storage tests that
+  actually persist values.
+- `013` depends on `011` for the same storage-test reason, but it is blocked by
+  product priority until heatmap/post tracking is intentionally revisited.
+- `015` depends on `012` and `014` because it cleans up the pure rhythm model
+  after the runtime write path and content import boundary are settled.
 
 ## Findings considered and rejected
+
+2026-06-16 stats pass:
+
+- Activity heatmap storage partitioning: deferred, not rejected. Real long-term
+  concern, but the current product direction is to focus on the rhythm clock
+  rather than investing in heatmap internals.
+- Activity storage contract tests: deferred with the heatmap work. Plan `011`
+  improves the shared WXT mock first; targeted heatmap storage tests can be
+  added when heatmap tracking becomes active again.
+- Split share image generation out of `RhythmClock`: deferred. Useful for bundle
+  hygiene, but lower leverage than fixing rhythm write correctness and pure
+  model boundaries.
 
 2026-06-13 pass:
 
