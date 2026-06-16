@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger'
 import { getSubforumInfo, getThreadId } from '@/lib/url-helpers'
 import { STORAGE_KEYS } from '@/constants'
 import { getSettings } from '@/store'
+import type { Settings } from '@/store/settings-types'
 import { getCompressed, setCompressed } from '@/lib/storage/compressed-storage'
 import { sendMessage } from '@/lib/messaging'
 import {
@@ -28,6 +29,17 @@ export {
 	prepareRhythmStatsForStorage,
 	type RhythmStats,
 } from './rhythm-model'
+
+/**
+ * Rhythm tracking is enabled by default. `getSettings()` returns only persisted
+ * keys, so a missing preference must be treated as enabled (explicit-false
+ * semantics) to honor `DEFAULT_SETTINGS.enableRhythmTracking`.
+ */
+export function isRhythmTrackingEnabled(
+	settings: Pick<Partial<Settings>, 'enableRhythmTracking'>
+): boolean {
+	return settings.enableRhythmTracking !== false
+}
 
 const STORAGE_KEY = `local:${STORAGE_KEYS.TIME_STATS}` as `local:${string}`
 const RHYTHM_KEY = `local:${STORAGE_KEYS.RHYTHM_STATS}` as `local:${string}`
@@ -69,7 +81,7 @@ async function saveTime(): Promise<void> {
 
 			try {
 				const settings = await getSettings()
-				if (!settings.enableRhythmTracking) return
+				if (!isRhythmTrackingEnabled(settings)) return
 
 				const result = await sendMessage('recordRhythmTimeChunk', {
 					subforum: currentSubforum,

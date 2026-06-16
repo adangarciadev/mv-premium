@@ -13,6 +13,11 @@ Fourth batch (`011`-`015`) generated on 2026-06-16: Stats rhythm-clock
 correctness and architecture. `013` is intentionally deferred because post
 activity/heatmap tracking is not the current product focus.
 
+Fifth batch (`016`-`021`) generated on 2026-06-16: rhythm-clock data
+correctness, UI characterization, share renderer maintainability, and UX polish.
+This batch intentionally stays focused on `Tiempo en Mediavida`; heatmap DOM
+tracking remains out of scope.
+
 Execute in the order below unless dependencies say otherwise. Each executor
 should read the plan fully before starting, honor its STOP conditions, and
 update the row when done.
@@ -36,6 +41,12 @@ update the row when done.
 | 013 | [Track post activity only after confirmed submission success](013-track-post-activity-only-after-confirmed-success.md) | P3 | M | 011 | BLOCKED - intentionally deferred until heatmap/post activity tracking is back in scope |
 | 014 | [Import stats content runtime directly](014-import-stats-content-runtime-directly.md) | P2 | S | - | DONE |
 | 015 | [Isolate the pure rhythm model from tracker runtime](015-isolate-pure-rhythm-model.md) | P2 | M | 012, 014 | DONE |
+| 016 | [Honor the default enabled state for rhythm tracking](016-honor-default-rhythm-tracking.md) | P1 | S | - | DONE |
+| 017 | [Make the rhythm time tracker idempotent](017-make-time-tracker-idempotent.md) | P1 | M | 016 | TODO |
+| 018 | [Validate and bound rhythm time chunks](018-validate-rhythm-time-chunks.md) | P1 | M | 017 | TODO |
+| 019 | [Add characterization tests for the rhythm clock and share dialog](019-add-rhythm-ui-characterization-tests.md) | P2 | M | 016, 017, 018 | TODO |
+| 020 | [Extract rhythm share summary and PNG rendering from the dialog](020-extract-rhythm-share-renderer.md) | P2 | M/L | 019 | TODO |
+| 021 | [Polish rhythm clock share readiness and accessibility](021-polish-rhythm-clock-ux-accessibility.md) | P2 | M | 019 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
@@ -67,6 +78,22 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 5. `015` last: it isolates pure rhythm model code after the persistence and
    import-boundary cleanup, giving future reloj work a cleaner base.
 
+## Recommended order for 016-021
+
+1. `016` first: it fixes the highest-confidence runtime bug, where a missing
+   persisted preference can disable rhythm tracking despite the default being
+   enabled.
+2. `017` next: it prevents duplicate intervals/listeners before adding more
+   tracker behavior.
+3. `018` next: it bounds the now-central background write path and teaches the
+   content tracker to split delayed chunks safely.
+4. `019` next: it adds component characterization tests before UI and renderer
+   refactors.
+5. `020` next: it extracts the share summary/PNG renderer once tests guard the
+   dialog states.
+6. `021` last: it improves share readiness and keyboard access on top of the
+   tested UI.
+
 ## Dependency notes
 
 - `002` and `003` depend on `001` because lifecycle cleanup should be reliable
@@ -85,6 +112,16 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   product priority until heatmap/post tracking is intentionally revisited.
 - `015` depends on `012` and `014` because it cleans up the pure rhythm model
   after the runtime write path and content import boundary are settled.
+- `017` depends on `016` so tracker lifecycle tests build on the corrected
+  default-enabled semantics.
+- `018` depends on `017` because chunk-splitting tests are much safer after the
+  tracker has cleanup/idempotency support.
+- `019` depends on `016`-`018` because the UI characterization should describe
+  the corrected rhythm behavior, not the known-buggy tracker state.
+- `020` depends on `019` because the share dialog needs characterization tests
+  before extracting the renderer.
+- `021` depends on `019` because the share readiness and accessibility polish
+  should extend the component tests rather than landing as unguarded UI changes.
 
 ## Findings considered and rejected
 
@@ -96,9 +133,21 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
 - Activity storage contract tests: deferred with the heatmap work. Plan `011`
   improves the shared WXT mock first; targeted heatmap storage tests can be
   added when heatmap tracking becomes active again.
-- Split share image generation out of `RhythmClock`: deferred. Useful for bundle
-  hygiene, but lower leverage than fixing rhythm write correctness and pure
-  model boundaries.
+- Split share image generation out of the rhythm sharing UI: revived as plan
+  `020` after the product focus shifted to making the rhythm/reloj experience
+  as strong as possible.
+
+2026-06-16 rhythm-focused pass:
+
+- Rework the legacy heatmap DOM tracker: deferred, not rejected. The maintainer
+  explicitly wants to avoid investing in heatmap internals while focusing on
+  rhythm/reloj.
+- Preserve old rhythm data visually while `enableRhythmTracking` is disabled:
+  deferred. It may be a future product choice, but the current setting copy
+  treats disabling the clock as disabling the visible rhythm experience too.
+- Add screenshot/pixel tests for the share PNG: deferred. First extract the
+  renderer in `020`; pixel-level tests can be considered later if PNG visuals
+  keep changing.
 
 2026-06-13 pass:
 
