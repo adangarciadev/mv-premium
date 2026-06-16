@@ -391,7 +391,7 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		})
 
 		// Check for pending thread creation, post edit, or reply (captures context after redirect)
-		import('@/features/stats').then(
+		import('@/features/stats/post-tracker').then(
 			({ completePendingThreadCreation, completePendingPostEdit, completePendingReply }) => {
 				completePendingThreadCreation()
 				completePendingPostEdit()

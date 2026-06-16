@@ -32,9 +32,9 @@ update the row when done.
 | 009 | [Avoid reading all extension storage for Mobile Lite usage stats](009-avoid-reading-all-storage-for-mobile-lite-usage.md) | P1 | S | - | DONE |
 | 010 | [Isolate Mobile Lite registry module failures](010-isolate-mobile-lite-registry-module-errors.md) | P1 | S | - | DONE |
 | 011 | [Make the WXT storage mock stateful](011-make-wxt-storage-mock-stateful.md) | P1 | S | - | DONE |
-| 012 | [Serialize rhythm stat writes through the background context](012-serialize-rhythm-stat-writes.md) | P1 | M | 011 | TODO |
+| 012 | [Serialize rhythm stat writes through the background context](012-serialize-rhythm-stat-writes.md) | P1 | M | 011 | DONE |
 | 013 | [Track post activity only after confirmed submission success](013-track-post-activity-only-after-confirmed-success.md) | P3 | M | 011 | BLOCKED - intentionally deferred until heatmap/post activity tracking is back in scope |
-| 014 | [Import stats content runtime directly](014-import-stats-content-runtime-directly.md) | P2 | S | - | TODO |
+| 014 | [Import stats content runtime directly](014-import-stats-content-runtime-directly.md) | P2 | S | - | DONE |
 | 015 | [Isolate the pure rhythm model from tracker runtime](015-isolate-pure-rhythm-model.md) | P2 | M | 012, 014 | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
