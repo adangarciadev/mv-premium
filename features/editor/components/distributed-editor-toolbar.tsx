@@ -46,8 +46,10 @@ import {
 	getTableAtCursor,
 	openDraftsSidebar,
 	isNewThreadPage,
+	fillSuggestedThreadTitleIfEmpty,
 	type TableEditState,
 } from './toolbar/toolbar-handlers'
+import type { MediaTemplateInsertMeta } from '@/components/media-search-dialog'
 
 // Dialog components
 import { MovieTemplateDialog } from '@/features/cine/components/movie-template-dialog'
@@ -246,6 +248,14 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 	const handleInsertTable = useMemo(
 		() => createTableInsertHandler(textarea, tableEditData, () => setTableEditData(null)),
 		[textarea, tableEditData]
+	)
+
+	const handleInsertMediaTemplate = useCallback(
+		(template: string, meta?: MediaTemplateInsertMeta) => {
+			insertText(template)
+			fillSuggestedThreadTitleIfEmpty(meta?.suggestedThreadTitle, isNewThread)
+		},
+		[insertText, isNewThread]
 	)
 
 	const handleCloseTableDialog = useCallback(() => {
@@ -542,7 +552,7 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 				<MovieTemplateDialog
 					isOpen={showMovieDialog}
 					onClose={() => setShowMovieDialog(false)}
-					onInsert={(template: string) => insertText(template)}
+					onInsert={handleInsertMediaTemplate}
 				/>
 			)}
 
@@ -550,7 +560,7 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 				<GameTemplateDialog
 					isOpen={showGameDialog}
 					onClose={() => setShowGameDialog(false)}
-					onInsert={(template: string) => insertText(template)}
+					onInsert={handleInsertMediaTemplate}
 				/>
 			)}
 

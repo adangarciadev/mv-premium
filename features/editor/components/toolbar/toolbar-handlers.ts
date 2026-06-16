@@ -172,6 +172,22 @@ export function createTemplateInsertHandler(insertText: (text: string) => void, 
 }
 
 /**
+ * Fills the native new-thread title from a media/template suggestion.
+ */
+export function fillSuggestedThreadTitleIfEmpty(title: string | undefined, isNewThread: boolean): boolean {
+	const normalizedTitle = title?.trim()
+	if (!normalizedTitle || !isNewThread) return false
+
+	const titleInput = document.querySelector<HTMLInputElement>(MV_SELECTORS.EDITOR.TITLE_INPUT)
+	if (!titleInput || titleInput.value.trim()) return false
+
+	titleInput.value = normalizedTitle
+	titleInput.dispatchEvent(new Event('input', { bubbles: true }))
+	titleInput.dispatchEvent(new Event('change', { bubbles: true }))
+	return true
+}
+
+/**
  * Dispatches custom event to open drafts sidebar.
  */
 export function openDraftsSidebar(textarea: HTMLTextAreaElement): void {

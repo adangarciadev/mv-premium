@@ -37,12 +37,13 @@ import {
 	MediaSearchError,
 	MediaPreviewStep,
 	MediaDialogActions,
+	type MediaTemplateInsertMeta,
 } from '@/components/media-search-dialog'
 
 interface GameTemplateDialogProps {
 	isOpen: boolean
 	onClose: () => void
-	onInsert: (template: string) => void
+	onInsert: (template: string, meta?: MediaTemplateInsertMeta) => void
 }
 
 // =============================================================================
@@ -190,7 +191,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 	}
 
 	const handleInsert = () => {
-		onInsert(template)
+		onInsert(template, { suggestedThreadTitle: templateData?.name.trim() || undefined })
 		handleClose()
 	}
 
