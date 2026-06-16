@@ -43,8 +43,8 @@ update the row when done.
 | 015 | [Isolate the pure rhythm model from tracker runtime](015-isolate-pure-rhythm-model.md) | P2 | M | 012, 014 | DONE |
 | 016 | [Honor the default enabled state for rhythm tracking](016-honor-default-rhythm-tracking.md) | P1 | S | - | DONE |
 | 017 | [Make the rhythm time tracker idempotent](017-make-time-tracker-idempotent.md) | P1 | M | 016 | DONE |
-| 018 | [Validate and bound rhythm time chunks](018-validate-rhythm-time-chunks.md) | P1 | M | 017 | TODO |
-| 019 | [Add characterization tests for the rhythm clock and share dialog](019-add-rhythm-ui-characterization-tests.md) | P2 | M | 016, 017, 018 | TODO |
+| 018 | [Validate and bound rhythm time chunks](018-validate-rhythm-time-chunks.md) | P1 | M | 017 | DONE |
+| 019 | [Add characterization tests for the rhythm clock and share dialog](019-add-rhythm-ui-characterization-tests.md) | P2 | M | 016, 017, 018 | DONE |
 | 020 | [Extract rhythm share summary and PNG rendering from the dialog](020-extract-rhythm-share-renderer.md) | P2 | M/L | 019 | TODO |
 | 021 | [Polish rhythm clock share readiness and accessibility](021-polish-rhythm-clock-ux-accessibility.md) | P2 | M | 019 | TODO |
 
