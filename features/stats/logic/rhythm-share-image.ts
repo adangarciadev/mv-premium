@@ -299,7 +299,12 @@ function drawSeal(ctx: CanvasRenderingContext2D, summary: ShareSummary, cx: numb
 		ctx.stroke()
 	}
 
-	// 24h wedges.
+	// 24h wedges. A soft drop shadow + radial bevel (darker base -> bright rim)
+	// makes each wedge read as an extruded bar instead of a flat slice.
+	ctx.save()
+	ctx.shadowColor = 'rgba(0, 0, 0, 0.45)'
+	ctx.shadowBlur = 10
+	ctx.shadowOffsetY = 4
 	summary.hours.forEach((rawValue, hour) => {
 		const value = Math.max(0, Number(rawValue) || 0)
 		const t = Math.min(1, value / HOUR_BUCKET_MAX_MS)
@@ -312,14 +317,24 @@ function drawSeal(ctx: CanvasRenderingContext2D, summary: ShareSummary, cx: numb
 		ctx.arc(cx, cy, outerR, toRad(a0), toRad(a1), false)
 		ctx.arc(cx, cy, R_INNER, toRad(a1), toRad(a0), true)
 		ctx.closePath()
-		ctx.fillStyle = value > 0 ? `rgba(245, 164, 0, ${0.3 + t * 0.7})` : 'rgba(255, 255, 255, 0.07)'
+		if (value > 0) {
+			const grad = ctx.createRadialGradient(cx, cy, R_INNER, cx, cy, outerR)
+			grad.addColorStop(0, `rgba(196, 130, 0, ${0.34 + t * 0.46})`)
+			grad.addColorStop(1, `rgba(255, 193, 84, ${0.5 + t * 0.5})`)
+			ctx.fillStyle = grad
+		} else {
+			ctx.fillStyle = 'rgba(255, 255, 255, 0.07)'
+		}
 		ctx.fill()
 		if (isPeak) {
+			ctx.shadowColor = 'transparent'
 			ctx.strokeStyle = '#5eead4'
 			ctx.lineWidth = 2.5
 			ctx.stroke()
+			ctx.shadowColor = 'rgba(0, 0, 0, 0.45)'
 		}
 	})
+	ctx.restore()
 
 	// Hour ticks (00 / 06 / 12 / 18).
 	ctx.fillStyle = 'rgba(201, 212, 229, 0.7)'
@@ -332,11 +347,31 @@ function drawSeal(ctx: CanvasRenderingContext2D, summary: ShareSummary, cx: numb
 		ctx.fillText(String(hour).padStart(2, '0'), tx, ty)
 	}
 
-	// Center disc + minted content.
+	// Center disc: vertical bevel (lighter top -> darker bottom) plus an inner top
+	// highlight and bottom shadow, so it reads like a minted, raised medal.
 	ctx.beginPath()
 	ctx.arc(cx, cy, R_DISC, 0, Math.PI * 2)
-	ctx.fillStyle = 'rgba(7, 10, 16, 0.94)'
+	const discGrad = ctx.createLinearGradient(cx, cy - R_DISC, cx, cy + R_DISC)
+	discGrad.addColorStop(0, 'rgba(20, 26, 36, 0.96)')
+	discGrad.addColorStop(1, 'rgba(4, 6, 10, 0.96)')
+	ctx.fillStyle = discGrad
 	ctx.fill()
+
+	ctx.save()
+	ctx.beginPath()
+	ctx.arc(cx, cy, R_DISC - 1.5, Math.PI * 1.15, Math.PI * 1.85)
+	ctx.strokeStyle = 'rgba(255, 255, 255, 0.10)'
+	ctx.lineWidth = 2
+	ctx.stroke()
+	ctx.beginPath()
+	ctx.arc(cx, cy, R_DISC - 1.5, Math.PI * 0.15, Math.PI * 0.85)
+	ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)'
+	ctx.lineWidth = 2
+	ctx.stroke()
+	ctx.restore()
+
+	ctx.beginPath()
+	ctx.arc(cx, cy, R_DISC, 0, Math.PI * 2)
 	ctx.strokeStyle = 'rgba(94, 234, 212, 0.22)'
 	ctx.lineWidth = 1.5
 	ctx.stroke()

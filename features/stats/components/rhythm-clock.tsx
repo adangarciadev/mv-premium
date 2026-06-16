@@ -914,8 +914,8 @@ export const RhythmClock = memo(function RhythmClock({
 						<div className="relative flex w-full max-w-[400px] items-center justify-center">
 							<div
 								aria-hidden
-								className="pointer-events-none absolute h-3/4 w-3/4 rounded-full opacity-60 blur-3xl"
-								style={{ background: 'color-mix(in srgb, var(--primary) 14%, transparent)' }}
+								className="pointer-events-none absolute h-3/4 w-3/4 rounded-full opacity-30 blur-3xl"
+								style={{ background: 'color-mix(in srgb, var(--primary) 8%, transparent)' }}
 							/>
 							<svg
 								viewBox={`${-MARGIN} ${-MARGIN} ${SIZE + MARGIN * 2} ${SIZE + MARGIN * 2}`}
@@ -930,6 +930,22 @@ export const RhythmClock = memo(function RhythmClock({
 								}
 								onMouseLeave={() => setHoverHour(null)}
 							>
+								<defs>
+									<filter id="mvpRingShadow" x="-20%" y="-20%" width="140%" height="140%">
+										<feDropShadow dx="0" dy="3" stdDeviation="4" floodColor="black" floodOpacity="0.35" />
+									</filter>
+									<radialGradient id="mvpWedgeSheen" gradientUnits="userSpaceOnUse" cx={CX} cy={CY} r={R_RING_OUTER}>
+										<stop offset="0.6" stopColor="white" stopOpacity={0} />
+										<stop offset="0.86" stopColor="white" stopOpacity={0.1} />
+										<stop offset="1" stopColor="white" stopOpacity={0} />
+									</radialGradient>
+									<linearGradient id="mvpDiscBevel" gradientUnits="userSpaceOnUse" x1={CX} y1={CY - R_CENTER} x2={CX} y2={CY + R_CENTER}>
+										<stop offset="0" stopColor="white" stopOpacity={0.1} />
+										<stop offset="0.5" stopColor="white" stopOpacity={0} />
+										<stop offset="1" stopColor="black" stopOpacity={0.22} />
+									</linearGradient>
+								</defs>
+								<g filter={hasData ? 'url(#mvpRingShadow)' : undefined}>
 								{effectiveHours.map((value, hour) => {
 									// Clock buckets are capped to 1h, so 1h is the literal visual maximum.
 									const t = clockIntensity(value)
@@ -978,6 +994,17 @@ export const RhythmClock = memo(function RhythmClock({
 										</g>
 									)
 								})}
+								</g>
+								{hasData && (
+									<circle
+										cx={CX}
+										cy={CY}
+										r={R_RING_OUTER}
+										fill="url(#mvpWedgeSheen)"
+										pointerEvents="none"
+										style={{ mixBlendMode: 'overlay' }}
+									/>
+								)}
 
 								{HOUR_TICKS.map(({ label, hour }) => {
 									const [x, y] = polarHour(hour, R_RING_OUTER + 18)
@@ -1004,6 +1031,13 @@ export const RhythmClock = memo(function RhythmClock({
 									fill="var(--card)"
 									stroke="color-mix(in srgb, var(--border) 80%, transparent)"
 									strokeWidth={1}
+								/>
+								<circle
+									cx={CX}
+									cy={CY}
+									r={R_CENTER}
+									fill="url(#mvpDiscBevel)"
+									pointerEvents="none"
 								/>
 								<text
 									x={CX}
