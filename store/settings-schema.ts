@@ -85,6 +85,7 @@ export const settingsSchema = z.object({
 	itadCountry: itadCountrySchema.default('ES'),
 	gameReleaseCalendarEnabled: z.boolean().default(true),
 	gameReleaseCalendarJuegosEnabled: z.boolean().default(true),
+	gameReleaseCalendarJuegosMovilEnabled: z.boolean().default(true),
 	gameReleaseCalendarLayout: gameReleaseCalendarLayoutSchema.default('minimal'),
 	movieReleaseCalendarCineEnabled: z.boolean().default(true),
 	movieReleaseCalendarLayout: gameReleaseCalendarLayoutSchema.default('minimal'),
@@ -100,7 +101,8 @@ export const settingsSchema = z.object({
 	mutedWords: z.array(z.string()).default([]),
 
 	// Privacy & Storage
-	enableActivityTracking: z.boolean().default(true),
+	enableActivityTracking: z.boolean().default(false),
+	enableRhythmTracking: z.boolean().default(true),
 
 	// UI State
 	settingsActiveTab: z.string().default('integrations'),

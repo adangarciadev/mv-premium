@@ -77,23 +77,22 @@ export default function MutedPostsView({ embedded = false }: { embedded?: boolea
 				</div>
 			)}
 
-			<div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-4 flex gap-3 text-amber-600 dark:text-amber-400">
-				<Info className="h-5 w-5 shrink-0 mt-0.5" />
-				<div className="space-y-1">
-					<p className="font-semibold text-amber-700 dark:text-amber-300">¿Cómo funciona el silenciado?</p>
-					<p className="text-sm leading-relaxed opacity-90">
-						Cualquier post que contenga alguna de las palabras de tu lista negra{' '}
-						<strong className="text-amber-700 dark:text-amber-300">dejará de estar visible</strong> de forma automática.
-						En su lugar, verás un aviso sutil que te permitirá revelar el contenido si así lo deseas.
-					</p>
-				</div>
+			<div className="flex gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+				<Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+				<p className="text-muted-foreground">
+					Los posts que contengan alguna palabra de tu lista se ocultan automáticamente tras un aviso que
+					puedes revelar.
+				</p>
 			</div>
 
 			<Card>
-				<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+				<CardHeader className="flex flex-row items-center justify-between space-y-0">
 					<div className="space-y-1">
-						<CardTitle className="text-xl">Activar filtrado</CardTitle>
-						<CardDescription>Habilita o deshabilita el ocultamiento automático de contenido.</CardDescription>
+						<CardTitle className="flex items-center gap-2">
+							<Shield className="h-5 w-5" />
+							Tu Lista Negra
+						</CardTitle>
+						<CardDescription>Activa el filtrado y añade las palabras que quieras evitar en el foro.</CardDescription>
 					</div>
 					<Switch
 						checked={mutedWordsEnabled}
@@ -103,19 +102,9 @@ export default function MutedPostsView({ embedded = false }: { embedded?: boolea
 						}}
 					/>
 				</CardHeader>
-			</Card>
-
-			<Card className={!mutedWordsEnabled ? 'opacity-60 pointer-events-none transition-opacity' : 'transition-opacity'}>
-				<CardHeader>
-					<CardTitle className="flex items-center gap-2">
-						<Shield className="h-5 w-5" />
-						Tu Lista Negra
-					</CardTitle>
-					<CardDescription>
-						Introduce palabras que quieras evitar en el foro.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-6">
+				<CardContent
+					className={`space-y-6 transition-opacity ${!mutedWordsEnabled ? 'pointer-events-none opacity-60' : ''}`}
+				>
 					<div className="space-y-2">
 						<div className="flex gap-2">
                             <Input
@@ -137,7 +126,7 @@ export default function MutedPostsView({ embedded = false }: { embedded?: boolea
                         </div>
 						<div className="flex justify-between max-w-md px-1">
 							<p className="text-xs text-muted-foreground">Solo palabras sueltas, sin espacios.</p>
-							<p className={`text-xs ${inputValue.length === CHAR_LIMIT ? "text-amber-500 font-bold" : "text-muted-foreground"}`}>
+							<p className={`text-xs ${inputValue.length === CHAR_LIMIT ? "text-primary font-semibold" : "text-muted-foreground"}`}>
 								{inputValue.length}/{CHAR_LIMIT}
 							</p>
 						</div>

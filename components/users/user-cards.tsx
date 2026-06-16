@@ -38,7 +38,7 @@ export function UserCard({ user, customization, onEdit }: UserCardProps) {
 		<div
 			className={cn(
 				'group relative flex items-center gap-3 p-4 rounded-lg border bg-card transition-all hover:shadow-md hover:border-primary/30',
-				customization?.isIgnored && 'opacity-50 border-destructive/30 bg-destructive/5'
+				customization?.isIgnored && 'opacity-50'
 			)}
 		>
 			{/* Avatar */}
@@ -53,7 +53,7 @@ export function UserCard({ user, customization, onEdit }: UserCardProps) {
 					<span className="font-medium text-sm truncate" style={{ color: nameColor }}>
 						{displayName}
 					</span>
-					{customization?.usernameCustom && <Sparkles className="h-3 w-3 text-yellow-500 shrink-0" />}
+					{customization?.usernameCustom && <Sparkles className="h-3 w-3 text-primary shrink-0" />}
 					<UserBadge customization={customization} />
 				</div>
 				{customization?.usernameCustom && (
@@ -74,7 +74,7 @@ export function UserCard({ user, customization, onEdit }: UserCardProps) {
 			{/* Ignored Indicator */}
 			{customization?.isIgnored && (
 				<div className="absolute top-1 right-1">
-					<UserX className="h-3 w-3 text-destructive" />
+					<UserX className="h-3 w-3 text-muted-foreground/60" />
 				</div>
 			)}
 		</div>
@@ -100,7 +100,7 @@ export function CustomizedUserCard({ username, customization, onEdit, onDelete }
 		<div
 			className={cn(
 				'group relative flex items-center gap-3 p-4 rounded-lg border bg-card transition-all hover:shadow-md hover:border-primary/30',
-				customization.isIgnored && 'opacity-70 border-destructive/30 bg-destructive/5'
+				customization.isIgnored && 'opacity-60'
 			)}
 		>
 			{/* Avatar */}
@@ -119,10 +119,14 @@ export function CustomizedUserCard({ username, customization, onEdit, onDelete }
 					<span className="font-medium text-sm truncate" style={{ color: nameColor }}>
 						{displayName}
 					</span>
-					{customization.usernameCustom && <Sparkles className="h-3 w-3 text-yellow-500 shrink-0" />}
+					{customization.usernameCustom && <Sparkles className="h-3 w-3 text-primary shrink-0" />}
 					<UserBadge customization={customization} />
 					{customization.isIgnored && (
-						<Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
+						<Badge
+							variant="outline"
+							className="flex h-4 shrink-0 items-center gap-1 px-1.5 py-0 text-[10px] font-medium text-muted-foreground"
+						>
+							<UserX className="h-2.5 w-2.5" />
 							Ignorado
 						</Badge>
 					)}
@@ -175,7 +179,7 @@ function UserBadge({ customization }: UserBadgeProps) {
 	return (
 		<Badge
 			variant="secondary"
-			className="text-[10px] px-1.5 py-0 h-4 shrink-0 rounded-sm"
+			className="text-[10px] px-1.5 py-0 h-4 shrink-0"
 			style={{
 				backgroundColor: customization.badgeColor || 'var(--muted)',
 				color: customization.badgeTextColor || undefined,

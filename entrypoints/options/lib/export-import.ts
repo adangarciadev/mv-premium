@@ -12,6 +12,7 @@ export interface ExportData {
 
 const CURRENT_EXPORT_VERSION = 3
 const KEY_TIME_STATS = STORAGE_KEYS.TIME_STATS
+const KEY_RHYTHM_STATS = STORAGE_KEYS.RHYTHM_STATS
 const LOCAL_PREFIX = 'local:'
 
 /**
@@ -98,6 +99,7 @@ export interface ImportStats {
 	templates: number
 	activityDays: number
 	subforumStats: number
+	rhythmStatsUpdated: boolean
 	favorites: number
 	settingsUpdated: boolean
 }
@@ -150,6 +152,7 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 			templates: 0,
 			activityDays: 0,
 			subforumStats: 0,
+			rhythmStatsUpdated: false,
 			favorites: 0,
 			settingsUpdated: false,
 		}
@@ -203,6 +206,8 @@ export async function importAllData(data: ExportData): Promise<ImportResult> {
 					stats.activityDays += Object.keys(value).length
 				} else if (key.includes(KEY_TIME_STATS) && typeof value === 'object') {
 					stats.subforumStats += Object.keys(value).length
+				} else if (key.includes(KEY_RHYTHM_STATS)) {
+					stats.rhythmStatsUpdated = true
 				} else if (key.includes(STORAGE_KEYS.FAVORITE_SUBFORUMS) && Array.isArray(value)) {
 					stats.favorites += value.length
 				} else if (key.includes(STORAGE_KEYS.SETTINGS)) {

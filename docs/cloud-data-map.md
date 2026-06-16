@@ -76,9 +76,10 @@ Las claves de pines son dinamicas y contienen el path del hilo en la propia clav
 | Dato | Clave / storage | Tipo principal | Lectura / escritura | Backup |
 | --- | --- | --- | --- | --- |
 | Tiempo por subforo | `mvp-time-stats` | `TimeStats` (`Record<subforumSlug, milliseconds>`) | `getTimeStats`, `watchTimeStats`, `timeStatsStorage` | Si. |
+| Tiempo en Mediavida | `mvp-rhythm-stats` | `RhythmStats` comprimido (horas, dias, semanas y subforos agregados) | `getRhythmStats`, `watchRhythmStats`, `getCompressed`, `setCompressed` | Si, descomprimido. |
 | Actividad granular / heatmap | `mvp-activity` | `ActivityData`, `ActivityEntry` | `trackActivity`, `getActivityData`, `watchActivity`, `clearActivityData` | No. |
 
-`mvp-activity` no debe entrar en cloud sync. Puede contener titulos, subforos, URLs y acciones (`create`, `update`, `publish`), y ademas el tracking no es suficientemente fiable para tratarlo como dato portable. Para futuras copias cloud, conservar solo `mvp-time-stats`.
+`mvp-activity` no debe entrar en cloud sync. Puede contener titulos, subforos, URLs y acciones (`create`, `update`, `publish`), y ademas el tracking no es suficientemente fiable para tratarlo como dato portable. Para futuras copias cloud, conservar solo estadisticas agregadas: `mvp-time-stats` y `mvp-rhythm-stats`.
 
 ### Caches, Tokens y Estado Temporal
 
@@ -104,7 +105,7 @@ Las claves de pines son dinamicas y contienen el path del hilo en la propia clav
 - Contenido del usuario: `mvp-drafts`, `mvp-saved-threads`, `mvp-hidden-threads`, `mvp-hidden-subforums`, `mvp-content-rules`, `mvp-user-customizations`, `mvp-favorite-subforums`.
 - Pines: todas las entradas `mvp-pinned-*` y `mvp-pinned-meta-*`, convertidas a estructura estable.
 - Preferencias pequenas: `mvp-native-live-delay`, `mvp-live-thread-delay`.
-- Estadisticas permitidas: `mvp-time-stats`.
+- Estadisticas permitidas: `mvp-time-stats` y `mvp-rhythm-stats`.
 
 ### Excluir
 
@@ -119,8 +120,8 @@ Las claves de pines son dinamicas y contienen el path del hilo en la propia clav
 - **Secretos**: las claves API en `mvp-settings` permitirian uso de servicios externos si se filtran. Deben excluirse por defecto. Si algun dia se ofrece opt-in, deberia requerir cifrado y confirmacion explicita.
 - **Privacidad social**: `mvp-user-customizations` puede incluir notas privadas, usuarios ignorados, avatares y colores de resaltado. Es backup-worthy, pero el usuario debe entender que revela preferencias sobre otros usuarios.
 - **Contenido sensible**: `mvp-drafts` puede contener borradores privados, plantillas y texto no publicado. Debe sincronizarse solo dentro de un backup autenticado y transportado de forma segura.
-- **Historial de navegacion/actividad**: `mvp-activity`, caches de homepage y caches API pueden revelar titulos, URLs, busquedas o contenido visto. Deben quedar fuera del cloud sync por defecto.
-- **Tamano**: `mvp-drafts`, `mvp-activity`, `mvp-mv-theme-css` y presets comprimidos pueden crecer. Para backup, exportar `mvp-drafts` y presets descomprimidos, pero excluir caches y actividad granular.
+- **Historial de navegacion/actividad**: `mvp-activity`, caches de homepage y caches API pueden revelar titulos, URLs, busquedas o contenido visto. Deben quedar fuera del cloud sync por defecto. `mvp-rhythm-stats` si se permite porque solo conserva tiempo agregado por hora/dia/semana/subforo, sin URLs ni titulos concretos.
+- **Tamano**: `mvp-drafts`, `mvp-activity`, `mvp-rhythm-stats`, `mvp-mv-theme-css` y presets comprimidos pueden crecer. Para backup, exportar `mvp-drafts`, presets y estadisticas agregadas descomprimidas, pero excluir caches y actividad granular.
 - **Conflictos multi-dispositivo**: colecciones como drafts, pines, reglas y personalizaciones necesitan IDs estables y estrategia de merge. Este documento solo define el mapa; no define resolucion de conflictos.
 
 ## Formato JSON Propuesto
@@ -137,7 +138,7 @@ El backup futuro deberia ser un objeto versionado, por allowlist y con valores y
   },
   "policy": {
     "secrets": "excluded",
-    "activity": "time-stats-only",
+    "activity": "time-and-rhythm-stats-only",
     "compressedValues": "decompressed"
   },
   "data": {
@@ -200,7 +201,8 @@ El backup futuro deberia ser un objeto versionado, por allowlist y con valores y
       "liveThreadDelay": 0
     },
     "stats": {
-      "timeStats": {}
+      "timeStats": {},
+      "rhythmStats": {}
     }
   },
   "excluded": {
@@ -236,4 +238,3 @@ El backup futuro deberia ser un objeto versionado, por allowlist y con valores y
 - Solo excluye unas pocas claves explicitas, como `mvp-bookmarks-view-mode` y `mvp-mv-theme-css`.
 
 Para cloud sync, el flujo futuro deberia construir `data` desde funciones tipadas por familia, filtrar campos sensibles antes de serializar y regenerar caches tras importar.
-

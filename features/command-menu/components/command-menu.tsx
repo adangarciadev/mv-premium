@@ -264,7 +264,7 @@ export function CommandMenu({ open: controlledOpen, onOpenChange: setControlledO
 						{filteredData.templates.map(tmpl => (
 							<CommandItem key={tmpl.id} onSelect={() => runCommand(() => openDashboard(`templates/edit/${tmpl.id}`))}>
 								<div className="flex shrink-0 items-center justify-center">
-									<Layout className="h-4 w-4 text-purple-400/60 group-hover:text-primary group-data-[selected=true]:text-primary transition-colors" />
+									<Layout className="h-4 w-4 text-primary/60 group-hover:text-primary group-data-[selected=true]:text-primary transition-colors" />
 								</div>
 								<div className="flex flex-col gap-0.5 min-w-0 flex-1">
 									<span className="truncate font-medium text-foreground/90 group-hover:text-primary group-data-[selected=true]:text-primary transition-colors">

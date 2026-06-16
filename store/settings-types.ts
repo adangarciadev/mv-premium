@@ -77,6 +77,7 @@ export interface Settings {
 	liveThreadEnabled: boolean
 	newHomepageEnabled: boolean
 	galleryButtonEnabled: boolean
+	quoteSelectionEnabled: boolean
 	nativeLiveDelayEnabled: boolean
 	liveThreadDelayEnabled: boolean
 	navbarSearchEnabled: boolean
@@ -97,6 +98,7 @@ export interface Settings {
 	itadCountry: ItadCountry
 	gameReleaseCalendarEnabled: boolean
 	gameReleaseCalendarJuegosEnabled: boolean
+	gameReleaseCalendarJuegosMovilEnabled: boolean
 	gameReleaseCalendarLayout: GameReleaseCalendarLayout
 	movieReleaseCalendarCineEnabled: boolean
 	movieReleaseCalendarLayout: GameReleaseCalendarLayout
@@ -118,6 +120,7 @@ export interface Settings {
 
 	// Privacy & Storage
 	enableActivityTracking: boolean
+	enableRhythmTracking: boolean
 
 	// UI State
 	settingsActiveTab: string

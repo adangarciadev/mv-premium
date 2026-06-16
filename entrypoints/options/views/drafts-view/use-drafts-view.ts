@@ -20,6 +20,11 @@ import {
 	convertDraftType,
 	onDraftsChanged,
 } from '@/features/drafts/storage'
+import {
+	getDashboardThreadPublishValidationError,
+	openDashboardThreadPublish,
+	type DashboardThreadPublishMode,
+} from '@/features/drafts/logic/thread-publish'
 import type { FolderWithCount } from '@/features/drafts/components/folder-item'
 import type { SortOrder } from '@/features/drafts/components/drafts-toolbar'
 
@@ -31,6 +36,7 @@ interface DialogState {
 	delete: { open: boolean; drafts: Draft[] }
 	move: { open: boolean; draft: Draft | null }
 	deleteFolder: { open: boolean; folder: FolderWithCount | null }
+	publish: { open: boolean; draft: Draft | null }
 	createFolder: boolean
 }
 
@@ -71,6 +77,7 @@ interface UseDraftsViewReturn {
 	closeMoveDialog: () => void
 	openDeleteFolderDialog: (folder: FolderWithCount) => void
 	closeDeleteFolderDialog: () => void
+	closePublishDialog: () => void
 	openCreateFolderDialog: () => void
 	closeCreateFolderDialog: () => void
 
@@ -83,6 +90,8 @@ interface UseDraftsViewReturn {
 	handleMoveSelected: (folderId: string | undefined) => Promise<void>
 	handleMoveDraft: (folderId: string | undefined) => Promise<void>
 	handleConvertDraft: (draft: Draft) => Promise<void>
+	handlePublishDraftRequest: (draft: Draft, mode: DashboardThreadPublishMode) => Promise<void>
+	handlePublishDraftConfirm: () => Promise<void>
 	handleCreateFolder: (name: string, icon: string, type: 'draft' | 'template') => Promise<void>
 	handleDragDrop: (draftId: string, folderId: string | undefined) => Promise<void>
 	handleDeleteFolderConfirm: () => Promise<void>
@@ -111,6 +120,7 @@ export function useDraftsView({ filterType }: UseDraftsViewOptions): UseDraftsVi
 		delete: { open: false, drafts: [] },
 		move: { open: false, draft: null },
 		deleteFolder: { open: false, folder: null },
+		publish: { open: false, draft: null },
 		createFolder: false,
 	})
 
@@ -241,6 +251,10 @@ export function useDraftsView({ filterType }: UseDraftsViewOptions): UseDraftsVi
 		setDialogs(prev => ({ ...prev, deleteFolder: { open: false, folder: null } }))
 	}, [])
 
+	const closePublishDialog = useCallback(() => {
+		setDialogs(prev => ({ ...prev, publish: { open: false, draft: null } }))
+	}, [])
+
 	const openCreateFolderDialog = useCallback(() => {
 		setDialogs(prev => ({ ...prev, createFolder: true }))
 	}, [])
@@ -351,6 +365,49 @@ export function useDraftsView({ filterType }: UseDraftsViewOptions): UseDraftsVi
 		[navigate]
 	)
 
+	const startPublishFlow = useCallback(async (draft: Draft, mode: DashboardThreadPublishMode) => {
+		try {
+			await openDashboardThreadPublish(draft, mode)
+			toast.success(mode === 'dry-run' ? 'Modo prueba abierto' : 'Publicación enviada a Mediavida', {
+				description:
+					mode === 'dry-run'
+						? 'Se rellenará el nuevo hilo sin pulsar Crear tema.'
+						: 'Se abrirá Mediavida y se pulsará Crear tema automáticamente.',
+			})
+		} catch (error) {
+			logger.error('Error starting dashboard thread publish:', error)
+			toast.error('No se puede publicar', {
+				description: error instanceof Error ? error.message : 'Revisa los datos del borrador.',
+			})
+		}
+	}, [])
+
+	const handlePublishDraftRequest = useCallback(
+		async (draft: Draft, mode: DashboardThreadPublishMode) => {
+			const validationError = getDashboardThreadPublishValidationError(draft)
+			if (validationError) {
+				toast.error('No se puede publicar', { description: validationError })
+				return
+			}
+
+			if (mode === 'dry-run') {
+				await startPublishFlow(draft, mode)
+				return
+			}
+
+			setDialogs(prev => ({ ...prev, publish: { open: true, draft } }))
+		},
+		[startPublishFlow]
+	)
+
+	const handlePublishDraftConfirm = useCallback(async () => {
+		const draft = dialogs.publish.draft
+		if (!draft) return
+
+		closePublishDialog()
+		await startPublishFlow(draft, 'publish')
+	}, [dialogs.publish.draft, closePublishDialog, startPublishFlow])
+
 	const handleCreateFolder = useCallback(async (name: string, icon: string, type: 'draft' | 'template') => {
 		try {
 			await createFolder({ name, icon, type })
@@ -422,6 +479,7 @@ export function useDraftsView({ filterType }: UseDraftsViewOptions): UseDraftsVi
 		closeMoveDialog,
 		openDeleteFolderDialog,
 		closeDeleteFolderDialog,
+		closePublishDialog,
 		openCreateFolderDialog,
 		closeCreateFolderDialog,
 
@@ -434,6 +492,8 @@ export function useDraftsView({ filterType }: UseDraftsViewOptions): UseDraftsVi
 		handleMoveSelected,
 		handleMoveDraft,
 		handleConvertDraft,
+		handlePublishDraftRequest,
+		handlePublishDraftConfirm,
 		handleCreateFolder,
 		handleDragDrop,
 		handleDeleteFolderConfirm,

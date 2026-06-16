@@ -90,7 +90,7 @@ function createBaseBackup(overrides: Partial<BackupData['data']> = {}): BackupDa
 		},
 		policy: {
 			secrets: 'excluded',
-			activity: 'time-stats-only',
+			activity: 'time-and-rhythm-stats-only',
 			compressedValues: 'decompressed',
 		},
 		data: {
@@ -141,6 +141,15 @@ describe('backup-service', () => {
 				'03-06-2026': [{ title: 'Privado', url: 'https://www.mediavida.com/foro/cine/hilo-123' }],
 			})
 			setStoredValue(STORAGE_KEYS.TIME_STATS, { cine: 120000 })
+			setStoredValue(STORAGE_KEYS.RHYTHM_STATS, {
+				hours: Array(24).fill(0),
+				weekdays: Array(7).fill(0),
+				weeks: { '2026-06-01': 120000 },
+				hourSubforums: { '12': { cine: 120000 } },
+				weekdayHours: { '1': Array(24).fill(0) },
+				weekdaySubforums: { '1': { cine: 120000 } },
+				days: { '2026-06-03': 120000 },
+			})
 			setStoredValue(STORAGE_KEYS.MV_THEME_CSS, 'generated-css')
 			setStoredValue(STORAGE_KEYS.FID_ICONS_CACHE, { 1: { backgroundImage: 'url(...)' } })
 			setStoredValue(STORAGE_KEYS.CURRENT_USER, { username: 'TestUser' })
@@ -159,6 +168,10 @@ describe('backup-service', () => {
 			expect(backup.data.settings).not.toHaveProperty('giphyApiKey')
 			expect(backup.data.settings).not.toHaveProperty('geminiApiKey')
 			expect(backup.data.stats.timeStats).toEqual({ cine: 120000 })
+			expect(backup.data.stats.rhythmStats).toMatchObject({
+				weeks: { '2026-06-01': 120000 },
+				days: { '2026-06-03': 120000 },
+			})
 			expect(backup.data.content.drafts).toEqual({
 				drafts: [{ id: 'draft-1', title: 'Draft', content: 'Text', type: 'draft' }],
 				folders: [],
@@ -408,6 +421,15 @@ describe('backup-service', () => {
 					},
 					stats: {
 						timeStats: { cine: 120000 },
+						rhythmStats: {
+							hours: Array(24).fill(0),
+							weekdays: Array(7).fill(0),
+							weeks: { '2026-06-01': 120000 },
+							hourSubforums: { '12': { cine: 120000 } },
+							weekdayHours: { '1': Array(24).fill(0) },
+							weekdaySubforums: { '1': { cine: 120000 } },
+							days: { '2026-06-03': 120000 },
+						},
 					},
 				})
 			)
@@ -438,6 +460,10 @@ describe('backup-service', () => {
 			expect(storageMockState.store.get(STORAGE_KEYS.NATIVE_LIVE_DELAY)).toBe(15000)
 			expect(storageMockState.store.get(STORAGE_KEYS.LIVE_THREAD_DELAY)).toBe(30000)
 			expect(storageMockState.store.get(STORAGE_KEYS.TIME_STATS)).toEqual({ cine: 120000 })
+			expect(decompressStoredValue(storageMockState.store.get(STORAGE_KEYS.RHYTHM_STATS))).toMatchObject({
+				weeks: { '2026-06-01': 120000 },
+				days: { '2026-06-03': 120000 },
+			})
 			expect(storageMockState.store.has(STORAGE_KEYS.MV_THEME_CSS)).toBe(false)
 			expect(storageMockState.loadFromStorage).toHaveBeenCalledOnce()
 			expect(storageMockState.regenerateAndCacheCSS).toHaveBeenCalledOnce()
@@ -452,6 +478,7 @@ describe('backup-service', () => {
 				userCustomizations: 1,
 				favorites: 1,
 				subforumStats: 1,
+				rhythmStatsUpdated: true,
 				themesUpdated: true,
 			})
 		})

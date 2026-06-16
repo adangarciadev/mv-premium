@@ -11,6 +11,7 @@ const payload: MobileLiteTransferPayload = {
 		{ nick: 'MutedUser', ignoreType: 'mute' },
 	],
 	imgbbApiKey: 'abc_123',
+	geminiApiKey: 'gemini_123',
 }
 
 describe('IgnoredUsersImportPanel', () => {
@@ -22,8 +23,11 @@ describe('IgnoredUsersImportPanel', () => {
 		expect(screen.getByText('Ocultos')).toBeInTheDocument()
 		expect(screen.getByText('Silenciados')).toBeInTheDocument()
 		expect(screen.getByText('API key de ImgBB')).toBeInTheDocument()
-		expect(screen.getByText('Incluida en este QR')).toBeInTheDocument()
-		expect(screen.getByText('Se fusionarán los usuarios con los existentes y se guardará la API key de ImgBB.')).toBeInTheDocument()
+		expect(screen.getByText('API key de Gemini')).toBeInTheDocument()
+		expect(screen.getAllByText('Incluida en este QR')).toHaveLength(2)
+		expect(
+			screen.getByText('Se fusionarán los usuarios con los existentes y se guardarán las API keys de ImgBB y Gemini.')
+		).toBeInTheDocument()
 	})
 
 	it('imports only after the user confirms', async () => {
@@ -36,7 +40,9 @@ describe('IgnoredUsersImportPanel', () => {
 
 		await waitFor(() => expect(onImport).toHaveBeenCalledOnce())
 		expect(await screen.findByText('Importación completada')).toBeInTheDocument()
-		expect(screen.getByText('Se han importado 2 usuarios y la API key de ImgBB. Ya puedes cerrar este panel.')).toBeInTheDocument()
+		expect(
+			screen.getByText('Se han importado 2 usuarios y las API keys de ImgBB y Gemini. Ya puedes cerrar este panel.')
+		).toBeInTheDocument()
 		expect(screen.queryByRole('button', { name: 'Importar' })).not.toBeInTheDocument()
 		expect(screen.getByRole('button', { name: 'Cerrar' })).toBeInTheDocument()
 	})

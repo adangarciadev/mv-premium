@@ -7,4 +7,9 @@ describe('settings schema', () => {
 		expect(DEFAULT_SETTINGS.classicThreadActionsEnabled).toBe(false)
 		expect(validateSettings({}).classicThreadActionsEnabled).toBe(false)
 	})
+
+	it('defaults legacy activity heatmap tracking to opt-in', () => {
+		expect(DEFAULT_SETTINGS.enableActivityTracking).toBe(false)
+		expect(validateSettings({}).enableActivityTracking).toBe(false)
+	})
 })

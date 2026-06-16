@@ -54,6 +54,28 @@ export async function hideThread(thread: HiddenThreadMetadata): Promise<HiddenTh
 	return newThread
 }
 
+/**
+ * Atomically hides several threads in a single read/write.
+ *
+ * Must be used instead of calling {@link hideThread} in a loop: concurrent
+ * read-modify-write calls race on the same storage key and silently drop
+ * updates (e.g. the "undo bulk unhide" action losing one thread).
+ */
+export async function hideThreads(threadsToHide: HiddenThreadMetadata[]): Promise<void> {
+	if (threadsToHide.length === 0) return
+
+	const existing = await getHiddenThreads()
+	const byId = new Map(existing.map(thread => [thread.id, thread]))
+	const now = Date.now()
+
+	for (const thread of threadsToHide) {
+		byId.set(thread.id, { ...thread, hiddenAt: now })
+	}
+
+	const updated = Array.from(byId.values()).sort((a, b) => b.hiddenAt - a.hiddenAt)
+	await saveHiddenThreads(updated)
+}
+
 export async function hideThreadFromUrl(url: string): Promise<HiddenThread | null> {
 	const parsed = parseHiddenThreadFromUrl(url)
 	if (!parsed) return null

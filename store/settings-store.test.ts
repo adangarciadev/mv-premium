@@ -81,6 +81,11 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().hideIgnoredUserThreadsEnabled).toBe(true)
 		})
 
+		it('has legacy activity heatmap tracking disabled by default', () => {
+			expect(useSettingsStore.getState().enableActivityTracking).toBe(false)
+			expect(DEFAULT_SETTINGS.enableActivityTracking).toBe(false)
+		})
+
 		it('has ITAD subforum search enabled by default', () => {
 			expect(useSettingsStore.getState().itadSubforumSearchEnabled).toBe(true)
 			expect(useSettingsStore.getState().itadSubforumSearchJuegosEnabled).toBe(true)

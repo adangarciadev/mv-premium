@@ -1,8 +1,12 @@
 import { MV_SELECTORS, STORAGE_KEYS } from '@/constants'
 import { logger } from '@/lib/logger'
 
+const PREFILL_SUBFORUMS = ['juegos', 'juegos-movil', 'cine'] as const
+
+export type ReleaseThreadPrefillSubforum = (typeof PREFILL_SUBFORUMS)[number]
+
 export interface ReleaseThreadPrefill {
-	subforum: 'juegos' | 'cine'
+	subforum: ReleaseThreadPrefillSubforum
 	title: string
 	body: string
 	createdAt: number
@@ -22,7 +26,7 @@ function readPrefill(): ReleaseThreadPrefill | null {
 
 		const prefill = JSON.parse(raw) as ReleaseThreadPrefill
 		if (
-			(prefill.subforum !== 'juegos' && prefill.subforum !== 'cine') ||
+			!PREFILL_SUBFORUMS.includes(prefill.subforum) ||
 			typeof prefill.title !== 'string' ||
 			typeof prefill.body !== 'string' ||
 			typeof prefill.createdAt !== 'number'

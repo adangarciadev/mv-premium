@@ -45,14 +45,8 @@ function EmptyStateIllustration({ isTemplate }: { isTemplate: boolean }) {
 			</div>
 
 			{/* Floating decorative elements - using Theme variables */}
-			<div
-				className="absolute -left-8 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full animate-bounce bg-primary/40"
-				style={{ animationDelay: '0.2s' }}
-			/>
-			<div
-				className="absolute -right-6 top-1/4 h-2 w-2 rounded-full animate-bounce bg-primary/30"
-				style={{ animationDelay: '0.5s' }}
-			/>
+			<div className="absolute -left-8 top-1/2 -translate-y-1/2 h-3 w-3 rounded-full bg-primary/40" />
+			<div className="absolute -right-6 top-1/4 h-2 w-2 rounded-full bg-primary/30" />
 		</div>
 	)
 }
@@ -135,14 +129,8 @@ export function DraftsEmptyState({ hasFilters, onCreateNew, isTemplate = false }
 	return (
 		<div className="flex flex-col items-center justify-center h-full py-12 animate-in fade-in zoom-in-95 duration-500">
 			<div className="relative max-w-lg w-full bg-card/50 backdrop-blur-sm border border-border/50 rounded-2xl p-8 md:p-12 text-center shadow-xl ring-1 ring-inset ring-foreground/5">
-				{/* Ambient Glow */}
-				<div
-					className={cn(
-						'absolute inset-0 rounded-2xl opacity-10 blur-3xl',
-						isTemplate ? 'bg-violet-500' : 'bg-primary'
-					)}
-					aria-hidden="true"
-				/>
+				{/* Ambient Glow (always derived from the active preset primary) */}
+				<div className="absolute inset-0 rounded-2xl opacity-10 blur-3xl bg-primary" aria-hidden="true" />
 
 				<div className="relative z-10 flex flex-col items-center">
 					<EmptyStateIllustration isTemplate={isTemplate} />
@@ -157,8 +145,12 @@ export function DraftsEmptyState({ hasFilters, onCreateNew, isTemplate = false }
 							: 'El lugar perfecto para guardar tus ideas, hilos en construcción y respuestas pendientes.'}
 					</p>
 
-					<Button size="lg" onClick={onCreateNew} className="h-12 px-8 text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all hover:scale-105 active:scale-95 group">
-						<Plus className="mr-2 h-5 w-5 transition-transform group-hover:rotate-90" />
+					<Button
+						size="lg"
+						onClick={onCreateNew}
+						className="h-12 px-8 text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow"
+					>
+						<Plus className="mr-2 h-5 w-5" />
 						{isTemplate ? 'Crear primera plantilla' : 'Escribir nuevo borrador'}
 					</Button>
 

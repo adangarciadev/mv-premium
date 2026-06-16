@@ -17,9 +17,23 @@ import { cachedFetch, createCacheKey, CACHE_TTL } from '@/services/media'
 import { renderTemplate } from '@/lib/template-engine'
 import { getDefaultTemplate } from '@/features/templates'
 import { getSettings, useSettingsStore } from '@/store'
-import { fetchSteamGameDetailsViaBackground, extractSteamAppId, searchSteamAppsViaBackground } from '@/services/api/steam'
+import {
+	containsNonLatinScript,
+	fetchSteamGameDetailsViaBackground,
+	extractSteamAppId,
+	isMostlyNonLatinText,
+	searchSteamAppsViaBackground,
+} from '@/services/api/steam'
+import { searchGooglePlayAppViaBackground, searchItunesAppViaBackground } from '@/services/api/mobile-stores'
 import type { MediaTemplate, GameTemplateDataInput } from '@/types/templates'
-import type { IGDBGame, IGDBAlternativeName, IGDBGameLocalization, IGDBRegion, IGDBReleaseDate } from './igdb-types'
+import type {
+	IGDBGame,
+	IGDBAlternativeName,
+	IGDBGameLocalization,
+	IGDBPlatform,
+	IGDBRegion,
+	IGDBReleaseDate,
+} from './igdb-types'
 import {
 	getIGDBImageUrl,
 	PEGI_RATING_LABELS,
@@ -131,6 +145,16 @@ async function findSteamAppIdByTitle(title: string): Promise<number | null> {
 	})
 
 	return strongMatch?.appId ?? null
+}
+
+// IGDB platform IDs: 34 = Android, 39 = iOS
+export const IGDB_MOBILE_PLATFORM_IDS = [34, 39]
+
+function isMobilePlatform(platform: IGDBPlatform): boolean {
+	return (
+		IGDB_MOBILE_PLATFORM_IDS.includes(platform.id) ||
+		/android|\bios\b/i.test(`${platform.name} ${platform.abbreviation ?? ''}`)
+	)
 }
 
 const MAIN_GAME_CATEGORY = 0
@@ -296,10 +320,18 @@ function resolveSpanishLocalization(
 
 	const preferredRegionIds = getPreferredRegionIds(regions)
 	const preferredLocalization = findLocalizationByRegion(localizations, preferredRegionIds)
-	const fallbackLocalization = localizations.find(loc => loc.name || loc.cover?.image_id) || null
+	// Non-preferred localizations are usually CJK regional variants (China,
+	// Japan, Korea). Using their name or cover would "localize" the template
+	// the wrong way (e.g. 原神 instead of Genshin Impact), so only accept a
+	// fallback localization whose name is in Latin script.
+	const fallbackLocalization =
+		localizations.find(loc => loc.name && !containsNonLatinScript(loc.name)) || null
 
-	const localizedName =
-		preferredLocalization?.name || fallbackLocalization?.name || pickAlternativeName(alternativeNames)
+	const preferredName =
+		preferredLocalization?.name && !containsNonLatinScript(preferredLocalization.name)
+			? preferredLocalization.name
+			: null
+	const localizedName = preferredName || fallbackLocalization?.name || pickAlternativeName(alternativeNames)
 	const coverId = preferredLocalization?.cover?.image_id || fallbackLocalization?.cover?.image_id || null
 	const localizedCoverUrl = coverId ? getIGDBImageUrl(coverId, 'cover_big') : null
 
@@ -332,18 +364,22 @@ function sanitizeSearchQuery(query: string): string {
  * If no results are found, falls back to a wildcard `where name` query
  * which is more tolerant of partial matches and special characters.
  */
-export async function searchGames(query: string, limit = 50): Promise<IGDBGame[]> {
+export async function searchGames(query: string, limit = 50, platformIds?: number[]): Promise<IGDBGame[]> {
 	const sanitized = sanitizeSearchQuery(query)
 	if (!sanitized) return []
 
 	// Escape quotes in query
 	const escapedQuery = sanitized.replace(/"/g, '\\"')
 
+	// Optional platform constraint (e.g. mobile-only search filters to Android/iOS)
+	const platformCondition = platformIds?.length ? `platforms = (${platformIds.join(',')})` : null
+
 	// Primary search: IGDB's built-in search (best relevance)
 	const body = `
 		search "${escapedQuery}";
 		fields name, cover.image_id, first_release_date, platforms.name, platforms.abbreviation,
 			   genres.name, rating, summary;
+		${platformCondition ? `where ${platformCondition};` : ''}
 		limit ${limit};
 	`
 
@@ -361,6 +397,10 @@ export async function searchGames(query: string, limit = 50): Promise<IGDBGame[]
 	if (terms.length > 1) {
 		// Create AND condition: name ~ *"term1"* & name ~ *"term2"*
 		whereClause = terms.map(t => `name ~ *"${t}"*`).join(' & ')
+	}
+
+	if (platformCondition) {
+		whereClause = `(${whereClause}) & ${platformCondition}`
 	}
 
 	// Fallback query construction
@@ -875,8 +915,10 @@ export async function getGameTemplateData(
 		})) || []
 
 	// External games (store/service links)
-	const externalLinkByStore: Record<'steam', string | null> = {
+	const externalLinkByStore: Record<'steam' | 'googleplay' | 'appstore', string | null> = {
 		steam: null,
+		googleplay: null,
+		appstore: null,
 	}
 
 	const externalGames =
@@ -923,7 +965,10 @@ export async function getGameTemplateData(
 	}
 
 	// Final fallback: search Steam Store by title when IGDB has no direct Steam link.
-	if (!steamAppId) {
+	// Skipped for mobile-only games: the title search would match an unrelated
+	// Steam game and pollute the template with its description/screenshots.
+	const isMobileOnlyGame = (game.platforms?.length ?? 0) > 0 && game.platforms!.every(isMobilePlatform)
+	if (!steamAppId && !isMobileOnlyGame) {
 		try {
 			steamAppId = await findSteamAppIdByTitle(localizedName || game.name)
 		} catch (error) {
@@ -935,7 +980,9 @@ export async function getGameTemplateData(
 		try {
 			onProgress?.('steam')
 			const steamGame = await fetchSteamGameDetailsViaBackground(steamAppId)
-			if (steamGame?.description) {
+			// Some Steam listings have no Spanish or English text at all (e.g.
+			// Japanese-only games). In that case prefer IGDB's English summary.
+			if (steamGame?.description && !isMostlyNonLatinText(steamGame.description)) {
 				steamDescription = steamGame.description
 			}
 			if (steamGame?.screenshots && steamGame.screenshots.length > 0) {
@@ -947,6 +994,31 @@ export async function getGameTemplateData(
 		} catch (error) {
 			logger.debug('Failed to fetch Steam Spanish description for game', gameId, error)
 		}
+	}
+
+	// Mobile store links (Google Play / App Store). Mediavida natively embeds
+	// both via [media], so templates can render store cards.
+	let googlePlayUrl =
+		(externalLinkByStore.googleplay ? buildGooglePlayUrl(externalLinkByStore.googleplay) : null) ||
+		websites.find(w => w.category === 'android')?.url ||
+		null
+	let appStoreUrl =
+		(externalLinkByStore.appstore ? buildAppStoreUrl(externalLinkByStore.appstore) : null) ||
+		websites.find(w => w.category === 'iphone')?.url ||
+		websites.find(w => w.category === 'ipad')?.url ||
+		null
+
+	// Title-search fallback: IGDB often lacks store links even for released
+	// mobile games (e.g. Marvel Snap). Only attempted for games that are
+	// actually available on Android/iOS according to IGDB.
+	const isMobileCapableGame = game.platforms?.some(isMobilePlatform) ?? false
+	if (isMobileCapableGame && (!googlePlayUrl || !appStoreUrl)) {
+		const [googlePlayFallback, appStoreFallback] = await Promise.all([
+			googlePlayUrl ? Promise.resolve(null) : searchGooglePlayAppViaBackground(game.name),
+			appStoreUrl ? Promise.resolve(null) : searchItunesAppViaBackground(game.name),
+		])
+		if (!googlePlayUrl && googlePlayFallback) googlePlayUrl = googlePlayFallback.url
+		if (!appStoreUrl && appStoreFallback) appStoreUrl = appStoreFallback.url
 	}
 
 	// Language supports
@@ -1025,6 +1097,8 @@ export async function getGameTemplateData(
 		websites,
 		externalGames,
 		steamStoreUrl: steamAppId ? `https://store.steampowered.com/app/${steamAppId}` : null,
+		googlePlayUrl,
+		appStoreUrl,
 		languageSupports,
 		rating: game.rating ? Math.round(game.rating) : null,
 		aggregatedRating: game.aggregated_rating ? Math.round(game.aggregated_rating) : null,
@@ -1033,9 +1107,38 @@ export async function getGameTemplateData(
 	}
 }
 
-function normalizeExternalSourceKey(source: string): 'steam' | null {
+function normalizeExternalSourceKey(source: string): 'steam' | 'googleplay' | 'appstore' | null {
 	const normalized = source.toLowerCase()
 	if (normalized.includes('steam')) return 'steam'
+	if (normalized.includes('android') || normalized.includes('google')) return 'googleplay'
+	if (normalized.includes('apple') || normalized.includes('app store') || normalized.includes('itunes')) {
+		return 'appstore'
+	}
+	return null
+}
+
+/**
+ * Normalize a Google Play reference (full URL or package-name uid) to a store URL.
+ * IGDB's external_games often store only the uid (e.g. "com.example.game").
+ */
+function buildGooglePlayUrl(value: string): string | null {
+	const trimmed = value.trim()
+	if (/play\.google\.com/i.test(trimmed)) return trimmed
+	if (/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/i.test(trimmed)) {
+		return `https://play.google.com/store/apps/details?id=${trimmed}`
+	}
+	return null
+}
+
+/**
+ * Normalize an App Store reference (full URL or numeric app id) to a store URL.
+ */
+function buildAppStoreUrl(value: string): string | null {
+	const trimmed = value.trim()
+	if (/apps\.apple\.com|itunes\.apple\.com/i.test(trimmed)) return trimmed
+	if (/^\d+$/.test(trimmed)) {
+		return `https://apps.apple.com/app/id${trimmed}`
+	}
 	return null
 }
 
@@ -1060,6 +1163,9 @@ function getCategoryLabel(category: number): string {
 		[IGDBWebsiteCategory.GOG]: 'gog',
 		[IGDBWebsiteCategory.EpicGames]: 'epic',
 		[IGDBWebsiteCategory.Itch]: 'itch',
+		[IGDBWebsiteCategory.iPhone]: 'iphone',
+		[IGDBWebsiteCategory.iPad]: 'ipad',
+		[IGDBWebsiteCategory.Android]: 'android',
 		[IGDBWebsiteCategory.Wikipedia]: 'wikipedia',
 		[IGDBWebsiteCategory.Twitter]: 'twitter',
 		[IGDBWebsiteCategory.YouTube]: 'youtube',
@@ -1074,29 +1180,31 @@ function getCategoryLabel(category: number): string {
 // Template Generation
 // =============================================================================
 
+export type GameTemplateType = 'game' | 'mobile-game'
+
 /**
  * Get the active game template
  */
-function getActiveGameTemplate(): MediaTemplate {
+function getActiveGameTemplate(type: GameTemplateType = 'game'): MediaTemplate {
 	const { mediaTemplates } = useSettingsStore.getState()
-	const customTemplate = mediaTemplates.game
-	return customTemplate || getDefaultTemplate('game')
+	const customTemplate = mediaTemplates[type]
+	return customTemplate || getDefaultTemplate(type)
 }
 
-async function getActiveGameTemplateForThread(): Promise<MediaTemplate> {
-	const storeTemplate = useSettingsStore.getState().mediaTemplates.game
+async function getActiveGameTemplateForThread(type: GameTemplateType = 'game'): Promise<MediaTemplate> {
+	const storeTemplate = useSettingsStore.getState().mediaTemplates[type]
 	if (storeTemplate) return storeTemplate
 
 	const persistedSettings = await getSettings()
-	const persistedTemplate = persistedSettings.mediaTemplates?.game
-	return persistedTemplate || getDefaultTemplate('game')
+	const persistedTemplate = persistedSettings.mediaTemplates?.[type]
+	return persistedTemplate || getDefaultTemplate(type)
 }
 
 /**
  * Generate BBCode template for a game
  */
-export function generateGameTemplate(data: GameTemplateDataInput): string {
-	const template = getActiveGameTemplate()
+export function generateGameTemplate(data: GameTemplateDataInput, type: GameTemplateType = 'game'): string {
+	const template = getActiveGameTemplate(type)
 	return renderTemplate(template, data)
 }
 
@@ -1108,11 +1216,25 @@ export function generateSteamMediaTemplate(data: GameTemplateDataInput): string 
 }
 
 /**
+ * Generate minimal store media embeds (Google Play / App Store) for a mobile game.
+ */
+export function generateMobileStoresMediaTemplate(data: GameTemplateDataInput): string | null {
+	const embeds = [data.googlePlayUrl, data.appStoreUrl]
+		.filter((url): url is string => Boolean(url))
+		.map(url => `[media]${url}[/media]`)
+
+	return embeds.length > 0 ? embeds.join('\n') : null
+}
+
+/**
  * Fetch game data and generate template in one call
  */
-export async function getGameTemplateString(gameId: number): Promise<string | null> {
+export async function getGameTemplateString(
+	gameId: number,
+	type: GameTemplateType = 'game'
+): Promise<string | null> {
 	const data = await getGameTemplateData(gameId)
 	if (!data) return null
-	const template = await getActiveGameTemplateForThread()
+	const template = await getActiveGameTemplateForThread(type)
 	return renderTemplate(template, data)
 }

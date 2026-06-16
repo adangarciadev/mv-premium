@@ -3,7 +3,9 @@ export {
 	injectReleaseCalendar,
 	removeReleaseCalendar,
 	setReleaseCalendarJuegosEnabled,
+	setReleaseCalendarJuegosMovilEnabled,
 	toggleReleaseCalendarJuegos,
+	toggleReleaseCalendarJuegosMovil,
 } from './logic/inject-release-calendar'
 export {
 	applyReleaseThreadPrefill,

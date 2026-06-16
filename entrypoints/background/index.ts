@@ -27,10 +27,12 @@ import {
 import { setupUploadHandlers } from './upload-handlers'
 import { setupApiHandlers } from './api-handlers'
 import { setupAiHandlers } from './ai-handlers'
+import { setupStatsHandlers } from './stats-handlers'
 import { setupIgdbHandlers } from './igdb-handlers'
 import { setupItadHandlers } from './itad-handlers'
 import { highlightCode } from './prism-highlighter'
 import { setupTwitterLiteNetworkGuard } from './twitter-lite-network-guard'
+import { resetMobileLiteWhatsNew } from '@/features/mobile-lite/logic/whats-new'
 
 /**
  * Every API cache prefix is memory-only now, so any persisted entry under
@@ -80,9 +82,13 @@ export default defineBackground({
 		// Extension Install/Update Handler
 		// ==========================================================================
 
-		browser.runtime.onInstalled.addListener(async () => {
+		browser.runtime.onInstalled.addListener(async details => {
 			// Create context menus on install/update
 			await createContextMenus()
+
+			if (details.reason === 'install' || details.reason === 'update') {
+				await resetMobileLiteWhatsNew()
+			}
 
 			// Clean up legacy API cache entries (now uses memory-only cache)
 			await cleanupLegacyApiCache()
@@ -109,6 +115,9 @@ export default defineBackground({
 
 		// API handlers (Steam, TMDB, GIPHY, options page)
 		setupApiHandlers()
+
+		// Stats persistence handlers
+		setupStatsHandlers()
 
 		// AI handlers (Gemini)
 		setupAiHandlers()

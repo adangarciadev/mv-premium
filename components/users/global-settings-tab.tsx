@@ -129,7 +129,9 @@ export function GlobalSettingsTab({ settings, onSave }: GlobalSettingsTabProps) 
 								</div>
 								<div className="space-y-1">
 									<div className="flex items-center gap-2">
-										<Label className="text-base font-medium">{role.label}</Label>
+										<Label className="text-base font-medium" style={{ color }}>
+											{role.label}
+										</Label>
 										{localSettings[role.key] !== role.defaultColor && (
 											<Badge variant="secondary" className="text-[10px] h-4 px-1">
 												Modificado
@@ -140,40 +142,31 @@ export function GlobalSettingsTab({ settings, onSave }: GlobalSettingsTabProps) 
 								</div>
 							</div>
 
-							<div className="flex items-center gap-4 pl-12 sm:pl-0">
-								{/* Live Preview */}
-								<div className="hidden sm:block px-3 py-1.5 rounded-md bg-muted/30 border border-transparent group-hover:border-border transition-colors">
-									<span className="text-sm font-medium" style={{ color }}>
-										{role.label}
-									</span>
-								</div>
-
-								<div className="flex items-center gap-2">
-									<div className="relative">
-										<div
-											className="h-9 w-9 rounded-full border shadow-sm flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 hover:ring-ring transition-all"
-											style={{ backgroundColor: color }}
-										>
-											<Input
-												type="color"
-												className="absolute inset-0 w-full h-full opacity-0 cursor-pointer p-0 border-0"
-												value={color}
-												onChange={e => handleColorChange(role.key, e.target.value)}
-											/>
-										</div>
-									</div>
-
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-9 w-9 text-muted-foreground hover:text-foreground"
-										onClick={() => handleColorChange(role.key, role.defaultColor)}
-										disabled={color === role.defaultColor}
-										title="Restaurar color original"
+							<div className="flex items-center gap-2 pl-12 sm:pl-0">
+								<div className="relative">
+									<div
+										className="h-10 w-10 rounded-full border shadow-sm flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 hover:ring-ring transition-all"
+										style={{ backgroundColor: color }}
 									>
-										<RotateCcw className="h-4 w-4" />
-									</Button>
+										<Input
+											type="color"
+											className="absolute inset-0 w-full h-full opacity-0 cursor-pointer p-0 border-0"
+											value={color}
+											onChange={e => handleColorChange(role.key, e.target.value)}
+										/>
+									</div>
 								</div>
+
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-10 w-10 text-muted-foreground hover:text-foreground"
+									onClick={() => handleColorChange(role.key, role.defaultColor)}
+									disabled={color === role.defaultColor}
+									title="Restaurar color original"
+								>
+									<RotateCcw className="h-4 w-4" />
+								</Button>
 							</div>
 						</div>
 					)

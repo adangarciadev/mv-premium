@@ -109,10 +109,16 @@ export function useIgdbCredentials() {
 }
 
 /**
- * Hook to search for games
+ * Hook to search for games. Optionally constrained to specific IGDB platform
+ * IDs (e.g. Android/iOS for the mobile-game template type).
  */
-export function useGameSearch(query: string, enabled = true) {
-	return useFetch<IGDBGame[]>(`igdb:search:${query}`, () => searchGames(query), enabled && query.length >= 2)
+export function useGameSearch(query: string, enabled = true, platformIds?: number[]) {
+	const platformsKey = platformIds?.length ? platformIds.join(',') : 'all'
+	return useFetch<IGDBGame[]>(
+		`igdb:search:${platformsKey}:${query}`,
+		() => searchGames(query, 50, platformIds),
+		enabled && query.length >= 2
+	)
 }
 
 /**

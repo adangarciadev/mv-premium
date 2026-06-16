@@ -12,6 +12,7 @@ const COMPRESSED_MARKER = '__LZB64__'
 const LEGACY_MARKER = '__LZ__'
 const COMPRESSED_KEYS = [
 	STORAGE_KEYS.ACTIVITY,
+	STORAGE_KEYS.RHYTHM_STATS,
 	STORAGE_KEYS.DRAFTS,
 	STORAGE_KEYS.MV_THEME_CSS,
 	STORAGE_KEYS.MV_THEME_SAVED_PRESETS,
@@ -34,6 +35,10 @@ describe('compressed-storage', () => {
 		it('should return true for activity data key', () => {
 			expect(shouldCompress(`local:${STORAGE_KEYS.ACTIVITY}`)).toBe(true)
 			expect(shouldCompress(`${STORAGE_KEYS.ACTIVITY}-v2`)).toBe(true)
+		})
+
+		it('should return true for rhythm stats key', () => {
+			expect(shouldCompress(`local:${STORAGE_KEYS.RHYTHM_STATS}`)).toBe(true)
 		})
 
 		it('should return true for drafts data key', () => {

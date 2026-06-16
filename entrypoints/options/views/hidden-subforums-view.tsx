@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
+import { NativeFidIcon } from '@/components/native-fid-icon'
+import { getSubforumIconId } from '@/lib/subforums'
 import {
 	clearHiddenSubforums,
 	getHiddenSubforums,
@@ -104,10 +106,8 @@ export function HiddenSubforumsView({ embedded = false }: { embedded?: boolean }
 	return (
 		<div className={embedded ? 'flex flex-col gap-6' : 'mx-auto flex max-w-5xl flex-col gap-6 p-6 animate-in fade-in duration-300'}>
 			<div className="space-y-2">
-				<div className="flex items-center justify-between gap-4">
-					<h1 className={embedded ? 'text-2xl font-semibold tracking-tight' : 'text-3xl font-bold tracking-tight'}>
-						Subforos ocultos
-					</h1>
+				<div className={`flex items-center gap-4 ${embedded ? 'justify-end' : 'justify-between'}`}>
+					{!embedded && <h1 className="text-3xl font-bold tracking-tight">Subforos ocultos</h1>}
 					<Button variant="outline" size="sm" onClick={() => setShowClearDialog(true)} disabled={subforums.length === 0}>
 						<Trash2 className="mr-2 h-4 w-4" />
 						Desocultar todos ({subforums.length})
@@ -159,43 +159,49 @@ export function HiddenSubforumsView({ embedded = false }: { embedded?: boolean }
 							}
 						/>
 					) : (
-						<div className="space-y-2">
-							{filteredSubforums.map(subforum => (
-								<div
-									key={subforum.id}
-									className="group flex items-center gap-4 rounded-lg border border-border/60 bg-card/50 p-3 transition-all duration-200 hover:border-border hover:bg-accent/40"
-								>
-									<div className="min-w-0 flex-1">
-										<p className="truncate text-sm font-semibold" title={subforum.name}>
-											{subforum.name}
-										</p>
+						<div className="grid gap-2 sm:grid-cols-2">
+							{filteredSubforums.map(subforum => {
+								// Resolve the icon from the subforum slug (reliable regardless of where it
+								// was hidden from); fall back to the scraped iconClass only if unknown.
+								const fidFromClass = Number(subforum.iconClass?.match(/fid-(\d+)/)?.[1])
+								const iconId = getSubforumIconId(subforum.id) ?? (Number.isFinite(fidFromClass) ? fidFromClass : null)
+								return (
+									<div
+										key={subforum.id}
+										className="group flex items-center gap-3 rounded-lg border border-border/60 bg-card/50 p-2.5 transition-colors hover:border-border hover:bg-accent/40"
+										title={subforum.description || subforum.name}
+									>
+										{iconId !== null ? (
+											<NativeFidIcon iconId={iconId} className="h-5 w-5 shrink-0" />
+										) : (
+											<span className="h-5 w-5 shrink-0 rounded bg-muted" />
+										)}
 
-										<div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-											<span>
-												Ocultado el{' '}
-												{new Date(subforum.hiddenAt).toLocaleString('es-ES', {
-													dateStyle: 'short',
-													timeStyle: 'short',
+										<div className="min-w-0 flex-1">
+											<p className="truncate text-sm font-medium leading-tight" title={subforum.name}>
+												{subforum.name}
+											</p>
+											<p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+												{new Date(subforum.hiddenAt).toLocaleDateString('es-ES', {
+													day: '2-digit',
+													month: 'short',
+													year: 'numeric',
 												})}
-											</span>
+											</p>
 										</div>
 
-										{subforum.description && (
-											<p className="mt-1.5 truncate text-xs text-muted-foreground">{subforum.description}</p>
-										)}
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
+											onClick={() => handleUnhide(subforum)}
+											title="Desocultar subforo"
+										>
+											<Eye className="h-4 w-4" />
+										</Button>
 									</div>
-
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 shrink-0 rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary"
-										onClick={() => handleUnhide(subforum)}
-										title="Desocultar subforo"
-									>
-										<Eye className="h-4 w-4" />
-									</Button>
-								</div>
-							))}
+								)
+							})}
 						</div>
 					)}
 				</CardContent>

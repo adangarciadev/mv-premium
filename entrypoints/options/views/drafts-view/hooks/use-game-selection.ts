@@ -3,7 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useDebounce } from 'use-debounce'
 import { useGameSearch, useGameTemplateDataWithProgress, useIgdbCredentials } from '@/features/games/hooks/use-igdb'
 import { generatePlaceholderData } from '../utils/placeholders'
-import type { TemplateType, TemplateDataInput } from '@/types/templates'
+import { isGameTemplateType, type TemplateType, type TemplateDataInput } from '@/types/templates'
 
 interface UseGameSelectionProps {
 	mediaType: TemplateType
@@ -23,9 +23,11 @@ export function useGameSelection({ mediaType, onPreviewDataChange }: UseGameSele
 	
 	const [debouncedGameQuery] = useDebounce(gameSearchQuery, 300)
 	
+	const isGameType = isGameTemplateType(mediaType)
+
 	const { data: gameResults = [], isLoading: isSearchingGames } = useGameSearch(
 		debouncedGameQuery,
-		mediaType === 'game' && igdbEnabled
+		isGameType && igdbEnabled
 	)
 
 	const {
@@ -34,12 +36,12 @@ export function useGameSelection({ mediaType, onPreviewDataChange }: UseGameSele
 		loadingStep: gameLoadingStep,
 	} = useGameTemplateDataWithProgress(
 		selectedGameId ?? 0,
-		mediaType === 'game' && igdbEnabled && selectedGameId !== null
+		isGameType && igdbEnabled && selectedGameId !== null
 	)
 
 	// Sync preview data when game data loads
 	useEffect(() => {
-		if (mediaType !== 'game') return
+		if (!isGameTemplateType(mediaType)) return
 		
 		if (selectedGameData) {
 			onPreviewDataChange(selectedGameData)

@@ -15,6 +15,7 @@ import { STORAGE_KEYS } from '@/constants'
 // Keys that should be compressed (high-growth data)
 const COMPRESSED_KEYS = [
 	STORAGE_KEYS.ACTIVITY,
+	STORAGE_KEYS.RHYTHM_STATS,
 	STORAGE_KEYS.DRAFTS,
 	STORAGE_KEYS.MV_THEME_CSS,
 	STORAGE_KEYS.MV_THEME_SAVED_PRESETS,

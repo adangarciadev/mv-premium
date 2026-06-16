@@ -1,4 +1,5 @@
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
+import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
 import { isThreadPage as detectIsThreadPage } from '@/lib/content-modules/utils/page-detection'
 import { initMobileLiteBoldColor, teardownMobileLiteBoldColor } from './bold-color'
@@ -15,7 +16,11 @@ import { initMobileLiteGallery, teardownMobileLiteGallery } from './gallery'
 import { initMobileLiteLiveThread, teardownMobileLiteLiveThread } from './live-thread'
 import { initMobileLitePanel, teardownMobileLitePanel } from './panel'
 import { initMobileLitePostGestures, teardownMobileLitePostGestures } from './post-gestures'
+import { initMobileLiteQuoteSelection, teardownMobileLiteQuoteSelection } from './quote-selection'
 import { initMobileLiteThreadCompanion, teardownMobileLiteThreadCompanion } from './thread-companion'
+import { initMobileLiteThreadPageHide, teardownMobileLiteThreadPageHide } from './thread-page-hide'
+import { initMobileLiteThreadSummary, teardownMobileLiteThreadSummary } from './thread-summary'
+import { initMobileLitePostSummary, teardownMobileLitePostSummary } from './post-summary'
 
 export interface MobileLiteContext {
 	hasEditor: boolean
@@ -70,6 +75,30 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		id: 'thread-companion',
 		init: initMobileLiteThreadCompanion,
 		teardown: teardownMobileLiteThreadCompanion,
+		shouldRun: context => context.isThreadPage,
+	},
+	{
+		id: 'thread-page-hide',
+		init: initMobileLiteThreadPageHide,
+		teardown: teardownMobileLiteThreadPageHide,
+		shouldRun: context => context.isThreadPage,
+	},
+	{
+		id: 'thread-summary',
+		init: initMobileLiteThreadSummary,
+		teardown: teardownMobileLiteThreadSummary,
+		shouldRun: context => context.isThreadPage,
+	},
+	{
+		id: 'post-summary',
+		init: initMobileLitePostSummary,
+		teardown: teardownMobileLitePostSummary,
+		shouldRun: context => context.isThreadPage,
+	},
+	{
+		id: 'quote-selection',
+		init: initMobileLiteQuoteSelection,
+		teardown: teardownMobileLiteQuoteSelection,
 		shouldRun: context => context.isThreadPage,
 	},
 	{
@@ -134,17 +163,33 @@ export function initMobileLite(context: MobileLiteContext = getMobileLiteContext
 	if (!isMobileLiteAllowed()) return
 
 	for (const module of MOBILE_LITE_MODULES) {
-		if (module.shouldRun(context)) module.init()
+		initMobileLiteModule(module, context)
 	}
 }
 
 export function teardownMobileLite(): void {
 	for (const module of MOBILE_LITE_MODULES) {
-		module.teardown()
+		teardownMobileLiteModule(module)
 	}
 }
 
 export function getRunnableMobileLiteModuleIds(context: MobileLiteContext = getMobileLiteContext()): string[] {
 	if (!isMobileLiteAllowed()) return []
 	return MOBILE_LITE_MODULES.filter(module => module.shouldRun(context)).map(module => module.id)
+}
+
+function initMobileLiteModule(module: MobileLiteModule, context: MobileLiteContext): void {
+	try {
+		if (module.shouldRun(context)) module.init()
+	} catch (error) {
+		logger.error(`Mobile Lite module "${module.id}" failed to initialize`, error)
+	}
+}
+
+function teardownMobileLiteModule(module: MobileLiteModule): void {
+	try {
+		module.teardown()
+	} catch (error) {
+		logger.error(`Mobile Lite module "${module.id}" failed to tear down`, error)
+	}
 }

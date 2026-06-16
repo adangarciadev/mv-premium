@@ -4,6 +4,7 @@ import { getRunnableMobileLiteModuleIds, initMobileLite, teardownMobileLite, typ
 const mocks = vi.hoisted(() => ({
 	getPlatformKind: vi.fn(() => 'firefox-android'),
 	isFeatureEnabled: vi.fn(() => true),
+	loggerError: vi.fn(),
 	initBoldColor: vi.fn(),
 	teardownBoldColor: vi.fn(),
 	initEditor: vi.fn(),
@@ -22,10 +23,18 @@ const mocks = vi.hoisted(() => ({
 	teardownLiveThread: vi.fn(),
 	initThreadCompanion: vi.fn(),
 	teardownThreadCompanion: vi.fn(),
+	initThreadSummary: vi.fn(),
+	teardownThreadSummary: vi.fn(),
+	initThreadPageHide: vi.fn(),
+	teardownThreadPageHide: vi.fn(),
+	initPostSummary: vi.fn(),
+	teardownPostSummary: vi.fn(),
 	initPanel: vi.fn(),
 	teardownPanel: vi.fn(),
 	initPostGestures: vi.fn(),
 	teardownPostGestures: vi.fn(),
+	initQuoteSelection: vi.fn(),
+	teardownQuoteSelection: vi.fn(),
 }))
 
 vi.mock('@/lib/platform', () => ({
@@ -37,6 +46,12 @@ vi.mock('@/lib/feature-flags', () => ({
 		MobileLite: 'mobile-lite',
 	},
 	isFeatureEnabled: mocks.isFeatureEnabled,
+}))
+
+vi.mock('@/lib/logger', () => ({
+	logger: {
+		error: mocks.loggerError,
+	},
 }))
 
 vi.mock('./bold-color', () => ({
@@ -109,9 +124,29 @@ vi.mock('./post-gestures', () => ({
 	teardownMobileLitePostGestures: mocks.teardownPostGestures,
 }))
 
+vi.mock('./quote-selection', () => ({
+	initMobileLiteQuoteSelection: mocks.initQuoteSelection,
+	teardownMobileLiteQuoteSelection: mocks.teardownQuoteSelection,
+}))
+
 vi.mock('./thread-companion', () => ({
 	initMobileLiteThreadCompanion: mocks.initThreadCompanion,
 	teardownMobileLiteThreadCompanion: mocks.teardownThreadCompanion,
+}))
+
+vi.mock('./thread-summary', () => ({
+	initMobileLiteThreadSummary: mocks.initThreadSummary,
+	teardownMobileLiteThreadSummary: mocks.teardownThreadSummary,
+}))
+
+vi.mock('./thread-page-hide', () => ({
+	initMobileLiteThreadPageHide: mocks.initThreadPageHide,
+	teardownMobileLiteThreadPageHide: mocks.teardownThreadPageHide,
+}))
+
+vi.mock('./post-summary', () => ({
+	initMobileLitePostSummary: mocks.initPostSummary,
+	teardownMobileLitePostSummary: mocks.teardownPostSummary,
 }))
 
 function context(overrides: Partial<MobileLiteContext> = {}): MobileLiteContext {
@@ -182,7 +217,7 @@ describe('Mobile Lite registry', () => {
 		window.history.replaceState({}, '', '/foro/deportes/pretemporada-2026-123456')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'post-gestures', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'thread-page-hide', 'thread-summary', 'post-summary', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
 	})
 
 	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
@@ -225,12 +260,24 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initPostGestures).toHaveBeenCalledOnce()
 	})
 
-	it('initializes the thread companion fix only on thread pages', () => {
+	it('initializes the thread companion and summaries only on thread pages', () => {
 		initMobileLite(context({ hasPosts: true }))
 		expect(mocks.initThreadCompanion).not.toHaveBeenCalled()
+		expect(mocks.initThreadSummary).not.toHaveBeenCalled()
+		expect(mocks.initPostSummary).not.toHaveBeenCalled()
 
 		initMobileLite(context({ isThreadPage: true }))
 		expect(mocks.initThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.initThreadSummary).toHaveBeenCalledOnce()
+		expect(mocks.initPostSummary).toHaveBeenCalledOnce()
+	})
+
+	it('initializes the quote selection fix only on thread pages', () => {
+		initMobileLite(context({ hasPosts: true }))
+		expect(mocks.initQuoteSelection).not.toHaveBeenCalled()
+
+		initMobileLite(context({ isThreadPage: true }))
+		expect(mocks.initQuoteSelection).toHaveBeenCalledOnce()
 	})
 
 	it('initializes thread filtering modules on normal subforum pages', () => {
@@ -267,6 +314,21 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initPanel).not.toHaveBeenCalled()
 	})
 
+	it('continues initializing later modules when one runnable module throws', () => {
+		const error = new Error('gallery failed')
+		mocks.initGallery.mockImplementationOnce(() => {
+			throw error
+		})
+
+		expect(() => initMobileLite(context({ isForumRelated: true, isThreadPage: true }))).not.toThrow()
+
+		expect(mocks.initGallery).toHaveBeenCalledOnce()
+		expect(mocks.initThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.initThreadSummary).toHaveBeenCalledOnce()
+		expect(mocks.initPanel).toHaveBeenCalledOnce()
+		expect(mocks.loggerError).toHaveBeenCalledWith('Mobile Lite module "gallery" failed to initialize', error)
+	})
+
 	it('does not initialize modules outside allowed Firefox Android Mobile Lite runtime', () => {
 		mocks.getPlatformKind.mockReturnValue('firefox-desktop')
 
@@ -290,6 +352,21 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.initPanel).not.toHaveBeenCalled()
 	})
 
+	it('continues tearing down later modules when one teardown throws', () => {
+		const error = new Error('gallery teardown failed')
+		mocks.teardownGallery.mockImplementationOnce(() => {
+			throw error
+		})
+
+		expect(() => teardownMobileLite()).not.toThrow()
+
+		expect(mocks.teardownGallery).toHaveBeenCalledOnce()
+		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.teardownThreadSummary).toHaveBeenCalledOnce()
+		expect(mocks.teardownPanel).toHaveBeenCalledOnce()
+		expect(mocks.loggerError).toHaveBeenCalledWith('Mobile Lite module "gallery" failed to tear down', error)
+	})
+
 	it('tears down all registered modules', () => {
 		teardownMobileLite()
 
@@ -298,6 +375,10 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.teardownLiveThread).toHaveBeenCalledOnce()
 		expect(mocks.teardownGallery).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.teardownThreadPageHide).toHaveBeenCalledOnce()
+		expect(mocks.teardownThreadSummary).toHaveBeenCalledOnce()
+		expect(mocks.teardownPostSummary).toHaveBeenCalledOnce()
+		expect(mocks.teardownQuoteSelection).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUsers).toHaveBeenCalledOnce()
 		expect(mocks.teardownPostGestures).toHaveBeenCalledOnce()
 		expect(mocks.teardownIgnoredUserThreads).toHaveBeenCalledOnce()

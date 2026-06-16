@@ -338,4 +338,117 @@ describe('ReleaseCalendar', () => {
 		expect(card).not.toBeNull()
 		expect(within(card!).getByText('PlayStation')).toBeInTheDocument()
 	})
+
+	it('queries IGDB without a platform constraint by default', async () => {
+		render(<ReleaseCalendar />)
+
+		await waitFor(() => expect(getUpcomingGameReleasesMock).toHaveBeenCalled())
+
+		const [{ platforms }] = getUpcomingGameReleasesMock.mock.calls[0]
+		expect(platforms).toBeUndefined()
+	})
+})
+
+describe('ReleaseCalendar variant juegos-movil', () => {
+	const mobileRelease: UpcomingGameRelease = {
+		...release,
+		id: 2,
+		name: 'Pocket Quest',
+		slug: 'pocket-quest',
+		igdbUrl: 'https://www.igdb.com/games/pocket-quest',
+		platforms: ['Android', 'iOS'],
+		releasePlatforms: ['Android', 'iOS'],
+	}
+
+	beforeEach(() => {
+		getUpcomingGameReleasesMock.mockReset()
+		getUpcomingGameReleasesMock.mockResolvedValue([mobileRelease])
+		settingsStoreMock.state.gameReleaseCalendarLayout = 'minimal'
+		settingsStoreMock.setSetting.mockClear()
+	})
+
+	it('queries IGDB constrained to Android and iOS platforms', async () => {
+		render(<ReleaseCalendar variant="juegos-movil" />)
+
+		await waitFor(() => expect(getUpcomingGameReleasesMock).toHaveBeenCalled())
+
+		const [{ platforms }] = getUpcomingGameReleasesMock.mock.calls[0]
+		expect(platforms).toEqual([34, 39])
+	})
+
+	it('shows mobile platform filter chips instead of desktop ones', async () => {
+		render(<ReleaseCalendar variant="juegos-movil" />)
+
+		await screen.findByTitle('Pocket Quest · 14 may · Plataformas: Android, iOS')
+
+		expect(screen.getByRole('button', { name: 'Android' })).toBeInTheDocument()
+		expect(screen.getByRole('button', { name: 'iOS' })).toBeInTheDocument()
+		expect(screen.queryByRole('button', { name: 'PlayStation' })).not.toBeInTheDocument()
+		expect(screen.queryByRole('button', { name: 'Xbox' })).not.toBeInTheDocument()
+	})
+
+	it('filters releases by mobile platform', async () => {
+		const user = userEvent.setup()
+		getUpcomingGameReleasesMock.mockResolvedValue([
+			{ ...mobileRelease, platforms: ['Android'], releasePlatforms: ['Android'] },
+		])
+
+		render(<ReleaseCalendar variant="juegos-movil" />)
+
+		await screen.findByTitle('Pocket Quest · 14 may · Plataformas: Android')
+
+		await user.click(screen.getByRole('button', { name: 'iOS' }))
+		expect(screen.getByText('No hay lanzamientos próximos para este filtro.')).toBeInTheDocument()
+
+		await user.click(screen.getByRole('button', { name: 'Android' }))
+		expect(screen.getByTitle('Pocket Quest · 14 may · Plataformas: Android')).toBeInTheDocument()
+	})
+
+	it('keeps low-engagement mobile releases that desktop thresholds would discard', async () => {
+		const quietRelease = {
+			...mobileRelease,
+			relevanceScore: 20,
+			hypes: 0,
+			follows: 0,
+			ratingCount: 0,
+		}
+		getUpcomingGameReleasesMock.mockResolvedValue([quietRelease])
+
+		render(<ReleaseCalendar variant="juegos-movil" />)
+		expect(await screen.findByTitle('Pocket Quest · 14 may · Plataformas: Android, iOS')).toBeInTheDocument()
+	})
+
+	it('does not cap featured releases per day in the mobile variant', async () => {
+		getUpcomingGameReleasesMock.mockResolvedValue(
+			Array.from({ length: 8 }, (_, index) => ({
+				...mobileRelease,
+				id: index + 1,
+				name: `Mobile Day Game ${index + 1}`,
+				slug: `mobile-day-game-${index + 1}`,
+				relevanceScore: 100 - index,
+				hypes: 8 - index,
+			}))
+		)
+
+		render(<ReleaseCalendar variant="juegos-movil" />)
+
+		await screen.findByTitle('Mobile Day Game 1 · 14 may · Plataformas: Android, iOS')
+
+		expect(screen.getByTitle('Mobile Day Game 6 · 14 may · Plataformas: Android, iOS')).toBeInTheDocument()
+		expect(screen.getByTitle('Mobile Day Game 8 · 14 may · Plataformas: Android, iOS')).toBeInTheDocument()
+	})
+
+	it('discards the same low-engagement release in the juegos variant', async () => {
+		const quietRelease = {
+			...mobileRelease,
+			relevanceScore: 20,
+			hypes: 0,
+			follows: 0,
+			ratingCount: 0,
+		}
+		getUpcomingGameReleasesMock.mockResolvedValue([quietRelease])
+
+		render(<ReleaseCalendar />)
+		expect(await screen.findByText('No hay lanzamientos próximos para este filtro.')).toBeInTheDocument()
+	})
 })

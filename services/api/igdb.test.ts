@@ -24,6 +24,13 @@ vi.mock('@/lib/messaging', () => ({
 	sendMessage: vi.fn(),
 }))
 
+// Mock mobile store background wrappers. The direct store scraping/API helpers
+// are covered in mobile-stores.test.ts; IGDB only needs the wrapper contract.
+vi.mock('@/services/api/mobile-stores', () => ({
+	searchGooglePlayAppViaBackground: vi.fn(),
+	searchItunesAppViaBackground: vi.fn(),
+}))
+
 // Mock settings store
 vi.mock('@/store', () => ({
 	getSettings: storeMock.getSettings,
@@ -43,6 +50,7 @@ vi.mock('@/services/media', () => ({
 
 // Import after mocks are set up
 import { sendMessage } from '@/lib/messaging'
+import { searchGooglePlayAppViaBackground, searchItunesAppViaBackground } from '@/services/api/mobile-stores'
 import {
 	searchGames,
 	getGameDetails,
@@ -57,6 +65,8 @@ import {
 } from './igdb'
 
 const mockSendMessage = sendMessage as ReturnType<typeof vi.fn>
+const mockSearchGooglePlayAppViaBackground = searchGooglePlayAppViaBackground as ReturnType<typeof vi.fn>
+const mockSearchItunesAppViaBackground = searchItunesAppViaBackground as ReturnType<typeof vi.fn>
 
 const mockLocalizationData = () => {
 	mockSendMessage.mockResolvedValueOnce([]) // game_localizations
@@ -67,6 +77,10 @@ describe('IGDB API Service', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mockSendMessage.mockReset()
+		mockSearchGooglePlayAppViaBackground.mockReset()
+		mockSearchItunesAppViaBackground.mockReset()
+		mockSearchGooglePlayAppViaBackground.mockResolvedValue(null)
+		mockSearchItunesAppViaBackground.mockResolvedValue(null)
 		storeMock.mediaTemplates.movie = null
 		storeMock.mediaTemplates.tvshow = null
 		storeMock.mediaTemplates.season = null
@@ -1024,6 +1038,148 @@ describe('IGDB API Service', () => {
 			expect(result?.steamStoreUrl).toBe('https://store.steampowered.com/app/292030')
 			expect(mockSendMessage).toHaveBeenCalledWith('fetchSteamGame', 292030)
 		})
+
+		it('discards a non-Latin Steam description and keeps the IGDB summary', async () => {
+			// Japanese-only Steam listings return Japanese text even when asking
+			// for Spanish or English; IGDB's English summary is preferable then.
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Nandome ka no Shiki',
+				summary: 'A mystery game set at a wedding ceremony.',
+				external_games: [
+					{
+						id: 1,
+						url: 'https://store.steampowered.com/app/999111',
+						external_game_source: { id: 1, name: 'Steam' },
+					},
+				],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+			mockSendMessage.mockResolvedValueOnce({
+				description:
+					'結婚式を舞台にした新たな推理ゲームをお届けします。殺された主人公が神の力で生き返って自分の死の原因を突き止めます。',
+				screenshots: ['https://steam/ss1.jpg'],
+				steamLibraryHeaderUrl: 'https://cdn.akamai.steamstatic.com/steam/apps/999111/library_header_2x.jpg',
+			}) // fetchSteamGame
+
+			const result = await getGameTemplateData(123)
+
+			expect(result?.summary).toBe('A mystery game set at a wedding ceremony.')
+			expect(result?.steamScreenshots).toEqual(['https://steam/ss1.jpg'])
+			expect(result?.steamStoreUrl).toBe('https://store.steampowered.com/app/999111')
+		})
+
+		it('extracts mobile store URLs and skips the Steam title fallback for mobile-only games', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Mobile Quest',
+				summary: 'A mobile-only game',
+				platforms: [
+					{ id: 34, name: 'Android' },
+					{ id: 39, name: 'iOS' },
+				],
+				external_games: [
+					{ id: 1, uid: 'com.example.mobilequest', external_game_source: { id: 15, name: 'Android' } },
+				],
+				websites: [{ id: 1, category: IGDBWebsiteCategory.iPhone, url: 'https://apps.apple.com/app/id123456789' }],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+
+			const result = await getGameTemplateData(123)
+
+			expect(result?.googlePlayUrl).toBe('https://play.google.com/store/apps/details?id=com.example.mobilequest')
+			expect(result?.appStoreUrl).toBe('https://apps.apple.com/app/id123456789')
+			expect(result?.steamStoreUrl).toBeNull()
+			expect(mockSendMessage).not.toHaveBeenCalledWith('searchSteamApps', expect.anything())
+		})
+
+		it('falls back to store title search when IGDB lacks store links for a mobile game', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Marvel Snap',
+				platforms: [
+					{ id: 34, name: 'Android' },
+					{ id: 39, name: 'iOS' },
+				],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+			mockSearchGooglePlayAppViaBackground.mockResolvedValue({
+				url: 'https://play.google.com/store/apps/details?id=com.nvsgames.snap',
+				storeId: 'com.nvsgames.snap',
+				name: null,
+			})
+			mockSearchItunesAppViaBackground.mockResolvedValue({
+				url: 'https://apps.apple.com/es/app/id1592081003',
+				storeId: '1592081003',
+				name: 'MARVEL SNAP',
+			})
+
+			const result = await getGameTemplateData(123)
+
+			expect(mockSearchGooglePlayAppViaBackground).toHaveBeenCalledWith('Marvel Snap')
+			expect(mockSearchItunesAppViaBackground).toHaveBeenCalledWith('Marvel Snap')
+			expect(result?.googlePlayUrl).toBe('https://play.google.com/store/apps/details?id=com.nvsgames.snap')
+			expect(result?.appStoreUrl).toBe('https://apps.apple.com/es/app/id1592081003')
+		})
+
+		it('does not run the store title search for games without mobile platforms', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'The Witcher 3',
+				platforms: [{ id: 6, name: 'PC (Microsoft Windows)' }],
+				external_games: [
+					{
+						id: 1,
+						url: 'https://store.steampowered.com/app/292030',
+						external_game_source: { id: 1, name: 'Steam' },
+					},
+				],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+			mockSendMessage.mockResolvedValueOnce(null) // fetchSteamGame
+
+			const result = await getGameTemplateData(123)
+
+			expect(result?.googlePlayUrl).toBeNull()
+			expect(result?.appStoreUrl).toBeNull()
+			expect(mockSearchGooglePlayAppViaBackground).not.toHaveBeenCalled()
+			expect(mockSearchItunesAppViaBackground).not.toHaveBeenCalled()
+		})
+
+		it('normalizes store uids and full URLs from external games', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Cross Store',
+				platforms: [
+					{ id: 34, name: 'Android' },
+					{ id: 39, name: 'iOS' },
+				],
+				external_games: [
+					{
+						id: 1,
+						url: 'https://play.google.com/store/apps/details?id=com.cross.store',
+						external_game_source: { id: 15, name: 'Google Play' },
+					},
+					{ id: 2, uid: '987654321', external_game_source: { id: 13, name: 'Apple App Store' } },
+				],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+
+			const result = await getGameTemplateData(123)
+
+			expect(result?.googlePlayUrl).toBe('https://play.google.com/store/apps/details?id=com.cross.store')
+			expect(result?.appStoreUrl).toBe('https://apps.apple.com/app/id987654321')
+		})
 	})
 
 	describe('generateGameTemplate', () => {
@@ -1065,6 +1221,8 @@ describe('IGDB API Service', () => {
 				websites: [],
 				externalGames: [],
 				steamStoreUrl: 'https://store.steampowered.com/app/292030',
+				googlePlayUrl: null,
+				appStoreUrl: null,
 				languageSupports: [],
 				rating: 85,
 				aggregatedRating: null,
@@ -1127,6 +1285,8 @@ describe('IGDB API Service', () => {
 				websites: [],
 				externalGames: [],
 				steamStoreUrl: null,
+				googlePlayUrl: null,
+				appStoreUrl: null,
 				languageSupports: [],
 				rating: null,
 				aggregatedRating: null,
@@ -1199,6 +1359,52 @@ describe('IGDB API Service', () => {
 			expect(result).toContain('PS5')
 			expect(result).not.toContain('[b]Desarrollador:[/b]')
 		})
+
+		it('uses the mobile game default template for the mobile-game type', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Mobile Quest',
+				summary: 'A mobile-only game',
+				platforms: [{ id: 34, name: 'Android' }],
+				external_games: [
+					{ id: 1, uid: 'com.example.mobilequest', external_game_source: { id: 15, name: 'Android' } },
+				],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+
+			const result = await getGameTemplateString(123, 'mobile-game')
+
+			expect(result).toContain('[bar]DESCARGA[/bar]')
+			expect(result).toContain('[media]https://play.google.com/store/apps/details?id=com.example.mobilequest[/media]')
+			expect(result).not.toContain('[bar]STEAM[/bar]')
+		})
+
+		it('renders both store cards under DESCARGA when Google Play and App Store links exist', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Mobile Quest',
+				summary: 'A mobile-only game',
+				platforms: [
+					{ id: 34, name: 'Android' },
+					{ id: 39, name: 'iOS' },
+				],
+				external_games: [
+					{ id: 1, uid: 'com.example.mobilequest', external_game_source: { id: 15, name: 'Android' } },
+					{ id: 2, uid: '6754593077', external_game_source: { id: 13, name: 'Apple App Store' } },
+				],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+
+			const result = await getGameTemplateString(123, 'mobile-game')
+
+			expect(result).toContain('[bar]DESCARGA[/bar]')
+			expect(result).toContain('[media]https://play.google.com/store/apps/details?id=com.example.mobilequest[/media]')
+			expect(result).toContain('[media]https://apps.apple.com/app/id6754593077[/media]')
+		})
 	})
 
 	describe('generateSteamMediaTemplate', () => {
@@ -1237,6 +1443,8 @@ describe('IGDB API Service', () => {
 				websites: [],
 				externalGames: [],
 				steamStoreUrl: 'https://store.steampowered.com/app/292030',
+				googlePlayUrl: null,
+				appStoreUrl: null,
 				languageSupports: [],
 				rating: null,
 				aggregatedRating: null,
@@ -1282,6 +1490,8 @@ describe('IGDB API Service', () => {
 				websites: [],
 				externalGames: [],
 				steamStoreUrl: null,
+				googlePlayUrl: null,
+				appStoreUrl: null,
 				languageSupports: [],
 				rating: null,
 				aggregatedRating: null,

@@ -2,10 +2,9 @@ import { defineConfig } from 'wxt'
 import path from 'path'
 
 const FIREFOX_ANDROID_MIN_VERSION = '120.0'
-const ENABLE_FIREFOX_ANDROID = process.env.MVP_ENABLE_FIREFOX_ANDROID === 'true'
 const EXTENSION_DISPLAY_NAME = 'MV Premium'
 
-function getBrowserSpecificSettings() {
+function getBrowserSpecificSettings(browser: string) {
 	const geckoSettings = {
 		gecko: {
 			id: 'mv-premium@adan-dev',
@@ -15,7 +14,7 @@ function getBrowserSpecificSettings() {
 		},
 	}
 
-	if (!ENABLE_FIREFOX_ANDROID) {
+	if (browser !== 'firefox') {
 		return geckoSettings
 	}
 
@@ -32,7 +31,7 @@ export default defineConfig({
 	modules: ['@wxt-dev/module-react'],
 	imports: false, // Disable auto-imports to avoid duplicated imports warnings
 	hooks: {
-		'build:manifestGenerated': (_, manifest) => {
+		'build:manifestGenerated': (wxt, manifest) => {
 			if (manifest.action) {
 				manifest.action.default_title = EXTENSION_DISPLAY_NAME
 			}
@@ -41,14 +40,14 @@ export default defineConfig({
 				manifest.browser_action.default_title = EXTENSION_DISPLAY_NAME
 			}
 
-			if (!ENABLE_FIREFOX_ANDROID) return
+			if (wxt.config.browser !== 'firefox') return
 
 			delete manifest.options_page
 			delete manifest.options_ui
 		},
 	},
 
-	manifest: {
+	manifest: ({ browser }) => ({
 		permissions: ['storage', 'activeTab', 'contextMenus', 'scripting', 'declarativeNetRequest'],
 		host_permissions: [
 			'*://*.mediavida.com/*',
@@ -67,12 +66,14 @@ export default defineConfig({
 			'https://s4.anilist.co/*',
 			'*://api.igdb.com/*',
 			'*://id.twitch.tv/*',
+			'https://itunes.apple.com/*',
+			'https://play.google.com/*',
 		],
 		name: 'MV Premium',
 		description:
 			'La experiencia definitiva para Mediavida. Potencia el foro con herramientas modernas, navegación fluida y personalización total.',
 		// @ts-ignore: Firefox exposes newer browser_specific_settings fields before WXT types catch up.
-		browser_specific_settings: getBrowserSpecificSettings(),
+		browser_specific_settings: getBrowserSpecificSettings(browser),
 		web_accessible_resources: [
 			{
 				resources: ['icon/*.png', 'assets/*.css'],
@@ -81,13 +82,15 @@ export default defineConfig({
 		],
 		// --- CSP (hardened) ---
 		content_security_policy: {
-			extension_pages: `script-src 'self'; object-src 'self'; connect-src 'self' https://*.mediavida.com https://api.giphy.com https://generativelanguage.googleapis.com https://store.steampowered.com https://api.imgbb.com https://freeimage.host https://api.isthereanydeal.com https://assets.isthereanydeal.com https://dbxce1spal1df.cloudfront.net https://publish.twitter.com https://cdn.syndication.twimg.com https://graphql.anilist.co https://s4.anilist.co https://api.themoviedb.org https://image.tmdb.org https://id.twitch.tv https://api.igdb.com ${
+			extension_pages: `script-src 'self'; object-src 'self'; connect-src 'self' https://*.mediavida.com https://api.giphy.com https://generativelanguage.googleapis.com https://store.steampowered.com https://api.imgbb.com https://freeimage.host https://api.isthereanydeal.com https://assets.isthereanydeal.com https://dbxce1spal1df.cloudfront.net https://publish.twitter.com https://cdn.syndication.twimg.com https://graphql.anilist.co https://s4.anilist.co https://api.themoviedb.org https://image.tmdb.org https://id.twitch.tv https://api.igdb.com https://itunes.apple.com https://play.google.com ${
 				process.env.NODE_ENV === 'development'
 					? 'ws://localhost:3000 http://localhost:3000 ws://localhost:3001 http://localhost:3001'
 					: ''
-			}; img-src 'self' data: blob: https: http:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com;`,
+			}; img-src 'self' data: blob: https: http:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com ${
+					process.env.NODE_ENV === 'development' ? 'http://localhost:3000 http://localhost:3001' : ''
+				};`,
 		},
-	},
+	}),
 	webExt: {
 		disabled: true,
 	},
@@ -173,6 +176,9 @@ export default defineConfig({
 					properties: false,
 				},
 			},
+		},
+		define: {
+			__MVP_BUILD_ID__: JSON.stringify(process.env.MVP_BUILD_ID ?? new Date().toISOString()),
 		},
 	}),
 })

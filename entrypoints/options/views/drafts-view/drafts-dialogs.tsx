@@ -8,6 +8,7 @@ import FileText from 'lucide-react/dist/esm/icons/file-text'
 import FolderOpen from 'lucide-react/dist/esm/icons/folder-open'
 import AlertTriangle from 'lucide-react/dist/esm/icons/alert-triangle'
 import Folder from 'lucide-react/dist/esm/icons/folder'
+import Send from 'lucide-react/dist/esm/icons/send'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -20,6 +21,9 @@ import {
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { ALL_SUBFORUMS } from '@/lib/subforums'
+import { getCategoriesForSubforum } from '@/lib/subforum-categories'
+import type { Draft } from '@/features/drafts/storage'
 import type { FolderWithCount } from '@/features/drafts/components/folder-item'
 
 // ============================================================================
@@ -166,6 +170,64 @@ export function DeleteFolderDialog({ open, onOpenChange, folder, onConfirm }: De
 					<Button variant="destructive" onClick={onConfirm}>
 						<Trash2 className="h-4 w-4 mr-2" />
 						Eliminar
+					</Button>
+				</DialogFooter>
+			</DialogContent>
+		</Dialog>
+	)
+}
+
+// ============================================================================
+// Publish Draft Dialog
+// ============================================================================
+
+interface PublishDraftDialogProps {
+	open: boolean
+	onOpenChange: (open: boolean) => void
+	draft: Draft | null
+	onConfirm: () => void
+}
+
+export function PublishDraftDialog({ open, onOpenChange, draft, onConfirm }: PublishDraftDialogProps) {
+	const subforum = draft?.subforum ? ALL_SUBFORUMS.find(item => item.slug === draft.subforum) : undefined
+	const category =
+		draft?.subforum && draft.category
+			? getCategoriesForSubforum(draft.subforum).find(item => item.value === draft.category)
+			: undefined
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="sm:max-w-lg">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						<Send className="h-5 w-5 text-primary" />
+						Publicar hilo en Mediavida
+					</DialogTitle>
+					<DialogDescription asChild>
+						<div className="space-y-3">
+							<p>
+								Se abrirá Mediavida, se rellenará el formulario de nuevo hilo y se pulsará{' '}
+								<span className="font-medium text-foreground">Crear tema</span> automáticamente.
+							</p>
+							<div className="rounded-md border border-border bg-muted/35 px-3 py-2 text-xs text-muted-foreground">
+								<div className="font-medium text-foreground">{draft?.title || 'Sin título'}</div>
+								<div className="mt-1">
+									{subforum?.name || draft?.subforum || 'Sin subforo'}
+									{category ? ` · ${category.label}` : ''}
+								</div>
+							</div>
+							<p>Para comprobar el flujo sin crear un hilo real, usa antes la acción Probar sin publicar.</p>
+						</div>
+					</DialogDescription>
+				</DialogHeader>
+
+				<DialogFooter>
+					<Button variant="outline" onClick={() => onOpenChange(false)}>
+						Cancelar
+					</Button>
+					<Button onClick={onConfirm}>
+						<Send className="h-4 w-4 mr-2" />
+						Publicar ahora
 					</Button>
 				</DialogFooter>
 			</DialogContent>

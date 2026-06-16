@@ -240,6 +240,9 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		})
 
 		if (window.location.pathname.includes('/nuevo-hilo')) {
+			import('@/features/drafts/logic/thread-publish').then(({ applyDashboardThreadPublish }) => {
+				void applyDashboardThreadPublish()
+			})
 			import('@/features/release-calendar').then(({ applyReleaseThreadPrefill }) => {
 				applyReleaseThreadPrefill()
 			})
@@ -315,7 +318,7 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 
 	if (
 		pageContext?.isSubforum &&
-		/^\/foro\/juegos\/?$/.test(window.location.pathname)
+		/^\/foro\/juegos(?:-movil)?\/?$/.test(window.location.pathname)
 	) {
 		const { injectReleaseCalendar } = await import('@/features/release-calendar')
 		injectReleaseCalendar()
@@ -388,7 +391,7 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		})
 
 		// Check for pending thread creation, post edit, or reply (captures context after redirect)
-		import('@/features/stats').then(
+		import('@/features/stats/post-tracker').then(
 			({ completePendingThreadCreation, completePendingPostEdit, completePendingReply }) => {
 				completePendingThreadCreation()
 				completePendingPostEdit()
@@ -418,6 +421,16 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 
 		if (threadModules.savedThreads) {
 			threadModules.savedThreads.injectSaveThreadButton()
+		}
+
+		{
+			const [{ injectThreadPageHideButton, setupHiddenThreadGuard }, { desktopThreadHideNotifier }] =
+				await Promise.all([
+					import('@/features/hidden-threads/logic/thread-page-hide'),
+					import('@/features/hidden-threads/logic/hide-toast'),
+				])
+			setupHiddenThreadGuard()
+			injectThreadPageHideButton(desktopThreadHideNotifier)
 		}
 
 		if (threadModules.threadSummarizer && isFeatureEnabled(FeatureFlag.ThreadSummarizer)) {

@@ -37,6 +37,7 @@ const EMPTY_SUMMARY: MobileLiteTransferSummary = {
 	hide: 0,
 	mute: 0,
 	hasImgbbApiKey: false,
+	hasGeminiApiKey: false,
 }
 
 function SummaryCard({
@@ -77,7 +78,7 @@ function SummaryCard({
 			icon: 'border-border bg-muted/40 text-muted-foreground',
 		},
 	}[tone]
-	const isKeyCard = tone === 'key' || (tone === 'empty' && label === 'API key de ImgBB')
+	const isKeyCard = tone === 'key' || (tone === 'empty' && label.startsWith('API key'))
 
 	return (
 		<div className={`min-h-[104px] rounded-lg border px-5 py-4 shadow-sm transition-colors ${toneClasses.card}`}>
@@ -107,6 +108,7 @@ function formatCount(count: number, singular: string, plural: string): string {
 export function MobileLiteQrView() {
 	const navigate = useNavigate()
 	const imgbbApiKey = useSettingsStore(state => state.imgbbApiKey)
+	const geminiApiKey = useSettingsStore(state => state.geminiApiKey)
 	const [userData, setUserData] = useState<UserCustomizationsData | null>(null)
 	const [refreshToken, setRefreshToken] = useState(0)
 	const [state, setState] = useState<MobileLiteQrState>({
@@ -153,8 +155,8 @@ export function MobileLiteQrView() {
 
 		async function buildQr() {
 			try {
-				const result = createMobileLiteImportUrl(currentUserData, imgbbApiKey)
-				if (result.summary.total === 0 && !result.summary.hasImgbbApiKey) {
+				const result = createMobileLiteImportUrl(currentUserData, imgbbApiKey, geminiApiKey)
+				if (result.summary.total === 0 && !result.summary.hasImgbbApiKey && !result.summary.hasGeminiApiKey) {
 					setState({
 						url: '',
 						qrDataUrl: '',
@@ -199,14 +201,25 @@ export function MobileLiteQrView() {
 		return () => {
 			cancelled = true
 		}
-	}, [userData, imgbbApiKey, refreshToken])
+	}, [userData, imgbbApiKey, geminiApiKey, refreshToken])
 
 	const hasData = Boolean(state.url && state.qrDataUrl)
 	const isEmpty = !state.loading && !state.error && !hasData
-	const configuredStatus = useMemo(
+	const imgbbConfiguredStatus = useMemo(
 		() => (state.summary.hasImgbbApiKey ? 'Configurada' : 'No configurada'),
 		[state.summary.hasImgbbApiKey]
 	)
+	const geminiConfiguredStatus = useMemo(
+		() => (state.summary.hasGeminiApiKey ? 'Configurada' : 'No configurada'),
+		[state.summary.hasGeminiApiKey]
+	)
+	const apiKeyBadgeLabel = useMemo(() => {
+		const names = [
+			state.summary.hasImgbbApiKey ? 'ImgBB' : null,
+			state.summary.hasGeminiApiKey ? 'Gemini' : null,
+		].filter(Boolean)
+		return names.length > 0 ? `Incluye ${names.join(' + ')}` : 'Sin API key'
+	}, [state.summary.hasGeminiApiKey, state.summary.hasImgbbApiKey])
 	const userCountLabel = pluralize(state.summary.total, 'Usuario', 'Usuarios')
 	const hiddenCountLabel = pluralize(state.summary.hide, 'Oculto', 'Ocultos')
 	const mutedCountLabel = pluralize(state.summary.mute, 'Silenciado', 'Silenciados')
@@ -232,7 +245,7 @@ export function MobileLiteQrView() {
 						<div className="min-w-0">
 							<h1 className="text-2xl font-bold tracking-tight">QR Mobile Lite</h1>
 							<p className="text-sm text-muted-foreground">
-								Lleva usuarios ignorados y la API key de ImgBB a Firefox Android.
+								Lleva usuarios ignorados y tus API keys de ImgBB/Gemini a Firefox Android.
 							</p>
 						</div>
 					</div>
@@ -243,7 +256,7 @@ export function MobileLiteQrView() {
 				</div>
 			</div>
 
-			<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+			<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
 				<SummaryCard
 					icon={UsersRound}
 					label={userCountLabel}
@@ -265,8 +278,14 @@ export function MobileLiteQrView() {
 				<SummaryCard
 					icon={KeyRound}
 					label="API key de ImgBB"
-					value={configuredStatus}
+					value={imgbbConfiguredStatus}
 					tone={state.summary.hasImgbbApiKey ? 'key' : 'empty'}
+				/>
+				<SummaryCard
+					icon={KeyRound}
+					label="API key de Gemini"
+					value={geminiConfiguredStatus}
+					tone={state.summary.hasGeminiApiKey ? 'key' : 'empty'}
 				/>
 			</div>
 
@@ -282,16 +301,16 @@ export function MobileLiteQrView() {
 								Escanea este QR desde Firefox Android con Mobile Lite activo o copia el enlace manualmente.
 							</CardDescription>
 						</div>
-						<Badge variant={state.summary.hasImgbbApiKey ? 'default' : 'secondary'}>
-							{state.summary.hasImgbbApiKey ? 'Incluye ImgBB' : 'Sin API key'}
+						<Badge variant={state.summary.hasImgbbApiKey || state.summary.hasGeminiApiKey ? 'default' : 'secondary'}>
+							{apiKeyBadgeLabel}
 						</Badge>
 					</div>
 				</CardHeader>
 				<CardContent className="space-y-5 pt-6">
-					{state.summary.hasImgbbApiKey && (
+					{(state.summary.hasImgbbApiKey || state.summary.hasGeminiApiKey) && (
 						<Alert>
 							<KeyRound className="h-4 w-4" />
-							<AlertTitle>El QR contiene tu API key de ImgBB</AlertTitle>
+							<AlertTitle>El QR contiene API keys personales</AlertTitle>
 							<AlertDescription>
 								Escanéalo solo en tu dispositivo. La importación en Mobile Lite siempre pedirá confirmación.
 							</AlertDescription>
@@ -308,7 +327,7 @@ export function MobileLiteQrView() {
 									<div className="space-y-1">
 										<h3 className="font-semibold">Aún no hay datos para crear el QR</h3>
 										<p className="max-w-2xl text-sm text-muted-foreground">
-											Añade usuarios ocultos o silenciados, o configura tu API key de ImgBB para preparar la transferencia a Mobile Lite.
+											Añade usuarios ocultos o silenciados, o configura una API key de ImgBB/Gemini para preparar la transferencia a Mobile Lite.
 										</p>
 									</div>
 								</div>
@@ -320,6 +339,11 @@ export function MobileLiteQrView() {
 									<Button type="button" onClick={() => navigate('/settings?tab=integrations&setting=imgbb-api-key')}>
 										<KeyRound className="h-4 w-4" />
 										ImgBB
+										<ArrowRight className="h-4 w-4" />
+									</Button>
+									<Button type="button" onClick={() => navigate('/settings?tab=integrations&setting=gemini-api-key')}>
+										<KeyRound className="h-4 w-4" />
+										Gemini
 										<ArrowRight className="h-4 w-4" />
 									</Button>
 								</div>
@@ -409,6 +433,15 @@ export function MobileLiteQrView() {
 										</div>
 										<Badge variant={state.summary.hasImgbbApiKey ? 'default' : 'secondary'}>
 											{state.summary.hasImgbbApiKey ? 'Incluida' : 'No incluida'}
+										</Badge>
+									</div>
+									<div className="flex items-center justify-between gap-3 rounded-lg border bg-background/45 p-3">
+										<div className="flex min-w-0 items-center gap-2">
+											<KeyRound className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+											<span className="truncate text-sm font-semibold">API key de Gemini</span>
+										</div>
+										<Badge variant={state.summary.hasGeminiApiKey ? 'default' : 'secondary'}>
+											{state.summary.hasGeminiApiKey ? 'Incluida' : 'No incluida'}
 										</Badge>
 									</div>
 								</div>

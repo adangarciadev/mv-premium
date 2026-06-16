@@ -16,6 +16,7 @@ import X from 'lucide-react/dist/esm/icons/x'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import * as TooltipPrimitive from '@radix-ui/react-tooltip'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { HeatmapLegacyBadge } from './heatmap-legacy-badge'
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -342,11 +343,17 @@ export const ActivityGraph = memo(function ActivityGraph({
 	activityData,
 	username,
 	onClearData,
+	headerSlot,
+	trackingEnabled = true,
 }: {
 	className?: string
 	activityData: ActivityData
 	username: string
 	onClearData?: () => void
+	/** Slot rendered at the header's right edge (the view toggle). */
+	headerSlot?: React.ReactNode
+	/** Whether new granular post activity is currently being recorded. */
+	trackingEnabled?: boolean
 }) {
 	const [selectedDay, setSelectedDay] = useState<DayData | null>(null)
 
@@ -371,9 +378,11 @@ export const ActivityGraph = memo(function ActivityGraph({
 					<div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 						<div className="flex items-center gap-2">
 							<Calendar className="h-5 w-5 text-primary" />
-							<CardTitle className="text-lg font-semibold text-foreground">Actividad del año {currentYear}</CardTitle>
+							<CardTitle className="text-lg font-semibold text-foreground">Calendario legacy {currentYear}</CardTitle>
+							<HeatmapLegacyBadge />
 						</div>
 					<div className="flex items-center gap-2 text-sm tracking-tight">
+						{headerSlot}
 						<TrendingUp className="h-4 w-4 text-primary" />
 						<span className="font-black text-primary text-base">{totalActivity}</span>
 						<span className="text-muted-foreground font-medium">
@@ -415,6 +424,12 @@ export const ActivityGraph = memo(function ActivityGraph({
 					</div>
 				</CardHeader>
 				<CardContent>
+					{!trackingEnabled && (
+						<div className="mb-4 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+							Historial pausado: puedes consultar tus datos guardados, pero no se registrarán nuevos posts mientras el
+							heatmap legacy esté desactivado.
+						</div>
+					)}
 					<div className="w-fit max-w-full pb-2">
 						<div>
 							{/* Month labels */}

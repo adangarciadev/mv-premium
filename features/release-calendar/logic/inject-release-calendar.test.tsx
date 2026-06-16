@@ -1,20 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactNode } from 'react'
 import { DOM_MARKERS, FEATURE_IDS } from '@/constants'
-import { injectReleaseCalendar } from './inject-release-calendar'
+import { injectReleaseCalendar, toggleReleaseCalendarJuegosMovil } from './inject-release-calendar'
 
-const { mountFeatureWithBoundary, isFeatureMounted, settingsState } = vi.hoisted(() => ({
+const { mountFeatureWithBoundary, isFeatureMounted, unmountFeature, settingsState } = vi.hoisted(() => ({
 	mountFeatureWithBoundary: vi.fn(),
 	isFeatureMounted: vi.fn(() => false),
+	unmountFeature: vi.fn(),
 	settingsState: {
 		gameReleaseCalendarJuegosEnabled: true,
+		gameReleaseCalendarJuegosMovilEnabled: true,
+		setSetting: vi.fn((key: 'gameReleaseCalendarJuegosEnabled' | 'gameReleaseCalendarJuegosMovilEnabled', value: boolean) => {
+			settingsState[key] = value
+		}),
 	},
 }))
 
 vi.mock('@/lib/content-modules/utils/react-helpers', () => ({
 	isFeatureMounted,
 	mountFeatureWithBoundary,
-	unmountFeature: vi.fn(),
+	unmountFeature,
 }))
 
 vi.mock('@/components/shadow-wrapper', () => ({
@@ -40,7 +45,10 @@ describe('injectReleaseCalendar', () => {
 		document.body.innerHTML = '<main class="c-main"></main>'
 		mountFeatureWithBoundary.mockClear()
 		isFeatureMounted.mockReturnValue(false)
+		unmountFeature.mockClear()
 		settingsState.gameReleaseCalendarJuegosEnabled = true
+		settingsState.gameReleaseCalendarJuegosMovilEnabled = true
+		settingsState.setSetting.mockClear()
 		setPath('/foro/juegos')
 	})
 
@@ -72,5 +80,47 @@ describe('injectReleaseCalendar', () => {
 
 		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR)).toBeNull()
 		expect(mountFeatureWithBoundary).not.toHaveBeenCalled()
+	})
+
+	it('mounts the mobile calendar on the Juegos de móvil subforum', () => {
+		setPath('/foro/juegos-movil')
+
+		injectReleaseCalendar()
+
+		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR_MOVIL)).not.toBeNull()
+		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR)).toBeNull()
+		expect(mountFeatureWithBoundary).toHaveBeenCalledWith(
+			FEATURE_IDS.GAME_RELEASE_CALENDAR_MOVIL,
+			expect.any(HTMLDivElement),
+			expect.anything(),
+			'Calendario de lanzamientos'
+		)
+	})
+
+	it('respects the Juegos de móvil setting independently', () => {
+		settingsState.gameReleaseCalendarJuegosMovilEnabled = false
+		setPath('/foro/juegos-movil')
+
+		injectReleaseCalendar()
+
+		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR_MOVIL)).toBeNull()
+		expect(mountFeatureWithBoundary).not.toHaveBeenCalled()
+
+		// The Juegos calendar must keep working with its own setting
+		setPath('/foro/juegos')
+		injectReleaseCalendar()
+
+		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR)).not.toBeNull()
+	})
+
+	it('toggles the Juegos de móvil calendar setting explicitly', async () => {
+		document.body.innerHTML = `<main class="c-main"><div id="${DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR_MOVIL}"></div></main>`
+
+		await toggleReleaseCalendarJuegosMovil()
+
+		expect(settingsState.setSetting).toHaveBeenCalledWith('gameReleaseCalendarJuegosMovilEnabled', false)
+		expect(unmountFeature).toHaveBeenCalledWith(FEATURE_IDS.GAME_RELEASE_CALENDAR_MOVIL)
+		expect(document.getElementById(DOM_MARKERS.IDS.GAME_RELEASE_CALENDAR_MOVIL)).toBeNull()
+		expect(settingsState.gameReleaseCalendarJuegosEnabled).toBe(true)
 	})
 })

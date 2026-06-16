@@ -35,6 +35,7 @@ describe('Mobile Lite transfer payload', () => {
 				{ nick: 'HiddenUser', ignoreType: 'hide' },
 			],
 			imgbbApiKey: 'abc_123',
+			geminiApiKey: 'gemini_123',
 		}
 
 		const encoded = encodeMobileLiteTransferPayload(payload)
@@ -47,6 +48,7 @@ describe('Mobile Lite transfer payload', () => {
 				{ nick: 'MutedUser', ignoreType: 'mute' },
 			],
 			imgbbApiKey: 'abc_123',
+			geminiApiKey: 'gemini_123',
 		})
 	})
 
@@ -93,6 +95,15 @@ describe('Mobile Lite transfer payload', () => {
 				imgbbApiKey: 'bad key',
 			})
 		).toThrow('Invalid Mobile Lite payload')
+
+		expect(() =>
+			validateMobileLiteTransferPayload({
+				type: 'mvp-mobile-lite-transfer',
+				version: 1,
+				ignoredUsers: [],
+				geminiApiKey: 'bad key',
+			})
+		).toThrow('Invalid Mobile Lite payload')
 	})
 
 	it('builds an import URL with the expected query param', () => {
@@ -123,14 +134,15 @@ describe('Mobile Lite transfer payload', () => {
 		expect(payload.ignoredUsers).toEqual([{ nick: 'SameUser', ignoreType: 'hide' }])
 	})
 
-	it('exports only ignored users and optionally includes the ImgBB API key', () => {
+	it('exports only ignored users and optionally includes API keys', () => {
 		const payload = createMobileLiteTransferPayload(
 			data({
 				HiddenUser: { isIgnored: true, ignoreType: 'hide', note: 'keep me', avatarUrl: 'https://www.mediavida.com/img/users/avatar/hidden-user.png' },
 				MutedUser: { isIgnored: true, ignoreType: 'mute' },
 				StyledUser: { usernameColour: '#fff' },
 			}),
-			' key_123 '
+			' key_123 ',
+			' gemini_123 '
 		)
 
 		expect(payload.ignoredUsers).toEqual([
@@ -138,6 +150,7 @@ describe('Mobile Lite transfer payload', () => {
 			{ nick: 'MutedUser', ignoreType: 'mute' },
 		])
 		expect(payload.imgbbApiKey).toBe('key_123')
+		expect(payload.geminiApiKey).toBe('gemini_123')
 	})
 
 	it('merges without duplicates and preserves existing customizations', () => {

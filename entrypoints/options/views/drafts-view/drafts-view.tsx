@@ -14,7 +14,7 @@ import { DraftGrid } from '@/features/drafts/components/draft-grid'
 import { DraftsEmptyState } from '@/features/drafts/components/drafts-empty-state'
 import { SelectionBar } from '@/features/drafts/components/selection-bar'
 import { useDraftsView } from './use-drafts-view'
-import { DeleteDraftDialog, MoveDraftDialog, DeleteFolderDialog } from './drafts-dialogs'
+import { DeleteDraftDialog, MoveDraftDialog, DeleteFolderDialog, PublishDraftDialog } from './drafts-dialogs'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MediaTemplatesView } from './media-templates-view'
 import { useSearchParams } from 'react-router-dom'
@@ -70,6 +70,7 @@ export function DraftsView({ filterType }: DraftsViewProps) {
 		closeDeleteFolderDialog,
 		openCreateFolderDialog,
 		closeCreateFolderDialog,
+		closePublishDialog,
 
 		// Handlers
 		handleCreateDraft,
@@ -80,6 +81,8 @@ export function DraftsView({ filterType }: DraftsViewProps) {
 		handleMoveSelected,
 		handleMoveDraft,
 		handleConvertDraft,
+		handlePublishDraftRequest,
+		handlePublishDraftConfirm,
 		handleCreateFolder,
 		handleDragDrop,
 		handleDeleteFolderConfirm,
@@ -206,6 +209,7 @@ export function DraftsView({ filterType }: DraftsViewProps) {
 							onDelete={draft => setTimeout(() => openDeleteDialog([draft]), 100)}
 							onMove={draft => setTimeout(() => openMoveDialog(draft), 100)}
 							onConvert={handleConvertDraft}
+							onPublish={handlePublishDraftRequest}
 						/>
 
 						<p className="text-sm text-muted-foreground text-center">
@@ -265,6 +269,13 @@ export function DraftsView({ filterType }: DraftsViewProps) {
 				onOpenChange={open => (open ? undefined : closeDeleteFolderDialog())}
 				folder={dialogs.deleteFolder.folder}
 				onConfirm={handleDeleteFolderConfirm}
+			/>
+
+			<PublishDraftDialog
+				open={dialogs.publish.open}
+				onOpenChange={open => (open ? undefined : closePublishDialog())}
+				draft={dialogs.publish.draft}
+				onConfirm={handlePublishDraftConfirm}
 			/>
 		</div>
 	)

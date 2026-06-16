@@ -156,6 +156,32 @@ function stripHtmlToPlainText(html: string): string {
 	)
 }
 
+const NON_LATIN_SCRIPT_REGEX =
+	/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Cyrillic}\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Thai}]/gu
+
+/**
+ * Detects descriptions returned in a non-Latin script (Japanese, Korean, etc.).
+ * Steam's appdetails endpoint returns the app's default language instead of
+ * falling back to English when the requested locale is unavailable.
+ */
+export function isMostlyNonLatinText(text: string): boolean {
+	const sample = text.slice(0, 600)
+	const letters = sample.match(/\p{L}/gu)
+	if (!letters || letters.length < 20) return false
+
+	const nonLatin = sample.match(NON_LATIN_SCRIPT_REGEX)?.length ?? 0
+	return nonLatin / letters.length > 0.3
+}
+
+/**
+ * Detects any non-Latin script character. Unlike isMostlyNonLatinText, this
+ * works on short strings (titles), where a single CJK char means the text is
+ * a regional variant (e.g. 原神 or 마블 스냅).
+ */
+export function containsNonLatinScript(text: string): boolean {
+	return (text.match(NON_LATIN_SCRIPT_REGEX)?.length ?? 0) > 0
+}
+
 function decodeHtmlEntities(text: string): string {
 	return text
 		.replace(/&amp;/g, '&')
@@ -763,6 +789,21 @@ function mergeBundleDetails(
  * USE ONLY IN BACKGROUND SCRIPT.
  * Do not import directly in UI components. Use fetchSteamGameDetailsViaBackground.
  */
+async function fetchSteamAppData(appId: number, language: string): Promise<SteamApiResponse[string]['data'] | null> {
+	const url = `${API_URLS.STEAM_STORE}/api/appdetails?appids=${appId}&l=${language}&cc=es`
+	const response = await fetchWithRetry(url, `appdetails:${appId}:${language}`)
+
+	if (!response.ok) {
+		throw new Error(`HTTP ${response.status}`)
+	}
+
+	const json = (await response.json()) as SteamApiResponse
+	const appData = json[appId.toString()]
+	if (!appData?.success || !appData.data) return null
+
+	return appData.data
+}
+
 export async function fetchSteamGameDetails(appId: number): Promise<SteamGameDetails | null> {
 	const cached = getCachedGame(appId)
 	if (cached) {
@@ -771,22 +812,28 @@ export async function fetchSteamGameDetails(appId: number): Promise<SteamGameDet
 	}
 
 	try {
-		const url = `${API_URLS.STEAM_STORE}/api/appdetails?appids=${appId}&l=spanish&cc=es`
-		const response = await fetchWithRetry(url, `appdetails:${appId}`)
+		let data = await fetchSteamAppData(appId, 'spanish')
 
-		if (!response.ok) {
-			throw new Error(`HTTP ${response.status}`)
-		}
-
-		const json = (await response.json()) as SteamApiResponse
-		const appData = json[appId.toString()]
-
-		if (!appData?.success || !appData.data) {
+		if (!data) {
 			logger.warn('[Steam] No data found for app:', appId)
 			return null
 		}
 
-		const data = appData.data
+		// When a game has no Spanish localization, Steam serves the app's default
+		// language (often Japanese), not English like the store web does. Retry in
+		// English so templates get readable text.
+		const previewText = stripHtmlToPlainText(data.about_the_game || '') || data.short_description || ''
+		if (isMostlyNonLatinText(previewText)) {
+			try {
+				const englishData = await fetchSteamAppData(appId, 'english')
+				if (englishData) {
+					data = englishData
+				}
+			} catch (error) {
+				logger.warn('[Steam] English fallback fetch failed, keeping default language data:', error)
+			}
+		}
+
 		const aboutText = stripHtmlToPlainText(data.about_the_game || '')
 
 		const gameDetails: SteamGameDetails = {

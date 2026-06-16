@@ -1,8 +1,49 @@
 /**
  * Tests for Activity Stats Storage - date and tracking logic
  */
-import { describe, it, expect } from 'vitest'
-import { formatDateKey, parseDateKey } from '@/lib/date-utils'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { STORAGE_KEYS } from '@/constants'
+import { formatDateKey, getTodayKey, parseDateKey } from '@/lib/date-utils'
+import { setCompressed } from '@/lib/storage/compressed-storage'
+import {
+	clearActivityData,
+	getActivityData,
+	trackActivity,
+	type ActivityData,
+	type ActivityEntry,
+} from './storage'
+
+const mockGetSettings = vi.hoisted(() => vi.fn())
+
+vi.mock('@/store', () => ({
+	getSettings: mockGetSettings,
+}))
+
+const ACTIVITY_KEY = `local:${STORAGE_KEYS.ACTIVITY}` as const
+
+function setActivityTrackingPreference(value: boolean): void {
+	mockGetSettings.mockResolvedValue({
+		enableActivityTracking: value,
+	})
+}
+
+function createActivityEntry(overrides: Partial<ActivityEntry> = {}): ActivityEntry {
+	return {
+		id: 'existing-entry',
+		type: 'post',
+		action: 'publish',
+		timestamp: Date.now(),
+		title: 'Existing thread',
+		context: 'Juegos',
+		url: 'https://www.mediavida.com/foro/juegos/thread-1',
+		...overrides,
+	}
+}
+
+beforeEach(() => {
+	mockGetSettings.mockReset()
+	mockGetSettings.mockResolvedValue({})
+})
 
 describe('activity-stats date utilities', () => {
 	describe('formatDateKey', () => {
@@ -80,5 +121,72 @@ describe('activity entry structure', () => {
 		validActions.forEach(action => {
 			expect(['create', 'update', 'publish']).toContain(action)
 		})
+	})
+})
+
+describe('activity tracking legacy opt-in', () => {
+	it('does not record new activity when there is no explicit preference and no legacy data', async () => {
+		await trackActivity({ type: 'post', action: 'publish', title: 'New reply' })
+
+		await expect(getActivityData()).resolves.toEqual({})
+	})
+
+	it('records activity when the user explicitly enables the legacy heatmap', async () => {
+		setActivityTrackingPreference(true)
+
+		await trackActivity({ type: 'post', action: 'create', title: 'New thread', context: 'Off-topic' })
+
+		const todayEntries = (await getActivityData())[getTodayKey()]
+		expect(todayEntries).toHaveLength(1)
+		expect(todayEntries?.[0]).toMatchObject({
+			type: 'post',
+			action: 'create',
+			title: 'New thread',
+			context: 'Off-topic',
+		})
+	})
+
+	it('does not record activity when the user explicitly disables the legacy heatmap', async () => {
+		const todayKey = getTodayKey()
+		const existingData: ActivityData = {
+			[todayKey]: [createActivityEntry()],
+		}
+		await setCompressed(ACTIVITY_KEY, existingData)
+		setActivityTrackingPreference(false)
+
+		await trackActivity({ type: 'post', action: 'publish', title: 'Ignored reply' })
+
+		const todayEntries = (await getActivityData())[todayKey]
+		expect(todayEntries).toHaveLength(1)
+		expect(todayEntries?.[0].title).toBe('Existing thread')
+	})
+
+	it('keeps recording for legacy users with activity data but no explicit preference', async () => {
+		const todayKey = getTodayKey()
+		const existingData: ActivityData = {
+			[todayKey]: [createActivityEntry()],
+		}
+		await setCompressed(ACTIVITY_KEY, existingData)
+
+		await trackActivity({ type: 'post', action: 'publish', title: 'Legacy reply' })
+
+		const todayEntries = (await getActivityData())[todayKey]
+		expect(todayEntries).toHaveLength(2)
+		expect(todayEntries?.[1]).toMatchObject({
+			type: 'post',
+			action: 'publish',
+			title: 'Legacy reply',
+		})
+	})
+
+	it('clears compressed activity data through the compressed storage layer', async () => {
+		const existingData: ActivityData = {
+			[getTodayKey()]: [createActivityEntry()],
+		}
+		await setCompressed(ACTIVITY_KEY, existingData)
+
+		await clearActivityData()
+
+		await expect(getActivityData()).resolves.toEqual({})
 	})
 })

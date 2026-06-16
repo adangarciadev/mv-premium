@@ -32,12 +32,14 @@ function isMobileLiteHiddenThreadsAllowed(): boolean {
 	return getPlatformKind() === 'firefox-android' && isFeatureEnabled(FeatureFlag.MobileLite)
 }
 
-function areHiddenThreadsEnabled(): boolean {
+function isHideButtonEnabled(): boolean {
 	return useSettingsStore.getState().hideThreadEnabled !== false
 }
 
 export function isMobileLiteHiddenThreadsPath(pathname: string): boolean {
 	if (pathname === '/foro/spy' || pathname.startsWith('/foro/spy/')) return true
+	// Profile thread lists (último posts, posts, temas…), same as desktop.
+	if (/^\/id\/[^/]+(?:\/.*)?$/.test(pathname)) return true
 	if (!pathname.startsWith('/foro/')) return false
 
 	const segments = pathname.split('/').filter(Boolean)
@@ -164,11 +166,15 @@ export function resetMobileLiteHiddenThreads(): void {
 export function applyMobileLiteHiddenThreads(): void {
 	ensureStyles()
 
-	if (!areHiddenThreadsEnabled() || !isMobileLiteHiddenThreadsPath(window.location.pathname)) {
+	if (!isMobileLiteHiddenThreadsPath(window.location.pathname)) {
 		resetMobileLiteHiddenThreads()
 		removeHideButtons()
 		return
 	}
+
+	// The setting only controls the hide button; stored threads stay hidden either way.
+	const hideButtonEnabled = isHideButtonEnabled()
+	if (!hideButtonEnabled) removeHideButtons()
 
 	document.querySelectorAll<HTMLTableRowElement>(THREAD_ROWS_SELECTOR).forEach(row => {
 		const threadPath = extractThreadPathFromRow(row)
@@ -180,7 +186,7 @@ export function applyMobileLiteHiddenThreads(): void {
 		}
 
 		clearHiddenRow(row)
-		ensureHideButton(row, threadPath)
+		if (hideButtonEnabled) ensureHideButton(row, threadPath)
 	})
 }
 

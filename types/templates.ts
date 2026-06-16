@@ -19,7 +19,14 @@
 /**
  * Types of media that can have templates
  */
-export type TemplateType = 'movie' | 'tvshow' | 'season' | 'game' | 'anime' | 'manga'
+export type TemplateType = 'movie' | 'tvshow' | 'season' | 'game' | 'mobile-game' | 'anime' | 'manga'
+
+/**
+ * Template types backed by IGDB game data (share search, fields and data input)
+ */
+export function isGameTemplateType(type: TemplateType): type is 'game' | 'mobile-game' {
+	return type === 'game' || type === 'mobile-game'
+}
 
 /**
  * Types of blocks that compose a template
@@ -717,6 +724,24 @@ export const GAME_FIELDS: FieldDefinition[] = [
 		source: 'steam',
 		category: 'Tiendas y enlaces',
 	},
+	{
+		key: 'googlePlayUrl',
+		label: 'Tarjeta de Google Play',
+		description: 'URL de Google Play para incrustar como tarjeta con [media]',
+		isArray: false,
+		example: 'https://play.google.com/store/apps/details?id=com.example.game',
+		source: 'igdb',
+		category: 'Tiendas y enlaces',
+	},
+	{
+		key: 'appStoreUrl',
+		label: 'Tarjeta de App Store',
+		description: 'URL de la App Store de iOS para incrustar como tarjeta con [media]',
+		isArray: false,
+		example: 'https://apps.apple.com/app/id123456789',
+		source: 'igdb',
+		category: 'Tiendas y enlaces',
+	},
 
 	// -- Otros --
 	{
@@ -835,6 +860,7 @@ export function getFieldsForType(type: TemplateType): FieldDefinition[] {
 		case 'season':
 			return SEASON_FIELDS
 		case 'game':
+		case 'mobile-game':
 			return GAME_FIELDS
 		case 'anime':
 			return ANIME_FIELDS
@@ -855,6 +881,7 @@ export interface UserTemplates {
 	tvshow: MediaTemplate | null
 	season: MediaTemplate | null
 	game: MediaTemplate | null
+	'mobile-game': MediaTemplate | null
 	anime: MediaTemplate | null
 	manga: MediaTemplate | null
 }
@@ -867,6 +894,7 @@ export const DEFAULT_USER_TEMPLATES: UserTemplates = {
 	tvshow: null,
 	season: null,
 	game: null,
+	'mobile-game': null,
 	anime: null,
 	manga: null,
 }
@@ -987,6 +1015,8 @@ export interface GameTemplateDataInput {
 	websites: { category: string; url: string }[]
 	externalGames: string[]
 	steamStoreUrl: string | null
+	googlePlayUrl: string | null
+	appStoreUrl: string | null
 	languageSupports: string[]
 	rating: number | null
 	aggregatedRating: number | null

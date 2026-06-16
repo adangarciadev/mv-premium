@@ -1,20 +1,17 @@
 # Mobile Lite Firefox Android Test Checklist
 
-## Build experimental local
+## Build Firefox local/AMO
 
-Generar el build Firefox con compatibilidad Android declarada solo para prueba local:
+Generar el build Firefox único para AMO:
 
 ```sh
-MVP_ENABLE_FIREFOX_ANDROID=true npm run build:firefox
+npm run build:firefox
 ```
 
-En Windows/cmd, o en WSL cuando se use Node de Windows:
-
-```bat
-set MVP_ENABLE_FIREFOX_ANDROID=true&& npm run build:firefox
-```
-
-No subir este build a AMO hasta completar la validación manual.
+Este build debe servir para Firefox Desktop y Firefox Android. El manifest debe declarar
+`browser_specific_settings.gecko_android`, no debe declarar `options_ui` / `options_page`, y
+debe seguir empaquetando `options.html` para que el dashboard abra desde los accesos propios de
+MV Premium.
 
 ## Activación interna
 
@@ -111,10 +108,11 @@ No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de 
 ## Prueba básica en dispositivo
 
 - Instalar el XPI local en Firefox Android Nightly/Beta o el entorno de pruebas disponible.
-- Confirmar que el manifest del build experimental contiene `browser_specific_settings.gecko_android`.
+- Confirmar que el manifest Firefox contiene `browser_specific_settings.gecko_android`.
+- Confirmar que el manifest Firefox no contiene `options_ui` ni `options_page`.
+- Confirmar que `.output/firefox-mv2/options.html` existe.
 - Confirmar que Chrome y Firefox Desktop no muestran UI Mobile Lite ni entrada `Panel MVPremium`.
-- En Firefox Android con `mobileLiteEnabled=false`, abrir Mediavida y confirmar que no aparece UI de MV Premium.
-- Activar con `#mvp_mobile_lite=enable`.
+- En Firefox Android, abrir Mediavida y confirmar que aparece Mobile Lite sin activación manual.
 - Abrir el menú móvil de usuario y confirmar que aparece `Panel MVPremium`.
 - Abrir `Panel MVPremium` y confirmar que muestra `Usuarios filtrados`.
 - Escribir un nick exacto no filtrado y confirmar que aparecen acciones `Silenciar` y `Ocultar`.
@@ -142,24 +140,26 @@ No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de 
 
 ### Chrome Desktop
 
-- Build normal sin `MVP_ENABLE_FIREFOX_ANDROID=true`.
+- Build Chrome normal.
 - Confirmar que no aparece `browser_specific_settings.gecko_android` en el manifest Chrome.
 - Abrir Mediavida y confirmar que no aparece UI Mobile Lite ni entrada `Panel MVPremium`.
 - Confirmar que las features desktop existentes siguen disponibles.
 
 ### Firefox Desktop
 
-- Build normal sin `MVP_ENABLE_FIREFOX_ANDROID=true`.
-- Confirmar que el manifest Firefox no contiene `gecko_android`.
+- Build Firefox normal.
+- Confirmar que el manifest Firefox contiene `gecko_android`.
+- Confirmar que el manifest Firefox no contiene `options_ui` ni `options_page`.
+- Confirmar que `options.html` existe y el dashboard abre desde el botón del navbar de Mediavida.
 - Abrir Mediavida con y sin `#mvp_mobile_lite=enable`; no debe aparecer Mobile Lite porque la
   plataforma no es `firefox-android`.
 - Confirmar que el background Firefox sigue como event page no persistente.
 
 ### Firefox Android con `mobileLiteEnabled=false`
 
-- Build experimental con `MVP_ENABLE_FIREFOX_ANDROID=true`.
+- Build Firefox normal.
 - Cargar en dispositivo real.
-- Abrir Mediavida sin activar el hash.
+- Desactivar con `#mvp_mobile_lite=disable` si hace falta preparar este escenario.
 - Confirmar que no aparece UI Mobile Lite y que no se inicializan features desktop.
 
 ### Firefox Android con `mobileLiteEnabled=true`
@@ -176,7 +176,7 @@ No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de 
 ## Comprobaciones de regresión
 
 - Build Chrome normal: no debe declarar `gecko_android` y debe mantener `background.service_worker`.
-- Build Firefox normal sin `MVP_ENABLE_FIREFOX_ANDROID=true`: no debe declarar `gecko_android`.
+- Build Firefox normal: debe declarar `gecko_android`, no debe declarar `options_ui` ni `options_page`, y debe conservar `options.html`.
 - Firefox Desktop: no debe mostrar Mobile Lite aunque el storage tenga `mobileLiteEnabled=true`.
 - Chrome Desktop: no debe mostrar Mobile Lite aunque el storage tenga `mobileLiteEnabled=true`.
 - No deben aparecer context menus nuevos.

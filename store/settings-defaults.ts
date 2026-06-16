@@ -39,6 +39,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	nativeLiveDelayEnabled: true,
 	liveThreadDelayEnabled: true,
 	galleryButtonEnabled: true,
+	quoteSelectionEnabled: true,
 	navbarSearchEnabled: true,
 
 	// Feature Toggles - Editor
@@ -57,6 +58,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	itadCountry: 'ES',
 	gameReleaseCalendarEnabled: true,
 	gameReleaseCalendarJuegosEnabled: true,
+	gameReleaseCalendarJuegosMovilEnabled: true,
 	gameReleaseCalendarLayout: 'minimal',
 	movieReleaseCalendarCineEnabled: true,
 	movieReleaseCalendarLayout: 'minimal',
@@ -76,7 +78,8 @@ export const DEFAULT_SETTINGS: Settings = {
 	mutedWords: [],
 
 	// Privacy & Storage
-	enableActivityTracking: true,
+	enableActivityTracking: false,
+	enableRhythmTracking: true,
 
 	// UI State
 	settingsActiveTab: 'integrations',

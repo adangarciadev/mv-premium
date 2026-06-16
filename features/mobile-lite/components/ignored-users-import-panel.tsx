@@ -23,25 +23,51 @@ interface IgnoredUsersImportPanelProps {
 }
 
 function getEmptySummary(): MobileLiteTransferSummary {
-	return { total: 0, hide: 0, mute: 0, hasImgbbApiKey: false }
+	return { total: 0, hide: 0, mute: 0, hasImgbbApiKey: false, hasGeminiApiKey: false }
+}
+
+function getApiKeyNames(summary: MobileLiteTransferSummary): string[] {
+	return [
+		summary.hasImgbbApiKey ? 'ImgBB' : null,
+		summary.hasGeminiApiKey ? 'Gemini' : null,
+	].filter((name): name is string => Boolean(name))
+}
+
+function formatApiKeyNames(summary: MobileLiteTransferSummary): string {
+	const names = getApiKeyNames(summary)
+	if (names.length === 0) return ''
+	if (names.length === 1) return `API key de ${names[0]}`
+	return `API keys de ${names.join(' y ')}`
 }
 
 function getImportMessage(summary: MobileLiteTransferSummary): string {
-	if (summary.total > 0 && summary.hasImgbbApiKey) {
-		return 'Se fusionarán los usuarios con los existentes y se guardará la API key de ImgBB.'
+	const apiKeyCount = getApiKeyNames(summary).length
+	const apiKeyNames = formatApiKeyNames(summary)
+	if (summary.total > 0 && apiKeyNames) {
+		return apiKeyCount === 1
+			? `Se fusionarán los usuarios con los existentes y se guardará la ${apiKeyNames}.`
+			: `Se fusionarán los usuarios con los existentes y se guardarán las ${apiKeyNames}.`
 	}
-	if (summary.hasImgbbApiKey) {
-		return 'Se guardará la API key de ImgBB en este dispositivo.'
+	if (apiKeyNames) {
+		return apiKeyCount === 1
+			? `Se guardará la ${apiKeyNames} en este dispositivo.`
+			: `Se guardarán las ${apiKeyNames} en este dispositivo.`
 	}
 	return 'Se fusionarán con los usuarios existentes. No se borrará ningún filtro actual.'
 }
 
 function getSuccessMessage(summary: MobileLiteTransferSummary): string {
-	if (summary.total > 0 && summary.hasImgbbApiKey) {
-		return `Se han importado ${summary.total} usuarios y la API key de ImgBB. Ya puedes cerrar este panel.`
+	const apiKeyCount = getApiKeyNames(summary).length
+	const apiKeyNames = formatApiKeyNames(summary)
+	if (summary.total > 0 && apiKeyNames) {
+		return apiKeyCount === 1
+			? `Se han importado ${summary.total} usuarios y la ${apiKeyNames}. Ya puedes cerrar este panel.`
+			: `Se han importado ${summary.total} usuarios y las ${apiKeyNames}. Ya puedes cerrar este panel.`
 	}
-	if (summary.hasImgbbApiKey) {
-		return 'Se ha importado la API key de ImgBB. Ya puedes cerrar este panel.'
+	if (apiKeyNames) {
+		return apiKeyCount === 1
+			? `Se ha importado la ${apiKeyNames}. Ya puedes cerrar este panel.`
+			: `Se han importado las ${apiKeyNames}. Ya puedes cerrar este panel.`
 	}
 	return `Se han importado ${summary.total} usuarios. Ya puedes cerrar este panel.`
 }
@@ -51,7 +77,8 @@ export function IgnoredUsersImportPanel({ payload, errorMessage, onCancel, onImp
 	const [imported, setImported] = useState(false)
 	const [importError, setImportError] = useState<string | null>(null)
 	const summary = useMemo(() => (payload ? summarizeMobileLiteTransfer(payload) : getEmptySummary()), [payload])
-	const canImport = Boolean(payload && !errorMessage && (summary.total > 0 || summary.hasImgbbApiKey) && !imported)
+	const hasApiKey = summary.hasImgbbApiKey || summary.hasGeminiApiKey
+	const canImport = Boolean(payload && !errorMessage && (summary.total > 0 || hasApiKey) && !imported)
 
 	const handleImport = async () => {
 		if (!canImport) return
@@ -114,17 +141,8 @@ export function IgnoredUsersImportPanel({ payload, errorMessage, onCancel, onImp
 								</div>
 							</div>
 
-							<div className="flex items-center gap-3 rounded-md border border-[#4b545d] bg-[#333b46] px-3 py-3">
-								<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#252b31] text-[#d8b36a]">
-									<KeyRound className="h-4 w-4" aria-hidden="true" />
-								</div>
-								<div className="min-w-0">
-									<div className="text-sm font-semibold">API key de ImgBB</div>
-									<div className="text-xs text-[#b7bec6]">
-										{summary.hasImgbbApiKey ? 'Incluida en este QR' : 'No incluida'}
-									</div>
-								</div>
-							</div>
+							<ApiKeyImportRow label="API key de ImgBB" included={summary.hasImgbbApiKey} />
+							<ApiKeyImportRow label="API key de Gemini" included={summary.hasGeminiApiKey} />
 
 							<p className="rounded-md border border-[#4b545d] bg-[#323a44] px-3 py-2.5 text-sm leading-relaxed text-[#d8dde2]">
 								{getImportMessage(summary)}
@@ -172,6 +190,20 @@ export function IgnoredUsersImportPanel({ payload, errorMessage, onCancel, onImp
 					)}
 				</footer>
 			</section>
+		</div>
+	)
+}
+
+function ApiKeyImportRow({ label, included }: { label: string; included: boolean }) {
+	return (
+		<div className="flex items-center gap-3 rounded-md border border-[#4b545d] bg-[#333b46] px-3 py-3">
+			<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#252b31] text-[#d8b36a]">
+				<KeyRound className="h-4 w-4" aria-hidden="true" />
+			</div>
+			<div className="min-w-0">
+				<div className="text-sm font-semibold">{label}</div>
+				<div className="text-xs text-[#b7bec6]">{included ? 'Incluida en este QR' : 'No incluida'}</div>
+			</div>
 		</div>
 	)
 }

@@ -13,6 +13,7 @@
  */
 import { defineExtensionMessaging } from '@webext-core/messaging'
 import type { SteamGameDetails, SteamBundleDetails, SteamAppSearchResult } from '@/services/api/steam'
+import type { MobileStoreSearchResult } from '@/services/api/mobile-stores'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import type { ItadGamePriceOverview, ItadGamePrices, ItadGameSearchResult } from '@/services/api/itad'
 import type { ChatMessage } from '@/types/ai'
@@ -39,6 +40,17 @@ export interface UploadPayload {
 	fileName?: string
 	mimeType?: string
 	fileSize?: number
+}
+
+export interface RhythmTimeChunkPayload {
+	subforum: string
+	ms: number
+	at: number
+}
+
+export interface RhythmTimeChunkResult {
+	success: boolean
+	error?: string
 }
 
 export interface GeminiResult {
@@ -166,6 +178,12 @@ interface ProtocolMap {
 	refreshContextMenus: (data?: { threadClipperSubforums?: string[] }) => boolean
 
 	/**
+	 * Persist a time/rhythm tracking chunk through the background context so
+	 * multiple content scripts cannot overwrite each other's read-modify-write.
+	 */
+	recordRhythmTimeChunk: (data: RhythmTimeChunkPayload) => RhythmTimeChunkResult
+
+	/**
 	 * Fetch raw HTML for a Mediavida thread page via background script.
 	 * Keeps thread-page network requests out of content scripts.
 	 */
@@ -195,6 +213,20 @@ interface ProtocolMap {
 	 * @returns Steam app search results
 	 */
 	searchSteamApps: (data: { query: string; limit?: number }) => SteamAppSearchResult[]
+
+	/**
+	 * Search the Apple App Store by title via the iTunes Search API (CORS proxy)
+	 * @param data - Search query
+	 * @returns Best matching app or null
+	 */
+	searchItunesApp: (data: { query: string }) => MobileStoreSearchResult | null
+
+	/**
+	 * Search Google Play by title via the public store search page (CORS proxy)
+	 * @param data - Search query
+	 * @returns First app result or null
+	 */
+	searchGooglePlayApp: (data: { query: string }) => MobileStoreSearchResult | null
 
 	/**
 	 * Fetch Steam bundle details (CORS proxy)

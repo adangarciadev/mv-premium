@@ -6,6 +6,7 @@ import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
 import { uploadImage, validateImageFile } from '@/services/api/imgbb'
+import { createMobileLiteEditorContentActions } from './editor-content-actions'
 
 export type MobileLiteUploadResult =
 	| { status: 'success'; url: string }
@@ -28,6 +29,7 @@ const UPLOAD_BUTTON_RESET_MS = 1000
 const INVISIBLE_CLIPBOARD_CHARS_PATTERN = /[\u200B-\u200D\uFEFF]/g
 const IMAGE_CROP_DIALOG_ATTR = 'data-mvp-mobile-lite-image-crop-dialog'
 const IMAGE_CROP_SUPPORTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const COLLAPSED_EDITOR_STYLE_ID = 'mvp-mobile-lite-collapsed-editor-styles'
 
 let initialized = false
 let textareaObserver: MutationObserver | null = null
@@ -1109,27 +1111,27 @@ function canInjectUploadControlFromScan(textarea: HTMLTextAreaElement): boolean 
 	return !optionsRow || (isElementTreeDisplayed(optionsRow) && hasRenderedBox(optionsRow))
 }
 
-function prepareOptionsRowUploadControl(wrapper: HTMLElement, row: HTMLElement): void {
-	wrapper.style.display = 'inline-flex'
-	wrapper.style.verticalAlign = 'middle'
-	wrapper.style.clear = 'none'
-	wrapper.style.marginTop = '5px'
-	wrapper.style.marginBottom = '5px'
-
-	if (row.id === EXTENDED_EDITOR_FAVORITES_SELECTOR.slice(1)) {
-		wrapper.style.cssFloat = 'none'
-		wrapper.style.marginLeft = '10px'
-		wrapper.style.marginRight = '0'
-		return
-	}
-
+function prepareOptionsRowUploadControl(wrapper: HTMLElement): void {
+	// Always sit on a dedicated full-width row below the native controls. This
+	// keeps Mediavida's option bar intact in both editors:
+	//  - Quick-reply (.editor-meta): native row (Enviar / favoritos /
+	//    editor-extendido) stays on one line; our controls drop below it.
+	//  - Extended editor (#tofavstuff): we no longer flow inline between the
+	//    checkbox and the "Añadir a favoritos" label (which caused a wrap), but
+	//    on a clean line of our own.
+	wrapper.style.display = 'flex'
+	wrapper.style.flexWrap = 'wrap'
+	wrapper.style.clear = 'both'
 	wrapper.style.cssFloat = 'none'
-	wrapper.style.marginLeft = '8px'
-	wrapper.style.marginRight = '8px'
+	wrapper.style.width = '100%'
+	wrapper.style.marginTop = '8px'
+	wrapper.style.marginBottom = '0'
+	wrapper.style.marginLeft = '0'
+	wrapper.style.marginRight = '0'
 }
 
 function placeUploadControlInOptionsRow(wrapper: HTMLElement, row: HTMLElement): void {
-	prepareOptionsRowUploadControl(wrapper, row)
+	prepareOptionsRowUploadControl(wrapper)
 
 	const trailingLink = getOptionsRowTrailingLink(row)
 	if (!trailingLink) {
@@ -1143,6 +1145,19 @@ function placeUploadControlInOptionsRow(wrapper: HTMLElement, row: HTMLElement):
 function placeUploadControl(wrapper: HTMLElement, textarea: HTMLTextAreaElement): void {
 	const optionsRow = getLayoutOptionsRow(textarea) ?? getFavoriteTextOptionsRow(textarea)
 	if (optionsRow) {
+		// Extended editor: the favorites row (#tofavstuff) sits ABOVE the submit
+		// row, so injecting into it leaves our controls in the middle. Drop them
+		// at the very end of the form instead (below "Responder"), matching the
+		// quick-reply where the controls land below the send bar.
+		if (optionsRow.id === EXTENDED_EDITOR_FAVORITES_SELECTOR.slice(1)) {
+			const form = textarea.closest<HTMLFormElement>('form')
+			if (form) {
+				prepareOptionsRowUploadControl(wrapper)
+				form.appendChild(wrapper)
+				return
+			}
+		}
+
 		placeUploadControlInOptionsRow(wrapper, optionsRow)
 		return
 	}
@@ -1230,7 +1245,7 @@ export function injectMobileLiteUploadControl(textarea: HTMLTextAreaElement): HT
 			})
 	})
 
-	wrapper.append(button, input, status)
+	wrapper.append(button, input, status, ...createMobileLiteEditorContentActions(textarea))
 	placeUploadControl(wrapper, textarea)
 	uploadControlsByTextarea.set(textarea, wrapper)
 
@@ -1255,12 +1270,50 @@ function schedulePasteHandlerScan(): void {
 	}, PASTE_OBSERVER_DEBOUNCE_MS)
 }
 
+/**
+ * Mediavida collapses the fixed quick-reply panel (#post-editor) by animating
+ * its inline height down to 0px, but its overflow stays visible and the
+ * .editor-meta row (Enviar, favoritos, our upload button) is absolutely
+ * positioned — so when the final hide step doesn't land (it reliably fails
+ * after opening the editor via the quote-on-selection button), the row keeps
+ * floating over the page at height 0. Clipping the collapsed state is
+ * self-healing: the selector stops matching as soon as MV writes a height > 0.
+ */
+function ensureCollapsedEditorStyles(): void {
+	if (document.getElementById(COLLAPSED_EDITOR_STYLE_ID)) return
+
+	const style = document.createElement('style')
+	style.id = COLLAPSED_EDITOR_STYLE_ID
+	style.textContent = `
+		#post-editor[style*="height: 0px"],
+		#post-editor[style*="height:0px"] {
+			overflow: hidden !important;
+			padding: 0 !important;
+			border: 0 !important;
+		}
+
+		/*
+		 * In the fixed quick-reply panel the textarea (.editor-body) is sized a
+		 * little taller than its absolutely-positioned box, so it bleeds down
+		 * under the controls bar (.editor-meta). That makes Enviar / favoritos /
+		 * editor-extendido look like they sit inside the textbox. Clipping the
+		 * overflow keeps the textbox within its own box and lets the controls bar
+		 * (and our upload row) stay cleanly below it.
+		 */
+		#post-editor .editor-body {
+			overflow: hidden !important;
+		}
+	`
+	document.head.appendChild(style)
+}
+
 export function initMobileLiteEditorEnhancements(): void {
 	if (!isMobileLiteEditorAllowed()) return
 	if (initialized) return
 	if (!document.body) return
 
 	initialized = true
+	ensureCollapsedEditorStyles()
 	attachDocumentPasteHandler()
 	attachDocumentEditorDiscoveryHandler()
 	attachMobileLitePasteHandlers()
@@ -1342,5 +1395,6 @@ export function teardownMobileLiteEditorEnhancements(): void {
 		delete link.dataset[PRESERVE_LINK_MARKER]
 	})
 
+	document.getElementById(COLLAPSED_EDITOR_STYLE_ID)?.remove()
 	initialized = false
 }

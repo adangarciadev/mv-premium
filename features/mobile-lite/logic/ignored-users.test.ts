@@ -7,6 +7,7 @@ import {
 	setMobileLiteUserIgnore,
 	teardownMobileLiteIgnoredUsers,
 } from './ignored-users'
+import { resetOwnUsernameCache } from './own-username'
 
 type WatchUserCustomizations = (callback: (data: UserCustomizationsData) => void) => () => void
 
@@ -144,6 +145,7 @@ describe('Mobile Lite ignored users', () => {
 
 	afterEach(() => {
 		teardownMobileLiteIgnoredUsers()
+		resetOwnUsernameCache()
 	})
 
 	it('detects the post author from the /id/ author link', () => {
@@ -263,6 +265,18 @@ describe('Mobile Lite ignored users', () => {
 		expect(actions?.textContent).toContain('Silenciar')
 		expect(actions?.textContent).toContain('Ocultar')
 		expect(actions?.textContent).not.toContain('Quitar filtro')
+	})
+
+	it('never injects ignore actions on your own user card', () => {
+		renderThread()
+		// The logged-in user, read from #usermenu by getOwnUsername().
+		document.body.insertAdjacentHTML('beforeend', '<ul id="usermenu"><li><a href="/id/Self">Self</a></li></ul>')
+		resetOwnUsernameCache()
+		renderNativeUserCard('Self')
+
+		applyMobileLiteIgnoredUsers(userCustomizations({}))
+
+		expect(document.querySelector('[data-mvp-mobile-lite-user-card-actions="true"]')).toBeNull()
 	})
 
 	it('injects manual actions into native f-card user popovers without an id', () => {

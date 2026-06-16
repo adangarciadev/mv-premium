@@ -9,6 +9,7 @@ import {
 import { applyHideToPost, applyMuteToPost } from '@/features/user-customizations/logic/mute-placeholder'
 import { showMobileLiteActionToast, teardownMobileLiteActionToast } from './action-toast'
 import { getAvatarUrlFromImage } from './avatar-utils'
+import { getOwnUsername } from './own-username'
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
@@ -287,6 +288,13 @@ function injectMobileLiteUserCardActions(card: HTMLElement, data: UserCustomizat
 	const username = getMobileLiteUserCardUsername(card)
 	if (!username) return
 	if (!card.querySelector('.user-info, .user-controls')) return
+
+	// Never show ignore actions on your own card — you can't mute/hide yourself.
+	const ownUsername = getOwnUsername()
+	if (ownUsername && username.toLowerCase() === ownUsername) {
+		card.querySelector(`[${MOBILE_LITE_USER_CARD_ACTIONS_ATTR}="true"]`)?.remove()
+		return
+	}
 
 	const avatarUrl = getMobileLiteUserCardAvatarUrl(card)
 	const customizationEntry = getEffectiveCustomizationEntryForUser(data, username)

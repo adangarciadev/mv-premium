@@ -105,6 +105,13 @@ describe('Mobile Lite hidden threads', () => {
 		expect(isMobileLiteHiddenThreadsPath('/foro/cine/supergirl-2026-dc-studios-729454')).toBe(false)
 	})
 
+	it('allows hidden-thread controls on profile thread lists', () => {
+		expect(isMobileLiteHiddenThreadsPath('/id/SomeUser')).toBe(true)
+		expect(isMobileLiteHiddenThreadsPath('/id/SomeUser/posts')).toBe(true)
+		expect(isMobileLiteHiddenThreadsPath('/id/SomeUser/temas')).toBe(true)
+		expect(isMobileLiteHiddenThreadsPath('/id')).toBe(false)
+	})
+
 	it('hides rows already present in hidden thread storage', async () => {
 		mocks.getHiddenThreads.mockResolvedValue([
 			{
@@ -145,6 +152,67 @@ describe('Mobile Lite hidden threads', () => {
 		applyMobileLiteHiddenThreads()
 
 		expect(document.querySelector('[data-mvp-mobile-lite-hide-thread]')).toBeNull()
+	})
+
+	it('keeps stored threads hidden when the hide button setting is disabled', async () => {
+		mocks.getSettingsState.mockReturnValue({ hideThreadEnabled: false })
+		mocks.getHiddenThreads.mockResolvedValue([
+			{
+				id: '/foro/cine/supergirl-2026-dc-studios-729454',
+				title: 'Supergirl',
+				subforum: 'Cine',
+				subforumId: '/foro/cine',
+				hiddenAt: 1,
+			},
+		])
+
+		initMobileLiteHiddenThreads()
+		await Promise.resolve()
+
+		expect(document.querySelector('#t1')?.getAttribute('data-mvp-mobile-lite-hidden-thread')).toBe('true')
+		expect(document.querySelector('#t2')?.getAttribute('data-mvp-mobile-lite-hidden-thread')).toBeNull()
+		expect(document.querySelector('[data-mvp-mobile-lite-hide-thread]')).toBeNull()
+	})
+
+	it('removes hide buttons but keeps rows hidden when the setting is toggled off', async () => {
+		mocks.getHiddenThreads.mockResolvedValue([
+			{
+				id: '/foro/cine/supergirl-2026-dc-studios-729454',
+				title: 'Supergirl',
+				subforum: 'Cine',
+				subforumId: '/foro/cine',
+				hiddenAt: 1,
+			},
+		])
+
+		initMobileLiteHiddenThreads()
+		await Promise.resolve()
+		expect(document.querySelectorAll('[data-mvp-mobile-lite-hide-thread]').length).toBeGreaterThan(0)
+
+		mocks.getSettingsState.mockReturnValue({ hideThreadEnabled: false })
+		applyMobileLiteHiddenThreads()
+
+		expect(document.querySelector('[data-mvp-mobile-lite-hide-thread]')).toBeNull()
+		expect(document.querySelector('#t1')?.getAttribute('data-mvp-mobile-lite-hidden-thread')).toBe('true')
+	})
+
+	it('hides stored threads on profile thread lists', async () => {
+		window.history.replaceState({}, '', '/id/SomeUser/posts')
+		mocks.getHiddenThreads.mockResolvedValue([
+			{
+				id: '/foro/cine/supergirl-2026-dc-studios-729454',
+				title: 'Supergirl',
+				subforum: 'Cine',
+				subforumId: '/foro/cine',
+				hiddenAt: 1,
+			},
+		])
+
+		initMobileLiteHiddenThreads()
+		await Promise.resolve()
+
+		expect(document.querySelector('#t1')?.getAttribute('data-mvp-mobile-lite-hidden-thread')).toBe('true')
+		expect(document.querySelector('#t2 [data-mvp-mobile-lite-hide-thread]')).not.toBeNull()
 	})
 
 	it('cleans injected controls and hidden markers on teardown', async () => {

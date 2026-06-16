@@ -6,7 +6,7 @@
  * that users can customize.
  */
 
-import type { MediaTemplate } from '@/types/templates'
+import type { MediaTemplate, TemplateType } from '@/types/templates'
 
 // =============================================================================
 // Movie Template (Default)
@@ -548,6 +548,147 @@ export const DEFAULT_GAME_TEMPLATE: MediaTemplate = {
 }
 
 // =============================================================================
+// Mobile Game Template (Default) - For IGDB (Juegos de móvil)
+// =============================================================================
+
+export const DEFAULT_MOBILE_GAME_TEMPLATE: MediaTemplate = {
+	id: 'default-mobile-game-template',
+	type: 'mobile-game',
+	name: 'Plantilla de Juego de Móvil',
+	isDefault: true,
+	version: 2,
+	blocks: [
+		// Cover centered
+		{
+			id: 'mgame-cover',
+			type: 'field',
+			field: 'coverUrl',
+			wrapper: '[center]\n[img]{{content}}[/img]\n[/center]',
+			conditional: true,
+			addLineBreak: true,
+		},
+		// Developers
+		{
+			id: 'mgame-developers',
+			type: 'field',
+			field: 'developers',
+			label: '[b]Desarrollador:[/b] {{value}}',
+			separator: ', ',
+			conditional: true,
+			addLineBreak: false,
+		},
+		// Publishers
+		{
+			id: 'mgame-publishers',
+			type: 'field',
+			field: 'publishers',
+			label: '[b]Distribuidor:[/b] {{value}}',
+			separator: ', ',
+			conditional: true,
+			addLineBreak: false,
+		},
+		// Platforms
+		{
+			id: 'mgame-platforms',
+			type: 'field',
+			field: 'platforms',
+			label: '[b]Plataformas:[/b] {{value}}',
+			separator: ', ',
+			conditional: true,
+			addLineBreak: false,
+		},
+		// Genres
+		{
+			id: 'mgame-genres',
+			type: 'field',
+			field: 'genres',
+			label: '[b]Géneros:[/b] {{value}}',
+			separator: ', ',
+			conditional: true,
+			addLineBreak: false,
+		},
+		// Game modes
+		{
+			id: 'mgame-modes',
+			type: 'field',
+			field: 'gameModes',
+			label: '[b]Modos de juego:[/b] {{value}}',
+			separator: ', ',
+			conditional: true,
+			addLineBreak: false,
+		},
+		// Collection / Saga
+		{
+			id: 'mgame-collection',
+			type: 'field',
+			field: 'collection',
+			label: '[b]Saga:[/b] {{value}}',
+			conditional: true,
+			addLineBreak: false,
+		},
+		// Summary section
+		{
+			id: 'mgame-summary',
+			type: 'field',
+			field: 'summary',
+			wrapper: '[bar]ACERCA DE ESTE JUEGO[/bar]\n{{content}}',
+			conditional: true,
+			addLineBreak: true,
+		},
+		// Video/Trailer section
+		{
+			id: 'mgame-trailer',
+			type: 'field',
+			field: 'trailerUrl',
+			wrapper: '[bar]TRAILER[/bar]\n\n[media]{{content}}[/media]',
+			conditional: true,
+			addLineBreak: true,
+		},
+		// Screenshots
+		{
+			id: 'mgame-screenshots',
+			type: 'field',
+			field: 'screenshots',
+			wrapper: '[bar]MEDIA[/bar]\n\n[center]\n{{content}}\n[/center]',
+			separator: '\n',
+			conditional: true,
+			maxItems: 10,
+			addLineBreak: true,
+		},
+		// Store cards: Mediavida natively embeds both Google Play and App Store
+		// links via [media] (embed/googleplay.html and embed/itunes.html).
+		// The DESCARGA bar rides on the Google Play block; if a game only has an
+		// App Store link, the card still renders (without the section bar).
+		{
+			id: 'mgame-googleplay-card',
+			type: 'field',
+			field: 'googlePlayUrl',
+			wrapper: '[bar]DESCARGA[/bar]\n\n[media]{{content}}[/media]',
+			conditional: true,
+			addLineBreak: true,
+		},
+		{
+			id: 'mgame-appstore-card',
+			type: 'field',
+			field: 'appStoreUrl',
+			wrapper: '[media]{{content}}[/media]',
+			conditional: true,
+			addLineBreak: true,
+		},
+		// Release dates (per-platform)
+		{
+			id: 'mgame-release',
+			type: 'field',
+			field: 'releaseDates',
+			wrapper: '[bar]LANZAMIENTO[/bar]\n\n{{content}}',
+			separator: '\n',
+			conditional: true,
+			addLineBreak: false,
+		},
+	],
+}
+
+// =============================================================================
 // Anime Template (Default) - For AniList
 // =============================================================================
 
@@ -756,7 +897,7 @@ export const DEFAULT_MANGA_TEMPLATE: MediaTemplate = {
 /**
  * Get the default template for a given type
  */
-export function getDefaultTemplate(type: 'movie' | 'tvshow' | 'season' | 'game' | 'anime' | 'manga'): MediaTemplate {
+export function getDefaultTemplate(type: TemplateType): MediaTemplate {
 	switch (type) {
 		case 'movie':
 			return DEFAULT_MOVIE_TEMPLATE
@@ -766,6 +907,8 @@ export function getDefaultTemplate(type: 'movie' | 'tvshow' | 'season' | 'game' 
 			return DEFAULT_SEASON_TEMPLATE
 		case 'game':
 			return DEFAULT_GAME_TEMPLATE
+		case 'mobile-game':
+			return DEFAULT_MOBILE_GAME_TEMPLATE
 		case 'anime':
 			return DEFAULT_ANIME_TEMPLATE
 		case 'manga':
@@ -781,6 +924,7 @@ export const DEFAULT_TEMPLATES = {
 	tvshow: DEFAULT_TVSHOW_TEMPLATE,
 	season: DEFAULT_SEASON_TEMPLATE,
 	game: DEFAULT_GAME_TEMPLATE,
+	'mobile-game': DEFAULT_MOBILE_GAME_TEMPLATE,
 	anime: DEFAULT_ANIME_TEMPLATE,
 	manga: DEFAULT_MANGA_TEMPLATE,
 } as const

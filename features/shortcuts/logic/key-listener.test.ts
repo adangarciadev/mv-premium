@@ -44,6 +44,7 @@ const SHORTCUT_ACTIONS = [
 	{ id: 'itad-search-juegos-toggle', label: 'Ofertas en Juegos', isSpecial: true },
 	{ id: 'itad-search-hucha-toggle', label: 'Ofertas en Hucha', isSpecial: true },
 	{ id: 'release-calendar-juegos-toggle', label: 'Lanzamientos en Juegos', isSpecial: true },
+	{ id: 'release-calendar-juegos-movil-toggle', label: 'Lanzamientos en Juegos de móvil', isSpecial: true },
 	{ id: 'release-calendar-cine-toggle', label: 'Estrenos en Cine', isSpecial: true },
 ]
 
@@ -73,7 +74,7 @@ describe('keyboard-shortcuts', () => {
 		})
 
 		it('should define subforum feature toggle shortcuts', () => {
-			for (const id of ['itad-search-toggle', 'itad-search-juegos-toggle', 'itad-search-hucha-toggle', 'release-calendar-juegos-toggle', 'release-calendar-cine-toggle']) {
+			for (const id of ['itad-search-toggle', 'itad-search-juegos-toggle', 'itad-search-hucha-toggle', 'release-calendar-juegos-toggle', 'release-calendar-juegos-movil-toggle', 'release-calendar-cine-toggle']) {
 				const action = SHORTCUT_ACTIONS.find(a => a.id === id)
 				expect(action).toBeDefined()
 				expect(action?.isSpecial).toBe(true)

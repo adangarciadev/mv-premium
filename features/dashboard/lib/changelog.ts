@@ -22,6 +22,132 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.2.0',
+		date: '2026-06-16',
+		title: 'Resúmenes con IA en el móvil, reloj de actividad y panel renovado',
+		summary:
+			'Mediavida Premium 3.2 trae los resúmenes con IA al móvil (por hilo, por post y de varias páginas), un nuevo reloj "Tiempo en Mediavida" con imágenes para compartir, un panel de control rediseñado y mejoras en hilos ocultos, plantillas de juegos y publicación de hilos desde borradores.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Tiempo en Mediavida: un nuevo reloj de actividad de 24 horas que muestra a qué horas y en qué subforos pasas el tiempo, con medias por día, semana y mes y un resumen anual.',
+				category: 'Estadísticas',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Comparte tu actividad: genera una imagen lista para Mediavida con tu resumen del año, los últimos 30 días, una semana o un día de la semana concreto.',
+				category: 'Estadísticas',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Resúmenes con IA en el móvil: resume un hilo completo, post a post o varias páginas, con selector de modelo y análisis de usuarios; cópialo como BBCode para pegarlo y añade tu clave de Gemini desde los ajustes del panel.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Oculta el hilo en el que estás desde dentro, con un control disponible tanto en el escritorio como en el móvil.',
+				category: 'Hilos ocultos',
+				surface: ['desktop', 'mobile-lite', 'shared'],
+			},
+			{
+				type: 'feature',
+				description: 'Publica hilos desde un borrador: convierte cualquier borrador guardado en un hilo nuevo.',
+				category: 'Borradores',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Plantillas para juegos de Android e iOS con tarjetas de tienda: rellenan los datos automáticamente desde Google Play y la App Store.',
+				category: 'Plantillas',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description: 'Botones de Copiar y Limpiar en el editor del móvil.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Tarjeta de uso de almacenamiento en los ajustes del panel móvil, con un medidor del espacio usado.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description: 'Avisos de novedades en el panel móvil: al actualizar verás un resumen de las últimas mejoras.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Panel de control rediseñado: nueva tipografía, tarjetas de estadísticas con la cifra protagonista, lista de subforos más limpia, tarjeta de almacenamiento y animaciones de entrada.',
+				category: 'Dashboard',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Lista de hilos ocultos rediseñada en el escritorio: iconos nativos de subforo, mejor contraste y estados de fila y etiqueta más claros.',
+				category: 'Hilos ocultos',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Calendario de lanzamientos de juegos mejorado, con opción para mostrar también los juegos de móvil.',
+				category: 'Juegos',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description: 'El texto que seleccionas dentro de un post ahora se resalta en ámbar en el móvil.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'improvement',
+				description: 'El QR de sincronización con el móvil ahora también transfiere tu clave de Gemini.',
+				category: 'Mobile Lite',
+				surface: ['desktop', 'mobile-lite', 'shared'],
+			},
+			{
+				type: 'fix',
+				description: 'Corregida la cita por selección de texto en Android.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'fix',
+				description: 'Ya no se muestran acciones de ignorar sobre tu propia ficha de usuario en el panel.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'fix',
+				description: 'Los hilos ocultos se mantienen ocultos también en las páginas de perfil.',
+				category: 'Hilos ocultos',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'fix',
+				description: 'Los iconos de subforo se muestran correctamente en el panel de subforos ocultos.',
+				category: 'Subforos ocultos',
+				surface: 'desktop',
+			},
+		],
+	},
+	{
 		version: '3.1.0',
 		date: '2026-06-11',
 		title: 'Mobile Lite 2.0: panel renovado, gestos, galería y Live',
