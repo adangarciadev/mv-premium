@@ -32,6 +32,7 @@ import { cn } from '@/lib/utils'
 import { getSubforumName, getSubforumIconId } from '@/lib/subforums'
 import { NativeFidIcon } from '@/components/native-fid-icon'
 import { getWeekKey, type RhythmStats } from '../logic/rhythm-model'
+import { getRhythmShareReadiness } from '../logic/rhythm-share-availability'
 import { RhythmShareDialog } from './rhythm-share-dialog'
 import {
 	getActiveBand,
@@ -745,6 +746,7 @@ export const RhythmClock = memo(function RhythmClock({
 
 	const { hasData, hasEnoughData, peakHour, peakHours, archetype, band, contextMs } = view
 	const showInsights = hasData && hasEnoughData
+	const shareReadiness = useMemo(() => getRhythmShareReadiness(stats), [stats])
 	const weeklyAvailable = hasWeeklyData(stats.weeks)
 	const selectedWeekTotalMs = selectedWeekKey ? Number(stats.weeks[selectedWeekKey]) || 0 : 0
 
@@ -837,6 +839,20 @@ export const RhythmClock = memo(function RhythmClock({
 								</PopoverContent>
 							</Popover>
 							{headerSlot}
+							{hasData && (
+								<span
+									className={cn(
+										'hidden items-center rounded-md border px-2 py-1 text-[11px] font-medium sm:inline-flex',
+										shareReadiness.canShare
+											? 'border-primary/30 bg-primary/10 text-primary'
+											: 'border-border/60 bg-muted/30 text-muted-foreground'
+									)}
+								>
+									{shareReadiness.canShare
+										? 'Listo para compartir'
+										: `Faltan ${fmtTime(shareReadiness.remainingMs)} para compartir`}
+								</span>
+							)}
 							<button
 								type="button"
 								onClick={() => setShareOpen(true)}
@@ -938,9 +954,23 @@ export const RhythmClock = memo(function RhythmClock({
 												fill={heatFill(t)}
 												stroke={stroke}
 												strokeWidth={sw}
-												style={{ cursor: 'pointer' }}
+												// outline:none — focus is shown via the wedge stroke (onFocus), so the
+												// browser's default focus rectangle would just look like an ugly white box.
+												style={{ cursor: 'pointer', outline: 'none' }}
 												onMouseEnter={() => setHoverHour(hour)}
+												role="button"
+												tabIndex={0}
+												aria-label={`${hourRange(hour)}, ${fmtTime(value)}`}
+												aria-pressed={isPinned}
 												onClick={() => setPinnedHour(prev => (prev === hour ? null : hour))}
+												onFocus={() => setHoverHour(hour)}
+												onBlur={() => setHoverHour(null)}
+												onKeyDown={event => {
+													if (event.key === 'Enter' || event.key === ' ') {
+														event.preventDefault()
+														setPinnedHour(prev => (prev === hour ? null : hour))
+													}
+												}}
 											>
 												<title>{`${hourRange(hour)} · ${fmtTime(value)}`}</title>
 											</path>

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { RhythmStats } from './rhythm-model'
 import {
 	getRhythmShareAvailability,
+	getRhythmShareReadiness,
 	hasAnyShareableRhythmScope,
 	MIN_SHARE_RHYTHM_MS,
 } from './rhythm-share-availability'
@@ -72,5 +73,38 @@ describe('rhythm share availability', () => {
 		stats.weekdays[5] = MIN_SHARE_RHYTHM_MS
 
 		expect(hasAnyShareableRhythmScope(stats, now)).toBe(true)
+	})
+
+	it('reports full remaining time for empty stats', () => {
+		const readiness = getRhythmShareReadiness(createRhythm(), now)
+
+		expect(readiness.canShare).toBe(false)
+		expect(readiness.currentMs).toBe(0)
+		expect(readiness.remainingMs).toBe(MIN_SHARE_RHYTHM_MS)
+	})
+
+	it('chooses the most progressed scope and reports the remaining time', () => {
+		const stats = createRhythm()
+		// Weekday is the furthest along but still short of the threshold.
+		stats.weekdays[2] = MIN_SHARE_RHYTHM_MS - 10 * 60_000
+		stats.weeks[getWeekKey(now)] = MIN_SHARE_RHYTHM_MS - 30 * 60_000
+
+		const readiness = getRhythmShareReadiness(stats, now)
+
+		expect(readiness.canShare).toBe(false)
+		expect(readiness.bestScope).toBe('weekday')
+		expect(readiness.currentMs).toBe(MIN_SHARE_RHYTHM_MS - 10 * 60_000)
+		expect(readiness.remainingMs).toBe(10 * 60_000)
+	})
+
+	it('reports zero remaining once a scope is shareable', () => {
+		const stats = createRhythm()
+		stats.weekdays[5] = MIN_SHARE_RHYTHM_MS
+
+		const readiness = getRhythmShareReadiness(stats, now)
+
+		expect(readiness.canShare).toBe(true)
+		expect(readiness.remainingMs).toBe(0)
+		expect(readiness.bestScope).toBe('weekday')
 	})
 })

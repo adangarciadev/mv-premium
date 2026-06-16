@@ -46,7 +46,7 @@ update the row when done.
 | 018 | [Validate and bound rhythm time chunks](018-validate-rhythm-time-chunks.md) | P1 | M | 017 | DONE |
 | 019 | [Add characterization tests for the rhythm clock and share dialog](019-add-rhythm-ui-characterization-tests.md) | P2 | M | 016, 017, 018 | DONE |
 | 020 | [Extract rhythm share summary and PNG rendering from the dialog](020-extract-rhythm-share-renderer.md) | P2 | M/L | 019 | DONE |
-| 021 | [Polish rhythm clock share readiness and accessibility](021-polish-rhythm-clock-ux-accessibility.md) | P2 | M | 019 | TODO |
+| 021 | [Polish rhythm clock share readiness and accessibility](021-polish-rhythm-clock-ux-accessibility.md) | P2 | M | 019 | DONE |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 

@@ -89,15 +89,57 @@ export function getRhythmShareAvailability(
 	)
 }
 
+interface ScopeProgress {
+	scope: RhythmShareScope
+	currentMs: number
+}
+
+/** Best current progress per shareable scope, sharing one set of formulas. */
+function getScopeProgress(stats: RhythmStats, now: Date): ScopeProgress[] {
+	return [
+		{ scope: 'year', currentMs: sumDays(stats.days, currentYearDayKeys(now)) },
+		{ scope: 'last30', currentMs: sumDays(stats.days, last30DayKeys(now)) },
+		{
+			scope: 'week',
+			currentMs: Math.max(0, ...Object.values(stats.weeks).map(ms => Math.max(0, Number(ms) || 0))),
+		},
+		{ scope: 'weekday', currentMs: Math.max(0, ...stats.weekdays.map(ms => Math.max(0, Number(ms) || 0))) },
+	]
+}
+
 export function hasAnyShareableRhythmScope(
 	stats: RhythmStats,
 	now = new Date(),
 	minMs = MIN_SHARE_RHYTHM_MS
 ): boolean {
-	const yearMs = sumDays(stats.days, currentYearDayKeys(now))
-	const last30Ms = sumDays(stats.days, last30DayKeys(now))
-	const bestWeekMs = Math.max(0, ...Object.values(stats.weeks).map(ms => Math.max(0, Number(ms) || 0)))
-	const bestWeekdayMs = Math.max(0, ...stats.weekdays.map(ms => Math.max(0, Number(ms) || 0)))
+	return getScopeProgress(stats, now).some(({ currentMs }) => currentMs >= minMs)
+}
 
-	return [yearMs, last30Ms, bestWeekMs, bestWeekdayMs].some(ms => ms >= minMs)
+export interface RhythmShareReadiness {
+	canShare: boolean
+	currentMs: number
+	minMs: number
+	remainingMs: number
+	bestScope: RhythmShareScope
+}
+
+/**
+ * Lightweight dashboard signal: the scope closest to (or already past) the share
+ * threshold, plus how much time is still missing. Shares the same per-scope
+ * formulas as `hasAnyShareableRhythmScope()`.
+ */
+export function getRhythmShareReadiness(
+	stats: RhythmStats,
+	now = new Date(),
+	minMs = MIN_SHARE_RHYTHM_MS
+): RhythmShareReadiness {
+	const best = getScopeProgress(stats, now).reduce((a, b) => (b.currentMs > a.currentMs ? b : a))
+	const canShare = best.currentMs >= minMs
+	return {
+		canShare,
+		currentMs: best.currentMs,
+		minMs,
+		remainingMs: canShare ? 0 : Math.max(0, minMs - best.currentMs),
+		bestScope: best.scope,
+	}
 }

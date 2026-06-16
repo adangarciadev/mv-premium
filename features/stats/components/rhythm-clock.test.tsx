@@ -62,4 +62,32 @@ describe('RhythmClock', () => {
 		// Selecting a weekday switches the panel into the per-weekday view.
 		expect(screen.getByText('Ver día actual')).toBeInTheDocument()
 	})
+
+	it('shows remaining time to share when data is partial', () => {
+		render(<RhythmClock stats={makeInsufficientStats()} />)
+
+		expect(screen.getByText(/Faltan .* para compartir/i)).toBeInTheDocument()
+	})
+
+	it('shows the ready chip when data is shareable', () => {
+		render(<RhythmClock stats={makeShareableStats()} />)
+
+		expect(screen.getByText('Listo para compartir')).toBeInTheDocument()
+	})
+
+	it('lets an hour wedge be focused and toggled with the keyboard', () => {
+		const { container } = render(<RhythmClock stats={makeShareableStats()} />)
+
+		// jsdom doesn't compute accessible names for SVG paths, so query by aria-label.
+		const wedge = container.querySelector<SVGPathElement>('path[aria-label^="00:00"]')
+		expect(wedge).not.toBeNull()
+		expect(wedge).toHaveAttribute('role', 'button')
+		expect(wedge).toHaveAttribute('tabindex', '0')
+		expect(wedge).toHaveAttribute('aria-pressed', 'false')
+
+		wedge?.focus()
+		fireEvent.keyDown(wedge as SVGPathElement, { key: 'Enter' })
+
+		expect(wedge).toHaveAttribute('aria-pressed', 'true')
+	})
 })
