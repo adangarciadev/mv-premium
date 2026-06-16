@@ -246,7 +246,13 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 
 					{/* API Key Input */}
 					<div className="flex-shrink-0">
-						<ApiKeyInput value={geminiApiKey} onChange={setGeminiApiKey} placeholder="AIza..." label="Gemini" />
+						<ApiKeyInput
+							value={geminiApiKey}
+							onChange={setGeminiApiKey}
+							placeholder="AIza..."
+							label="Gemini"
+							allowCopy
+						/>
 					</div>
 				</div>
 

@@ -13,6 +13,7 @@ import {
 } from '@/features/ignored-users-mobile-sync'
 import { IgnoredUsersImportPanel } from '../components/ignored-users-import-panel'
 import { dispatchMobileLiteIgnoredUsersSync } from './ignored-users-sync-event'
+import { saveMobileLiteGeminiApiKey } from './gemini-api-key-storage'
 import { saveMobileLiteImgbbApiKey } from './imgbb-api-key-storage'
 
 const FEATURE_ID = 'mobile-lite-ignored-users-import'
@@ -58,6 +59,9 @@ export async function confirmIgnoredUsersImport(payload: MobileLiteTransferPaylo
 	if (payload.imgbbApiKey) {
 		await saveMobileLiteImgbbApiKey(payload.imgbbApiKey)
 	}
+	if (payload.geminiApiKey) {
+		await saveMobileLiteGeminiApiKey(payload.geminiApiKey)
+	}
 }
 
 function mountIgnoredUsersImportPanel(payload: MobileLiteTransferPayload | null, errorMessage: string | null): void {
@@ -94,7 +98,7 @@ export function initMobileLiteIgnoredUsersImport(): void {
 
 	try {
 		payload = readIgnoredUsersImportPayload()
-		if (!payload || (payload.ignoredUsers.length === 0 && !payload.imgbbApiKey)) {
+		if (!payload || (payload.ignoredUsers.length === 0 && !payload.imgbbApiKey && !payload.geminiApiKey)) {
 			errorMessage = 'El enlace no contiene datos de Mobile Lite para importar.'
 		}
 	} catch (error) {

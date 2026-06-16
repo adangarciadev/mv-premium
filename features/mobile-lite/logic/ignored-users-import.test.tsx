@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 	isFeatureEnabled: vi.fn(() => true),
 	getUserCustomizations: vi.fn(),
 	saveUserCustomizations: vi.fn(),
+	saveMobileLiteGeminiApiKey: vi.fn(),
 	saveMobileLiteImgbbApiKey: vi.fn(),
 	mountFeatureWithBoundary: vi.fn(),
 	unmountFeature: vi.fn(),
@@ -58,6 +59,10 @@ vi.mock('./imgbb-api-key-storage', () => ({
 	saveMobileLiteImgbbApiKey: mocks.saveMobileLiteImgbbApiKey,
 }))
 
+vi.mock('./gemini-api-key-storage', () => ({
+	saveMobileLiteGeminiApiKey: mocks.saveMobileLiteGeminiApiKey,
+}))
+
 const GLOBAL_SETTINGS = {
 	adminColor: '',
 	subadminColor: '',
@@ -73,6 +78,7 @@ const payload: MobileLiteTransferPayload = {
 		{ nick: 'MutedUser', ignoreType: 'mute' },
 	],
 	imgbbApiKey: 'abc_123',
+	geminiApiKey: 'gemini_123',
 }
 
 function data(users: UserCustomizationsData['users']): UserCustomizationsData {
@@ -90,6 +96,7 @@ describe('Mobile Lite ignored users import', () => {
 		mocks.isFeatureMounted.mockReturnValue(false)
 		mocks.getUserCustomizations.mockResolvedValue(data({}))
 		mocks.saveUserCustomizations.mockResolvedValue(undefined)
+		mocks.saveMobileLiteGeminiApiKey.mockResolvedValue(undefined)
 		mocks.saveMobileLiteImgbbApiKey.mockResolvedValue(undefined)
 		window.history.replaceState({}, '', '/')
 	})
@@ -139,6 +146,7 @@ describe('Mobile Lite ignored users import', () => {
 			})
 		)
 		expect(mocks.saveMobileLiteImgbbApiKey).toHaveBeenCalledWith('abc_123')
+		expect(mocks.saveMobileLiteGeminiApiKey).toHaveBeenCalledWith('gemini_123')
 	})
 
 	it('tears down the import panel', () => {

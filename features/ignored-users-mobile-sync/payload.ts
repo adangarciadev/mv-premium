@@ -20,6 +20,7 @@ export interface MobileLiteTransferPayload {
 	version: typeof MOBILE_LITE_TRANSFER_PAYLOAD_VERSION
 	ignoredUsers: IgnoredUsersSyncUser[]
 	imgbbApiKey?: string
+	geminiApiKey?: string
 }
 
 export interface IgnoredUsersSyncSummary {
@@ -30,6 +31,7 @@ export interface IgnoredUsersSyncSummary {
 
 export interface MobileLiteTransferSummary extends IgnoredUsersSyncSummary {
 	hasImgbbApiKey: boolean
+	hasGeminiApiKey: boolean
 }
 
 export interface MobileLiteTransferMergeResult {
@@ -40,22 +42,22 @@ export interface MobileLiteTransferMergeResult {
 const USERNAME_PATTERN = /^[A-Za-z0-9_-]+$/
 const USERNAME_MIN_LENGTH = 3
 const USERNAME_MAX_LENGTH = 13
-const IMGBB_API_KEY_MAX_LENGTH = 256
-const IMGBB_API_KEY_PATTERN = /^[A-Za-z0-9_-]+$/
+const API_KEY_MAX_LENGTH = 256
+const API_KEY_PATTERN = /^[A-Za-z0-9_-]+$/
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function normalizeImgbbApiKey(apiKey: string | undefined): string | undefined {
+function normalizeApiKey(apiKey: string | undefined): string | undefined {
 	const normalized = apiKey?.trim()
 	return normalized || undefined
 }
 
-function validateImgbbApiKey(apiKey: string | undefined): string | undefined {
-	const normalized = normalizeImgbbApiKey(apiKey)
+function validateTransferApiKey(apiKey: string | undefined): string | undefined {
+	const normalized = normalizeApiKey(apiKey)
 	if (!normalized) return undefined
-	if (normalized.length > IMGBB_API_KEY_MAX_LENGTH || !IMGBB_API_KEY_PATTERN.test(normalized)) {
+	if (normalized.length > API_KEY_MAX_LENGTH || !API_KEY_PATTERN.test(normalized)) {
 		throw new Error('Invalid Mobile Lite payload')
 	}
 	return normalized
@@ -100,6 +102,7 @@ export function summarizeMobileLiteTransfer(payload: MobileLiteTransferPayload):
 	return {
 		...summarizeIgnoredUsers(payload.ignoredUsers),
 		hasImgbbApiKey: Boolean(payload.imgbbApiKey),
+		hasGeminiApiKey: Boolean(payload.geminiApiKey),
 	}
 }
 
@@ -125,7 +128,8 @@ export function normalizeIgnoredUsersSyncUsers(users: IgnoredUsersSyncUser[]): I
 
 export function createMobileLiteTransferPayload(
 	data: UserCustomizationsData,
-	imgbbApiKey?: string
+	imgbbApiKey?: string,
+	geminiApiKey?: string
 ): MobileLiteTransferPayload {
 	const ignoredUsers: IgnoredUsersSyncUser[] = Object.entries(data.users)
 		.filter(([, customization]) => customization.isIgnored)
@@ -138,7 +142,8 @@ export function createMobileLiteTransferPayload(
 		type: MOBILE_LITE_TRANSFER_PAYLOAD_TYPE,
 		version: MOBILE_LITE_TRANSFER_PAYLOAD_VERSION,
 		ignoredUsers: normalizeIgnoredUsersSyncUsers(ignoredUsers),
-		imgbbApiKey: validateImgbbApiKey(imgbbApiKey),
+		imgbbApiKey: validateTransferApiKey(imgbbApiKey),
+		geminiApiKey: validateTransferApiKey(geminiApiKey),
 	}
 }
 
@@ -162,12 +167,17 @@ export function validateMobileLiteTransferPayload(value: unknown): MobileLiteTra
 	if (imgbbApiKey !== undefined && typeof imgbbApiKey !== 'string') {
 		throw new Error('Invalid Mobile Lite payload')
 	}
+	const geminiApiKey = value.geminiApiKey
+	if (geminiApiKey !== undefined && typeof geminiApiKey !== 'string') {
+		throw new Error('Invalid Mobile Lite payload')
+	}
 
 	return {
 		type: MOBILE_LITE_TRANSFER_PAYLOAD_TYPE,
 		version: MOBILE_LITE_TRANSFER_PAYLOAD_VERSION,
 		ignoredUsers: normalizeIgnoredUsersSyncUsers(ignoredUsers),
-		imgbbApiKey: validateImgbbApiKey(imgbbApiKey),
+		imgbbApiKey: validateTransferApiKey(imgbbApiKey),
+		geminiApiKey: validateTransferApiKey(geminiApiKey),
 	}
 }
 
@@ -206,13 +216,14 @@ export function assertMobileLiteImportUrlSize(url: string): void {
 
 export function createMobileLiteImportUrl(
 	data: UserCustomizationsData,
-	imgbbApiKey?: string
+	imgbbApiKey?: string,
+	geminiApiKey?: string
 ): {
 	payload: MobileLiteTransferPayload
 	url: string
 	summary: MobileLiteTransferSummary
 } {
-	const payload = createMobileLiteTransferPayload(data, imgbbApiKey)
+	const payload = createMobileLiteTransferPayload(data, imgbbApiKey, geminiApiKey)
 	const url = buildMobileLiteImportUrl(payload)
 	assertMobileLiteImportUrlSize(url)
 	return {
