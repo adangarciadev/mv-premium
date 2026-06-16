@@ -5,7 +5,7 @@
  * Uses WXT unified storage API
  */
 import { storage } from '#imports'
-import { STORAGE_KEYS } from '@/constants'
+import { MV_SELECTORS, STORAGE_KEYS } from '@/constants'
 
 export interface CurrentUser {
 	username: string
@@ -17,6 +17,72 @@ export interface CurrentUser {
 const currentUserStorage = storage.defineItem<CurrentUser | null>(`local:${STORAGE_KEYS.CURRENT_USER}`, {
 	defaultValue: null,
 })
+
+const USER_PROFILE_PATH_PREFIX = '/id/'
+const USER_AVATAR_PATH = '/img/users/avatar/'
+
+function getUserProfileNameFromHref(href: string): string {
+	try {
+		const url = new URL(href, window.location.origin)
+		if (!url.pathname.startsWith(USER_PROFILE_PATH_PREFIX)) return ''
+		return decodeURIComponent(url.pathname.slice(USER_PROFILE_PATH_PREFIX.length).split('/')[0] || '').trim()
+	} catch {
+		return ''
+	}
+}
+
+function isCurrentUserProfileLink(link: HTMLAnchorElement, username: string): boolean {
+	return getUserProfileNameFromHref(link.href).toLowerCase() === username.toLowerCase()
+}
+
+function getAvatarScore(img: HTMLImageElement): number {
+	const rect = img.getBoundingClientRect()
+	const width = Math.max(img.naturalWidth, img.width, rect.width)
+	const height = Math.max(img.naturalHeight, img.height, rect.height)
+	return width * height
+}
+
+function getAvatarUrl(img: HTMLImageElement): string {
+	return img.currentSrc || img.src
+}
+
+function findBestAvatarFromLinks(username: string): HTMLImageElement | null {
+	const candidates: HTMLImageElement[] = []
+	const profileLinks = document.querySelectorAll<HTMLAnchorElement>('a[href*="/id/"]')
+
+	for (const link of profileLinks) {
+		if (!isCurrentUserProfileLink(link, username)) continue
+
+		const linkedImage = link.querySelector<HTMLImageElement>(`img[src*="${USER_AVATAR_PATH}"]`)
+		if (linkedImage) candidates.push(linkedImage)
+
+		const postAvatar = link.closest(MV_SELECTORS.THREAD.POST_AVATAR)
+		const postImage = postAvatar?.querySelector<HTMLImageElement>(`img[src*="${USER_AVATAR_PATH}"]`)
+		if (postImage) candidates.push(postImage)
+	}
+
+	return candidates.sort((a, b) => getAvatarScore(b) - getAvatarScore(a))[0] ?? null
+}
+
+function findBestAvatarFromOwnProfile(username: string): HTMLImageElement | null {
+	if (getUserProfileNameFromHref(window.location.href).toLowerCase() !== username.toLowerCase()) return null
+
+	const candidates = Array.from(document.querySelectorAll<HTMLImageElement>(`img[src*="${USER_AVATAR_PATH}"]`)).filter(
+		img => !img.closest('#user-data')
+	)
+
+	return candidates.sort((a, b) => getAvatarScore(b) - getAvatarScore(a))[0] ?? null
+}
+
+function findBestCurrentUserAvatar(username: string, fallbackAvatar?: HTMLImageElement | null): string | undefined {
+	const profileAvatar = findBestAvatarFromOwnProfile(username)
+	if (profileAvatar) return getAvatarUrl(profileAvatar)
+
+	const linkedAvatar = findBestAvatarFromLinks(username)
+	if (linkedAvatar) return getAvatarUrl(linkedAvatar)
+
+	return fallbackAvatar ? getAvatarUrl(fallbackAvatar) : undefined
+}
 
 /**
  * Detect the current user from Mediavida page
@@ -36,7 +102,7 @@ export function detectCurrentUser(): CurrentUser | null {
 
 		return {
 			username,
-			avatarUrl: avatarImg?.src,
+			avatarUrl: findBestCurrentUserAvatar(username, avatarImg),
 			detectedAt: Date.now(),
 		}
 	} catch {
