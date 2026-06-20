@@ -89,19 +89,11 @@ const segmentedItemRadiusStyle = { borderRadius: 'max(2px, calc(var(--radius) - 
 
 const CLOCK_BUCKET_MAX_MS = 60 * 60_000 // a clock bucket represents one capped hour.
 
-// Strip intensity time-constants (τ): how fast unbounded buckets brighten with
-// real accumulated time. A bucket reaches ~63% at τ, ~95% at 3τ.
-const TAU_WEEKDAY = 3 * 60 * 60_000 // 3 h (per-occurrence average day)
-const TAU_WEEK = 4 * 60 * 60_000 // 4 h (cumulative week)
+const DAY_BAR_MAX_MS = 12 * 60 * 60_000
+const WEEK_BAR_MAX_MS = 30 * 60 * 60_000
 
 function clockIntensity(ms: number): number {
 	return Math.min(1, Math.max(0, ms) / CLOCK_BUCKET_MAX_MS)
-}
-
-/** Absolute intensity (0–1) from accumulated ms — NOT relative to the max. */
-function intensity(ms: number, tau: number): number {
-	if (ms <= 0) return 0
-	return 1 - Math.exp(-ms / tau)
 }
 
 /** Heatmap fill for an intensity 0–1 (shared by clock wedges and strip cells). */
@@ -114,10 +106,22 @@ function primaryMix(percent: number): string {
 	return `color-mix(in srgb, var(--primary) ${percent}%, transparent)`
 }
 
-function stripHeightPct(ms: number, maxMs: number, tau: number): number {
+function dayStripHeightPct(ms: number): number {
 	if (ms <= 0) return 8
-	const reference = Math.max(maxMs, tau)
-	return Math.max(10, Math.round((ms / reference) * 100))
+	return Math.max(10, Math.min(100, Math.round((ms / DAY_BAR_MAX_MS) * 100)))
+}
+
+function dayStripIntensity(ms: number): number {
+	return Math.min(1, Math.max(0, ms) / DAY_BAR_MAX_MS)
+}
+
+function weekStripHeightPct(ms: number): number {
+	if (ms <= 0) return 10
+	return Math.max(16, Math.min(100, Math.round((ms / WEEK_BAR_MAX_MS) * 100)))
+}
+
+function weekStripIntensity(ms: number): number {
+	return Math.min(1, Math.max(0, ms) / WEEK_BAR_MAX_MS)
 }
 
 /** Time with seconds, dropping zero components ("2m 10s", "2m", "10s", "1h 5s"). */
@@ -400,7 +404,7 @@ function WeekdayStrip({
 				{WEEKDAYS.map(({ label, index }, pos) => {
 					const value = avgs[pos]
 					const hasValue = value > 0
-					const heightPct = hasValue ? stripHeightPct(value, max, TAU_WEEKDAY) : 8
+					const heightPct = hasValue ? dayStripHeightPct(value) : 8
 					const isPeak = showPeak && pos === peakPos && value > 0
 					const isSelected = selected === index
 					const isTodayDefault = selected === null && index === todayWeekday
@@ -432,11 +436,7 @@ function WeekdayStrip({
 									)}
 									style={{
 										height: `${heightPct}%`,
-										background: hasValue
-											? isPeak
-												? 'var(--primary)'
-												: heatFill(intensity(value, TAU_WEEKDAY))
-											: STRIP_EMPTY_FILL,
+										background: hasValue ? heatFill(dayStripIntensity(value)) : STRIP_EMPTY_FILL,
 										borderRadius: 'max(2px, calc(var(--radius) - 2px))',
 										opacity: hasValue ? 1 : 0.72,
 										...(isSelected || isTodayDefault
@@ -511,7 +511,7 @@ function WeekDaysStrip({
 			<div className="flex items-end justify-center gap-2">
 				{buckets.map(bucket => {
 					const hasValue = bucket.ms > 0
-					const heightPct = hasValue ? stripHeightPct(bucket.ms, max, TAU_WEEKDAY) : 8
+					const heightPct = hasValue ? dayStripHeightPct(bucket.ms) : 8
 					const isPeak = peak?.key === bucket.key && hasValue
 					const isSelected = selectedWeekday === bucket.weekday
 					return (
@@ -544,11 +544,7 @@ function WeekDaysStrip({
 									)}
 									style={{
 										height: `${heightPct}%`,
-										background: hasValue
-											? isPeak
-												? 'var(--primary)'
-												: heatFill(intensity(bucket.ms, TAU_WEEKDAY))
-											: STRIP_EMPTY_FILL,
+										background: hasValue ? heatFill(dayStripIntensity(bucket.ms)) : STRIP_EMPTY_FILL,
 										borderRadius: 'max(2px, calc(var(--radius) - 2px))',
 										opacity: hasValue ? 1 : 0.72,
 										...(isSelected ? { outline: '1.5px solid var(--primary)', outlineOffset: '2px' } : {}),
@@ -630,12 +626,12 @@ function YearWeeksStrip({
 			</div>
 			<div className="flex h-10 items-end gap-[2px]">
 				{series.map(week => {
-					const t = intensity(week.ms, TAU_WEEK)
+					const t = weekStripIntensity(week.ms)
 					const isCurrent = week.key === currentKey
 					const isSelected = selectedKey === week.key
 					const hasValue = week.ms > 0
 					// Every week keeps a small baseline bar so the year never has blank gaps.
-					const heightPct = hasValue ? Math.max(16, Math.round(t * 100)) : 10
+					const heightPct = hasValue ? weekStripHeightPct(week.ms) : 10
 					const rangeLabel = formatWeekRange(week.weekStart)
 					return (
 						<div

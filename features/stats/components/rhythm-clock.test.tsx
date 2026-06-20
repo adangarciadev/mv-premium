@@ -34,6 +34,19 @@ function makeStatsWithTodayAndBusierWeekday(): RhythmStats {
 	return stats
 }
 
+function makeEightHourWeekdayStats(): RhythmStats {
+	const year = new Date().getFullYear()
+	return accumulateRhythm(createEmptyRhythm(), 8 * 60 * 60_000, new Date(year, 0, 5, 14, 0), 'workday')
+}
+
+function makeWeeklyScaleStats(): RhythmStats {
+	let stats = createEmptyRhythm()
+	const year = new Date().getFullYear()
+	stats = accumulateRhythm(stats, 20 * 60 * 60_000, new Date(year, 0, 5, 14, 0), 'week-a')
+	stats = accumulateRhythm(stats, 1 * 60 * 60_000, new Date(year, 0, 12, 14, 0), 'week-b')
+	return stats
+}
+
 describe('RhythmClock', () => {
 	beforeEach(() => {
 		vi.useFakeTimers()
@@ -101,6 +114,20 @@ describe('RhythmClock', () => {
 
 		expect(screen.getByText(/S.*bado .* MEDIA 30m/)).toBeInTheDocument()
 		expect(screen.queryByText(/Ver d.*a actual/)).not.toBeInTheDocument()
+	})
+
+	it('scales weekday bars against a full day instead of the busiest visible day', () => {
+		render(<RhythmClock stats={makeEightHourWeekdayStats()} />)
+
+		expect(screen.getByLabelText(/Seleccionar Lunes, MEDIA 8h/)).toHaveStyle({ height: '67%' })
+	})
+
+	it('scales weekly bars against a useful visual week instead of a relative curve', () => {
+		render(<RhythmClock stats={makeWeeklyScaleStats()} />)
+
+		fireEvent.click(screen.getByRole('button', { name: 'Semana' }))
+
+		expect(screen.getByLabelText(/Ver d.*as de la semana .* TOTAL 20h/)).toHaveStyle({ height: '67%' })
 	})
 
 	it('shows remaining time to share when data is partial', () => {
