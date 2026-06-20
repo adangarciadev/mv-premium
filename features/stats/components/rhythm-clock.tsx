@@ -359,12 +359,14 @@ function WeekdayStrip({
 	counts,
 	selected,
 	onSelect,
+	todayWeekday,
 	showPeak,
 }: {
 	stats: RhythmStats
 	counts: number[]
 	selected: number | null
 	onSelect: (weekday: number | null) => void
+	todayWeekday: number
 	showPeak: boolean
 }) {
 	// Average time per occurrence of each weekday. Height = RELATIVE to the busiest day
@@ -373,7 +375,7 @@ function WeekdayStrip({
 	const avgs = WEEKDAYS.map(({ index }) => (stats.weekdays[index] || 0) / Math.max(1, counts[index]))
 	const max = Math.max(...avgs, 0)
 	const peakPos = max > 0 ? avgs.indexOf(max) : -1
-	const featuredWeekday = hovered ?? selected ?? (showPeak && peakPos >= 0 ? WEEKDAYS[peakPos].index : null)
+	const featuredWeekday = hovered ?? selected ?? todayWeekday
 	const featuredPos = featuredWeekday === null ? -1 : WEEKDAYS.findIndex(({ index }) => index === featuredWeekday)
 	const featuredLabel = featuredPos >= 0 ? WEEKDAYS[featuredPos].label : null
 	const featuredFullLabel = featuredWeekday === null ? null : WEEKDAY_FULL[featuredWeekday]
@@ -401,6 +403,7 @@ function WeekdayStrip({
 					const heightPct = hasValue ? stripHeightPct(value, max, TAU_WEEKDAY) : 8
 					const isPeak = showPeak && pos === peakPos && value > 0
 					const isSelected = selected === index
+					const isTodayDefault = selected === null && index === todayWeekday
 					return (
 						<div
 							key={label}
@@ -436,7 +439,9 @@ function WeekdayStrip({
 											: STRIP_EMPTY_FILL,
 										borderRadius: 'max(2px, calc(var(--radius) - 2px))',
 										opacity: hasValue ? 1 : 0.72,
-										...(isSelected ? { outline: '1.5px solid var(--primary)', outlineOffset: '2px' } : {}),
+										...(isSelected || isTodayDefault
+											? { outline: '1.5px solid var(--primary)', outlineOffset: '2px' }
+											: {}),
 										...(isPeak ? { boxShadow: '0 0 14px color-mix(in srgb, var(--primary) 45%, transparent)' } : {}),
 									}}
 								/>
@@ -444,7 +449,7 @@ function WeekdayStrip({
 							<span
 								className={cn(
 									'text-[11px] transition-colors',
-									isSelected
+									isSelected || isTodayDefault
 										? 'font-semibold text-primary'
 										: isPeak
 										? 'font-semibold text-primary/90'
@@ -716,11 +721,13 @@ export const RhythmClock = memo(function RhythmClock({
 	const [selectedWeekday, setSelectedWeekday] = useState<number | null>(null)
 	const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null)
 	const [shareOpen, setShareOpen] = useState(false)
+	const todayWeekday = new Date().getDay()
 	const selectedWeekStart = useMemo(
 		() => (selectedWeekKey ? parseLocalDateKey(selectedWeekKey) : null),
 		[selectedWeekKey]
 	)
 	const inDay = selectedWeekday !== null
+	const isViewingToday = selectedWeekday === todayWeekday
 
 	// Per-day averages: an hour-of-day can't exceed 1h and a day can't exceed 24h, so we
 	// divide the cumulative buckets by the number of relevant days.
@@ -770,6 +777,14 @@ export const RhythmClock = memo(function RhythmClock({
 	const clearSelectedWeek = () => {
 		setSelectedWeekKey(null)
 		selectWeekday(null)
+	}
+
+	const returnToCurrentDay = () => {
+		if (selectedWeekStart) {
+			selectWeekday(null)
+			return
+		}
+		selectWeekday(todayWeekday)
 	}
 
 	// The hour the center + clock highlight reflect: hovered, else pinned, else peak.
@@ -1111,14 +1126,16 @@ export const RhythmClock = memo(function RhythmClock({
 												<CalendarDays className="h-3.5 w-3.5" />
 												<span className="text-primary/75">Vista</span>
 												<span className="font-semibold">{WEEKDAY_FULL[selectedWeekday as number]}</span>
-												<button
-													type="button"
-													onClick={() => selectWeekday(null)}
-													className="ml-1 border border-primary/40 bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground shadow-[0_0_12px_-8px_var(--primary)] transition-colors hover:bg-primary/90"
-													style={segmentedItemRadiusStyle}
-												>
-													{selectedWeekStart ? 'Volver a semana' : 'Ver día actual'}
-												</button>
+												{(selectedWeekStart || !isViewingToday) && (
+													<button
+														type="button"
+														onClick={returnToCurrentDay}
+														className="ml-1 border border-primary/40 bg-primary px-2 py-0.5 text-[11px] font-semibold text-primary-foreground shadow-[0_0_12px_-8px_var(--primary)] transition-colors hover:bg-primary/90"
+														style={segmentedItemRadiusStyle}
+													>
+														{selectedWeekStart ? 'Volver a semana' : 'Ver día actual'}
+													</button>
+												)}
 											</div>
 										)}
 									</div>
@@ -1266,6 +1283,7 @@ export const RhythmClock = memo(function RhythmClock({
 								counts={weekdayCounts}
 								selected={selectedWeekday}
 								onSelect={selectWeekday}
+								todayWeekday={todayWeekday}
 								showPeak={hasEnoughData}
 							/>
 						) : selectedWeekStart ? (

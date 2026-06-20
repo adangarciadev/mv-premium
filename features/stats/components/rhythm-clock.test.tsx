@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { RhythmClock } from './rhythm-clock'
 import { accumulateRhythm, createEmptyRhythm, type RhythmStats } from '../logic/rhythm-model'
 
 // Deterministic builders (no generateRandomRhythm) so states are stable.
+const FIXED_NOW = new Date(2026, 5, 20, 12, 0, 0)
 
 function makeEmptyStats(): RhythmStats {
 	return createEmptyRhythm()
@@ -25,7 +26,24 @@ function makeShareableStats(): RhythmStats {
 	return stats
 }
 
+function makeStatsWithTodayAndBusierWeekday(): RhythmStats {
+	let stats = createEmptyRhythm()
+	const year = new Date().getFullYear()
+	stats = accumulateRhythm(stats, 90 * 60_000, new Date(year, 0, 7, 14, 0), 'peakday')
+	stats = accumulateRhythm(stats, 30 * 60_000, FIXED_NOW, 'today')
+	return stats
+}
+
 describe('RhythmClock', () => {
+	beforeEach(() => {
+		vi.useFakeTimers()
+		vi.setSystemTime(FIXED_NOW)
+	})
+
+	afterEach(() => {
+		vi.useRealTimers()
+	})
+
 	it('renders the empty state with no data', () => {
 		render(<RhythmClock stats={makeEmptyStats()} />)
 
@@ -63,6 +81,28 @@ describe('RhythmClock', () => {
 		expect(screen.getByText('Ver día actual')).toBeInTheDocument()
 	})
 
+	it('features the current weekday by default instead of the busiest weekday', () => {
+		render(<RhythmClock stats={makeStatsWithTodayAndBusierWeekday()} />)
+
+		expect(screen.getByText(/S.*bado .* MEDIA 30m/)).toBeInTheDocument()
+		expect(screen.queryByText(/Mi.*rcoles .* MEDIA 1h 30m/)).not.toBeInTheDocument()
+		expect(screen.queryByText(/Ver d.*a actual/)).not.toBeInTheDocument()
+	})
+
+	it('returns from another weekday to the current weekday', () => {
+		render(<RhythmClock stats={makeStatsWithTodayAndBusierWeekday()} />)
+
+		fireEvent.click(screen.getByLabelText(/Seleccionar Mi.*rcoles/))
+
+		const currentDayButton = screen.getByText(/Ver d.*a actual/)
+		expect(currentDayButton).toBeInTheDocument()
+
+		fireEvent.click(currentDayButton)
+
+		expect(screen.getByText(/S.*bado .* MEDIA 30m/)).toBeInTheDocument()
+		expect(screen.queryByText(/Ver d.*a actual/)).not.toBeInTheDocument()
+	})
+
 	it('shows remaining time to share when data is partial', () => {
 		render(<RhythmClock stats={makeInsufficientStats()} />)
 
@@ -85,7 +125,7 @@ describe('RhythmClock', () => {
 		expect(wedge).toHaveAttribute('tabindex', '0')
 		expect(wedge).toHaveAttribute('aria-pressed', 'false')
 
-		wedge?.focus()
+		fireEvent.focus(wedge as SVGPathElement)
 		fireEvent.keyDown(wedge as SVGPathElement, { key: 'Enter' })
 
 		expect(wedge).toHaveAttribute('aria-pressed', 'true')
