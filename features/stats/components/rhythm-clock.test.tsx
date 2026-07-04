@@ -47,6 +47,14 @@ function makeWeeklyScaleStats(): RhythmStats {
 	return stats
 }
 
+function makeStatsWithCurrentAndBusierPastWeek(): RhythmStats {
+	let stats = createEmptyRhythm()
+	const year = new Date().getFullYear()
+	stats = accumulateRhythm(stats, 90 * 60_000, new Date(year, 0, 7, 14, 0), 'past-week')
+	stats = accumulateRhythm(stats, 30 * 60_000, FIXED_NOW, 'current-week')
+	return stats
+}
+
 describe('RhythmClock', () => {
 	beforeEach(() => {
 		vi.useFakeTimers()
@@ -128,6 +136,14 @@ describe('RhythmClock', () => {
 		fireEvent.click(screen.getByRole('button', { name: 'Semana' }))
 
 		expect(screen.getByLabelText(/Ver d.*as de la semana .* TOTAL 20h/)).toHaveStyle({ height: '67%' })
+	})
+
+	it('features the current week by default instead of the busiest week', () => {
+		render(<RhythmClock stats={makeStatsWithCurrentAndBusierPastWeek()} />)
+
+		fireEvent.click(screen.getByRole('button', { name: 'Semana' }))
+
+		expect(screen.getByText(/Semana del 15 al 21 de jun .* TOTAL 30m/)).toBeInTheDocument()
 	})
 
 	it('shows remaining time to share when data is partial', () => {

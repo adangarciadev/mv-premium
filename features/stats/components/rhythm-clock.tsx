@@ -591,7 +591,8 @@ function YearWeeksStrip({
 	const currentKey = getWeekKey(new Date())
 	const hoveredWeek = hoveredKey ? series.find(week => week.key === hoveredKey) ?? null : null
 	const selectedWeek = selectedKey ? series.find(week => week.key === selectedKey) ?? null : null
-	const featuredWeek = hoveredWeek ?? selectedWeek
+	const currentWeek = series.find(week => week.key === currentKey) ?? null
+	const featuredWeek = hoveredWeek ?? selectedWeek ?? currentWeek
 
 	const monthMarks = useMemo(() => {
 		const marks: { i: number; label: string }[] = []
