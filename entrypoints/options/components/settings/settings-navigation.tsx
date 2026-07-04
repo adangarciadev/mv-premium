@@ -29,6 +29,7 @@ const NAVIGATION_SETTING_IDS = [
 	'infinite-scroll',
 	'auto-infinite-scroll',
 	'live-thread',
+	'auto-live-thread',
 	'gallery-button',
 	'live-thread-delay',
 	'native-live-delay',
@@ -43,6 +44,7 @@ export function SettingsNavigation({ settingFilter }: { settingFilter?: Settings
 		setInfiniteScrollEnabled,
 		autoInfiniteScrollEnabled,
 		liveThreadEnabled,
+		autoLiveThreadEnabled,
 		setLiveThreadEnabled,
 		galleryButtonEnabled,
 		nativeLiveDelayEnabled,
@@ -121,7 +123,10 @@ export function SettingsNavigation({ settingFilter }: { settingFilter?: Settings
 					<Switch
 						checked={autoInfiniteScrollEnabled}
 						onCheckedChange={checked => {
-							setSetting('autoInfiniteScrollEnabled', checked)
+							updateSettings({
+								autoInfiniteScrollEnabled: checked,
+								...(checked ? { autoLiveThreadEnabled: false } : {}),
+							})
 							reloadMediavidaTabs()
 							toast.success(checked ? 'Auto-activación de scroll infinito activada' : 'Configuración guardada')
 						}}
@@ -141,11 +146,36 @@ export function SettingsNavigation({ settingFilter }: { settingFilter?: Settings
 					checked={liveThreadEnabled}
 					onCheckedChange={checked => {
 						setLiveThreadEnabled(checked)
+						if (!checked) {
+							setSetting('autoLiveThreadEnabled', false)
+						}
 						reloadMediavidaTabs()
 						toast.success(checked ? 'Modo Live activado' : 'Configuración guardada')
 					}}
 				/>
 			</SettingRow>
+
+			{(liveThreadEnabled || shouldForceRender('auto-live-thread')) && (
+				<SettingRow
+					{...rowState('auto-live-thread')}
+					icon={<Zap className="h-4 w-4" />}
+					label="Activar Live automáticamente"
+					description="El modo Live de MV Premium se activa al entrar en un hilo normal. Desactiva la auto-activación de scroll infinito."
+					className="ml-6 border-l-2 border-primary/30 pl-4"
+				>
+					<Switch
+						checked={autoLiveThreadEnabled}
+						onCheckedChange={checked => {
+							updateSettings({
+								autoLiveThreadEnabled: checked,
+								...(checked ? { autoInfiniteScrollEnabled: false } : {}),
+							})
+							reloadMediavidaTabs()
+							toast.success(checked ? 'Auto-activación de Live activada' : 'Configuración guardada')
+						}}
+					/>
+				</SettingRow>
+			)}
 
 			{showSeparatorBefore('gallery-button') && <Separator />}
 

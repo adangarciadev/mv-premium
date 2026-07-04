@@ -978,8 +978,12 @@ export async function injectInfiniteScroll(_ctx?: unknown): Promise<void> {
 		statusRow.appendChild(container)
 	}
 
-	// Set auto mode based on settings (affects button disabled state)
-	isAutoMode = settings.autoInfiniteScrollEnabled === true && !isNativeLiveThreadPage()
+	// Auto Live and Auto Infinite Scroll are mutually exclusive. If both are
+	// present in persisted settings, Live wins because it owns the thread view.
+	isAutoMode =
+		settings.autoInfiniteScrollEnabled === true &&
+		settings.autoLiveThreadEnabled !== true &&
+		!isNativeLiveThreadPage()
 
 	setupModeExclusionListeners()
 	mountFeatureWithBoundary(BUTTON_FEATURE_ID, container, getButtonElement(), 'Botón Scroll Infinito')

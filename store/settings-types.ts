@@ -75,6 +75,7 @@ export interface Settings {
 	infiniteScrollEnabled: boolean
 	autoInfiniteScrollEnabled: boolean
 	liveThreadEnabled: boolean
+	autoLiveThreadEnabled: boolean
 	newHomepageEnabled: boolean
 	galleryButtonEnabled: boolean
 	quoteSelectionEnabled: boolean

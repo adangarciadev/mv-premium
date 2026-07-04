@@ -12,7 +12,8 @@ import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { mountFeatureWithBoundary, unmountFeature, isFeatureMounted, updateFeature } from '@/lib/content-modules/utils/react-helpers'
 import { getStatusActionsRow } from '@/lib/content-modules/utils/extra-actions-row'
-import { isThreadPage, getThreadIdFromUrl } from '@/lib/content-modules/utils/page-detection'
+import { isThreadPage, isNativeLiveThreadPage, getThreadIdFromUrl } from '@/lib/content-modules/utils/page-detection'
+import { logger } from '@/lib/logger'
 import { applyStoredTheme } from '@/lib/theme-sync'
 import { MV_SELECTORS, FEATURE_IDS } from '@/constants'
 import { DOM_MARKERS } from '@/constants/dom-markers'
@@ -63,6 +64,7 @@ const HEADER_FEATURE_ID = FEATURE_IDS.LIVE_THREAD_HEADER
 
 let isInfiniteScrollActive = false // Whether infinite scroll is currently active
 let isLiveThreadDelayEnabled = true // Whether delay control is enabled in settings
+let isAutoLiveThreadEnabled = false // Whether Live should auto-start on desktop thread pages
 
 interface StartLiveModeOptions {
 	variant?: LiveThreadVariant
@@ -164,23 +166,33 @@ function MobileLiteLiveHeader({ onStop }: { onStop: () => void }) {
 interface LiveButtonProps {
 	isActive: boolean
 	isDisabled: boolean
+	isAutoMode: boolean
 	onToggle: () => void
 }
 
-function LiveButton({ isActive, isDisabled, onToggle }: LiveButtonProps) {
-	const disabledStyles = 'opacity-40 cursor-not-allowed pointer-events-none'
+function LiveButton({ isActive, isDisabled, isAutoMode, onToggle }: LiveButtonProps) {
+	const isButtonDisabled = isDisabled || isActive
+	const disabledStyles = 'opacity-40 cursor-not-allowed'
+	const title = isDisabled
+		? 'Desactivado (Scroll Infinito activo)'
+		: isActive && isAutoMode
+			? 'Auto Live activado. Desactívalo en Ajustes > Navegación si quieres salir del modo automático.'
+			: isActive
+				? 'Modo Live activo. Usa Salir en la cabecera del Live para volver al hilo normal.'
+				: 'Activar modo Live'
 
 	return (
 		<button
-			onClick={isDisabled ? undefined : onToggle}
-			disabled={isDisabled}
+			onClick={isButtonDisabled ? undefined : onToggle}
+			aria-disabled={isButtonDisabled}
+			tabIndex={isButtonDisabled ? -1 : 0}
 			className={cn(
 				'mvp-live-toggle-btn',
 				'flex items-center justify-center gap-2 px-3 h-[30px] relative shadow-sm transition-all border',
-				isDisabled ? disabledStyles : 'cursor-pointer'
+				isButtonDisabled ? disabledStyles : 'cursor-pointer'
 			)}
-			title={isDisabled ? 'Desactivado (Scroll Infinito activo)' : isActive ? 'Desactivar modo Live' : 'Activar modo Live'}
-			aria-label={isActive ? 'Desactivar modo Live' : 'Activar modo Live'}
+			title={title}
+			aria-label={isActive ? 'Modo Live activo' : 'Activar modo Live'}
 		>
 			<div className="mvp-live-dot connected" />
 			<span className="mvp-live-label">LIVE</span>
@@ -271,6 +283,7 @@ export async function startLiveMode(options: StartLiveModeOptions = {}): Promise
 	mountFeatureWithBoundary(HEADER_FEATURE_ID, appContainer, header, 'Live Thread Header')
 
 	setIsLiveActive(true)
+	updateButton()
 
 	// Dispatch event to notify other features (Infinite Scroll)
 	window.dispatchEvent(
@@ -335,7 +348,14 @@ async function stopLiveMode(): Promise<void> {
 // =============================================================================
 
 function getButtonElement() {
-	return <LiveButton isActive={false} isDisabled={isInfiniteScrollActive} onToggle={startLiveMode} />
+	return (
+		<LiveButton
+			isActive={getIsLiveActive()}
+			isDisabled={isInfiniteScrollActive}
+			isAutoMode={isAutoLiveThreadEnabled}
+			onToggle={startLiveMode}
+		/>
+	)
 }
 
 function updateButton(): void {
@@ -360,6 +380,7 @@ export async function configureLiveThreadRuntime(options: { requireEnabled?: boo
 	const settings = await getSettings()
 	if (requireEnabled && settings.liveThreadEnabled !== true) return false
 	isLiveThreadDelayEnabled = settings.liveThreadDelayEnabled !== false
+	isAutoLiveThreadEnabled = settings.autoLiveThreadEnabled === true
 
 	const threadId = getThreadIdFromUrl() || ''
 	if (!threadId) return false
@@ -393,6 +414,11 @@ export async function injectLiveThreadButton(): Promise<void> {
 
 	// Mount button
 	mountFeatureWithBoundary(BUTTON_FEATURE_ID, container, getButtonElement(), 'Botón Live Thread')
+
+	if (isAutoLiveThreadEnabled && !isNativeLiveThreadPage() && !isInfiniteScrollActive) {
+		logger.debug('LiveThread: auto-activating (autoLiveThreadEnabled=true)')
+		void startLiveMode()
+	}
 }
 
 export function cleanupLiveThreadButton(): void {
