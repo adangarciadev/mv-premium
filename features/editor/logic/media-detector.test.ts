@@ -54,6 +54,17 @@ describe('media-detector', () => {
 			})
 		})
 
+		describe('GOG', () => {
+			it('should detect canonical and localized GOG game URLs', () => {
+				expect(isMediaUrl('https://www.gog.com/game/divinity_original_sin_2')).toBe(true)
+				expect(isMediaUrl('https://www.gog.com/en/game/divinity_original_sin_2')).toBe(true)
+			})
+
+			it('should not detect non-game GOG URLs', () => {
+				expect(isMediaUrl('https://www.gog.com/forum/general')).toBe(false)
+			})
+		})
+
 		describe('Amazon', () => {
 			it('should detect Amazon.es product URLs', () => {
 				expect(isMediaUrl('https://www.amazon.es/Product-Name/dp/B08N5WRWNW')).toBe(true)
@@ -170,6 +181,10 @@ describe('media-detector', () => {
 			expect(getMediaType('https://store.steampowered.com/app/440')).toBe('steam')
 		})
 
+		it('should return gog for GOG game URLs', () => {
+			expect(getMediaType('https://www.gog.com/game/divinity_original_sin_2')).toBe('gog')
+		})
+
 		it('should return spotify for Spotify URLs', () => {
 			expect(getMediaType('https://open.spotify.com/track/abc')).toBe('spotify')
 		})
@@ -244,4 +259,3 @@ describe('media-detector', () => {
 		})
 	})
 })
-

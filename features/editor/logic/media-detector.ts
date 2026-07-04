@@ -41,6 +41,11 @@ const MEDIA_PATTERNS: { name: string; pattern: RegExp }[] = [
 		name: 'steam',
 		pattern: /^https?:\/\/store\.steampowered\.com\/app\/\d+/i,
 	},
+	// GOG (game pages)
+	{
+		name: 'gog',
+		pattern: /^https?:\/\/(?:www\.)?gog\.com\/(?:[a-z]{2}\/)?game\/[A-Za-z0-9_-]+\/?(?:[?#].*)?$/i,
+	},
 	// Twitch clips
 	{
 		name: 'twitch-clip',

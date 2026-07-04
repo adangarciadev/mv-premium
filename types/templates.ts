@@ -725,6 +725,15 @@ export const GAME_FIELDS: FieldDefinition[] = [
 		category: 'Tiendas y enlaces',
 	},
 	{
+		key: 'gogStoreUrl',
+		label: 'Tarjeta de GOG',
+		description: 'URL de GOG para incrustar como tarjeta con [media]',
+		isArray: false,
+		example: 'https://www.gog.com/game/the_witcher_3_wild_hunt',
+		source: 'igdb',
+		category: 'Tiendas y enlaces',
+	},
+	{
 		key: 'googlePlayUrl',
 		label: 'Tarjeta de Google Play',
 		description: 'URL de Google Play para incrustar como tarjeta con [media]',
@@ -1015,6 +1024,7 @@ export interface GameTemplateDataInput {
 	websites: { category: string; url: string }[]
 	externalGames: string[]
 	steamStoreUrl: string | null
+	gogStoreUrl: string | null
 	googlePlayUrl: string | null
 	appStoreUrl: string | null
 	languageSupports: string[]

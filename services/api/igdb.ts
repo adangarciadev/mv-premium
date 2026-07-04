@@ -915,8 +915,9 @@ export async function getGameTemplateData(
 		})) || []
 
 	// External games (store/service links)
-	const externalLinkByStore: Record<'steam' | 'googleplay' | 'appstore', string | null> = {
+	const externalLinkByStore: Record<'steam' | 'gog' | 'googleplay' | 'appstore', string | null> = {
 		steam: null,
+		gog: null,
 		googleplay: null,
 		appstore: null,
 	}
@@ -929,8 +930,9 @@ export async function getGameTemplateData(
 			const link = external.url || external.uid || external.name || null
 
 			const sourceKey = normalizeExternalSourceKey(source)
-			if (sourceKey && link && !externalLinkByStore[sourceKey]) {
-				externalLinkByStore[sourceKey] = link
+			const normalizedLink = sourceKey === 'gog' && link ? normalizeGogGameUrl(link) : link
+			if (sourceKey && normalizedLink && !externalLinkByStore[sourceKey]) {
+				externalLinkByStore[sourceKey] = normalizedLink
 			}
 
 			if (external.url) return `${label}: ${external.url}`
@@ -1007,6 +1009,11 @@ export async function getGameTemplateData(
 		websites.find(w => w.category === 'iphone')?.url ||
 		websites.find(w => w.category === 'ipad')?.url ||
 		null
+	const gogWebsiteUrl = websites
+		.filter(website => website.category === 'gog')
+		.map(website => normalizeGogGameUrl(website.url))
+		.find((url): url is string => Boolean(url))
+	const gogStoreUrl = externalLinkByStore.gog || gogWebsiteUrl || null
 
 	// Title-search fallback: IGDB often lacks store links even for released
 	// mobile games (e.g. Marvel Snap). Only attempted for games that are
@@ -1097,6 +1104,7 @@ export async function getGameTemplateData(
 		websites,
 		externalGames,
 		steamStoreUrl: steamAppId ? `https://store.steampowered.com/app/${steamAppId}` : null,
+		gogStoreUrl,
 		googlePlayUrl,
 		appStoreUrl,
 		languageSupports,
@@ -1107,14 +1115,31 @@ export async function getGameTemplateData(
 	}
 }
 
-function normalizeExternalSourceKey(source: string): 'steam' | 'googleplay' | 'appstore' | null {
+function normalizeExternalSourceKey(source: string): 'steam' | 'gog' | 'googleplay' | 'appstore' | null {
 	const normalized = source.toLowerCase()
 	if (normalized.includes('steam')) return 'steam'
+	if (normalized.includes('gog')) return 'gog'
 	if (normalized.includes('android') || normalized.includes('google')) return 'googleplay'
 	if (normalized.includes('apple') || normalized.includes('app store') || normalized.includes('itunes')) {
 		return 'appstore'
 	}
 	return null
+}
+
+/**
+ * Accept only full GOG product URLs that Mediavida can embed safely.
+ */
+function normalizeGogGameUrl(value: string): string | null {
+	try {
+		const url = new URL(value.trim())
+		if (!/^https?:$/.test(url.protocol)) return null
+		if (!/(^|\.)gog\.com$/i.test(url.hostname)) return null
+		if (!/^\/(?:[a-z]{2}\/)?game\/[^/]+\/?$/i.test(url.pathname)) return null
+
+		return url.toString().replace(/\/$/, '')
+	} catch {
+		return null
+	}
 }
 
 /**
@@ -1209,10 +1234,14 @@ export function generateGameTemplate(data: GameTemplateDataInput, type: GameTemp
 }
 
 /**
- * Generate a minimal Steam media embed for a game.
+ * Generate the available desktop store media embeds for a game.
  */
-export function generateSteamMediaTemplate(data: GameTemplateDataInput): string | null {
-	return data.steamStoreUrl ? `[media]${data.steamStoreUrl}[/media]` : null
+export function generateGameStoresMediaTemplate(data: GameTemplateDataInput): string | null {
+	const embeds = [data.steamStoreUrl, data.gogStoreUrl]
+		.filter((url): url is string => Boolean(url))
+		.map(url => `[media]${url}[/media]`)
+
+	return embeds.length > 0 ? embeds.join('\n') : null
 }
 
 /**

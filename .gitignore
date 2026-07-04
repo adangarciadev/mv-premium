@@ -22,6 +22,9 @@ web-ext.config.ts
 .agent/
 LOCAL_GIT_WORKFLOW.md
 
+# Local agent design documents
+/docs/superpowers/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -36,4 +39,4 @@ LOCAL_GIT_WORKFLOW.md
 # Build artifacts
 stats.html
 stats-*.json
-nul
+null

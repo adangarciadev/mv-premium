@@ -33,6 +33,7 @@ export interface SteamGameDetails {
 	metacriticUrl: string | null
 	screenshots: string[]
 	steamLibraryHeaderUrl: string
+	operatingSystems?: Array<'windows' | 'macos' | 'linux'>
 }
 
 export interface SteamBundleDetails {
@@ -95,6 +96,11 @@ interface SteamApiResponse {
 				url: string
 			}
 			screenshots?: Array<{ id: number; path_thumbnail: string; path_full: string }>
+			platforms?: {
+				windows?: boolean
+				mac?: boolean
+				linux?: boolean
+			}
 		}
 	}
 }
@@ -835,6 +841,10 @@ export async function fetchSteamGameDetails(appId: number): Promise<SteamGameDet
 		}
 
 		const aboutText = stripHtmlToPlainText(data.about_the_game || '')
+		const operatingSystems: Array<'windows' | 'macos' | 'linux'> = []
+		if (data.platforms?.windows) operatingSystems.push('windows')
+		if (data.platforms?.mac) operatingSystems.push('macos')
+		if (data.platforms?.linux) operatingSystems.push('linux')
 
 		const gameDetails: SteamGameDetails = {
 			appId,
@@ -854,6 +864,7 @@ export async function fetchSteamGameDetails(appId: number): Promise<SteamGameDet
 			metacriticUrl: data.metacritic?.url || null,
 			screenshots: data.screenshots?.map(s => s.path_full) || [],
 			steamLibraryHeaderUrl: `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/library_header_2x.jpg`,
+			operatingSystems: operatingSystems.length > 0 ? operatingSystems : ['windows'],
 		}
 
 		setCachedGame(appId, gameDetails)

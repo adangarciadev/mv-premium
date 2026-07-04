@@ -248,7 +248,7 @@ export function ContentTabContent({ settingFilter }: { settingFilter?: SettingsC
 					<div className="flex items-center justify-between py-1.5">
 						<div className="flex items-center gap-2">
 							<Gamepad2 className="h-3.5 w-3.5 text-muted-foreground" />
-							<span className="text-sm">Tarjetas de Steam</span>
+							<span className="text-sm">Tarjetas de Steam y GOG</span>
 						</div>
 						<Switch
 							checked={workModeOptions.hideSteamCards}

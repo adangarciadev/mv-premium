@@ -146,6 +146,7 @@ export const EVENTS = {
 
 export const API_URLS = {
 	STEAM_STORE: 'https://store.steampowered.com',
+	GOG_CATALOG: 'https://catalog.gog.com',
 	TMDB_BASE: 'https://api.themoviedb.org/3',
 	TMDB_IMAGE: 'https://image.tmdb.org/t/p',
 	IMGBB: 'https://api.imgbb.com/1/upload',

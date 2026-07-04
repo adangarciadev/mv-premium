@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { IGDBGame } from './igdb-types'
-import type { MediaTemplate, UserTemplates } from '@/types/templates'
+import type { GameTemplateDataInput, MediaTemplate, UserTemplates } from '@/types/templates'
 import { IGDBAgeRatingCategory, IGDBWebsiteCategory } from './igdb-types'
 
 const storeMock = vi.hoisted(() => ({
@@ -58,7 +58,7 @@ import {
 	getGameTemplateData,
 	getGameTemplateString,
 	generateGameTemplate,
-	generateSteamMediaTemplate,
+	generateGameStoresMediaTemplate,
 	getUpcomingGameReleases,
 	normalizeUpcomingGameReleases,
 	hasIgdbCredentials,
@@ -1039,6 +1039,84 @@ describe('IGDB API Service', () => {
 			expect(mockSendMessage).toHaveBeenCalledWith('fetchSteamGame', 292030)
 		})
 
+		it('extracts a GOG game URL from external games', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Divinity: Original Sin 2',
+				external_games: [
+					{
+						id: 1,
+						uid: '12345',
+						external_game_source: { id: 5, name: 'GOG' },
+					},
+					{
+						id: 2,
+						url: 'https://www.gog.com/en/game/divinity_original_sin_2',
+						external_game_source: { id: 5, name: 'GOG' },
+					},
+				],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+			mockSendMessage.mockResolvedValueOnce([]) // searchSteamApps fallback
+
+			const result = await getGameTemplateData(123)
+
+			expect(result?.gogStoreUrl).toBe('https://www.gog.com/en/game/divinity_original_sin_2')
+		})
+
+		it('falls back to the GOG website when the external reference is ambiguous', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Divinity: Original Sin 2',
+				external_games: [
+					{
+						id: 1,
+						uid: '12345',
+						external_game_source: { id: 5, name: 'GOG' },
+					},
+				],
+				websites: [
+					{
+						id: 2,
+						category: IGDBWebsiteCategory.GOG,
+						url: 'https://www.gog.com/game/divinity_original_sin_2',
+					},
+				],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+			mockSendMessage.mockResolvedValueOnce([]) // searchSteamApps fallback
+
+			const result = await getGameTemplateData(123)
+
+			expect(result?.gogStoreUrl).toBe('https://www.gog.com/game/divinity_original_sin_2')
+		})
+
+		it('ignores non-game GOG URLs', async () => {
+			const mockGame: IGDBGame = {
+				id: 123,
+				name: 'Test Game',
+				external_games: [
+					{
+						id: 1,
+						url: 'https://www.gog.com/forum/general',
+						external_game_source: { id: 5, name: 'GOG' },
+					},
+				],
+			}
+			mockSendMessage.mockResolvedValueOnce([mockGame]) // getGameDetails
+			mockSendMessage.mockResolvedValueOnce([]) // getTimeToBeat
+			mockLocalizationData()
+			mockSendMessage.mockResolvedValueOnce([]) // searchSteamApps fallback
+
+			const result = await getGameTemplateData(123)
+
+			expect(result?.gogStoreUrl).toBeNull()
+		})
+
 		it('discards a non-Latin Steam description and keeps the IGDB summary', async () => {
 			// Japanese-only Steam listings return Japanese text even when asking
 			// for Spanish or English; IGDB's English summary is preferable then.
@@ -1221,6 +1299,7 @@ describe('IGDB API Service', () => {
 				websites: [],
 				externalGames: [],
 				steamStoreUrl: 'https://store.steampowered.com/app/292030',
+				gogStoreUrl: 'https://www.gog.com/game/the_witcher_3_wild_hunt',
 				googlePlayUrl: null,
 				appStoreUrl: null,
 				languageSupports: [],
@@ -1256,6 +1335,8 @@ describe('IGDB API Service', () => {
 			expect(result).toContain('[media]https://www.youtube.com/watch?v=abc123[/media]')
 			expect(result).toContain('[bar]STEAM[/bar]')
 			expect(result).toContain('[media]https://store.steampowered.com/app/292030[/media]')
+			expect(result).toContain('[bar]GOG[/bar]')
+			expect(result).toContain('[media]https://www.gog.com/game/the_witcher_3_wild_hunt[/media]')
 		})
 
 		it('should handle game data without optional fields', () => {
@@ -1285,6 +1366,7 @@ describe('IGDB API Service', () => {
 				websites: [],
 				externalGames: [],
 				steamStoreUrl: null,
+				gogStoreUrl: null,
 				googlePlayUrl: null,
 				appStoreUrl: null,
 				languageSupports: [],
@@ -1312,6 +1394,7 @@ describe('IGDB API Service', () => {
 			expect(result).not.toContain('[b]Distribuidor:[/b]') // Empty publishers skipped
 			expect(result).not.toContain('[bar]TRAILER[/bar]') // No video, no trailer section
 			expect(result).not.toContain('[bar]STEAM[/bar]') // No Steam URL, no Steam section
+			expect(result).not.toContain('[bar]GOG[/bar]') // No GOG URL, no GOG section
 			expect(result).not.toContain('[bar]LANZAMIENTO[/bar]') // No release date
 		})
 
@@ -1407,99 +1490,84 @@ describe('IGDB API Service', () => {
 		})
 	})
 
-	describe('generateSteamMediaTemplate', () => {
-		it('generates a minimal Steam media embed when Steam URL is available', () => {
-			const result = generateSteamMediaTemplate({
-				name: 'The Witcher 3',
-				originalName: 'The Witcher 3',
-				releaseDate: null,
-				releaseYear: null,
-				releaseDates: [],
-				status: null,
-				developers: [],
-				publishers: [],
-				platforms: [],
-				genres: [],
-				themes: [],
-				gameModes: [],
-				playerPerspectives: [],
-				gameEngines: [],
-				collection: null,
-				summary: '',
-				detailedDescription: null,
-				storyline: null,
-				coverUrl: null,
-				steamLibraryHeaderUrl: null,
-				screenshots: [],
-				steamScreenshots: [],
-				artworks: [],
-				trailerUrl: null,
-				trailers: [],
-				similarGames: [],
-				dlcs: [],
-				timeToBeatHastily: null,
-				timeToBeatNormally: null,
-				timeToBeatCompletely: null,
-				websites: [],
-				externalGames: [],
+	describe('generateGameStoresMediaTemplate', () => {
+		const gameData: GameTemplateDataInput = {
+			name: 'The Witcher 3',
+			originalName: 'The Witcher 3',
+			releaseDate: null,
+			releaseYear: null,
+			releaseDates: [],
+			status: null,
+			developers: [],
+			publishers: [],
+			platforms: [],
+			genres: [],
+			themes: [],
+			gameModes: [],
+			playerPerspectives: [],
+			gameEngines: [],
+			collection: null,
+			summary: '',
+			detailedDescription: null,
+			storyline: null,
+			coverUrl: null,
+			steamLibraryHeaderUrl: null,
+			screenshots: [],
+			steamScreenshots: [],
+			artworks: [],
+			trailerUrl: null,
+			trailers: [],
+			similarGames: [],
+			dlcs: [],
+			timeToBeatHastily: null,
+			timeToBeatNormally: null,
+			timeToBeatCompletely: null,
+			websites: [],
+			externalGames: [],
+			steamStoreUrl: null,
+			gogStoreUrl: null,
+			googlePlayUrl: null,
+			appStoreUrl: null,
+			languageSupports: [],
+			rating: null,
+			aggregatedRating: null,
+			totalRating: null,
+			ageRating: null,
+		}
+
+		it('generates a Steam media embed when only Steam is available', () => {
+			const result = generateGameStoresMediaTemplate({
+				...gameData,
 				steamStoreUrl: 'https://store.steampowered.com/app/292030',
-				googlePlayUrl: null,
-				appStoreUrl: null,
-				languageSupports: [],
-				rating: null,
-				aggregatedRating: null,
-				totalRating: null,
-				ageRating: null,
 			})
 
 			expect(result).toBe('[media]https://store.steampowered.com/app/292030[/media]')
 		})
 
-		it('returns null when the game has no Steam URL', () => {
-			const result = generateSteamMediaTemplate({
-				name: 'Console Game',
-				originalName: 'Console Game',
-				releaseDate: null,
-				releaseYear: null,
-				releaseDates: [],
-				status: null,
-				developers: [],
-				publishers: [],
-				platforms: [],
-				genres: [],
-				themes: [],
-				gameModes: [],
-				playerPerspectives: [],
-				gameEngines: [],
-				collection: null,
-				summary: '',
-				detailedDescription: null,
-				storyline: null,
-				coverUrl: null,
-				steamLibraryHeaderUrl: null,
-				screenshots: [],
-				steamScreenshots: [],
-				artworks: [],
-				trailerUrl: null,
-				trailers: [],
-				similarGames: [],
-				dlcs: [],
-				timeToBeatHastily: null,
-				timeToBeatNormally: null,
-				timeToBeatCompletely: null,
-				websites: [],
-				externalGames: [],
-				steamStoreUrl: null,
-				googlePlayUrl: null,
-				appStoreUrl: null,
-				languageSupports: [],
-				rating: null,
-				aggregatedRating: null,
-				totalRating: null,
-				ageRating: null,
+		it('generates a GOG media embed when only GOG is available', () => {
+			const result = generateGameStoresMediaTemplate({
+				...gameData,
+				gogStoreUrl: 'https://www.gog.com/game/the_witcher_3_wild_hunt',
 			})
 
-			expect(result).toBeNull()
+			expect(result).toBe('[media]https://www.gog.com/game/the_witcher_3_wild_hunt[/media]')
+		})
+
+		it('generates Steam and GOG media embeds in stable order', () => {
+			const result = generateGameStoresMediaTemplate({
+				...gameData,
+				steamStoreUrl: 'https://store.steampowered.com/app/292030',
+				gogStoreUrl: 'https://www.gog.com/game/the_witcher_3_wild_hunt',
+			})
+
+			expect(result).toBe(
+				'[media]https://store.steampowered.com/app/292030[/media]\n' +
+					'[media]https://www.gog.com/game/the_witcher_3_wild_hunt[/media]'
+			)
+		})
+
+		it('returns null when the game has no store URL', () => {
+			expect(generateGameStoresMediaTemplate(gameData)).toBeNull()
 		})
 	})
 })

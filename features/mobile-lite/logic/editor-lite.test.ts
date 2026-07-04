@@ -643,6 +643,10 @@ describe('Mobile Lite editor enhancements', () => {
 		['https://www.instagram.com/reel/ABC123xyz/', '[media]https://www.instagram.com/reel/ABC123xyz/[/media]'],
 		['https://x.com/user/status/123456789', '[media]https://x.com/user/status/123456789[/media]'],
 		['https://store.steampowered.com/app/570/Dota_2/', '[media]https://store.steampowered.com/app/570/Dota_2/[/media]'],
+		[
+			'https://www.gog.com/game/divinity_original_sin_2',
+			'[media]https://www.gog.com/game/divinity_original_sin_2[/media]',
+		],
 		['https://redd.it/abc123', '[media]https://redd.it/abc123[/media]'],
 	])('autoformats media URL %s', (url, expected) => {
 		expect(getMobileLitePasteReplacement(url)).toBe(expected)

@@ -43,3 +43,30 @@ describe('parseBBCode quote support', () => {
 		expect(html).not.toContain('[quote=]')
 	})
 })
+
+describe('parseBBCode GOG media support', () => {
+	it.each(['https://www.gog.com/game/baldurs_gate_iii', 'https://www.gog.com/en/game/baldurs_gate_iii'])(
+		'renders a GOG hydration placeholder for %s',
+		async url => {
+			const html = await parseBBCode(`[media]${url}[/media]`)
+
+			expect(html).toContain('class="gog-embed-placeholder"')
+			expect(html).toContain('data-gog-slug="baldurs_gate_iii"')
+			expect(html).not.toContain('<iframe')
+		}
+	)
+
+	it('keeps non-game GOG links on the generic fallback', async () => {
+		const html = await parseBBCode('[media]https://www.gog.com/forum/general[/media]')
+
+		expect(html).not.toContain('gog-embed-placeholder')
+		expect(html).toContain('class="embed-placeholder generic-card"')
+	})
+
+	it('does not interpolate encoded markup into the iframe source', async () => {
+		const html = await parseBBCode('[media]https://www.gog.com/game/foo%22%3E%3Cscript%3Ealert(1)%3C/script%3E[/media]')
+
+		expect(html).not.toContain('gog-embed-placeholder')
+		expect(html).not.toContain('<script>')
+	})
+})

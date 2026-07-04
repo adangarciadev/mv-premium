@@ -6,6 +6,7 @@
 import { browser } from 'wxt/browser'
 import { logger } from '@/lib/logger'
 import { fetchSteamBundleDetails, fetchSteamGameDetails, searchSteamApps } from '@/services/api/steam'
+import { fetchGogGameDetails } from '@/services/api/gog'
 import { searchGooglePlayApp, searchItunesApp } from '@/services/api/mobile-stores'
 import {
 	onMessage,
@@ -805,6 +806,20 @@ export function setupSteamHandler(): void {
 }
 
 /**
+ * Setup GOG catalog handler (CORS proxy).
+ */
+export function setupGogHandler(): void {
+	onMessage('fetchGogGame', async ({ data: slug }) => {
+		try {
+			return await fetchGogGameDetails(slug)
+		} catch (error) {
+			logger.error('GOG fetch error:', error)
+			return null
+		}
+	})
+}
+
+/**
  * Setup TMDB API key check handler
  */
 export function setupTmdbKeyCheckHandler(): void {
@@ -1244,6 +1259,7 @@ export function setupApiHandlers(): void {
 	setupMediavidaThreadFetchHandler()
 	setupMvUserAvatarHandler()
 	setupSteamHandler()
+	setupGogHandler()
 	setupTmdbKeyCheckHandler()
 	setupTmdbRequestHandler()
 	setupAniListRequestHandler()
