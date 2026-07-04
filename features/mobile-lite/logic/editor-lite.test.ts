@@ -642,6 +642,7 @@ describe('Mobile Lite editor enhancements', () => {
 		['https://youtube.com/shorts/abc123', '[media]https://youtube.com/v/abc123[/media]'],
 		['https://www.instagram.com/reel/ABC123xyz/', '[media]https://www.instagram.com/reel/ABC123xyz/[/media]'],
 		['https://x.com/user/status/123456789', '[media]https://x.com/user/status/123456789[/media]'],
+		['https://t.me/Chollos/20375', '[media]https://t.me/Chollos/20375[/media]'],
 		['https://store.steampowered.com/app/570/Dota_2/', '[media]https://store.steampowered.com/app/570/Dota_2/[/media]'],
 		[
 			'https://www.gog.com/game/divinity_original_sin_2',

@@ -33,6 +33,13 @@ describe('media-detector', () => {
 			})
 		})
 
+		describe('Telegram', () => {
+			it('should detect Telegram post URLs', () => {
+				expect(isMediaUrl('https://t.me/Chollos/20375')).toBe(true)
+				expect(isMediaUrl('https://telegram.me/Chollos/20375')).toBe(true)
+			})
+		})
+
 		describe('Instagram', () => {
 			it('should detect Instagram post URLs', () => {
 				expect(isMediaUrl('https://www.instagram.com/p/ABC123xyz/')).toBe(true)
@@ -175,6 +182,11 @@ describe('media-detector', () => {
 		it('should return twitter for Twitter/X URLs', () => {
 			expect(getMediaType('https://twitter.com/user/status/123')).toBe('twitter')
 			expect(getMediaType('https://x.com/user/status/123')).toBe('twitter')
+		})
+
+		it('should return telegram for Telegram URLs', () => {
+			expect(getMediaType('https://t.me/Chollos/20375')).toBe('telegram')
+			expect(getMediaType('https://telegram.me/Chollos/20375')).toBe('telegram')
 		})
 
 		it('should return steam for Steam URLs', () => {

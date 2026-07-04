@@ -31,6 +31,11 @@ const MEDIA_PATTERNS: { name: string; pattern: RegExp }[] = [
 		name: 'twitter',
 		pattern: /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[A-Za-z0-9_]+\/status\/\d+/i,
 	},
+	// Telegram public channel posts
+	{
+		name: 'telegram',
+		pattern: /^https?:\/\/(t\.me|telegram\.me)\/[A-Za-z0-9_]{5,32}\/\d+\/?(?:[?#].*)?$/i,
+	},
 	// Amazon (products)
 	{
 		name: 'amazon',
