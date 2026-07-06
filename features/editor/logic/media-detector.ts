@@ -31,6 +31,11 @@ const MEDIA_PATTERNS: { name: string; pattern: RegExp }[] = [
 		name: 'twitter',
 		pattern: /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[A-Za-z0-9_]+\/status\/\d+/i,
 	},
+	// Telegram public channel posts
+	{
+		name: 'telegram',
+		pattern: /^https?:\/\/(t\.me|telegram\.me)\/[A-Za-z0-9_]{5,32}\/\d+\/?(?:[?#].*)?$/i,
+	},
 	// Amazon (products)
 	{
 		name: 'amazon',
@@ -40,6 +45,11 @@ const MEDIA_PATTERNS: { name: string; pattern: RegExp }[] = [
 	{
 		name: 'steam',
 		pattern: /^https?:\/\/store\.steampowered\.com\/app\/\d+/i,
+	},
+	// GOG (game pages)
+	{
+		name: 'gog',
+		pattern: /^https?:\/\/(?:www\.)?gog\.com\/(?:[a-z]{2}\/)?game\/[A-Za-z0-9_-]+\/?(?:[?#].*)?$/i,
 	},
 	// Twitch clips
 	{

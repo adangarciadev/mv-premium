@@ -16,8 +16,8 @@ import Smartphone from 'lucide-react/dist/esm/icons/smartphone'
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import {
 	generateGameTemplate,
+	generateGameStoresMediaTemplate,
 	generateMobileStoresMediaTemplate,
-	generateSteamMediaTemplate,
 	getIGDBImageUrl,
 	IGDB_MOBILE_PLATFORM_IDS,
 	type GameTemplateType,
@@ -37,12 +37,13 @@ import {
 	MediaSearchError,
 	MediaPreviewStep,
 	MediaDialogActions,
+	type MediaTemplateInsertMeta,
 } from '@/components/media-search-dialog'
 
 interface GameTemplateDialogProps {
 	isOpen: boolean
 	onClose: () => void
-	onInsert: (template: string) => void
+	onInsert: (template: string, meta?: MediaTemplateInsertMeta) => void
 }
 
 // =============================================================================
@@ -190,7 +191,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 	}
 
 	const handleInsert = () => {
-		onInsert(template)
+		onInsert(template, { suggestedThreadTitle: templateData?.name.trim() || undefined })
 		handleClose()
 	}
 
@@ -199,7 +200,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 		const storeMediaTemplate =
 			templateType === 'mobile-game'
 				? generateMobileStoresMediaTemplate(templateData)
-				: generateSteamMediaTemplate(templateData)
+				: generateGameStoresMediaTemplate(templateData)
 		if (!storeMediaTemplate) return
 
 		onInsert(storeMediaTemplate)
@@ -209,7 +210,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 	const hasStoreMedia =
 		templateType === 'mobile-game'
 			? Boolean(templateData?.googlePlayUrl || templateData?.appStoreUrl)
-			: Boolean(templateData?.steamStoreUrl)
+			: Boolean(templateData?.steamStoreUrl || templateData?.gogStoreUrl)
 
 	// Get title for dialog header
 	const getDialogTitle = () => {
@@ -233,7 +234,7 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 						backLabel="← Buscar otro"
 						onCopy={handleCopy}
 						copied={copied}
-						secondaryInsertLabel={templateType === 'mobile-game' ? 'Media Stores' : 'Media Steam'}
+						secondaryInsertLabel={templateType === 'mobile-game' ? 'Media Stores' : 'Media tiendas'}
 						onSecondaryInsert={handleInsertStoreMedia}
 						secondaryInsertDisabled={!hasStoreMedia}
 						secondaryInsertTitle={
@@ -242,8 +243,8 @@ export function GameTemplateDialog({ isOpen, onClose, onInsert }: GameTemplateDi
 									? 'Insertar [media] con las tarjetas de Google Play / App Store'
 									: 'No se han encontrado enlaces de Google Play ni App Store para este juego'
 								: hasStoreMedia
-									? 'Insertar [media] con la URL de Steam'
-									: 'No se ha encontrado enlace de Steam para este juego'
+									? 'Insertar [media] con las tarjetas disponibles de Steam y GOG'
+									: 'No se han encontrado enlaces de Steam ni GOG para este juego'
 						}
 						onInsert={handleInsert}
 					/>

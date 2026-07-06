@@ -617,11 +617,18 @@ ul ul, ol ul, ul ol {
     text-overflow: ellipsis;
 }
 
-.steam-card-platform {
-    width: 16px;
-    height: 16px;
+.steam-card-platforms {
+    display: flex;
+    align-items: center;
+    gap: 7px;
     color: #8f98a0;
     margin-top: 4px;
+    height: 16px;
+}
+
+.steam-card-platforms .store-platform-icon {
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
 }
 
@@ -783,5 +790,328 @@ ul ul, ol ul, ul ol {
 /* Placeholder Container */
 .steam-embed-placeholder {
     margin: 10px 0;
+}
+
+/* GOG game card */
+.gog-embed-placeholder {
+    margin: 10px 0;
+}
+
+.gog-card {
+    display: flex;
+    position: relative;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 620px;
+    height: 122px;
+    margin: 10px 0;
+    overflow: hidden;
+    color: #242126 !important;
+    background: #fff;
+    border: 1px solid #d8d5da;
+    border-radius: var(--radius, 2px);
+    box-shadow: 0 1px 3px rgba(24, 18, 27, 0.16);
+    font-family: Arial, Helvetica, sans-serif;
+    text-decoration: none !important;
+    transition: all 0.2s ease;
+}
+
+.gog-card:hover {
+    color: #242126 !important;
+    border-color: #8b189b;
+    box-shadow: 0 4px 16px rgba(98, 20, 112, 0.2);
+    transform: translateY(-1px);
+    text-decoration: none !important;
+}
+
+.gog-card-image {
+    flex: 0 0 220px;
+    height: 100%;
+    overflow: hidden;
+    background: #dedcdf;
+}
+
+.gog-card-image img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    object-fit: cover;
+    object-position: center;
+}
+
+.gog-card-info {
+    flex: 1;
+    min-width: 0;
+    padding: 11px 112px 10px 15px;
+}
+
+.gog-card-title {
+    margin: 0 0 4px !important;
+    padding: 0 !important;
+    overflow: hidden;
+    color: #171419 !important;
+    background: none !important;
+    border: 0 !important;
+    font-size: 17px !important;
+    font-weight: 600 !important;
+    line-height: 1.25 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gog-card-metadata,
+.gog-card-developer {
+    margin: 0 !important;
+    overflow: hidden;
+    color: #8a858c !important;
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    line-height: 1.45 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.gog-card-developer {
+    color: #6f6972 !important;
+}
+
+.gog-card-facts {
+    position: absolute;
+    bottom: 10px;
+    left: 235px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    overflow: hidden;
+    color: #99949b;
+    font-size: 12px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.gog-card-rating,
+.gog-card-review-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.gog-card-rating {
+    color: #6c666e;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.gog-card-review-count {
+    color: #918b93;
+}
+
+.gog-card-facts .store-fact-icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+.gog-card-rating .store-fact-icon {
+    color: #777178;
+}
+
+.gog-card-review-count .store-fact-icon {
+    width: 14px;
+    height: 14px;
+    color: #918b93;
+}
+
+.gog-card-platforms {
+    position: absolute;
+    bottom: 9px;
+    left: 395px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 20px;
+    color: #99949b;
+}
+
+.gog-card-platforms .store-platform-icon {
+    width: 19px;
+    height: 19px;
+    flex-shrink: 0;
+}
+
+.gog-card-logo {
+    position: absolute;
+    top: 11px;
+    right: 12px;
+    width: 30px;
+    height: 30px;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    object-fit: contain;
+    opacity: 0.82;
+    transition: opacity 0.2s ease;
+}
+
+.gog-card:hover .gog-card-logo {
+    opacity: 1;
+}
+
+.gog-card-price-area {
+    position: absolute;
+    right: 11px;
+    bottom: 10px;
+    display: flex;
+    height: 38px;
+    color: #fff;
+}
+
+.gog-card-discount {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 55px;
+    padding: 0 8px;
+    background: #681275;
+    font-size: 17px;
+    font-weight: 700;
+}
+
+.gog-card-price {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    min-width: 68px;
+    box-sizing: border-box;
+    padding: 3px 9px;
+    background: #8a169b;
+    color: #fff;
+    line-height: 1.05;
+    white-space: nowrap;
+}
+
+.gog-card-price strong {
+    color: #fff !important;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.gog-card-original-price {
+    color: #ded0e1;
+    font-size: 10px;
+    text-decoration: line-through;
+}
+
+.gog-card-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 620px;
+    height: 122px;
+    margin: 10px 0;
+    color: #777178;
+    background: linear-gradient(100deg, #f5f3f5 20%, #ebe8ec 40%, #f5f3f5 60%);
+    background-size: 200% 100%;
+    border: 1px solid #d8d5da;
+    border-radius: var(--radius, 2px);
+    font-size: 13px;
+    animation: gog-loading-shimmer 1.4s linear infinite;
+}
+
+.gog-card-loading svg {
+    flex-shrink: 0;
+    color: #8a169b;
+}
+
+@keyframes gog-loading-shimmer {
+    to { background-position-x: -200%; }
+}
+
+.gog-card-error {
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 70px 20px 20px;
+}
+
+.gog-card-error > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.gog-card-error strong {
+    color: #29242b !important;
+    font-size: 14px;
+}
+
+.gog-card-error div span {
+    color: #817a83;
+    font-size: 12px;
+}
+
+.gog-card-button {
+    padding: 9px 12px;
+    color: #fff;
+    background: #8a169b;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+    .gog-card-image {
+        flex-basis: 39%;
+    }
+
+    .gog-card-info {
+        padding-right: 48px;
+        padding-left: 11px;
+    }
+
+    .gog-card-title {
+        font-size: 14px !important;
+    }
+
+    .gog-card-developer {
+        display: none;
+    }
+
+    .gog-card-facts {
+        left: calc(39% + 11px);
+        gap: 7px;
+    }
+
+    .gog-card-review-count {
+        display: none;
+    }
+
+    .gog-card-platforms {
+        left: calc(39% + 82px);
+    }
+
+    .gog-card-logo {
+        width: 25px;
+        height: 25px;
+    }
+
+    .gog-card-discount {
+        min-width: 44px;
+        padding: 0 5px;
+        font-size: 14px;
+    }
+
+    .gog-card-price {
+        min-width: 60px;
+        padding-right: 6px;
+        padding-left: 6px;
+    }
 }
 `

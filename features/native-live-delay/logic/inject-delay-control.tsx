@@ -60,7 +60,7 @@ function mountControl(container: HTMLElement): void {
 	mountFeatureWithBoundary(
 		FEATURE_IDS.NATIVE_LIVE_DELAY_CONTROL,
 		container,
-		<ShadowWrapper className="relative z-50">
+		<ShadowWrapper className="relative z-10">
 			<DelayControl />
 		</ShadowWrapper>,
 		'Control de Delay LIVE'

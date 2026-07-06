@@ -371,7 +371,7 @@ export const DEFAULT_GAME_TEMPLATE: MediaTemplate = {
 	type: 'game',
 	name: 'Plantilla de Videojuego',
 	isDefault: true,
-	version: 3,
+	version: 4,
 	blocks: [
 		// Cover centered
 		{
@@ -531,6 +531,15 @@ export const DEFAULT_GAME_TEMPLATE: MediaTemplate = {
 			type: 'field',
 			field: 'steamStoreUrl',
 			wrapper: '[bar]STEAM[/bar]\n\n[media]{{content}}[/media]',
+			conditional: true,
+			addLineBreak: true,
+		},
+		// GOG store card (embedded via [media])
+		{
+			id: 'game-gog-card',
+			type: 'field',
+			field: 'gogStoreUrl',
+			wrapper: '[bar]GOG[/bar]\n\n[media]{{content}}[/media]',
 			conditional: true,
 			addLineBreak: true,
 		},

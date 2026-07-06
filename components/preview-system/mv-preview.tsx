@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import { parseBBCode } from './parser'
 import { MV_STYLES } from './mv-styles' // Import the constant string
 import { SteamGameCard } from './steam-game-card'
+import { GogGameCard } from './gog-game-card'
 import { logger } from '@/lib/logger'
 
 interface MVPreviewProps {
@@ -19,6 +20,7 @@ export const MVPreview = forwardRef<HTMLDivElement, MVPreviewProps>(
 	({ content, className, useDirectFetch = true, boldColor = '#c9a227', theme = 'dark', fontSize }, ref) => {
 		const internalRef = useRef<HTMLDivElement>(null)
 		const steamRootsRef = useRef<Map<string, Root>>(new Map())
+		const gogRootsRef = useRef<Map<string, Root>>(new Map())
 
 		// Apply theme class to host
 		useEffect(() => {
@@ -95,6 +97,19 @@ export const MVPreview = forwardRef<HTMLDivElement, MVPreviewProps>(
 
 			// Handle empty state
 			if (!content.trim()) {
+				steamRootsRef.current.forEach(root => {
+					try {
+						root.unmount()
+					} catch {}
+				})
+				steamRootsRef.current.clear()
+				gogRootsRef.current.forEach(root => {
+					try {
+						root.unmount()
+					} catch {}
+				})
+				gogRootsRef.current.clear()
+
 				// Only update if not already in empty state
 				if (!contentContainer.querySelector('.empty-state')) {
 					contentContainer.innerHTML = `
@@ -120,8 +135,21 @@ export const MVPreview = forwardRef<HTMLDivElement, MVPreviewProps>(
 				try {
 					const htmlContent = await parseBBCode(content)
 					if (!isMounted) return
-					
-					// Update content directly
+
+					// Unmount hydrated cards before replacing their host elements.
+					steamRootsRef.current.forEach(root => {
+						try {
+							root.unmount()
+						} catch {}
+					})
+					steamRootsRef.current.clear()
+					gogRootsRef.current.forEach(root => {
+						try {
+							root.unmount()
+						} catch {}
+					})
+					gogRootsRef.current.clear()
+
 					contentContainer.innerHTML = htmlContent
 
 					// Re-bind Spoiler Events
@@ -144,12 +172,6 @@ export const MVPreview = forwardRef<HTMLDivElement, MVPreviewProps>(
 						})
 					})
 
-					// Cleanup old steam roots
-					steamRootsRef.current.forEach(root => {
-						try { root.unmount() } catch (e) {}
-					})
-					steamRootsRef.current.clear()
-
 					// Hydrate Steam Embeds
 					const steamPlaceholders = contentContainer.querySelectorAll('.steam-embed-placeholder[data-steam-appid]')
 					steamPlaceholders.forEach(placeholder => {
@@ -170,6 +192,21 @@ export const MVPreview = forwardRef<HTMLDivElement, MVPreviewProps>(
 						}
 					})
 
+					// Hydrate GOG Embeds
+					const gogPlaceholders = contentContainer.querySelectorAll('.gog-embed-placeholder[data-gog-slug]')
+					gogPlaceholders.forEach(placeholder => {
+						const slug = placeholder.getAttribute('data-gog-slug')
+						if (!slug) return
+
+						const key = `gog-${slug}-${Date.now()}-${Math.random()}`
+						try {
+							const root = createRoot(placeholder)
+							root.render(<GogGameCard slug={slug} useDirectFetch={useDirectFetch} />)
+							gogRootsRef.current.set(key, root)
+						} catch (error) {
+							logger.error('Failed to hydrate GOG embed:', error)
+						}
+					})
 				} catch (error) {
 					logger.error('Error parsing BBCode:', error)
 				}
@@ -186,9 +223,17 @@ export const MVPreview = forwardRef<HTMLDivElement, MVPreviewProps>(
 		useEffect(() => {
 			return () => {
 				steamRootsRef.current.forEach(root => {
-					try { root.unmount() } catch (e) {}
+					try {
+						root.unmount()
+					} catch {}
 				})
 				steamRootsRef.current.clear()
+				gogRootsRef.current.forEach(root => {
+					try {
+						root.unmount()
+					} catch {}
+				})
+				gogRootsRef.current.clear()
 			}
 		}, [])
 

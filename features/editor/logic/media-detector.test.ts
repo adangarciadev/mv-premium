@@ -33,6 +33,13 @@ describe('media-detector', () => {
 			})
 		})
 
+		describe('Telegram', () => {
+			it('should detect Telegram post URLs', () => {
+				expect(isMediaUrl('https://t.me/Chollos/20375')).toBe(true)
+				expect(isMediaUrl('https://telegram.me/Chollos/20375')).toBe(true)
+			})
+		})
+
 		describe('Instagram', () => {
 			it('should detect Instagram post URLs', () => {
 				expect(isMediaUrl('https://www.instagram.com/p/ABC123xyz/')).toBe(true)
@@ -51,6 +58,17 @@ describe('media-detector', () => {
 			it('should detect Steam store URLs', () => {
 				expect(isMediaUrl('https://store.steampowered.com/app/440')).toBe(true)
 				expect(isMediaUrl('https://store.steampowered.com/app/570/Dota_2/')).toBe(true)
+			})
+		})
+
+		describe('GOG', () => {
+			it('should detect canonical and localized GOG game URLs', () => {
+				expect(isMediaUrl('https://www.gog.com/game/divinity_original_sin_2')).toBe(true)
+				expect(isMediaUrl('https://www.gog.com/en/game/divinity_original_sin_2')).toBe(true)
+			})
+
+			it('should not detect non-game GOG URLs', () => {
+				expect(isMediaUrl('https://www.gog.com/forum/general')).toBe(false)
 			})
 		})
 
@@ -166,8 +184,17 @@ describe('media-detector', () => {
 			expect(getMediaType('https://x.com/user/status/123')).toBe('twitter')
 		})
 
+		it('should return telegram for Telegram URLs', () => {
+			expect(getMediaType('https://t.me/Chollos/20375')).toBe('telegram')
+			expect(getMediaType('https://telegram.me/Chollos/20375')).toBe('telegram')
+		})
+
 		it('should return steam for Steam URLs', () => {
 			expect(getMediaType('https://store.steampowered.com/app/440')).toBe('steam')
+		})
+
+		it('should return gog for GOG game URLs', () => {
+			expect(getMediaType('https://www.gog.com/game/divinity_original_sin_2')).toBe('gog')
 		})
 
 		it('should return spotify for Spotify URLs', () => {
@@ -244,4 +271,3 @@ describe('media-detector', () => {
 		})
 	})
 })
-

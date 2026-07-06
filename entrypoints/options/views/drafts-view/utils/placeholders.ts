@@ -28,8 +28,8 @@ export function generatePlaceholderData(type: TemplateType): TemplateDataInput {
 			data[field.key] = [{ name: '{{similarGames}}', coverUrl: null }]
 		} else if (field.key === 'trailers') {
 			data[field.key] = [{ name: '{{trailers}}', url: '#' }]
-		} else if (field.key === 'steamStoreUrl') {
-			// No Steam card in placeholder mode — only show when a real game is selected
+		} else if (field.key === 'steamStoreUrl' || field.key === 'gogStoreUrl') {
+			// No store cards in placeholder mode — only show when a real game is selected
 			data[field.key] = null
 		} else if (field.isArray) {
 			data[field.key] = [`{{${field.key}}}`]

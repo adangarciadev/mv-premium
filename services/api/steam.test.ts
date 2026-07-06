@@ -104,6 +104,34 @@ describe('steam game details language fallback', () => {
 		)
 	}
 
+	it('maps every supported platform from Steam app details', async () => {
+		const appId = 910004
+		vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					[String(appId)]: {
+						success: true,
+						data: {
+							type: 'game',
+							name: 'Multiplatform game',
+							steam_appid: appId,
+							required_age: 0,
+							is_free: false,
+							short_description: 'Available on every desktop platform.',
+							header_image: 'https://example.com/header.jpg',
+							website: null,
+							platforms: { windows: true, mac: true, linux: true },
+						},
+					},
+				})
+			)
+		)
+
+		const result = await fetchSteamGameDetails(appId)
+
+		expect(result?.operatingSystems).toEqual(['windows', 'macos', 'linux'])
+	})
+
 	it('refetches in English when Steam returns a non-Latin default language', async () => {
 		// Steam serves the app's default language (e.g. Japanese) instead of
 		// falling back to English when the requested Spanish locale is missing.
@@ -166,4 +194,3 @@ describe('steam game details language fallback', () => {
 		expect(result?.name).toBe('日本語のゲーム')
 	})
 })
-

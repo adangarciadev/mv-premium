@@ -73,6 +73,11 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().liveThreadEnabled).toBe(false)
 		})
 
+		it('has automatic live thread disabled by default', () => {
+			expect(useSettingsStore.getState().autoLiveThreadEnabled).toBe(false)
+			expect(DEFAULT_SETTINGS.autoLiveThreadEnabled).toBe(false)
+		})
+
 		it('has live thread delay enabled by default', () => {
 			expect(useSettingsStore.getState().liveThreadDelayEnabled).toBe(true)
 		})
@@ -193,6 +198,13 @@ describe('settings-store', () => {
 				useSettingsStore.getState().setSetting('liveThreadEnabled', true)
 			})
 			expect(useSettingsStore.getState().liveThreadEnabled).toBe(true)
+		})
+
+		it('setSetting supports automatic live thread toggle', () => {
+			act(() => {
+				useSettingsStore.getState().setSetting('autoLiveThreadEnabled', true)
+			})
+			expect(useSettingsStore.getState().autoLiveThreadEnabled).toBe(true)
 		})
 
 		it('setSetting supports ignored user thread filtering toggle', () => {

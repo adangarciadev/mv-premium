@@ -36,11 +36,13 @@ export function HomeHeader() {
 	return (
 		<div className="reveal reveal-d1 flex items-end justify-between">
 			<div className="flex items-center gap-4">
-				<div className="glint-border h-[52px] w-[52px] rounded-xl bg-card shadow-rest flex items-center justify-center overflow-hidden">
+				<div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-border/70 bg-card shadow-rest">
 					{avatarUrl ? (
 						<img src={avatarUrl} alt={username} className="h-full w-full object-cover" />
 					) : (
-						<span className="font-display text-xl font-bold text-primary">{getInitial(username)}</span>
+						<span className="flex h-full w-full items-center justify-center font-display text-2xl font-bold text-primary">
+							{getInitial(username)}
+						</span>
 					)}
 				</div>
 				<div>

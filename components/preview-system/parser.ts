@@ -243,6 +243,21 @@ function toSafeAbsoluteUrl(value: string): string {
 	}
 }
 
+function getGogGameSlug(value: string): string | null {
+	const absoluteUrl = toSafeAbsoluteUrl(value)
+	if (absoluteUrl === '#') return null
+
+	try {
+		const parsed = new URL(absoluteUrl)
+		if (parsed.hostname !== 'gog.com' && parsed.hostname !== 'www.gog.com') return null
+
+		const match = parsed.pathname.match(/^\/(?:[a-z]{2}\/)?game\/([A-Za-z0-9_-]+)\/?$/i)
+		return match?.[1] || null
+	} catch {
+		return null
+	}
+}
+
 function parseMediaTag(url: string): string {
 	const cleanUrl = url.trim()
 	const absoluteUrl = toSafeAbsoluteUrl(cleanUrl)
@@ -348,7 +363,26 @@ function parseMediaTag(url: string): string {
             </div>
         `
 	}
-	// 5. AMAZON AND OTHERS
+
+	// 5. GOG (placeholder for React hydration)
+	const gogSlug = getGogGameSlug(cleanUrl)
+	if (gogSlug) {
+		return `
+			<div class="gog-embed-placeholder" data-gog-slug="${escapeHtml(gogSlug)}">
+				<div class="gog-card-loading">
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<circle cx="12" cy="12" r="10" stroke-opacity="0.25" />
+						<path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round">
+							<animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite" />
+						</path>
+					</svg>
+					<span>Cargando juego de GOG...</span>
+				</div>
+            </div>
+        `
+	}
+
+	// 6. AMAZON AND OTHERS
 	let domain = 'Enlace externo'
 	if (absoluteUrl !== '#') {
 		try {

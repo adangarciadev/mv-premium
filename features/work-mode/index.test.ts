@@ -98,8 +98,10 @@ describe('buildWorkModeCSS', () => {
 		expect(css).not.toContain('youtube')
 	})
 
-	it('only includes steam CSS when hideSteamCards is true', () => {
+	it('only includes game-store CSS when hideSteamCards is true', () => {
 		const css = buildWorkModeCSS({ ...ALL_OFF, hideSteamCards: true })
+		expect(css).toContain('data-s9e-mediaembed="steamstore"')
+		expect(css).toContain('data-s9e-mediaembed="gog"')
 		expect(css).toContain('data-mvp-steam-bundle-card')
 		expect(css).toContain('.steam-embed-placeholder')
 		expect(css).not.toContain('.post-avatar img')
@@ -122,6 +124,7 @@ describe('buildWorkModeCSS', () => {
 		expect(css).not.toContain('a.img-zoom')
 		expect(css).not.toContain('.mvp-twitter-lite-card')
 		expect(css).not.toContain('data-mvp-steam-bundle-card')
+		expect(css).not.toContain('data-s9e-mediaembed="gog"')
 	})
 
 	it('uses display: none !important for hiding rules', () => {

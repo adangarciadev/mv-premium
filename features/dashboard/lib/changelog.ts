@@ -22,6 +22,71 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.3.0',
+		date: '2026-07-06',
+		title: 'Live automático, tarjetas GOG y editor más listo',
+		summary:
+			'Mediavida Premium 3.3 hace más cómodo seguir hilos en directo, crear fichas de juegos y publicar desde plantillas: Live puede arrancar automáticamente en hilos de escritorio, el editor detecta enlaces de Telegram, las plantillas rellenan mejor el título del hilo y llegan las tarjetas de GOG. También se pulen el reloj de actividad y el dashboard.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Live automático en escritorio: nuevo ajuste para iniciar el modo Live al entrar en hilos compatibles, sin tener que activarlo manualmente cada vez.',
+				category: 'Live Thread',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Tarjetas de GOG: los enlaces de GOG ahora generan una ficha de juego con información de tienda, portada, precio y metadatos dentro de la vista previa y las plantillas.',
+				category: 'Juegos',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'El editor reconoce enlaces de posts de Telegram y los envuelve automáticamente como contenido multimedia.',
+				category: 'Editor',
+				surface: ['desktop', 'mobile-lite', 'shared'],
+			},
+			{
+				type: 'feature',
+				description:
+					'Los títulos de hilos nuevos se rellenan automáticamente desde plantillas de películas, series y juegos cuando el medio seleccionado trae un título disponible.',
+				category: 'Plantillas',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Reloj de actividad más preciso: la vista diaria abre el día actual, la semanal abre la semana actual y las barras usan escalas calibradas para comparar mejor la actividad real.',
+				category: 'Estadísticas',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El dashboard refresca las estadísticas de inicio cuando cambian los datos guardados, evitando cifras desactualizadas tras navegar o sincronizar actividad.',
+				category: 'Dashboard',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El avatar del usuario actual en el dashboard se carga con mejor calidad cuando está disponible.',
+				category: 'Dashboard',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'Las tarjetas de usuario vuelven a quedar por encima del control de retardo en hilos con Live nativo.',
+				category: 'Live Thread',
+				surface: 'desktop',
+			},
+		],
+	},
+	{
 		version: '3.2.0',
 		date: '2026-06-16',
 		title: 'Resúmenes con IA en el móvil, reloj de actividad y panel renovado',

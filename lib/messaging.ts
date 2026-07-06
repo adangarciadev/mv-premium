@@ -13,6 +13,7 @@
  */
 import { defineExtensionMessaging } from '@webext-core/messaging'
 import type { SteamGameDetails, SteamBundleDetails, SteamAppSearchResult } from '@/services/api/steam'
+import type { GogGameDetails } from '@/services/api/gog'
 import type { MobileStoreSearchResult } from '@/services/api/mobile-stores'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import type { ItadGamePriceOverview, ItadGamePrices, ItadGameSearchResult } from '@/services/api/itad'
@@ -206,6 +207,11 @@ interface ProtocolMap {
 	 * @returns Game details or null if not found
 	 */
 	fetchSteamGame: (appId: number) => SteamGameDetails | null
+
+	/**
+	 * Fetch GOG game details by exact product slug (CORS proxy).
+	 */
+	fetchGogGame: (slug: string) => GogGameDetails | null
 
 	/**
 	 * Search Steam apps by title (CORS proxy)

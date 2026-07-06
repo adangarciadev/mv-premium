@@ -16,7 +16,13 @@ import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import Clapperboard from 'lucide-react/dist/esm/icons/clapperboard'
 import Layers from 'lucide-react/dist/esm/icons/layers'
 import { browser } from 'wxt/browser'
-import { generateTemplate, generateTVTemplate, generateSeasonTemplate, getPosterUrl } from '@/services/api/tmdb'
+import {
+	buildMovieThreadTitle,
+	generateTemplate,
+	generateTVTemplate,
+	generateSeasonTemplate,
+	getPosterUrl,
+} from '@/services/api/tmdb'
 import { generateAnimeTemplate, generateMangaTemplate, titleFromMedia } from '@/services/api/anilist'
 import type {
 	TMDBMovie,
@@ -49,12 +55,13 @@ import {
 	MediaSearchError,
 	MediaPreviewStep,
 	MediaDialogActions,
+	type MediaTemplateInsertMeta,
 } from '@/components/media-search-dialog'
 
 interface MovieTemplateDialogProps {
 	isOpen: boolean
 	onClose: () => void
-	onInsert: (template: string) => void
+	onInsert: (template: string, meta?: MediaTemplateInsertMeta) => void
 }
 
 type MediaType = 'movie' | 'tv' | 'anime' | 'manga'
@@ -372,11 +379,6 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 		setTimeout(() => dispatch({ type: 'SET_COPIED', copied: false }), 2000)
 	}
 
-	const handleInsert = () => {
-		onInsert(template)
-		handleClose()
-	}
-
 	// Helper to get display info from template data
 	const getPreviewInfo = () => {
 		if (!templateData) return { title: '', subtitle: '', genres: [] as string[] }
@@ -419,6 +421,19 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 	}
 
 	const previewInfo = getPreviewInfo()
+
+	const getSuggestedThreadTitle = (): string | undefined => {
+		if (templateData && 'director' in templateData) {
+			return buildMovieThreadTitle(templateData)
+		}
+
+		return previewInfo.title.trim() || undefined
+	}
+
+	const handleInsert = () => {
+		onInsert(template, { suggestedThreadTitle: getSuggestedThreadTitle() })
+		handleClose()
+	}
 
 	// Get title for dialog header
 	const getDialogTitle = () => {
