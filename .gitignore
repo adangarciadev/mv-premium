@@ -39,4 +39,4 @@ LOCAL_GIT_WORKFLOW.md
 # Build artifacts
 stats.html
 stats-*.json
-null
+nul
