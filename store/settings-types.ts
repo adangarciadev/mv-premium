@@ -93,6 +93,7 @@ export interface Settings {
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: boolean
 	steamBundleInlineCardsEnabled: boolean
+	fragranticaEmbedsEnabled: boolean
 	itadSubforumSearchEnabled: boolean
 	itadSubforumSearchJuegosEnabled: boolean
 	itadSubforumSearchHuchaEnabled: boolean

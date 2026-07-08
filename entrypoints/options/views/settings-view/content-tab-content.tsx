@@ -5,6 +5,7 @@ import { useState } from 'react'
 import PanelTopClose from 'lucide-react/dist/esm/icons/panel-top-close'
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import MessageSquare from 'lucide-react/dist/esm/icons/message-square'
+import Flower2 from 'lucide-react/dist/esm/icons/flower-2'
 import Settings2 from 'lucide-react/dist/esm/icons/settings-2'
 import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard'
 import Shield from 'lucide-react/dist/esm/icons/shield'
@@ -44,6 +45,7 @@ const DASHBOARD_ICON_OPTIONS: { value: DashboardIcon; label: string; icon: React
 const CONTENT_SETTING_IDS = [
 	'bold-color',
 	'twitter-lite',
+	'fragrantica-embeds',
 	'dashboard-icon',
 	'hide-header',
 	'work-mode',
@@ -55,6 +57,7 @@ export function ContentTabContent({ settingFilter }: { settingFilter?: SettingsC
 		boldColor,
 		boldColorEnabled,
 		twitterLiteEmbedsEnabled,
+		fragranticaEmbedsEnabled,
 		hideHeaderEnabled,
 		workModeEnabled,
 		workModeOptions,
@@ -114,6 +117,23 @@ export function ContentTabContent({ settingFilter }: { settingFilter?: SettingsC
 					onCheckedChange={checked => {
 						setSetting('twitterLiteEmbedsEnabled', checked)
 						toast.success(checked ? 'Modo ligero de tweets activado' : 'Configuración guardada')
+					}}
+				/>
+			</SettingRow>
+
+			{showSeparatorBefore('fragrantica-embeds') && <Separator />}
+
+			<SettingRow
+				{...rowState('fragrantica-embeds')}
+				icon={<Flower2 className="h-4 w-4" />}
+				label="Fichas de Fragrantica"
+				description="Convierte enlaces de perfumes de Fragrantica en tarjetas ligeras con imagen, valoración, acordes, pirámide y uso recomendado."
+			>
+				<Switch
+					checked={fragranticaEmbedsEnabled}
+					onCheckedChange={checked => {
+						setSetting('fragranticaEmbedsEnabled', checked)
+						toast.success(checked ? 'Fichas de Fragrantica activadas' : 'Configuración guardada')
 					}}
 				/>
 			</SettingRow>

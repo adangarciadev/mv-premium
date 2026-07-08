@@ -16,7 +16,9 @@ import {
 	type ThreadPageHtmlFetchResult,
 	type TweetLiteData,
 	type TweetLiteResult,
+	type FragranticaFragranceResult,
 } from '@/lib/messaging'
+import { fetchFragranticaFragrance } from '@/services/api/fragrantica'
 import { API_URLS, MV_BASE_URL, MV_URLS } from '@/constants'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import { normalizeTweetUrl as normalizeTweetUrlBase } from '@/lib/content-modules/twitter-lite/utils'
@@ -1251,6 +1253,28 @@ export function setupTwitterLiteHandler(): void {
 	})
 }
 
+export function setupFragranticaHandler(): void {
+	onMessage('fetchFragranticaFragrance', async ({ data }): Promise<FragranticaFragranceResult> => {
+		try {
+			const url = data.url?.trim()
+			if (!url) {
+				return { success: false, error: 'URL de Fragrantica vacía' }
+			}
+
+			return {
+				success: true,
+				data: await fetchFragranticaFragrance(url),
+			}
+		} catch (error) {
+			logger.warn('Fragrantica fetch failed:', error)
+			return {
+				success: false,
+				error: error instanceof Error ? error.message : 'No se pudo cargar Fragrantica.',
+			}
+		}
+	})
+}
+
 /**
  * Setup all API handlers
  */
@@ -1265,4 +1289,5 @@ export function setupApiHandlers(): void {
 	setupAniListRequestHandler()
 	setupGiphyHandlers()
 	setupTwitterLiteHandler()
+	setupFragranticaHandler()
 }

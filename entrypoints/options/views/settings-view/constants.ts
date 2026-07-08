@@ -445,6 +445,17 @@ export const SETTINGS_SEARCH_INDEX: SettingSearchItem[] = [
 		isEnabled: settings => settings.twitterLiteEmbedsEnabled,
 	},
 	{
+		id: 'fragrantica-embeds',
+		category: 'content',
+		section: 'Embeds',
+		label: 'Fichas de Fragrantica',
+		description: 'Convierte enlaces de perfumes de Fragrantica en tarjetas ligeras dentro de los hilos.',
+		keywords: ['fragrantica', 'perfumes', 'fragancias', 'embeds', 'acordes', 'notas'],
+		settingKeys: ['fragranticaEmbedsEnabled'],
+		requiresReload: true,
+		isEnabled: settings => settings.fragranticaEmbedsEnabled,
+	},
+	{
 		id: 'dashboard-icon',
 		category: 'content',
 		section: 'Dashboard',

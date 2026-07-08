@@ -81,6 +81,7 @@ export const settingsSchema = z.object({
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: z.boolean().default(true),
 	steamBundleInlineCardsEnabled: z.boolean().default(true),
+	fragranticaEmbedsEnabled: z.boolean().default(true),
 	itadSubforumSearchEnabled: z.boolean().default(true),
 	itadSubforumSearchJuegosEnabled: z.boolean().default(true),
 	itadSubforumSearchHuchaEnabled: z.boolean().default(true),

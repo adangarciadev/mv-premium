@@ -58,6 +58,7 @@ export const STORAGE_KEYS = {
 	NATIVE_LIVE_DELAY: 'mvp-native-live-delay',
 	LIVE_THREAD_DELAY: 'mvp-live-thread-delay',
 	HOMEPAGE_RECENT_FORUMS: 'mvp-homepage-recent-forums',
+	FRAGRANTICA_CACHE: 'mvp-fragrantica-cache',
 
 	// MV Site Theme
 	MV_THEME: 'mvp-mv-theme',

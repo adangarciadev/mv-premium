@@ -17,6 +17,7 @@ import type { GogGameDetails } from '@/services/api/gog'
 import type { MobileStoreSearchResult } from '@/services/api/mobile-stores'
 import type { GiphyPaginatedResponse } from '@/services/api/giphy'
 import type { ItadGamePriceOverview, ItadGamePrices, ItadGameSearchResult } from '@/services/api/itad'
+import type { FragranticaFragrance } from '@/services/api/fragrantica'
 import type { ChatMessage } from '@/types/ai'
 import type { UploadAttemptInfo, UploadErrorCode, UploadProvider } from '@/lib/upload-errors'
 
@@ -114,6 +115,12 @@ export interface TweetLiteData {
 export interface TweetLiteResult {
 	success: boolean
 	data?: TweetLiteData
+	error?: string
+}
+
+export interface FragranticaFragranceResult {
+	success: boolean
+	data?: FragranticaFragrance
 	error?: string
 }
 
@@ -365,6 +372,12 @@ interface ProtocolMap {
 	 * Keeps network requests out of content scripts.
 	 */
 	fetchTweetLiteData: (data: { tweetUrl: string }) => TweetLiteResult
+
+	/**
+	 * Fetch and parse a Fragrantica perfume page via background script.
+	 * Keeps external requests and local cache outside content scripts.
+	 */
+	fetchFragranticaFragrance: (data: { url: string }) => FragranticaFragranceResult
 }
 
 // =============================================================================

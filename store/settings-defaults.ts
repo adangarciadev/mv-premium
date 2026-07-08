@@ -53,6 +53,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: true,
 	steamBundleInlineCardsEnabled: true,
+	fragranticaEmbedsEnabled: true,
 	itadSubforumSearchEnabled: true,
 	itadSubforumSearchJuegosEnabled: true,
 	itadSubforumSearchHuchaEnabled: true,
