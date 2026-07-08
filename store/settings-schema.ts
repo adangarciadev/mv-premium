@@ -113,6 +113,9 @@ export const settingsSchema = z.object({
 
 	// Layout
 	hideHeaderEnabled: z.boolean().default(false),
+
+	// Feature Toggles - Editor
+	autoTagsEnabled: z.boolean().default(true),
 	ultrawideMode: ultrawideSchema.default('off'),
 	centeredPostsEnabled: z.boolean().default(false),
 	centeredControlsSticky: z.boolean().default(false),

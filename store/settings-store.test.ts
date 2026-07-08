@@ -154,6 +154,17 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().infiniteScrollEnabled).toBe(true)
 		})
 
+		it('setAutoTagsEnabled toggles auto-tags on paste', () => {
+			act(() => {
+				useSettingsStore.getState().setAutoTagsEnabled(false)
+			})
+			expect(useSettingsStore.getState().autoTagsEnabled).toBe(false)
+		})
+
+		it('autoTagsEnabled defaults to true', () => {
+			expect(useSettingsStore.getState().autoTagsEnabled).toBe(true)
+		})
+
 		it('setImgbbApiKey updates API key', () => {
 			act(() => {
 				useSettingsStore.getState().setImgbbApiKey('test-key-123')

@@ -89,6 +89,7 @@ export interface Settings {
 	gifPickerEnabled: boolean
 	draftsButtonEnabled: boolean
 	templateButtonEnabled: boolean
+	autoTagsEnabled: boolean
 
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: boolean

@@ -71,6 +71,9 @@ interface SettingsActions {
 	setUltrawideMode: (mode: Settings['ultrawideMode']) => void
 	setCenteredPostsEnabled: (enabled: boolean) => void
 
+	// Editor
+	setAutoTagsEnabled: (enabled: boolean) => void
+
 	// Keyboard Shortcuts
 	setShortcut: (actionId: string, keyCombo: string | null) => void
 
@@ -213,6 +216,9 @@ export const useSettingsStore = create<SettingsState>()(
 			// Layout
 			setUltrawideMode: mode => set({ ultrawideMode: mode }),
 			setCenteredPostsEnabled: enabled => set({ centeredPostsEnabled: enabled }),
+
+			// Editor
+			setAutoTagsEnabled: enabled => set({ autoTagsEnabled: enabled }),
 
 			// Keyboard Shortcuts
 			setShortcut: (actionId, keyCombo) =>

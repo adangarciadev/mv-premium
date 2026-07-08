@@ -49,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	gifPickerEnabled: true,
 	draftsButtonEnabled: true,
 	templateButtonEnabled: true,
+	autoTagsEnabled: true,
 
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: true,

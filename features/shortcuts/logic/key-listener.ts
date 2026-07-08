@@ -146,6 +146,12 @@ function executeAction(actionId: string) {
 				toggleMovieReleaseCalendarCine().catch(err => logger.error('Movie release calendar toggle error:', err))
 			}).catch(err => logger.error('Movie release calendar import error:', err))
 			break
+
+		case 'auto-tags-toggle':
+			import('@/features/editor/logic/editor-toolbar').then(({ toggleAutoTags }) => {
+				toggleAutoTags().catch(err => logger.error('Auto-tags toggle error:', err))
+			}).catch(err => logger.error('Auto-tags toggle import error:', err))
+			break
 	}
 }
 

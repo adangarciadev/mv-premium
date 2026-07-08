@@ -149,6 +149,16 @@ export const SETTINGS_SEARCH_INDEX: SettingSearchItem[] = [
 		isEnabled: settings => settings.templateButtonEnabled,
 	},
 	{
+		id: 'auto-tags',
+		category: 'features',
+		section: 'Editor',
+		label: 'Auto-tags al pegar',
+		description: 'Envuelve automáticamente las URLs de imágenes y vídeos pegadas en el editor con las etiquetas [img]/[media].',
+		keywords: ['auto-tags', 'autotags', 'pegar', 'paste', 'img', 'media', 'editor', 'url'],
+		settingKeys: ['autoTagsEnabled'],
+		isEnabled: settings => settings.autoTagsEnabled,
+	},
+	{
 		id: 'media-hover-cards',
 		category: 'features',
 		section: 'Contenido',
