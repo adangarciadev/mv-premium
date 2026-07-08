@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
 	isFeatureEnabled: vi.fn(() => true),
 	getMobileLitePostAuthor: vi.fn((post: HTMLElement) => post.getAttribute('data-autor')),
 	setMobileLiteUserIgnore: vi.fn(() => Promise.resolve()),
+	settingsState: { mobileLitePostGesturesEnabled: true },
 }))
 
 vi.mock('@/lib/platform', () => ({
@@ -16,6 +17,12 @@ vi.mock('@/lib/feature-flags', () => ({
 		MobileLite: 'mobile-lite',
 	},
 	isFeatureEnabled: mocks.isFeatureEnabled,
+}))
+
+vi.mock('@/store/settings-store', () => ({
+	useSettingsStore: {
+		getState: () => mocks.settingsState,
+	},
 }))
 
 vi.mock('./ignored-users', () => ({
@@ -66,6 +73,7 @@ describe('Mobile Lite post gestures', () => {
 		vi.clearAllMocks()
 		mocks.getPlatformKind.mockReturnValue('firefox-android')
 		mocks.isFeatureEnabled.mockReturnValue(true)
+		mocks.settingsState.mobileLitePostGesturesEnabled = true
 		mocks.getMobileLitePostAuthor.mockImplementation((post: HTMLElement) => post.getAttribute('data-autor'))
 		mocks.setMobileLiteUserIgnore.mockResolvedValue(undefined)
 		document.body.innerHTML = ''
@@ -170,6 +178,19 @@ describe('Mobile Lite post gestures', () => {
 		const content = post.querySelector('.post-contents') as HTMLElement
 		teardownMobileLitePostGestures()
 
+		swipe(content, 400, 200)
+
+		expect(mocks.setMobileLiteUserIgnore).not.toHaveBeenCalled()
+		expect(document.getElementById(HINT_ID)).toBeNull()
+	})
+
+	it('does not initialize when the setting is disabled', () => {
+		teardownMobileLitePostGestures()
+		mocks.settingsState.mobileLitePostGesturesEnabled = false
+		initMobileLitePostGestures()
+
+		const post = renderPost()
+		const content = post.querySelector('.post-contents') as HTMLElement
 		swipe(content, 400, 200)
 
 		expect(mocks.setMobileLiteUserIgnore).not.toHaveBeenCalled()

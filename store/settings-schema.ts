@@ -70,6 +70,7 @@ export const settingsSchema = z.object({
 
 	// Feature Toggles - Navigation
 	mobileLiteEnabled: z.boolean().default(true),
+	mobileLitePostGesturesEnabled: z.boolean().default(true),
 	infiniteScrollEnabled: z.boolean().default(false),
 	autoInfiniteScrollEnabled: z.boolean().default(false),
 	liveThreadEnabled: z.boolean().default(false),

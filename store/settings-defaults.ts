@@ -32,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
 	// Feature Toggles - Navigation
 	mobileLiteEnabled: true,
+	mobileLitePostGesturesEnabled: true,
 	infiniteScrollEnabled: false,
 	autoInfiniteScrollEnabled: false,
 	liveThreadEnabled: false,

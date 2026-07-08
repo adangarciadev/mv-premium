@@ -72,6 +72,7 @@ export interface Settings {
 
 	// Feature Toggles - Navigation
 	mobileLiteEnabled: boolean
+	mobileLitePostGesturesEnabled: boolean
 	infiniteScrollEnabled: boolean
 	autoInfiniteScrollEnabled: boolean
 	liveThreadEnabled: boolean
