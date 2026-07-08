@@ -22,6 +22,7 @@ import {
 import { DistributedEditorToolbar } from '../components/distributed-editor-toolbar'
 import { isImageUrl } from './image-detector'
 import { isMediaUrl, normalizeMediaUrl } from './media-detector'
+import { useSettingsStore } from '@/store/settings-store'
 import { Z_INDEXES, FEATURE_IDS, DOM_MARKERS, MV_SELECTORS } from '@/constants'
 
 const TOOLBAR_MARKER = DOM_MARKERS.EDITOR.TOOLBAR
@@ -152,6 +153,8 @@ export function injectPasteHandler(): void {
 		markAsInjected(textarea, PASTE_MARKER)
 
 		textarea.addEventListener('paste', (e: ClipboardEvent) => {
+			if (useSettingsStore.getState().autoTagsEnabled === false) return // let default paste happen
+
 			const pastedText = e.clipboardData?.getData('text/plain')?.trim()
 
 			// Only process if it looks like a single URL (no spaces, no newlines)
@@ -178,6 +181,16 @@ export function injectPasteHandler(): void {
 			// If not recognized, let the default paste happen
 		})
 	})
+}
+
+/**
+ * Toggles the auto-tags setting. Used by keyboard shortcuts.
+ * @returns The new enabled state.
+ */
+export async function toggleAutoTags(): Promise<boolean> {
+	const next = !useSettingsStore.getState().autoTagsEnabled
+	useSettingsStore.getState().setAutoTagsEnabled(next)
+	return next
 }
 
 /**
@@ -272,6 +285,8 @@ export function injectEditorToolbar(): void {
 			nativeCodeBtn.style.display = 'none'
 			nativeCodeBtn.setAttribute(DOM_MARKERS.DATA_ATTRS.HIDDEN, 'true')
 		}
+		// Note: the native Link button (bbstyle(8)) is NOT hidden here; it is
+		// repurposed in place by DistributedEditorToolbar to open our URL dialog.
 
 		// Create container for the main toolbar component (handles state + dialogs)
 		// This will be invisible but manages all the React state

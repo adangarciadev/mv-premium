@@ -1,3 +1,4 @@
+import ArrowLeftRight from 'lucide-react/dist/esm/icons/arrow-left-right'
 import Bold from 'lucide-react/dist/esm/icons/bold'
 import Check from 'lucide-react/dist/esm/icons/check'
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
@@ -63,11 +64,13 @@ export function SettingsTab({
 	galleryButtonEnabled,
 	quoteSelectionEnabled,
 	hideThreadButtonEnabled,
+	postGesturesEnabled,
 	savingMobileLiteSetting,
 	onToggleLiveThread,
 	onToggleGallery,
 	onToggleQuoteSelection,
 	onToggleHideThread,
+	onTogglePostGestures,
 	storageUsage,
 }: {
 	latestMobileLiteEntry: MobileLiteChangelogEntry | null
@@ -106,11 +109,13 @@ export function SettingsTab({
 	galleryButtonEnabled: boolean
 	quoteSelectionEnabled: boolean
 	hideThreadButtonEnabled: boolean
+	postGesturesEnabled: boolean
 	savingMobileLiteSetting: SavingMobileLiteSetting
 	onToggleLiveThread: () => void
 	onToggleGallery: () => void
 	onToggleQuoteSelection: () => void
 	onToggleHideThread: () => void
+	onTogglePostGestures: () => void
 	storageUsage: StorageUsage
 }) {
 	return (
@@ -519,6 +524,35 @@ export function SettingsTab({
 					>
 						<span className={`${SWITCH_TRACK_BASE_CLASS} ${hideThreadButtonEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
 							<span className={`${SWITCH_THUMB_BASE_CLASS} ${hideThreadButtonEnabled ? 'translate-x-5' : ''}`} />
+						</span>
+					</button>
+				</div>
+
+				<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
+					<div className="flex min-w-0 items-center gap-3">
+						<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+							<ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
+						</div>
+						<div className="min-w-0">
+							<div className="text-[15px] font-semibold text-[#eef1f6]">Swipe para ignorar</div>
+							<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
+								{postGesturesEnabled
+									? 'Desliza un post para ocultar o silenciar al autor'
+									: 'Usa solo el menú del nick para ignorar'}
+							</div>
+						</div>
+					</div>
+					<button
+						type="button"
+						role="switch"
+						aria-label="Swipe para ignorar"
+						aria-checked={postGesturesEnabled}
+						className={SWITCH_WRAPPER_CLASS}
+						disabled={savingMobileLiteSetting === 'mobileLitePostGesturesEnabled'}
+						onClick={onTogglePostGestures}
+					>
+						<span className={`${SWITCH_TRACK_BASE_CLASS} ${postGesturesEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+							<span className={`${SWITCH_THUMB_BASE_CLASS} ${postGesturesEnabled ? 'translate-x-5' : ''}`} />
 						</span>
 					</button>
 				</div>

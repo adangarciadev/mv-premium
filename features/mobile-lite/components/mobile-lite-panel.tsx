@@ -226,11 +226,13 @@ export function MobileLitePanel() {
 							galleryButtonEnabled={toggles.galleryButtonEnabled}
 							quoteSelectionEnabled={toggles.quoteSelectionEnabled}
 							hideThreadButtonEnabled={toggles.hideThreadButtonEnabled}
+							postGesturesEnabled={toggles.postGesturesEnabled}
 							savingMobileLiteSetting={toggles.savingMobileLiteSetting}
 							onToggleLiveThread={toggles.toggleLiveThread}
 							onToggleGallery={toggles.toggleGallery}
 							onToggleQuoteSelection={toggles.toggleQuoteSelection}
 							onToggleHideThread={toggles.toggleHideThread}
+							onTogglePostGestures={toggles.togglePostGestures}
 							storageUsage={storageUsage}
 						/>
 					)}

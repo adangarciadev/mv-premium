@@ -4,19 +4,21 @@ import { applyMobileLiteHiddenThreads } from '../logic/hidden-threads'
 import { syncMobileLiteGalleryButton } from '../logic/gallery'
 import { syncMobileLiteLiveThreadButton } from '../logic/live-thread'
 import { syncMobileLiteQuoteSelection } from '../logic/quote-selection'
+import { syncMobileLitePostGestures } from '../logic/post-gestures'
 import { type SavingMobileLiteSetting } from '../components/panel-helpers'
 import { useAutoDismiss } from './use-auto-dismiss'
 
 /**
  * Mobile Lite feature toggles (live thread, gallery button, quote-on-selection,
- * hide-thread button). Each toggle writes to the settings store, runs its side
- * effect, and rolls back on failure.
+ * hide-thread button, post swipe gestures). Each toggle writes to the settings
+ * store, runs its side effect, and rolls back on failure.
  */
 export function useMobileLiteToggles(open: boolean) {
 	const [liveThreadEnabled, setLiveThreadEnabled] = useState(false)
 	const [galleryButtonEnabled, setGalleryButtonEnabled] = useState(true)
 	const [quoteSelectionEnabled, setQuoteSelectionEnabled] = useState(true)
 	const [hideThreadButtonEnabled, setHideThreadButtonEnabled] = useState(true)
+	const [postGesturesEnabled, setPostGesturesEnabled] = useState(true)
 	const [savingMobileLiteSetting, setSavingMobileLiteSetting] = useState<SavingMobileLiteSetting>(null)
 	const [statusMessage, setStatusMessage] = useState<string | null>(null)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -34,6 +36,7 @@ export function useMobileLiteToggles(open: boolean) {
 				setGalleryButtonEnabled(settings.galleryButtonEnabled !== false)
 				setQuoteSelectionEnabled(settings.quoteSelectionEnabled !== false)
 				setHideThreadButtonEnabled(settings.hideThreadEnabled !== false)
+				setPostGesturesEnabled(settings.mobileLitePostGesturesEnabled !== false)
 				setStatusMessage(null)
 				setErrorMessage(null)
 			})
@@ -118,11 +121,30 @@ export function useMobileLiteToggles(open: boolean) {
 		}
 	}
 
+	const togglePostGestures = () => {
+		const nextEnabled = !postGesturesEnabled
+		setSavingMobileLiteSetting('mobileLitePostGesturesEnabled')
+		setErrorMessage(null)
+		setStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('mobileLitePostGesturesEnabled', nextEnabled)
+			setPostGesturesEnabled(nextEnabled)
+			syncMobileLitePostGestures()
+			setStatusMessage(nextEnabled ? 'Gestos de swipe activados.' : 'Gestos de swipe desactivados.')
+		} catch {
+			setPostGesturesEnabled(!nextEnabled)
+			setErrorMessage('No se pudieron cambiar los gestos de swipe.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
+
 	return {
 		liveThreadEnabled,
 		galleryButtonEnabled,
 		quoteSelectionEnabled,
 		hideThreadButtonEnabled,
+		postGesturesEnabled,
 		savingMobileLiteSetting,
 		statusMessage,
 		errorMessage,
@@ -130,5 +152,6 @@ export function useMobileLiteToggles(open: boolean) {
 		toggleGallery,
 		toggleQuoteSelection,
 		toggleHideThread,
+		togglePostGestures,
 	}
 }

@@ -261,6 +261,12 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 				initSteamBundleInlineCards()
 			})
 		}
+
+		if (isFeatureEnabled(FeatureFlag.FragranticaEmbeds)) {
+			import('@/features/fragrantica-embeds').then(({ initFragranticaEmbeds }) => {
+				initFragranticaEmbeds()
+			})
+		}
 	}
 
 	// =========================================================================

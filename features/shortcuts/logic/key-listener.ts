@@ -4,6 +4,7 @@
  */
 import { getSettings, initCrossTabSync } from '@/store/settings-store'
 import { logger } from '@/lib/logger'
+import { toast } from '@/lib/lazy-toast'
 import { MV_SELECTORS, MV_URLS, getUserProfileUrl, getUserBookmarksUrl, STORAGE_KEYS } from '@/constants'
 import { sendMessage } from '@/lib/messaging'
 import { browser } from 'wxt/browser'
@@ -145,6 +146,14 @@ function executeAction(actionId: string) {
 			import('@/features/movie-release-calendar').then(({ toggleMovieReleaseCalendarCine }) => {
 				toggleMovieReleaseCalendarCine().catch(err => logger.error('Movie release calendar toggle error:', err))
 			}).catch(err => logger.error('Movie release calendar import error:', err))
+			break
+
+		case 'auto-tags-toggle':
+			import('@/features/editor/logic/editor-toolbar').then(({ toggleAutoTags }) => {
+				toggleAutoTags()
+					.then(enabled => toast.success(enabled ? 'Auto-tags activados' : 'Auto-tags desactivados'))
+					.catch(err => logger.error('Auto-tags toggle error:', err))
+			}).catch(err => logger.error('Auto-tags toggle import error:', err))
 			break
 	}
 }

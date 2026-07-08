@@ -109,46 +109,6 @@ export function useTextInsertion(textarea: HTMLTextAreaElement) {
 	const insertNsfw = () => wrapSelection('[spoiler=NSFW]', '[/spoiler]')
 
 	/**
-	 * Insert link tags around selected text
-	 */
-	const insertLink = () => {
-		const start = textarea.selectionStart
-		const end = textarea.selectionEnd
-		const text = textarea.value
-		const selectedText = text.substring(start, end)
-
-		// Check if selection looks like a URL
-		const isUrl = /^https?:\/\//.test(selectedText)
-
-		if (isUrl) {
-			// If URL selected, wrap it
-			const wrapped = `[url]${selectedText}[/url]`
-			textarea.value = text.substring(0, start) + wrapped + text.substring(end)
-			const newCursorPos = start + wrapped.length
-			textarea.selectionStart = newCursorPos
-			textarea.selectionEnd = newCursorPos
-		} else {
-			// If text selected, prompt would be ideal, but for now just wrap
-			const wrapped = `[url]${selectedText}[/url]`
-			textarea.value = text.substring(0, start) + wrapped + text.substring(end)
-			if (start === end) {
-				// Place cursor inside for URL input
-				const newCursorPos = start + 5 // After [url]
-				textarea.selectionStart = newCursorPos
-				textarea.selectionEnd = newCursorPos
-			} else {
-				const newCursorPos = start + wrapped.length
-				textarea.selectionStart = newCursorPos
-				textarea.selectionEnd = newCursorPos
-			}
-		}
-
-		textarea.dispatchEvent(new Event('input', { bubbles: true }))
-		textarea.dispatchEvent(new Event('change', { bubbles: true }))
-		textarea.focus()
-	}
-
-	/**
 	 * Insert quote tags around selected text
 	 */
 	const insertQuote = () => {
@@ -241,7 +201,6 @@ export function useTextInsertion(textarea: HTMLTextAreaElement) {
 		insertSpoiler,
 		insertNsfw,
 		insertCenter,
-		insertLink,
 		insertQuote,
 		insertInlineCode,
 		insertImageTag,

@@ -41,4 +41,5 @@ export const FEATURE_IDS = {
 	DRAFT_MANAGER_PREFIX: 'mvp-draft-manager-',
 	INFINITE_SCROLL_DIVIDER_PREFIX: 'mvp-infinite-scroll-divider-',
 	STEAM_BUNDLE_INLINE_CARD_PREFIX: 'mvp-steam-bundle-inline-card-',
+	FRAGRANTICA_INLINE_CARD_PREFIX: 'mvp-fragrantica-inline-card-',
 } as const

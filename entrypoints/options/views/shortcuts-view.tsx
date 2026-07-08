@@ -18,6 +18,7 @@ import PanelTopClose from 'lucide-react/dist/esm/icons/panel-top-close'
 import Briefcase from 'lucide-react/dist/esm/icons/briefcase'
 import Store from 'lucide-react/dist/esm/icons/store'
 import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
+import Wand2 from 'lucide-react/dist/esm/icons/wand-2'
 import { useSettingsStore } from '@/store/settings-store'
 import { cn } from '@/lib/utils'
 import { Kbd } from '@/components/ui/kbd'
@@ -47,6 +48,7 @@ const SHORTCUT_ACTIONS = [
 	{ id: 'release-calendar-juegos-toggle', label: 'Lanzamientos en Juegos', icon: CalendarDays, description: 'Activar o desactivar próximos lanzamientos en Juegos' },
 	{ id: 'release-calendar-juegos-movil-toggle', label: 'Lanzamientos en Juegos de móvil', icon: CalendarDays, description: 'Activar o desactivar próximos lanzamientos en Juegos de móvil' },
 	{ id: 'release-calendar-cine-toggle', label: 'Estrenos en Cine', icon: CalendarDays, description: 'Activar o desactivar próximos estrenos en Cine' },
+	{ id: 'auto-tags-toggle', label: 'Auto-tags al Pegar', icon: Wand2, description: 'Activar o desactivar el auto-formateo de URLs pegadas en el editor' },
 ]
 
 export function ShortcutsView() {

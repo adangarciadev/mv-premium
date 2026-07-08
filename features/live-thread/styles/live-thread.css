@@ -405,9 +405,13 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 	pointer-events: auto;
 }
 
-/* Container inside the grid needs to be present */
+/* Container inside the grid needs to be present.
+   min-width: 0 is required too: as a grid item it otherwise refuses to
+   shrink below the toolbar's min-content width (~20 nowrap buttons),
+   pushing the whole editor (toolbar + footer) past the column edge. */
 #mvp-live-editor-wrapper > div {
 	min-height: 0;
+	min-width: 0;
 }
 
 /* Editor container styling */
@@ -478,17 +482,15 @@ body:has(#mvp-live-main-container) #posts-wrap > .divider {
 /* Toolbar styling */
 #mvp-live-editor-wrapper:not(.mvp-live-mobile-lite) #post-editor .editor-controls {
 	display: flex !important;
-	flex-wrap: nowrap !important; /* Single line */
-	padding: 0 10px !important; /* No vertical padding, height 30px will center it */
+	flex-wrap: wrap !important; /* Wrap to a 2nd line instead of horizontal-scrolling */
+	padding: 4px 10px !important;
 	background: var(--secondary, #2d2d2d) !important;
 	border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.1)) !important;
 	gap: 2px !important;
 	margin-top: 0 !important;
-	height: 30px !important; /* Strict height */
 	min-height: 30px !important;
 	align-items: center !important;
-	overflow-x: auto !important;
-	overflow-y: hidden !important;
+	overflow: visible !important;
 }
 
 /* Toolbar buttons - smaller in Live mode to fit in single line */

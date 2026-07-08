@@ -36,6 +36,7 @@ export const STORAGE_KEYS = {
 	USER_CUSTOMIZATIONS: 'mvp-user-customizations',
 	FAVORITE_SUBFORUMS: 'mvp-favorite-subforums',
 	LIVE_THREADS: 'mvp-live-threads',
+	LIVE_MANUAL_EXIT_THREAD_ID: 'mvp-live-manual-exit-thread-id',
 	ACTIVITY: 'mvp-activity',
 	TIME_STATS: 'mvp-time-stats',
 	RHYTHM_STATS: 'mvp-rhythm-stats',
@@ -58,6 +59,7 @@ export const STORAGE_KEYS = {
 	NATIVE_LIVE_DELAY: 'mvp-native-live-delay',
 	LIVE_THREAD_DELAY: 'mvp-live-thread-delay',
 	HOMEPAGE_RECENT_FORUMS: 'mvp-homepage-recent-forums',
+	FRAGRANTICA_CACHE: 'mvp-fragrantica-cache',
 
 	// MV Site Theme
 	MV_THEME: 'mvp-mv-theme',

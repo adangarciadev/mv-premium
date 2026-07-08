@@ -4,17 +4,12 @@
  */
 import { useState, useEffect } from 'react'
 import Link from 'lucide-react/dist/esm/icons/link'
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-	DialogFooter,
-	DialogDescription,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
+import Type from 'lucide-react/dist/esm/icons/type'
+import X from 'lucide-react/dist/esm/icons/x'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
 
 interface UrlDialogProps {
 	open: boolean
@@ -51,51 +46,83 @@ export function UrlDialog({ open, onOpenChange, onInsert, initialDisplayText = '
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						<Link className="h-5 w-5" />
+			<DialogContent className="p-0 gap-0 overflow-hidden bg-card border-border rounded-xl sm:max-w-[420px]" showCloseButton={false}>
+				<DialogHeader className="flex flex-row items-center justify-between space-y-0 border-b border-border p-4 px-5">
+					<DialogTitle className="flex items-center gap-2.5 text-[15px] font-semibold text-foreground">
+						<div className="flex rounded-lg bg-primary/15 p-1.5">
+							<Link className="h-4 w-4 text-primary" />
+						</div>
 						Insertar Enlace
 					</DialogTitle>
-					<DialogDescription>Introduce la URL y el texto que se mostrará</DialogDescription>
+					<button
+						onClick={() => onOpenChange(false)}
+						className="flex h-7 w-7 items-center justify-center rounded-md border-none bg-transparent text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
+						title="Cerrar"
+					>
+						<X className="h-[18px] w-[18px]" />
+					</button>
 				</DialogHeader>
 
-				<div className="space-y-4 py-4">
-					<div className="space-y-2">
-						<Label htmlFor="url-input">URL</Label>
-						<Input
-							id="url-input"
-							value={url}
-							onChange={e => setUrl(e.target.value)}
-							onKeyDown={handleKeyDown}
-							placeholder="https://ejemplo.com"
-							autoFocus
-						/>
+				<div className="space-y-4 p-5">
+					<div className="space-y-1.5">
+						<Label htmlFor="url-input" className="text-[13px] font-medium">
+							URL
+						</Label>
+						<div className="relative">
+							<Link className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+							<Input
+								id="url-input"
+								value={url}
+								onChange={e => setUrl(e.target.value)}
+								onKeyDown={handleKeyDown}
+								placeholder="https://ejemplo.com"
+								autoFocus
+								className="h-10 bg-muted/20 pl-9 focus-visible:bg-transparent"
+							/>
+						</div>
 					</div>
 
-					<div className="space-y-2">
-						<Label htmlFor="display-text">
-							Texto a mostrar <span className="text-muted-foreground text-xs">(opcional)</span>
+					<div className="space-y-1.5">
+						<Label htmlFor="display-text" className="text-[13px] font-medium">
+							Texto a mostrar <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
 						</Label>
-						<Input
-							id="display-text"
-							value={displayText}
-							onChange={e => setDisplayText(e.target.value)}
-							onKeyDown={handleKeyDown}
-							placeholder="Texto del enlace"
-						/>
+						<div className="relative">
+							<Type className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+							<Input
+								id="display-text"
+								value={displayText}
+								onChange={e => setDisplayText(e.target.value)}
+								onKeyDown={handleKeyDown}
+								placeholder="Texto del enlace"
+								className="h-10 bg-muted/20 pl-9 focus-visible:bg-transparent"
+							/>
+						</div>
 						<p className="text-xs text-muted-foreground">Si se deja vacío, se mostrará la URL directamente</p>
 					</div>
 				</div>
 
-				<DialogFooter>
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
+				<DialogFooter className="flex justify-end gap-2 border-t border-border bg-muted/10 p-3 px-5">
+					<button
+						type="button"
+						onClick={() => onOpenChange(false)}
+						className="flex h-9 min-w-[104px] items-center justify-center rounded-md border border-border bg-transparent text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+					>
 						Cancelar
-					</Button>
-					<Button onClick={handleInsert} disabled={!url.trim()}>
-						<Link className="h-4 w-4 mr-2" />
+					</button>
+					<button
+						type="button"
+						onClick={handleInsert}
+						disabled={!url.trim()}
+						className={cn(
+							'flex h-9 min-w-[104px] items-center justify-center gap-2 rounded-md text-sm font-medium shadow-sm transition-colors',
+							url.trim()
+								? 'bg-primary text-primary-foreground hover:bg-primary/90'
+								: 'cursor-not-allowed bg-muted text-muted-foreground opacity-50'
+						)}
+					>
+						<Link className="h-3.5 w-3.5" />
 						Insertar
-					</Button>
+					</button>
 				</DialogFooter>
 			</DialogContent>
 		</Dialog>

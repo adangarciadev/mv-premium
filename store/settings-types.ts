@@ -72,6 +72,7 @@ export interface Settings {
 
 	// Feature Toggles - Navigation
 	mobileLiteEnabled: boolean
+	mobileLitePostGesturesEnabled: boolean
 	infiniteScrollEnabled: boolean
 	autoInfiniteScrollEnabled: boolean
 	liveThreadEnabled: boolean
@@ -89,10 +90,12 @@ export interface Settings {
 	gifPickerEnabled: boolean
 	draftsButtonEnabled: boolean
 	templateButtonEnabled: boolean
+	autoTagsEnabled: boolean
 
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: boolean
 	steamBundleInlineCardsEnabled: boolean
+	fragranticaEmbedsEnabled: boolean
 	itadSubforumSearchEnabled: boolean
 	itadSubforumSearchJuegosEnabled: boolean
 	itadSubforumSearchHuchaEnabled: boolean

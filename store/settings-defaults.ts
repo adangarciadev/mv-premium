@@ -32,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
 
 	// Feature Toggles - Navigation
 	mobileLiteEnabled: true,
+	mobileLitePostGesturesEnabled: true,
 	infiniteScrollEnabled: false,
 	autoInfiniteScrollEnabled: false,
 	liveThreadEnabled: false,
@@ -49,10 +50,12 @@ export const DEFAULT_SETTINGS: Settings = {
 	gifPickerEnabled: true,
 	draftsButtonEnabled: true,
 	templateButtonEnabled: true,
+	autoTagsEnabled: true,
 
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: true,
 	steamBundleInlineCardsEnabled: true,
+	fragranticaEmbedsEnabled: true,
 	itadSubforumSearchEnabled: true,
 	itadSubforumSearchJuegosEnabled: true,
 	itadSubforumSearchHuchaEnabled: true,

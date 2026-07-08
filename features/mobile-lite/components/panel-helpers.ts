@@ -30,6 +30,7 @@ export type SavingMobileLiteSetting =
 	| 'galleryButtonEnabled'
 	| 'quoteSelectionEnabled'
 	| 'hideThreadEnabled'
+	| 'mobileLitePostGesturesEnabled'
 	| null
 
 export interface UserFilterOption {

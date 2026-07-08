@@ -70,6 +70,7 @@ export const settingsSchema = z.object({
 
 	// Feature Toggles - Navigation
 	mobileLiteEnabled: z.boolean().default(true),
+	mobileLitePostGesturesEnabled: z.boolean().default(true),
 	infiniteScrollEnabled: z.boolean().default(false),
 	autoInfiniteScrollEnabled: z.boolean().default(false),
 	liveThreadEnabled: z.boolean().default(false),
@@ -81,6 +82,7 @@ export const settingsSchema = z.object({
 	// Feature Toggles - Content
 	mediaHoverCardsEnabled: z.boolean().default(true),
 	steamBundleInlineCardsEnabled: z.boolean().default(true),
+	fragranticaEmbedsEnabled: z.boolean().default(true),
 	itadSubforumSearchEnabled: z.boolean().default(true),
 	itadSubforumSearchJuegosEnabled: z.boolean().default(true),
 	itadSubforumSearchHuchaEnabled: z.boolean().default(true),
@@ -112,6 +114,9 @@ export const settingsSchema = z.object({
 
 	// Layout
 	hideHeaderEnabled: z.boolean().default(false),
+
+	// Feature Toggles - Editor
+	autoTagsEnabled: z.boolean().default(true),
 	ultrawideMode: ultrawideSchema.default('off'),
 	centeredPostsEnabled: z.boolean().default(false),
 	centeredControlsSticky: z.boolean().default(false),

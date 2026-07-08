@@ -23,6 +23,7 @@ import Store from 'lucide-react/dist/esm/icons/store'
 import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
 import MousePointerClick from 'lucide-react/dist/esm/icons/mouse-pointer-click'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
+import Wand2 from 'lucide-react/dist/esm/icons/wand-2'
 import { browser } from 'wxt/browser'
 import { toast } from 'sonner'
 import { Separator } from '@/components/ui/separator'
@@ -48,7 +49,7 @@ const ITAD_COUNTRY_OPTIONS: Array<{ value: ItadCountry; label: string }> = [
 ]
 
 const NAVIGATION_SETTING_IDS = ['new-homepage', 'navbar-search']
-const EDITOR_SETTING_IDS = ['cinema-button', 'game-button', 'gif-picker', 'drafts-button', 'template-button']
+const EDITOR_SETTING_IDS = ['cinema-button', 'game-button', 'gif-picker', 'drafts-button', 'template-button', 'auto-tags']
 const CONTENT_SETTING_IDS = [
 	'media-hover-cards',
 	'steam-bundle-cards',
@@ -77,6 +78,7 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		gifPickerEnabled,
 		draftsButtonEnabled,
 		templateButtonEnabled,
+		autoTagsEnabled,
 		mediaHoverCardsEnabled,
 		steamBundleInlineCardsEnabled,
 		itadSubforumSearchJuegosEnabled,
@@ -292,6 +294,21 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				description="Añade un botón para insertar plantillas predefinidas o propias."
 			>
 				<Switch checked={templateButtonEnabled} onCheckedChange={withToastAndReload('templateButtonEnabled', true)} />
+			</SettingRow>
+
+			<SettingRow
+				{...rowState('auto-tags')}
+				icon={<Wand2 className="h-4 w-4" />}
+				label="Auto-tags al pegar"
+				description="Envuelve automáticamente las URLs de imágenes y vídeos pegadas en el editor con las etiquetas [img]/[media]. También disponible como atajo de teclado."
+			>
+				<Switch
+					checked={autoTagsEnabled}
+					onCheckedChange={checked => {
+						setSetting('autoTagsEnabled', checked)
+						toast.success(checked ? 'Auto-tags activados' : 'Auto-tags desactivados')
+					}}
+				/>
 			</SettingRow>
 				</>
 			)}

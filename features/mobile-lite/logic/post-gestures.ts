@@ -20,6 +20,7 @@ import { DOM_MARKERS, MV_SELECTORS } from '@/constants'
 import { FeatureFlag, isFeatureEnabled } from '@/lib/feature-flags'
 import { logger } from '@/lib/logger'
 import { getPlatformKind } from '@/lib/platform'
+import { useSettingsStore } from '@/store/settings-store'
 import { MOBILE_LITE_IGNORED_ATTR, getMobileLitePostAuthor, setMobileLiteUserIgnore } from './ignored-users'
 import { getAvatarUrlFromImage } from './avatar-utils'
 import { getOwnUsername, resetOwnUsernameCache } from './own-username'
@@ -68,7 +69,11 @@ let commitTimeout: ReturnType<typeof setTimeout> | null = null
 let pendingCommitPost: HTMLElement | null = null
 
 function isMobileLitePostGesturesAllowed(): boolean {
-	return getPlatformKind() === 'firefox-android' && isFeatureEnabled(FeatureFlag.MobileLite)
+	return (
+		getPlatformKind() === 'firefox-android' &&
+		isFeatureEnabled(FeatureFlag.MobileLite) &&
+		useSettingsStore.getState().mobileLitePostGesturesEnabled !== false
+	)
 }
 
 function ensureStyles(): void {
@@ -398,4 +403,13 @@ export function teardownMobileLitePostGestures(): void {
 	suppressClicksUntil = 0
 	resetOwnUsernameCache()
 	initialized = false
+}
+
+/**
+ * Re-applies the current `mobileLitePostGesturesEnabled` setting immediately.
+ * Used by the settings toggle so the change takes effect without a page reload.
+ */
+export function syncMobileLitePostGestures(): void {
+	teardownMobileLitePostGestures()
+	initMobileLitePostGestures()
 }

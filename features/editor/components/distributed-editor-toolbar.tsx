@@ -11,7 +11,7 @@ import ChartBar from 'lucide-react/dist/esm/icons/chart-bar'
 import ReactDOM from 'react-dom'
 import { setStoredTheme } from '../lib/themes'
 import { useUIStore } from '@/store'
-import { MV_SELECTORS } from '@/constants'
+import { MV_SELECTORS, DOM_MARKERS } from '@/constants'
 import '@/assets/live-preview.css'
 
 // Hooks
@@ -58,6 +58,7 @@ import { TableEditorDialog } from '@/features/table-editor/components/table-edit
 import { LivePreviewPanel } from './live-preview-panel'
 import { InsertTemplateDialog } from '@/features/drafts/components/insert-template-dialog'
 import { IndexCreatorDialog } from './index-creator-dialog'
+import { UrlDialog } from './url-dialog'
 
 const DEFAULT_THEME = 'github-dark'
 
@@ -79,6 +80,8 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 	const [showDropzone, setShowDropzone] = useState(false)
 	const [showInsertTemplate, setShowInsertTemplate] = useState(false)
 	const [showIndexDialog, setShowIndexDialog] = useState(false)
+	const [showUrlDialog, setShowUrlDialog] = useState(false)
+	const [urlDialogInitialText, setUrlDialogInitialText] = useState('')
 	const [isTableAtCursor, setIsTableAtCursor] = useState(false)
 	const [tableEditData, setTableEditData] = useState<TableEditState | null>(null)
 
@@ -88,6 +91,20 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 	const isNewThread = useMemo(() => isNewThreadPage(), [])
 	/** Standalone editor = injected fallback toolbar with no native Mediavida controls */
 	const isStandaloneEditor = useMemo(() => toolbarContainer.classList.contains('mvp-pm-toolbar'), [toolbarContainer])
+
+	/** Live editor = this toolbar's native #post-editor was relocated into MVP Live's wrapper */
+	const [isLiveEditor, setIsLiveEditor] = useState(() => Boolean(toolbarContainer.closest('#mvp-live-editor-wrapper')))
+	useEffect(() => {
+		const handleLiveModeChanged = () => {
+			// moveFormToTop() runs synchronously right after this event dispatches,
+			// so re-check ancestry on the next tick once the DOM move has landed.
+			setTimeout(() => {
+				setIsLiveEditor(Boolean(toolbarContainer.closest('#mvp-live-editor-wrapper')))
+			}, 0)
+		}
+		window.addEventListener(DOM_MARKERS.EVENTS.LIVE_MODE_CHANGED, handleLiveModeChanged)
+		return () => window.removeEventListener(DOM_MARKERS.EVENTS.LIVE_MODE_CHANGED, handleLiveModeChanged)
+	}, [toolbarContainer])
 
 	// Local Live Preview state for isolation between multiple editors on same page
 	const [localPreviewVisible, setLocalPreviewVisible] = useState(false)
@@ -109,7 +126,6 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 		insertImageTag,
 		insertBold,
 		insertItalic,
-		insertLink,
 		insertQuote,
 	} = useTextInsertion(textarea)
 	const { insertUnorderedList, insertOrderedList, insertTaskList } = useListFormatting(textarea)
@@ -122,6 +138,42 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 	const handleInsertTemplate = useMemo(
 		() => createTemplateInsertHandler(insertText, isNewThread),
 		[insertText, isNewThread]
+	)
+
+	const handleOpenUrlDialog = useCallback(() => {
+		const { selectionStart, selectionEnd, value } = textarea
+		setUrlDialogInitialText(value.substring(selectionStart, selectionEnd))
+		setShowUrlDialog(true)
+	}, [textarea])
+
+	// Repurpose the native Mediavida "Hipervínculo" button (onclick="bbstyle(8)",
+	// which inserts a bare [url][/url]) to open our dialog instead. We intercept
+	// on the CAPTURE phase at the toolbar container so we stop the native inline
+	// handler before it runs, and it keeps working even if MV re-creates the
+	// button (e.g. when Live mode moves the editor). Standalone editors get their
+	// link button from StandardToolbarButtons, so they're skipped here.
+	useEffect(() => {
+		if (isStandaloneEditor) return
+		const interceptNativeLink = (event: Event) => {
+			const target = event.target
+			if (!(target instanceof Element)) return
+			const button = target.closest('button')
+			if (!button) return
+			const isNativeLink = button.getAttribute('onclick')?.includes('bbstyle(8)') || button.title === 'Hipervínculo'
+			if (!isNativeLink) return
+			event.preventDefault()
+			event.stopImmediatePropagation()
+			handleOpenUrlDialog()
+		}
+		toolbarContainer.addEventListener('click', interceptNativeLink, true)
+		return () => toolbarContainer.removeEventListener('click', interceptNativeLink, true)
+	}, [isStandaloneEditor, toolbarContainer, handleOpenUrlDialog])
+
+	const handleInsertUrl = useCallback(
+		(url: string, displayText: string) => {
+			insertText(displayText ? `[url=${url}]${displayText}[/url]` : `[url]${url}[/url]`)
+		},
+		[insertText]
 	)
 
 	// Initialize on mount
@@ -367,7 +419,7 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 						<StandardToolbarButtons
 							onInsertBold={insertBold}
 							onInsertItalic={insertItalic}
-							onInsertLink={insertLink}
+							onInsertLink={handleOpenUrlDialog}
 							onInsertQuote={insertQuote}
 							activeFormats={activeFormats}
 						/>
@@ -492,18 +544,20 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 							<i className="fa fa-folder-open-o" />
 						</button>
 					)}
-					<button
-						type="button"
-						className={`mvp-toolbar-btn ${isPreviewVisible ? 'active' : ''}`}
-						onClick={e => {
-							e.preventDefault()
-							e.stopPropagation()
-							onTogglePreview()
-						}}
-						title="Live preview"
-					>
-						<i className={`fa ${isPreviewVisible ? 'fa-eye-slash' : 'fa-eye'}`} />
-					</button>
+					{!isLiveEditor && (
+						<button
+							type="button"
+							className={`mvp-toolbar-btn ${isPreviewVisible ? 'active' : ''}`}
+							onClick={e => {
+								e.preventDefault()
+								e.stopPropagation()
+								onTogglePreview()
+							}}
+							title="Live preview"
+						>
+							<i className={`fa ${isPreviewVisible ? 'fa-eye-slash' : 'fa-eye'}`} />
+						</button>
+					)}
 				</>,
 				containers.tools
 			)}
@@ -592,6 +646,13 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 			{showIndexDialog && (
 				<IndexCreatorDialog isOpen={showIndexDialog} onClose={() => setShowIndexDialog(false)} onInsert={insertText} />
 			)}
+
+			<UrlDialog
+				open={showUrlDialog}
+				onOpenChange={setShowUrlDialog}
+				onInsert={handleInsertUrl}
+				initialDisplayText={urlDialogInitialText}
+			/>
 
 			{/* Live Preview Panel */}
 			{isPreviewVisible &&
