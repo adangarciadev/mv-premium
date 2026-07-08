@@ -22,6 +22,56 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.4.0',
+		date: '2026-07-08',
+		title: 'Más control sobre auto-tags y swipes, modal de enlaces añadido y fichas de Fragrantica',
+		summary:
+			'Mediavida Premium 3.4 te da más control: desactiva los auto-tags al pegar enlaces cuando no los quieras o los gestos de swipe de Mobile Lite, ambos con atajo de teclado y aviso al cambiarlos. El diálogo de insertar enlace estrena diseño y ya se abre también desde el botón nativo y el editor de Live. También llegan las fichas de Fragrantica y se corrige el Live automático tras salir manualmente de un hilo.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Auto-tags al pegar: nuevo ajuste para desactivar el envoltorio automático en [img]/[media] al pegar enlaces de imágenes o vídeos en el editor (activado por defecto), con atajo de teclado propio que avisa al activarlo o desactivarlo.',
+				category: 'Editor',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'El diálogo de insertar enlace ahora también se abre desde el botón nativo de hipervínculo de Mediavida y desde el editor de Live Thread, no solo al crear borradores o plantillas.',
+				category: 'Editor',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description:
+					'El diálogo de insertar enlace estrena diseño: cabecera con icono, campos de URL y texto con iconos identificativos, y los botones Cancelar/Insertar ahora tienen el mismo tamaño.',
+				category: 'Editor',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Swipe para ignorar: nuevo ajuste en el panel de Mobile Lite para desactivar los gestos de deslizar sobre un post (ocultar o silenciar al autor) sin perder el menú del nick para ignorar usuarios.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'feature',
+				description:
+					'Fichas de Fragrantica: los enlaces a perfumes de Fragrantica se convierten en tarjetas dentro del hilo con imagen, valoración, acordes, pirámide olfativa y uso recomendado.',
+				category: 'Fragrantica',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description: 'El Live automático ya no se reactiva solo después de salir manualmente de un hilo en directo.',
+				category: 'Live Thread',
+				surface: 'desktop',
+			},
+		],
+	},
+	{
 		version: '3.3.0',
 		date: '2026-07-06',
 		title: 'Live automático, tarjetas GOG y editor más listo',
@@ -72,8 +122,7 @@ export const CHANGELOG: ChangelogEntry[] = [
 			},
 			{
 				type: 'improvement',
-				description:
-					'El avatar del usuario actual en el dashboard se carga con mejor calidad cuando está disponible.',
+				description: 'El avatar del usuario actual en el dashboard se carga con mejor calidad cuando está disponible.',
 				category: 'Dashboard',
 				surface: 'desktop',
 			},
