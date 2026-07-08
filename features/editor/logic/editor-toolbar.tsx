@@ -272,6 +272,8 @@ export function injectEditorToolbar(): void {
 			nativeCodeBtn.style.display = 'none'
 			nativeCodeBtn.setAttribute(DOM_MARKERS.DATA_ATTRS.HIDDEN, 'true')
 		}
+		// Note: the native Link button (bbstyle(8)) is NOT hidden here; it is
+		// repurposed in place by DistributedEditorToolbar to open our URL dialog.
 
 		// Create container for the main toolbar component (handles state + dialogs)
 		// This will be invisible but manages all the React state
