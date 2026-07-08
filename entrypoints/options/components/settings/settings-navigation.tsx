@@ -155,27 +155,25 @@ export function SettingsNavigation({ settingFilter }: { settingFilter?: Settings
 				/>
 			</SettingRow>
 
-			{(liveThreadEnabled || shouldForceRender('auto-live-thread')) && (
-				<SettingRow
-					{...rowState('auto-live-thread')}
-					icon={<Zap className="h-4 w-4" />}
-					label="Activar Live automáticamente"
-					description="El modo Live de MV Premium se activa al entrar en un hilo normal. Desactiva la auto-activación de scroll infinito."
-					className="ml-6 border-l-2 border-primary/30 pl-4"
-				>
-					<Switch
-						checked={autoLiveThreadEnabled}
-						onCheckedChange={checked => {
-							updateSettings({
-								autoLiveThreadEnabled: checked,
-								...(checked ? { autoInfiniteScrollEnabled: false } : {}),
-							})
-							reloadMediavidaTabs()
-							toast.success(checked ? 'Auto-activación de Live activada' : 'Configuración guardada')
-						}}
-					/>
-				</SettingRow>
-			)}
+			<SettingRow
+				{...rowState('auto-live-thread')}
+				icon={<Zap className="h-4 w-4" />}
+				label="Activar Live automáticamente"
+				description="El modo Live de MV Premium se activa al entrar en un hilo normal. Desactiva la auto-activación de scroll infinito."
+				className="ml-6 border-l-2 border-primary/30 pl-4"
+			>
+				<Switch
+					checked={autoLiveThreadEnabled}
+					onCheckedChange={checked => {
+						updateSettings({
+							autoLiveThreadEnabled: checked,
+							...(checked ? { liveThreadEnabled: true, autoInfiniteScrollEnabled: false } : {}),
+						})
+						reloadMediavidaTabs()
+						toast.success(checked ? 'Modo Live y auto-activación activados' : 'Configuración guardada')
+					}}
+				/>
+			</SettingRow>
 
 			{showSeparatorBefore('gallery-button') && <Separator />}
 

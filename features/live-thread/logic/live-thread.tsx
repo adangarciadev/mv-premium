@@ -15,7 +15,7 @@ import { getStatusActionsRow } from '@/lib/content-modules/utils/extra-actions-r
 import { isThreadPage, isNativeLiveThreadPage, getThreadIdFromUrl } from '@/lib/content-modules/utils/page-detection'
 import { logger } from '@/lib/logger'
 import { applyStoredTheme } from '@/lib/theme-sync'
-import { MV_SELECTORS, FEATURE_IDS } from '@/constants'
+import { MV_SELECTORS, FEATURE_IDS, TOAST_IDS } from '@/constants'
 import { DOM_MARKERS } from '@/constants/dom-markers'
 
 // Import modularized logic
@@ -46,10 +46,12 @@ import {
 	resetPollingState,
 } from './live-thread-polling'
 import { setupFormInterceptor, cleanupFormInterceptor } from './live-thread-editor'
+import { markManualLiveExit, checkManualLiveExit } from './live-thread-manual-exit'
 import { LiveDelayControl } from '../components/live-delay-control'
 
 // Import CSS for live thread (injected globally)
 import '../styles/live-thread.css'
+import { toast } from '@/lib/lazy-toast'
 
 // =============================================================================
 // CONSTANTS
@@ -57,6 +59,7 @@ import '../styles/live-thread.css'
 
 const BUTTON_FEATURE_ID = FEATURE_IDS.LIVE_THREAD_BUTTON
 const HEADER_FEATURE_ID = FEATURE_IDS.LIVE_THREAD_HEADER
+const AUTO_LIVE_SUPPRESSED_MESSAGE = 'Live desactivado para este hilo. Se reactivará automáticamente en el próximo hilo que visites.'
 
 // =============================================================================
 // STATE (Mutual Exclusion)
@@ -340,6 +343,12 @@ async function stopLiveMode(): Promise<void> {
 	showNativeElements()
 	restoreMobileLiteBottomNavLiveState()
 	resetPollingState()
+
+	if (isAutoLiveThreadEnabled) {
+		const threadId = getThreadIdFromUrl()
+		if (threadId) markManualLiveExit(threadId)
+	}
+
 	window.location.reload()
 }
 
@@ -416,8 +425,18 @@ export async function injectLiveThreadButton(): Promise<void> {
 	mountFeatureWithBoundary(BUTTON_FEATURE_ID, container, getButtonElement(), 'Botón Live Thread')
 
 	if (isAutoLiveThreadEnabled && !isNativeLiveThreadPage() && !isInfiniteScrollActive) {
-		logger.debug('LiveThread: auto-activating (autoLiveThreadEnabled=true)')
-		void startLiveMode()
+		const threadId = getThreadIdFromUrl() || ''
+		const { shouldSuppress, shouldNotify } = threadId
+			? checkManualLiveExit(threadId)
+			: { shouldSuppress: false, shouldNotify: false }
+
+		if (shouldSuppress) {
+			logger.debug('LiveThread: auto-activation suppressed after manual exit')
+			if (shouldNotify) toast.info(AUTO_LIVE_SUPPRESSED_MESSAGE, { id: TOAST_IDS.LIVE_AUTO_SUPPRESSED })
+		} else {
+			logger.debug('LiveThread: auto-activating (autoLiveThreadEnabled=true)')
+			void startLiveMode()
+		}
 	}
 }
 

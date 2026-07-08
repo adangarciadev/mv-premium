@@ -36,6 +36,7 @@ export const STORAGE_KEYS = {
 	USER_CUSTOMIZATIONS: 'mvp-user-customizations',
 	FAVORITE_SUBFORUMS: 'mvp-favorite-subforums',
 	LIVE_THREADS: 'mvp-live-threads',
+	LIVE_MANUAL_EXIT_THREAD_ID: 'mvp-live-manual-exit-thread-id',
 	ACTIVITY: 'mvp-activity',
 	TIME_STATS: 'mvp-time-stats',
 	RHYTHM_STATS: 'mvp-rhythm-stats',
