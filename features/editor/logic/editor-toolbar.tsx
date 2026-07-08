@@ -185,10 +185,12 @@ export function injectPasteHandler(): void {
 
 /**
  * Toggles the auto-tags setting. Used by keyboard shortcuts.
+ * @returns The new enabled state.
  */
-export async function toggleAutoTags(): Promise<void> {
-	const current = useSettingsStore.getState().autoTagsEnabled
-	useSettingsStore.getState().setAutoTagsEnabled(!current)
+export async function toggleAutoTags(): Promise<boolean> {
+	const next = !useSettingsStore.getState().autoTagsEnabled
+	useSettingsStore.getState().setAutoTagsEnabled(next)
+	return next
 }
 
 /**
