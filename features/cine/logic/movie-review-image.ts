@@ -337,7 +337,7 @@ export async function createMovieReviewImage(data: MovieReviewCardData): Promise
 	if (quote) {
 		ctx.font = `italic 700 18px ${UI_FONT}`
 		ctx.fillStyle = '#f1f0ed'
-		drawWrappedText(ctx, `“${quote}”`, 46, badge ? 258 : 232, 570, 25, 2)
+		drawWrappedText(ctx, `“${quote}”`, 46, badge ? 258 : 232, 570, 25, 3)
 	}
 
 	const authorY = 399
