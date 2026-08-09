@@ -8,3 +8,4 @@
 // Components for editor integration
 export { MovieTemplateButton } from './components/movie-template-button'
 export { MovieTemplateDialog } from './components/movie-template-dialog'
+export { MovieReviewDialog } from './components/movie-review-dialog'

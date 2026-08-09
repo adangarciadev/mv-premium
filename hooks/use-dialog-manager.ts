@@ -16,6 +16,7 @@ export type DialogType =
 	| 'poll'
 	| 'table'
 	| 'movie'
+	| 'movieReview'
 	| 'game'
 	| 'index'
 	| 'template'

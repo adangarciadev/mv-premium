@@ -522,6 +522,7 @@ export interface MovieTemplateData {
 	runtime: number
 	overview: string
 	posterUrl: string | null
+	backdropUrl: string | null
 	trailerUrl: string | null
 	releaseDate: string | null
 	voteAverage: number
@@ -570,6 +571,7 @@ export async function getMovieTemplateData(movieId: number): Promise<MovieTempla
 		runtime: details.runtime,
 		overview: details.overview,
 		posterUrl: getPosterUrl(details.poster_path, 'w500'),
+		backdropUrl: getBackdropUrl(details.backdrop_path, 'w1280'),
 		trailerUrl: trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null,
 		releaseDate: formatDateLong(spainReleaseDate || details.release_date),
 		voteAverage: details.vote_average,

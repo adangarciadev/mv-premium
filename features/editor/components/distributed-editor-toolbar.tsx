@@ -53,6 +53,7 @@ import type { MediaTemplateInsertMeta } from '@/components/media-search-dialog'
 
 // Dialog components
 import { MovieTemplateDialog } from '@/features/cine/components/movie-template-dialog'
+import { MovieReviewDialog } from '@/features/cine/components/movie-review-dialog'
 import { GameTemplateDialog } from '@/features/games/components/game-template-dialog'
 import { TableEditorDialog } from '@/features/table-editor/components/table-editor-dialog'
 import { LivePreviewPanel } from './live-preview-panel'
@@ -74,6 +75,7 @@ interface DistributedEditorToolbarProps {
 export function DistributedEditorToolbar({ textarea, toolbarContainer }: DistributedEditorToolbarProps) {
 	// Dialog states
 	const [showMovieDialog, setShowMovieDialog] = useState(false)
+	const [showMovieReviewDialog, setShowMovieReviewDialog] = useState(false)
 	const [showGameDialog, setShowGameDialog] = useState(false)
 	const [showTableDialog, setShowTableDialog] = useState(false)
 	const [showPollDialog, setShowPollDialog] = useState(false)
@@ -607,8 +609,11 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 					isOpen={showMovieDialog}
 					onClose={() => setShowMovieDialog(false)}
 					onInsert={handleInsertMediaTemplate}
+					onCreateReview={() => setShowMovieReviewDialog(true)}
 				/>
 			)}
+
+			{showMovieReviewDialog && <MovieReviewDialog isOpen={showMovieReviewDialog} onClose={() => setShowMovieReviewDialog(false)} onInsert={insertText} />}
 
 			{showGameDialog && (
 				<GameTemplateDialog
