@@ -22,7 +22,7 @@ describe('movie review domain', () => {
 
 	it('normalizes ratings to half-star increments', () => expect(normalizeMovieRating(8.74)).toBe(8.5))
 	it('allows half a star as the minimum rating', () => expect(normalizeMovieRating(0.1)).toBe(0.5))
-	it('limits the editorial quote', () => expect(normalizeMovieReviewQuote('x'.repeat(140))).toHaveLength(120))
+	it('limits the editorial quote', () => expect(normalizeMovieReviewQuote('x'.repeat(180))).toHaveLength(160))
 	it('does not leave empty metadata separators', () =>
 		expect(buildMovieMetadata('Desconocido', '2024', [])).toBe('2024'))
 	it('shows at most two genres', () =>

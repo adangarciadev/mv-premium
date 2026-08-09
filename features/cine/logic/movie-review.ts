@@ -33,7 +33,7 @@ export const MOVIE_RATING_TIERS: readonly MovieRatingTierConfig[] = [
 	},
 ] as const
 
-export const MOVIE_REVIEW_QUOTE_MAX_LENGTH = 120
+export const MOVIE_REVIEW_QUOTE_MAX_LENGTH = 160
 
 export type MovieReviewBadge =
 	| 'masterpiece'
