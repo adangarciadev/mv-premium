@@ -39,7 +39,7 @@ import { SettingRow } from '../../components/settings'
 import { sendMessage } from '@/lib/messaging'
 import { ALL_SUBFORUMS, VALID_SUBFORUM_SLUGS } from '@/lib/subforums'
 import { useSettingsStore } from '@/store/settings-store'
-import type { ItadCountry } from '@/store/settings-types'
+import type { ItadCountry, RelatedThreadsDisplay } from '@/store/settings-types'
 import { isHighlightedSetting, shouldShowAnySetting, shouldShowSetting, type SettingsContentFilter } from './constants'
 
 const ITAD_COUNTRY_OPTIONS: Array<{ value: ItadCountry; label: string }> = [
@@ -61,6 +61,7 @@ const CONTENT_SETTING_IDS = [
 	'classic-thread-actions',
 	'pinned-posts',
 	'thread-preview',
+	'related-threads-display',
 	'thread-summarizer',
 	'post-summary',
 	'save-thread',
@@ -92,6 +93,7 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		classicThreadActionsEnabled,
 		pinnedPostsEnabled,
 		threadPreviewEnabled,
+		relatedThreadsDisplay,
 		threadSummarizerEnabled,
 		postSummaryEnabled,
 		saveThreadEnabled,
@@ -180,6 +182,15 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		toast.success('Región de precios actualizada', {
 			description: 'La moneda final depende de los datos que devuelva IsThereAnyDeal.',
 		})
+	}
+
+	const handleRelatedThreadsDisplayChange = async (value: string) => {
+		setSetting('relatedThreadsDisplay', value as RelatedThreadsDisplay)
+		toast.success('Visualización de hilos relacionados actualizada', {
+			description: 'Recargando pestañas de Mediavida...',
+		})
+		await new Promise(resolve => setTimeout(resolve, 300))
+		await reloadMediavidaTabs()
 	}
 
 	const rowState = (settingId: string) => ({
@@ -497,6 +508,27 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				description="Añade un botón en el Spy y en los listados de subforos para leer el OP sin salir de la página."
 			>
 				<Switch checked={threadPreviewEnabled} onCheckedChange={withToastAndReload('threadPreviewEnabled', true)} />
+			</SettingRow>
+
+			<SettingRow
+				{...rowState('related-threads-display')}
+				icon={<List className="h-4 w-4" />}
+				label="Hilos relacionados"
+				description="Elige si la sección del final de los hilos se oculta, aparece plegada o conserva la vista original de Mediavida."
+			>
+				<Select value={relatedThreadsDisplay} onValueChange={handleRelatedThreadsDisplayChange}>
+					<SelectTrigger
+						className="w-[220px] max-w-full"
+						aria-label="Visualización de hilos relacionados"
+					>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="hidden">Ocultos</SelectItem>
+						<SelectItem value="collapsible">Desplegable</SelectItem>
+						<SelectItem value="original">Vista original de Mediavida</SelectItem>
+					</SelectContent>
+				</Select>
 			</SettingRow>
 
 			<SettingRow

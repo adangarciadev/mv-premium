@@ -5,6 +5,7 @@
 
 import X from 'lucide-react/dist/esm/icons/x'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { cn } from '@/lib/utils'
 
 const DIALOG_WIDTH = 540
 
@@ -15,10 +16,11 @@ interface MediaDialogShellProps {
 	title: string
 	height?: number | 'auto'
 	footer?: React.ReactNode
+	contentClassName?: string
 	children: React.ReactNode
 }
 
-export function MediaDialogShell({ isOpen, onClose, icon, title, height = 580, footer, children }: MediaDialogShellProps) {
+export function MediaDialogShell({ isOpen, onClose, icon, title, height = 580, footer, contentClassName, children }: MediaDialogShellProps) {
 	return (
 		<Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
 			<DialogContent
@@ -50,7 +52,8 @@ export function MediaDialogShell({ isOpen, onClose, icon, title, height = 580, f
 				</DialogHeader>
 
 				<div
-					className="flex-1 overflow-y-auto overflow-x-hidden p-5 min-h-0 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent"
+					className={cn('flex-1 overflow-y-auto overflow-x-hidden p-5 min-h-0 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent', contentClassName)}
+					style={{ scrollbarGutter: 'stable' }}
 					onWheel={e => e.stopPropagation()}
 				>
 					{children}

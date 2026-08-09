@@ -44,6 +44,7 @@ export type UltrawideMode = z.infer<typeof ultrawideSchema>
 export const centeredControlsPositionSchema = z.enum(['top', 'side'])
 export const gameReleaseCalendarLayoutSchema = z.enum(['showcase', 'minimal', 'bottom'])
 export const itadCountrySchema = z.enum(['ES', 'GB', 'US'])
+export const relatedThreadsDisplaySchema = z.enum(['hidden', 'collapsible', 'original'])
 
 // =============================================================================
 // SETTINGS SCHEMA
@@ -99,6 +100,7 @@ export const settingsSchema = z.object({
 	contentRulesEnabled: z.boolean().default(true),
 	classicThreadActionsEnabled: z.boolean().default(false),
 	hideIgnoredUserThreadsEnabled: z.boolean().default(true),
+	relatedThreadsDisplay: relatedThreadsDisplaySchema.default('hidden'),
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: z.boolean().default(false),

@@ -6,7 +6,7 @@
  * Uses shared MediaSearchDialog components for consistent UI.
  */
 
-import { useReducer, useEffect, useRef } from 'react'
+import { useReducer, useEffect, useRef, useState } from 'react'
 import Search from 'lucide-react/dist/esm/icons/search'
 import Film from 'lucide-react/dist/esm/icons/film'
 import Tv from 'lucide-react/dist/esm/icons/tv'
@@ -15,6 +15,7 @@ import BookOpen from 'lucide-react/dist/esm/icons/book-open'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import Clapperboard from 'lucide-react/dist/esm/icons/clapperboard'
 import Layers from 'lucide-react/dist/esm/icons/layers'
+import Star from 'lucide-react/dist/esm/icons/star'
 import { browser } from 'wxt/browser'
 import {
 	buildMovieThreadTitle,
@@ -51,7 +52,6 @@ import { cn } from '@/lib/utils'
 import {
 	MediaDialogShell,
 	MediaSearchInput,
-	MediaEmptyState,
 	MediaSearchError,
 	MediaPreviewStep,
 	MediaDialogActions,
@@ -62,6 +62,7 @@ interface MovieTemplateDialogProps {
 	isOpen: boolean
 	onClose: () => void
 	onInsert: (template: string, meta?: MediaTemplateInsertMeta) => void
+	onCreateReview?: () => void
 }
 
 type MediaType = 'movie' | 'tv' | 'anime' | 'manga'
@@ -149,6 +150,22 @@ function getAniListImage(item: AniListMedia): string | null {
 	return item.coverImage.large || item.coverImage.extraLarge || null
 }
 
+function SearchResultSkeletons() {
+	return (
+		<div className="space-y-1 p-1" aria-label="Buscando resultados">
+			{Array.from({ length: 4 }, (_, index) => (
+				<div key={index} className="grid h-[72px] grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-3 rounded-md px-2 py-2">
+					<div className="h-14 w-10 animate-pulse rounded-md bg-muted/70" />
+					<div className="min-w-0 space-y-2">
+						<div className="h-3.5 w-2/3 animate-pulse rounded bg-muted/70" />
+						<div className="h-3 w-1/3 animate-pulse rounded bg-muted/45" />
+					</div>
+				</div>
+			))}
+		</div>
+	)
+}
+
 function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 	switch (action.type) {
 		case 'SELECT_ITEM':
@@ -182,7 +199,7 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 				selectedSeason: null,
 			}
 		case 'SET_SEARCH_QUERY':
-			return { ...state, searchQuery: action.query }
+			return { ...state, searchQuery: action.query, error: null }
 		case 'SET_ERROR':
 			return { ...state, error: action.error }
 		case 'SET_TEMPLATE':
@@ -208,7 +225,7 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 // Component
 // =============================================================================
 
-export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplateDialogProps) {
+export function MovieTemplateDialog({ isOpen, onClose, onInsert, onCreateReview }: MovieTemplateDialogProps) {
 	const [state, dispatch] = useReducer(dialogReducer, initialState)
 	const {
 		step, mediaType, searchQuery, selectedId, selectedItem,
@@ -223,36 +240,86 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 	const normalizedSearchQuery = searchQuery.trim()
 	const normalizedDebouncedQuery = debouncedQuery.trim()
 	const isSearchReady = normalizedSearchQuery.length >= 2 && normalizedDebouncedQuery === normalizedSearchQuery
+	const [retainedMovieResults, setRetainedMovieResults] = useState<TMDBMovie[]>([])
+	const [retainedTVResults, setRetainedTVResults] = useState<TMDBTVShow[]>([])
+	const [retainedAnimeResults, setRetainedAnimeResults] = useState<AniListMedia[]>([])
+	const [retainedMangaResults, setRetainedMangaResults] = useState<AniListMedia[]>([])
+	const [retainedMovieKey, setRetainedMovieKey] = useState<string | null>(null)
+	const [retainedTVKey, setRetainedTVKey] = useState<string | null>(null)
+	const [retainedAnimeKey, setRetainedAnimeKey] = useState<string | null>(null)
+	const [retainedMangaKey, setRetainedMangaKey] = useState<string | null>(null)
 
 	// Movie search hook
 	const {
 		data: movieSearchData,
 		isLoading: isSearchingMovies,
 		error: movieSearchError,
+		resolvedKey: resolvedMovieSearchKey,
 	} = useMovieSearch(debouncedQuery, isOpen && mediaType === 'movie' && isSearchReady)
-	const movieResults = isSearchReady ? movieSearchData?.results?.slice(0, 8) ?? [] : []
+	const movieResults = retainedMovieResults
 
 	// TV search hook
 	const {
 		data: tvSearchData,
 		isLoading: isSearchingTV,
 		error: tvSearchError,
+		resolvedKey: resolvedTVSearchKey,
 	} = useTVShowSearch(debouncedQuery, isOpen && mediaType === 'tv' && isSearchReady)
-	const tvResults = isSearchReady ? tvSearchData?.results?.slice(0, 8) ?? [] : []
+	const tvResults = retainedTVResults
 
 	const {
 		data: animeSearchData,
 		isLoading: isSearchingAnime,
 		error: animeSearchError,
+		resolvedKey: resolvedAnimeSearchKey,
 	} = useAnimeSearch(debouncedQuery, isOpen && mediaType === 'anime' && isSearchReady)
-	const animeResults = isSearchReady ? animeSearchData?.slice(0, 20) ?? [] : []
+	const animeResults = retainedAnimeResults
 
 	const {
 		data: mangaSearchData,
 		isLoading: isSearchingManga,
 		error: mangaSearchError,
+		resolvedKey: resolvedMangaSearchKey,
 	} = useMangaSearch(debouncedQuery, isOpen && mediaType === 'manga' && isSearchReady)
-	const mangaResults = isSearchReady ? mangaSearchData?.slice(0, 20) ?? [] : []
+	const mangaResults = retainedMangaResults
+
+	useEffect(() => {
+		if (normalizedSearchQuery.length === 0) {
+			setRetainedMovieResults([])
+			setRetainedTVResults([])
+			setRetainedAnimeResults([])
+			setRetainedMangaResults([])
+			setRetainedMovieKey(null)
+			setRetainedTVKey(null)
+			setRetainedAnimeKey(null)
+			setRetainedMangaKey(null)
+		}
+	}, [normalizedSearchQuery])
+
+	useEffect(() => {
+		if (resolvedMovieSearchKey === `tmdb:search:${debouncedQuery}` && movieSearchData) {
+			setRetainedMovieResults(movieSearchData.results.slice(0, 8))
+			setRetainedMovieKey(resolvedMovieSearchKey)
+		}
+	}, [debouncedQuery, movieSearchData, resolvedMovieSearchKey])
+	useEffect(() => {
+		if (resolvedTVSearchKey === `tmdb:search-tv:${debouncedQuery}` && tvSearchData) {
+			setRetainedTVResults(tvSearchData.results.slice(0, 8))
+			setRetainedTVKey(resolvedTVSearchKey)
+		}
+	}, [debouncedQuery, resolvedTVSearchKey, tvSearchData])
+	useEffect(() => {
+		if (resolvedAnimeSearchKey === `anilist:anime-search:${debouncedQuery}` && animeSearchData) {
+			setRetainedAnimeResults(animeSearchData.slice(0, 20))
+			setRetainedAnimeKey(resolvedAnimeSearchKey)
+		}
+	}, [animeSearchData, debouncedQuery, resolvedAnimeSearchKey])
+	useEffect(() => {
+		if (resolvedMangaSearchKey === `anilist:manga-search:${debouncedQuery}` && mangaSearchData) {
+			setRetainedMangaResults(mangaSearchData.slice(0, 20))
+			setRetainedMangaKey(resolvedMangaSearchKey)
+		}
+	}, [debouncedQuery, mangaSearchData, resolvedMangaSearchKey])
 
 	// Template data hooks
 	const { data: fetchedMovieData, isLoading: isLoadingMovieDetails } = useMovieTemplateData(
@@ -305,6 +372,30 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 			: mediaType === 'anime'
 			? animeResults
 			: mangaResults
+	const retainedSearchKey =
+		mediaType === 'movie'
+			? retainedMovieKey
+			: mediaType === 'tv'
+			? retainedTVKey
+			: mediaType === 'anime'
+			? retainedAnimeKey
+			: retainedMangaKey
+	const expectedSearchKey =
+		mediaType === 'movie'
+			? `tmdb:search:${debouncedQuery}`
+			: mediaType === 'tv'
+			? `tmdb:search-tv:${debouncedQuery}`
+			: mediaType === 'anime'
+			? `anilist:anime-search:${debouncedQuery}`
+			: `anilist:manga-search:${debouncedQuery}`
+	const hasRetainedResults = searchResults.length > 0
+	const isCurrentQueryResolved = isSearchReady && retainedSearchKey === expectedSearchKey
+	const isUpdatingSearch =
+		normalizedSearchQuery.length >= 2 && hasRetainedResults && (!isCurrentQueryResolved || isSearching)
+	const isFirstSearchLoading =
+		normalizedSearchQuery.length >= 2 && !hasRetainedResults && (!isCurrentQueryResolved || isSearching)
+	const isSettledEmpty =
+		normalizedSearchQuery.length >= 2 && isCurrentQueryResolved && !isSearching && !hasRetainedResults && !error
 	const isLoadingDetails =
 		mediaType === 'movie'
 			? isLoadingMovieDetails
@@ -483,10 +574,11 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 			icon={<Clapperboard className="w-4 h-4 text-primary" />}
 			title={getDialogTitle()}
 			footer={getFooter()}
+			contentClassName={step === 'search' ? '!overflow-hidden' : undefined}
 		>
 			{/* Search Step */}
 			{step === 'search' && (
-				<div className="flex min-h-full flex-col">
+				<div className="flex h-full min-h-0 flex-col">
 					{/* Media Type Toggle */}
 					<div className="grid grid-cols-4 p-1 bg-muted/40 rounded-lg mb-4 gap-1 border border-border">
 						{([
@@ -519,6 +611,21 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 						))}
 					</div>
 
+					<div className="mb-2 flex h-7 shrink-0 items-center justify-between">
+						<span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+							Buscar {MEDIA_TYPE_LABELS[mediaType]}
+						</span>
+						{onCreateReview && mediaType === 'movie' && (
+							<button
+								type="button"
+								onClick={() => { handleClose(); window.setTimeout(onCreateReview, 0) }}
+								className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
+							>
+								<Star className="h-3.5 w-3.5" /> Crear crítica visual
+							</button>
+						)}
+					</div>
+
 					<MediaSearchInput
 						ref={searchInputRef}
 						value={searchQuery}
@@ -527,12 +634,28 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 						isSearching={isSearching}
 					/>
 
-					{error && <MediaSearchError error={error} />}
+					<div
+						className="relative mb-3 min-h-0 flex-1 overflow-hidden rounded-lg bg-muted/[0.08]"
+						style={{ scrollbarGutter: 'stable' }}
+					>
+						{isUpdatingSearch && !error && (
+							<div className="pointer-events-none absolute right-3 top-2 z-10 inline-flex items-center gap-1.5 rounded-full bg-background/90 px-2 py-1 text-[10px] font-medium text-muted-foreground shadow-sm backdrop-blur-sm">
+								<Loader2 className="h-3 w-3 animate-spin text-primary" /> Actualizando...
+							</div>
+						)}
+
+						{error && (
+							<div className="flex h-full items-center justify-center px-6">
+								<MediaSearchError error={error} />
+							</div>
+						)}
+
+						{!error && isFirstSearchLoading && <SearchResultSkeletons />}
 
 					{/* Movie Results */}
-					{mediaType === 'movie' && movieResults.length > 0 && (
-						<div className="mb-4 rounded-lg bg-muted/15 p-1">
-							<ScrollArea className="h-[268px] pr-3">
+					{!error && normalizedSearchQuery.length >= 2 && !isFirstSearchLoading && mediaType === 'movie' && movieResults.length > 0 && (
+						<div className="h-full rounded-lg bg-muted/15 p-1">
+							<ScrollArea className="h-full pr-3">
 								<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
 									{movieResults.map(movie => {
 										const isRowLoading = isLoadingDetails && selectedItem != null && 'title' in selectedItem && selectedItem.id === movie.id
@@ -543,7 +666,7 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 											<button
 												key={movie.id}
 												onClick={() => dispatch({ type: 'SELECT_ITEM', item: movie, id: movie.id })}
-												disabled={isLoadingDetails}
+												disabled={isLoadingDetails || isUpdatingSearch}
 												className="group w-full overflow-hidden text-left px-2 py-2.5 rounded-md hover:bg-muted focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-muted transition-colors disabled:cursor-wait disabled:opacity-70"
 											>
 												<div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
@@ -590,9 +713,9 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 					)}
 
 					{/* TV Results */}
-					{mediaType === 'tv' && tvResults.length > 0 && (
-						<div className="mb-4 rounded-lg bg-muted/15 p-1">
-							<ScrollArea className="h-[268px] pr-3">
+					{!error && normalizedSearchQuery.length >= 2 && !isFirstSearchLoading && mediaType === 'tv' && tvResults.length > 0 && (
+						<div className="h-full rounded-lg bg-muted/15 p-1">
+							<ScrollArea className="h-full pr-3">
 								<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
 									{tvResults.map(show => {
 										const isRowLoading = isLoadingDetails && selectedItem != null && 'name' in selectedItem && selectedItem.id === show.id
@@ -603,7 +726,7 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 											<button
 												key={show.id}
 												onClick={() => dispatch({ type: 'SELECT_ITEM', item: show, id: show.id })}
-												disabled={isLoadingDetails}
+												disabled={isLoadingDetails || isUpdatingSearch}
 												className="group w-full overflow-hidden text-left px-2 py-2.5 rounded-md hover:bg-muted focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-muted transition-colors disabled:cursor-wait disabled:opacity-70"
 											>
 												<div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
@@ -650,9 +773,9 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 					)}
 
 					{/* AniList Results */}
-					{(mediaType === 'anime' || mediaType === 'manga') && searchResults.length > 0 && (
-						<div className="mb-4 rounded-lg bg-muted/15 p-1">
-							<ScrollArea className="h-[268px] pr-3">
+					{!error && normalizedSearchQuery.length >= 2 && !isFirstSearchLoading && (mediaType === 'anime' || mediaType === 'manga') && searchResults.length > 0 && (
+						<div className="h-full rounded-lg bg-muted/15 p-1">
+							<ScrollArea className="h-full pr-3">
 								<div className="py-1 pr-1 space-y-1 overflow-x-hidden">
 									{(searchResults as AniListMedia[]).map(item => {
 										const isRowLoading = isLoadingDetails && selectedItem?.id === item.id
@@ -664,7 +787,7 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 											<button
 												key={item.id}
 												onClick={() => dispatch({ type: 'SELECT_ITEM', item, id: item.id })}
-												disabled={isLoadingDetails}
+												disabled={isLoadingDetails || isUpdatingSearch}
 												className="group w-full overflow-hidden text-left px-2 py-2.5 rounded-md hover:bg-muted focus:outline-none focus-visible:outline-none focus-visible:ring-0 focus-visible:bg-muted transition-colors disabled:cursor-wait disabled:opacity-70"
 											>
 												<div className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3">
@@ -710,31 +833,29 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplate
 					)}
 
 					{/* Empty state */}
-					{isSearchReady && !isSearching && searchResults.length === 0 && !error && (
-						<MediaEmptyState
-							icon={mediaType === 'movie'
-								? <Film className="w-6 h-6 text-muted-foreground" />
-								: mediaType === 'tv'
-								? <Tv className="w-6 h-6 text-muted-foreground" />
-								: mediaType === 'anime'
-								? <Origami className="w-6 h-6 text-muted-foreground" />
-								: <BookOpen className="w-6 h-6 text-muted-foreground" />
-							}
-							text={`No se encontró ${MEDIA_TYPE_LABELS[mediaType]}`}
-							className="mb-4 min-h-[224px] flex-1"
-						/>
+					{!error && isSettledEmpty && (
+						<div className="flex h-full flex-col items-center justify-center px-6 text-center">
+							<div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted/45">
+								<Search className="h-5 w-5 text-muted-foreground" />
+							</div>
+							<p className="m-0 text-sm font-semibold text-foreground">Sin resultados</p>
+							<p className="mt-1 text-xs text-muted-foreground">Prueba con otro título.</p>
+						</div>
 					)}
 
 					{/* Initial state */}
-					{normalizedSearchQuery.length < 2 && searchResults.length === 0 && (
-						<MediaEmptyState
-							icon={<Search className="w-6 h-6 text-muted-foreground" />}
-							text={`Escribe para buscar ${MEDIA_TYPE_LABELS[mediaType]}`}
-							className="mb-4 min-h-[224px] flex-1"
-						/>
+					{!error && normalizedSearchQuery.length < 2 && (
+						<div className="flex h-full flex-col items-center justify-center px-6 text-center">
+							<div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted/45">
+								<Search className="h-5 w-5 text-muted-foreground" />
+							</div>
+							<p className="m-0 text-sm font-semibold text-foreground">Busca {MEDIA_TYPE_LABELS[mediaType]}</p>
+							<p className="mt-1 text-xs text-muted-foreground">Escribe un título para empezar.</p>
+						</div>
 					)}
+					</div>
 
-					<div className="mt-auto mb-0 border-t border-border/70 pt-4 flex flex-col items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity">
+					<div className="flex h-[50px] shrink-0 flex-col items-center gap-1 border-t border-border/70 pt-2 opacity-60 transition-opacity hover:opacity-100">
 						{mediaType === 'movie' || mediaType === 'tv' ? (
 							<>
 								<a href="https://www.themoviedb.org" target="_blank" rel="noopener noreferrer" className="block mb-1">

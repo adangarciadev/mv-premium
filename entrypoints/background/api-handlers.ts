@@ -866,6 +866,26 @@ export function setupTmdbRequestHandler(): void {
 			throw error // Re-throw so the caller can handle it
 		}
 	})
+
+	onMessage('fetchMovieReviewImage', async ({ data }) => {
+		const url = new URL(data.url)
+		const isTmdbImage = url.hostname === 'image.tmdb.org' && url.pathname.startsWith('/t/p/')
+		const isMediavidaImage = url.hostname === 'mediavida.com' || url.hostname.endsWith('.mediavida.com')
+		if (url.protocol !== 'https:' || (!isTmdbImage && !isMediavidaImage)) {
+			throw new Error('Invalid movie review image URL')
+		}
+
+		const response = await fetch(url)
+		if (!response.ok) throw new Error(`TMDB image request failed: ${response.status}`)
+		const contentType = response.headers.get('content-type') || 'image/jpeg'
+		if (!contentType.startsWith('image/')) throw new Error('TMDB response is not an image')
+		const bytes = new Uint8Array(await response.arrayBuffer())
+		let binary = ''
+		for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+			binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000))
+		}
+		return { dataUrl: `data:${contentType};base64,${btoa(binary)}` }
+	})
 }
 
 /**

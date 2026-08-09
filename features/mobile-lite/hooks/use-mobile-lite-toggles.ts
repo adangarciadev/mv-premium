@@ -7,6 +7,8 @@ import { syncMobileLiteQuoteSelection } from '../logic/quote-selection'
 import { syncMobileLitePostGestures } from '../logic/post-gestures'
 import { type SavingMobileLiteSetting } from '../components/panel-helpers'
 import { useAutoDismiss } from './use-auto-dismiss'
+import { applyRelatedThreadsDisplay } from '@/features/related-threads'
+import type { RelatedThreadsDisplay } from '@/store/settings-types'
 
 /**
  * Mobile Lite feature toggles (live thread, gallery button, quote-on-selection,
@@ -19,6 +21,7 @@ export function useMobileLiteToggles(open: boolean) {
 	const [quoteSelectionEnabled, setQuoteSelectionEnabled] = useState(true)
 	const [hideThreadButtonEnabled, setHideThreadButtonEnabled] = useState(true)
 	const [postGesturesEnabled, setPostGesturesEnabled] = useState(true)
+	const [relatedThreadsDisplay, setRelatedThreadsDisplay] = useState<RelatedThreadsDisplay>('hidden')
 	const [savingMobileLiteSetting, setSavingMobileLiteSetting] = useState<SavingMobileLiteSetting>(null)
 	const [statusMessage, setStatusMessage] = useState<string | null>(null)
 	const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -37,6 +40,7 @@ export function useMobileLiteToggles(open: boolean) {
 				setQuoteSelectionEnabled(settings.quoteSelectionEnabled !== false)
 				setHideThreadButtonEnabled(settings.hideThreadEnabled !== false)
 				setPostGesturesEnabled(settings.mobileLitePostGesturesEnabled !== false)
+				setRelatedThreadsDisplay(settings.relatedThreadsDisplay ?? 'hidden')
 				setStatusMessage(null)
 				setErrorMessage(null)
 			})
@@ -55,7 +59,7 @@ export function useMobileLiteToggles(open: boolean) {
 		setErrorMessage(null)
 		setStatusMessage(null)
 		try {
-			useSettingsStore.getState().setSetting('liveThreadEnabled', nextEnabled)
+			useSettingsStore.getState().setLiveThreadEnabled(nextEnabled)
 			setLiveThreadEnabled(nextEnabled)
 			await syncMobileLiteLiveThreadButton(nextEnabled)
 			setStatusMessage(nextEnabled ? 'Modo Live activado.' : 'Modo Live desactivado.')
@@ -139,12 +143,34 @@ export function useMobileLiteToggles(open: boolean) {
 		}
 	}
 
+	const selectRelatedThreadsDisplay = (mode: RelatedThreadsDisplay) => {
+		if (mode === relatedThreadsDisplay) return
+
+		const previousMode = relatedThreadsDisplay
+		setSavingMobileLiteSetting('relatedThreadsDisplay')
+		setErrorMessage(null)
+		setStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('relatedThreadsDisplay', mode)
+			setRelatedThreadsDisplay(mode)
+			applyRelatedThreadsDisplay(mode)
+			const label = mode === 'hidden' ? 'ocultos' : mode === 'collapsible' ? 'en desplegable' : 'en modo original'
+			setStatusMessage(`Hilos relacionados ${label}.`)
+		} catch {
+			setRelatedThreadsDisplay(previousMode)
+			setErrorMessage('No se pudo cambiar la visualización de los hilos relacionados.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
+
 	return {
 		liveThreadEnabled,
 		galleryButtonEnabled,
 		quoteSelectionEnabled,
 		hideThreadButtonEnabled,
 		postGesturesEnabled,
+		relatedThreadsDisplay,
 		savingMobileLiteSetting,
 		statusMessage,
 		errorMessage,
@@ -153,5 +179,6 @@ export function useMobileLiteToggles(open: boolean) {
 		toggleQuoteSelection,
 		toggleHideThread,
 		togglePostGestures,
+		selectRelatedThreadsDisplay,
 	}
 }

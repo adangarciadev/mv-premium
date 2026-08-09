@@ -90,6 +90,10 @@ export const MV_SELECTORS = {
 	// THREAD PAGE (Hilos)
 	// ============================================================================
 	THREAD: {
+		/** Related threads block shown at the end of the last page */
+		RELATED_THREADS: '.hilos-relacionados',
+		RELATED_THREADS_HEADING: '.rel-head',
+		RELATED_THREADS_CONTENT: '.wpx',
 		/** Container for all posts */
 		POSTS_CONTAINER: '#posts-wrap',
 		/** Container ID (for getElementById) */

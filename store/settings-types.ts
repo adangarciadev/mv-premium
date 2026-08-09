@@ -37,6 +37,9 @@ export type GameReleaseCalendarLayout = 'showcase' | 'minimal' | 'bottom'
 /** Country used by IsThereAnyDeal to localize shops and currency */
 export type ItadCountry = 'ES' | 'GB' | 'US'
 
+/** Presentation mode for Mediavida's related-thread block */
+export type RelatedThreadsDisplay = 'hidden' | 'collapsible' | 'original'
+
 /** Work mode sub-options */
 export interface WorkModeOptions {
 	hideAvatars: boolean
@@ -117,6 +120,7 @@ export interface Settings {
 	saveThreadEnabled: boolean
 	hideThreadEnabled: boolean
 	hideIgnoredUserThreadsEnabled: boolean
+	relatedThreadsDisplay: RelatedThreadsDisplay
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: boolean

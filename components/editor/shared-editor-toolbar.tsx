@@ -382,19 +382,9 @@ export function SharedEditorToolbar({
 					{cinemaButtonEnabled && (
 						<Tooltip>
 							<TooltipTrigger asChild className="hidden md:flex">
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-sm"
-									className="text-muted-foreground hover:text-foreground"
-									onClick={() => onDialog?.('movie-template')}
-								>
-									<Clapperboard className="h-4 w-4" />
-								</Button>
+								<Button type="button" variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-foreground" onClick={() => onDialog?.('movie-template')}><Clapperboard className="h-4 w-4" /></Button>
 							</TooltipTrigger>
-							<TooltipContent side="bottom" className="text-xs">
-								Plantillas multimedia (TMDB/AniList)
-							</TooltipContent>
+							<TooltipContent side="bottom" className="text-xs">Plantillas multimedia (TMDB/AniList)</TooltipContent>
 						</Tooltip>
 					)}
 

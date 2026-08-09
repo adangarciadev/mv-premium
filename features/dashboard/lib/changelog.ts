@@ -22,6 +22,43 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.5.0',
+		date: '2026-08-09',
+		title: 'Críticas visuales de cine y más control al terminar los hilos',
+		summary:
+			'Mediavida Premium 3.5 estrena críticas visuales cinematográficas creadas con datos de TMDB, valoración por medias estrellas y una card lista para publicar. Los hilos relacionados ahora pueden ocultarse, plegarse o conservarse como en Mediavida tanto en escritorio como en Mobile Lite. También se corrige el consumo elevado de CPU que podía provocar Live automático al desactivar Live desde los ajustes.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Crear crítica visual: busca una película en TMDB, valórala de 0,5 a 10 con medias estrellas, añade una frase y un sello opcional, y genera una card cinematográfica personalizada lista para insertar en el post.',
+				category: 'Cine',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Hilos relacionados configurables: pueden permanecer ocultos —el nuevo valor predeterminado—, mostrarse en un desplegable o conservar el comportamiento original de Mediavida.',
+				category: 'Experiencia',
+				surface: 'shared',
+			},
+			{
+				type: 'improvement',
+				description:
+					'Los hilos relacionados se ocultan desde el inicio de la carga para evitar que aparezcan brevemente antes de aplicar la preferencia elegida.',
+				category: 'Experiencia',
+				surface: 'shared',
+			},
+			{
+				type: 'fix',
+				description:
+					'Live automático deja de reintentarse continuamente cuando el usuario desactiva Live desde los ajustes, evitando el bucle que podía disparar el uso de CPU.',
+				category: 'Live Thread',
+				surface: 'desktop',
+			},
+		],
+	},
+	{
 		version: '3.4.0',
 		date: '2026-07-08',
 		title: 'Más control sobre auto-tags y swipes, modal de enlaces añadido y fichas de Fragrantica',

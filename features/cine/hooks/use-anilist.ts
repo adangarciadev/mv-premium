@@ -27,6 +27,7 @@ function useFetch<T>(key: string, fetchFn: () => Promise<T>, enabled: boolean) {
 	const [data, setData] = useState<T | undefined>(undefined)
 	const [isLoading, setIsLoading] = useState(false)
 	const [error, setError] = useState<Error | null>(null)
+	const [resolvedKey, setResolvedKey] = useState<string | null>(null)
 	const isMounted = useRef(true)
 	const prevKeyRef = useRef<string | null>(null)
 
@@ -40,18 +41,21 @@ function useFetch<T>(key: string, fetchFn: () => Promise<T>, enabled: boolean) {
 	useEffect(() => {
 		if (!enabled) {
 			setData(undefined)
+			setResolvedKey(null)
 			setError(null)
 			return
 		}
 
 		if (prevKeyRef.current !== null && prevKeyRef.current !== key) {
 			setData(undefined)
+			setResolvedKey(null)
 		}
 		prevKeyRef.current = key
 
 		const cached = getCached<T>(key)
 		if (cached !== undefined) {
 			setData(cached)
+			setResolvedKey(key)
 			return
 		}
 
@@ -62,6 +66,7 @@ function useFetch<T>(key: string, fetchFn: () => Promise<T>, enabled: boolean) {
 				const result = await fetchFn()
 				if (isMounted.current) {
 					setData(result)
+					setResolvedKey(key)
 					setCache(key, result)
 				}
 			} catch (err) {
@@ -79,7 +84,7 @@ function useFetch<T>(key: string, fetchFn: () => Promise<T>, enabled: boolean) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- fetchFn is inline and would cause infinite loops
 	}, [key, enabled])
 
-	return { data, isLoading, error, isError: !!error }
+	return { data, isLoading, error, isError: !!error, resolvedKey }
 }
 
 export function useAnimeSearch(query: string, enabled = true) {

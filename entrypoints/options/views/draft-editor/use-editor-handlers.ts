@@ -213,6 +213,9 @@ export function useEditorHandlers({
 				case 'movie-template':
 					dialogs.open('movie')
 					return null
+				case 'movie-review':
+					dialogs.open('movieReview')
+					return null
 				case 'game-template':
 					dialogs.open('game')
 					return null

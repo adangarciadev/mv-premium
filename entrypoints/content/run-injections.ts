@@ -350,6 +350,9 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	// THREAD PAGES
 	// =========================================================================
 	if (pageContext?.isThread) {
+		const { initRelatedThreadsDisplay } = await import('@/features/related-threads')
+		initRelatedThreadsDisplay()
+
 		const twitterLiteEnabled = useSettingsStore.getState().twitterLiteEmbedsEnabled === true
 		if (twitterLiteEnabled) {
 			const { replaceTwitterEmbedsWithLite, startTwitterLiteEmbedGuard } = await import(

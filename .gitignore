@@ -24,6 +24,7 @@ LOCAL_GIT_WORKFLOW.md
 
 # Local agent design documents
 /docs/superpowers/
+.superpowers/
 
 # Editor directories and files
 .vscode/*

@@ -23,6 +23,8 @@ const mocks = vi.hoisted(() => ({
 	teardownLiveThread: vi.fn(),
 	initThreadCompanion: vi.fn(),
 	teardownThreadCompanion: vi.fn(),
+	initRelatedThreads: vi.fn(),
+	teardownRelatedThreads: vi.fn(),
 	initThreadSummary: vi.fn(),
 	teardownThreadSummary: vi.fn(),
 	initThreadPageHide: vi.fn(),
@@ -134,6 +136,11 @@ vi.mock('./thread-companion', () => ({
 	teardownMobileLiteThreadCompanion: mocks.teardownThreadCompanion,
 }))
 
+vi.mock('./related-threads', () => ({
+	initMobileLiteRelatedThreads: mocks.initRelatedThreads,
+	teardownMobileLiteRelatedThreads: mocks.teardownRelatedThreads,
+}))
+
 vi.mock('./thread-summary', () => ({
 	initMobileLiteThreadSummary: mocks.initThreadSummary,
 	teardownMobileLiteThreadSummary: mocks.teardownThreadSummary,
@@ -217,7 +224,7 @@ describe('Mobile Lite registry', () => {
 		window.history.replaceState({}, '', '/foro/deportes/pretemporada-2026-123456')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'thread-page-hide', 'thread-summary', 'post-summary', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'related-threads', 'thread-page-hide', 'thread-summary', 'post-summary', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
 	})
 
 	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
@@ -263,11 +270,13 @@ describe('Mobile Lite registry', () => {
 	it('initializes the thread companion and summaries only on thread pages', () => {
 		initMobileLite(context({ hasPosts: true }))
 		expect(mocks.initThreadCompanion).not.toHaveBeenCalled()
+		expect(mocks.initRelatedThreads).not.toHaveBeenCalled()
 		expect(mocks.initThreadSummary).not.toHaveBeenCalled()
 		expect(mocks.initPostSummary).not.toHaveBeenCalled()
 
 		initMobileLite(context({ isThreadPage: true }))
 		expect(mocks.initThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.initRelatedThreads).toHaveBeenCalledOnce()
 		expect(mocks.initThreadSummary).toHaveBeenCalledOnce()
 		expect(mocks.initPostSummary).toHaveBeenCalledOnce()
 	})
@@ -362,6 +371,7 @@ describe('Mobile Lite registry', () => {
 
 		expect(mocks.teardownGallery).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.teardownRelatedThreads).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadSummary).toHaveBeenCalledOnce()
 		expect(mocks.teardownPanel).toHaveBeenCalledOnce()
 		expect(mocks.loggerError).toHaveBeenCalledWith('Mobile Lite module "gallery" failed to tear down', error)
@@ -375,6 +385,7 @@ describe('Mobile Lite registry', () => {
 		expect(mocks.teardownLiveThread).toHaveBeenCalledOnce()
 		expect(mocks.teardownGallery).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadCompanion).toHaveBeenCalledOnce()
+		expect(mocks.teardownRelatedThreads).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadPageHide).toHaveBeenCalledOnce()
 		expect(mocks.teardownThreadSummary).toHaveBeenCalledOnce()
 		expect(mocks.teardownPostSummary).toHaveBeenCalledOnce()

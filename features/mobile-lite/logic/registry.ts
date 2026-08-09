@@ -21,6 +21,7 @@ import { initMobileLiteThreadCompanion, teardownMobileLiteThreadCompanion } from
 import { initMobileLiteThreadPageHide, teardownMobileLiteThreadPageHide } from './thread-page-hide'
 import { initMobileLiteThreadSummary, teardownMobileLiteThreadSummary } from './thread-summary'
 import { initMobileLitePostSummary, teardownMobileLitePostSummary } from './post-summary'
+import { initMobileLiteRelatedThreads, teardownMobileLiteRelatedThreads } from './related-threads'
 
 export interface MobileLiteContext {
 	hasEditor: boolean
@@ -75,6 +76,12 @@ const MOBILE_LITE_MODULES: MobileLiteModule[] = [
 		id: 'thread-companion',
 		init: initMobileLiteThreadCompanion,
 		teardown: teardownMobileLiteThreadCompanion,
+		shouldRun: context => context.isThreadPage,
+	},
+	{
+		id: 'related-threads',
+		init: initMobileLiteRelatedThreads,
+		teardown: teardownMobileLiteRelatedThreads,
 		shouldRun: context => context.isThreadPage,
 	},
 	{

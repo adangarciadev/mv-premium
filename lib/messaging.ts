@@ -278,6 +278,9 @@ interface ProtocolMap {
 	 */
 	tmdbRequest: (data: { endpoint: string; params?: Record<string, string> }) => unknown
 
+	/** Download an approved image for safe movie-review canvas rendering. */
+	fetchMovieReviewImage: (data: { url: string }) => { dataUrl: string }
+
 	/**
 	 * Get trending GIPHY results via background script
 	 * Keeps API key and external request in service worker
