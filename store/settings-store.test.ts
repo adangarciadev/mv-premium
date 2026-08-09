@@ -223,6 +223,16 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().autoLiveThreadEnabled).toBe(true)
 		})
 
+		it('disables auto Live atomically when Live is disabled', () => {
+			act(() => {
+				useSettingsStore.setState({ liveThreadEnabled: true, autoLiveThreadEnabled: true })
+				useSettingsStore.getState().setLiveThreadEnabled(false)
+			})
+
+			expect(useSettingsStore.getState().liveThreadEnabled).toBe(false)
+			expect(useSettingsStore.getState().autoLiveThreadEnabled).toBe(false)
+		})
+
 		it('setSetting supports ignored user thread filtering toggle', () => {
 			act(() => {
 				useSettingsStore.getState().setSetting('hideIgnoredUserThreadsEnabled', false)

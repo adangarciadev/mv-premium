@@ -201,7 +201,11 @@ export const useSettingsStore = create<SettingsState>()(
 			// Navigation
 			// Both can be enabled in settings - mutual exclusion happens at button level in threads
 			setInfiniteScrollEnabled: enabled => set({ infiniteScrollEnabled: enabled }),
-			setLiveThreadEnabled: enabled => set({ liveThreadEnabled: enabled }),
+			setLiveThreadEnabled: enabled =>
+				set({
+					liveThreadEnabled: enabled,
+					...(enabled ? {} : { autoLiveThreadEnabled: false }),
+				}),
 			setNativeLiveDelayEnabled: enabled => set({ nativeLiveDelayEnabled: enabled }),
 			setLiveThreadDelayEnabled: enabled => set({ liveThreadDelayEnabled: enabled }),
 

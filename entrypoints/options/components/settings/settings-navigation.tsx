@@ -146,9 +146,6 @@ export function SettingsNavigation({ settingFilter }: { settingFilter?: Settings
 					checked={liveThreadEnabled}
 					onCheckedChange={checked => {
 						setLiveThreadEnabled(checked)
-						if (!checked) {
-							setSetting('autoLiveThreadEnabled', false)
-						}
 						reloadMediavidaTabs()
 						toast.success(checked ? 'Modo Live activado' : 'Configuración guardada')
 					}}

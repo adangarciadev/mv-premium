@@ -38,6 +38,7 @@ const mocks = vi.hoisted(() => ({
 	saveMobileLiteImgbbApiKey: vi.fn((_apiKey: string) => Promise.resolve()),
 	getSettings: vi.fn(() => Promise.resolve({ liveThreadEnabled: false, hideThreadEnabled: true })),
 	setSetting: vi.fn(),
+	setLiveThreadEnabled: vi.fn(),
 	applyMobileLiteHiddenThreads: vi.fn(),
 	syncMobileLiteLiveThreadButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
 	syncMobileLiteGalleryButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
@@ -177,6 +178,7 @@ vi.mock('@/store/settings-store', () => ({
 	useSettingsStore: {
 		getState: () => ({
 			setSetting: mocks.setSetting,
+			setLiveThreadEnabled: mocks.setLiveThreadEnabled,
 		}),
 	},
 }))
@@ -1241,7 +1243,7 @@ describe('Mobile Lite panel injection', () => {
 		await user.click(await screen.findByRole('switch', { name: 'Modo Live' }))
 
 		await waitFor(() => {
-			expect(mocks.setSetting).toHaveBeenCalledWith('liveThreadEnabled', true)
+			expect(mocks.setLiveThreadEnabled).toHaveBeenCalledWith(true)
 		})
 		expect(mocks.syncMobileLiteLiveThreadButton).toHaveBeenCalledWith(true)
 		expect(await screen.findByText('Modo Live activado.')).toBeInTheDocument()

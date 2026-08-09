@@ -59,7 +59,7 @@ export function useMobileLiteToggles(open: boolean) {
 		setErrorMessage(null)
 		setStatusMessage(null)
 		try {
-			useSettingsStore.getState().setSetting('liveThreadEnabled', nextEnabled)
+			useSettingsStore.getState().setLiveThreadEnabled(nextEnabled)
 			setLiveThreadEnabled(nextEnabled)
 			await syncMobileLiteLiveThreadButton(nextEnabled)
 			setStatusMessage(nextEnabled ? 'Modo Live activado.' : 'Modo Live desactivado.')
