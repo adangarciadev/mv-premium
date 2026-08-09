@@ -86,6 +86,11 @@ describe('settings-store', () => {
 			expect(useSettingsStore.getState().hideIgnoredUserThreadsEnabled).toBe(true)
 		})
 
+		it('hides related threads by default', () => {
+			expect(useSettingsStore.getState().relatedThreadsDisplay).toBe('hidden')
+			expect(DEFAULT_SETTINGS.relatedThreadsDisplay).toBe('hidden')
+		})
+
 		it('has legacy activity heatmap tracking disabled by default', () => {
 			expect(useSettingsStore.getState().enableActivityTracking).toBe(false)
 			expect(DEFAULT_SETTINGS.enableActivityTracking).toBe(false)
@@ -223,6 +228,13 @@ describe('settings-store', () => {
 				useSettingsStore.getState().setSetting('hideIgnoredUserThreadsEnabled', false)
 			})
 			expect(useSettingsStore.getState().hideIgnoredUserThreadsEnabled).toBe(false)
+		})
+
+		it('setSetting supports related thread display modes', () => {
+			act(() => {
+				useSettingsStore.getState().setSetting('relatedThreadsDisplay', 'collapsible')
+			})
+			expect(useSettingsStore.getState().relatedThreadsDisplay).toBe('collapsible')
 		})
 
 		it('setSetting supports centered controls position', () => {

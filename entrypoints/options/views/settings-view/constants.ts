@@ -246,6 +246,17 @@ export const SETTINGS_SEARCH_INDEX: SettingSearchItem[] = [
 		isEnabled: settings => settings.threadPreviewEnabled,
 	},
 	{
+		id: 'related-threads-display',
+		category: 'features',
+		section: 'Hilos',
+		label: 'Hilos relacionados',
+		description: 'Elige si se ocultan, aparecen plegados o conservan la vista original de Mediavida.',
+		keywords: ['hilos', 'relacionados', 'ocultar', 'desplegable', 'plegar'],
+		settingKeys: ['relatedThreadsDisplay'],
+		requiresReload: true,
+		isEnabled: settings => settings.relatedThreadsDisplay !== 'hidden',
+	},
+	{
 		id: 'content-rules',
 		category: 'features',
 		section: 'Hilos',

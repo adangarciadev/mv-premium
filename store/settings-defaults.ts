@@ -77,6 +77,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	saveThreadEnabled: true,
 	hideThreadEnabled: true,
 	hideIgnoredUserThreadsEnabled: true,
+	relatedThreadsDisplay: 'hidden',
 	// Feature Toggles - Users
 	mutedWordsEnabled: false,
 	mutedWords: [],

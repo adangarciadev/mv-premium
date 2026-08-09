@@ -227,12 +227,14 @@ export function MobileLitePanel() {
 							quoteSelectionEnabled={toggles.quoteSelectionEnabled}
 							hideThreadButtonEnabled={toggles.hideThreadButtonEnabled}
 							postGesturesEnabled={toggles.postGesturesEnabled}
+							relatedThreadsDisplay={toggles.relatedThreadsDisplay}
 							savingMobileLiteSetting={toggles.savingMobileLiteSetting}
 							onToggleLiveThread={toggles.toggleLiveThread}
 							onToggleGallery={toggles.toggleGallery}
 							onToggleQuoteSelection={toggles.toggleQuoteSelection}
 							onToggleHideThread={toggles.toggleHideThread}
 							onTogglePostGestures={toggles.togglePostGestures}
+							onSelectRelatedThreadsDisplay={toggles.selectRelatedThreadsDisplay}
 							storageUsage={storageUsage}
 						/>
 					)}

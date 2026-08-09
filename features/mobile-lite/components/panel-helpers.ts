@@ -31,6 +31,7 @@ export type SavingMobileLiteSetting =
 	| 'quoteSelectionEnabled'
 	| 'hideThreadEnabled'
 	| 'mobileLitePostGesturesEnabled'
+	| 'relatedThreadsDisplay'
 	| null
 
 export interface UserFilterOption {

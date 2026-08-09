@@ -12,4 +12,19 @@ describe('settings schema', () => {
 		expect(DEFAULT_SETTINGS.enableActivityTracking).toBe(false)
 		expect(validateSettings({}).enableActivityTracking).toBe(false)
 	})
+
+	it('defaults related threads to hidden', () => {
+		expect(DEFAULT_SETTINGS.relatedThreadsDisplay).toBe('hidden')
+		expect(validateSettings({}).relatedThreadsDisplay).toBe('hidden')
+	})
+
+	it('accepts every related thread display mode', () => {
+		for (const mode of ['hidden', 'collapsible', 'original'] as const) {
+			expect(validateSettings({ relatedThreadsDisplay: mode }).relatedThreadsDisplay).toBe(mode)
+		}
+	})
+
+	it('rejects an invalid related thread display mode', () => {
+		expect(() => validateSettings({ relatedThreadsDisplay: 'expanded' })).toThrow()
+	})
 })

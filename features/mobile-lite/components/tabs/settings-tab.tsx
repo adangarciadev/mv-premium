@@ -10,7 +10,8 @@ import Radio from 'lucide-react/dist/esm/icons/radio'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import TextQuote from 'lucide-react/dist/esm/icons/text-quote'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
-import type { GeminiModel } from '@/store/settings-types'
+import ListCollapse from 'lucide-react/dist/esm/icons/list-collapse'
+import type { GeminiModel, RelatedThreadsDisplay } from '@/store/settings-types'
 import type { MobileLiteChangelogEntry } from '../../logic/whats-new'
 import type { StorageUsage } from '../../hooks/use-storage-usage'
 import { GoogleGIcon } from '../google-g-icon'
@@ -65,12 +66,14 @@ export function SettingsTab({
 	quoteSelectionEnabled,
 	hideThreadButtonEnabled,
 	postGesturesEnabled,
+	relatedThreadsDisplay,
 	savingMobileLiteSetting,
 	onToggleLiveThread,
 	onToggleGallery,
 	onToggleQuoteSelection,
 	onToggleHideThread,
 	onTogglePostGestures,
+	onSelectRelatedThreadsDisplay,
 	storageUsage,
 }: {
 	latestMobileLiteEntry: MobileLiteChangelogEntry | null
@@ -110,12 +113,14 @@ export function SettingsTab({
 	quoteSelectionEnabled: boolean
 	hideThreadButtonEnabled: boolean
 	postGesturesEnabled: boolean
+	relatedThreadsDisplay: RelatedThreadsDisplay
 	savingMobileLiteSetting: SavingMobileLiteSetting
 	onToggleLiveThread: () => void
 	onToggleGallery: () => void
 	onToggleQuoteSelection: () => void
 	onToggleHideThread: () => void
 	onTogglePostGestures: () => void
+	onSelectRelatedThreadsDisplay: (mode: RelatedThreadsDisplay) => void
 	storageUsage: StorageUsage
 }) {
 	return (
@@ -418,6 +423,42 @@ export function SettingsTab({
 			<div className={SECTION_LABEL_CLASS}>Hilos</div>
 
 			<section className={`${GROUP_CLASS} divide-y divide-[#2d3442]`}>
+				<div className="px-4 py-3">
+					<div className="flex items-center gap-3">
+						<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+							<ListCollapse className="h-4 w-4" aria-hidden="true" />
+						</div>
+						<div className="min-w-0">
+							<div className="text-[15px] font-semibold text-[#eef1f6]">Hilos relacionados</div>
+							<div className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">Elige cómo aparecen al final de un hilo</div>
+						</div>
+					</div>
+					<div className="mt-3 grid grid-cols-3 gap-1.5" role="radiogroup" aria-label="Visualización de hilos relacionados">
+						{([
+							['hidden', 'Oculto'],
+							['collapsible', 'Desplegable'],
+							['original', 'Original'],
+						] as const).map(([mode, label]) => {
+							const isActive = relatedThreadsDisplay === mode
+							return (
+								<button
+									key={mode}
+									type="button"
+									role="radio"
+									aria-checked={isActive}
+									disabled={savingMobileLiteSetting === 'relatedThreadsDisplay'}
+									className={`min-h-11 rounded-xl px-2 py-2 text-xs font-bold transition-colors disabled:opacity-60 ${
+										isActive ? 'bg-[#f0a020] text-[#221604]' : 'bg-[#14171d] text-[#aab4c0] active:bg-[#2e3543]'
+									}`}
+									onClick={() => onSelectRelatedThreadsDisplay(mode)}
+								>
+									{label}
+								</button>
+							)
+						})}
+					</div>
+				</div>
+
 				<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
 					<div className="flex min-w-0 items-center gap-3">
 						<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">

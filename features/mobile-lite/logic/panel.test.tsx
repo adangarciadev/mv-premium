@@ -42,6 +42,7 @@ const mocks = vi.hoisted(() => ({
 	syncMobileLiteLiveThreadButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
 	syncMobileLiteGalleryButton: vi.fn((_enabled?: boolean) => Promise.resolve()),
 	syncMobileLiteQuoteSelection: vi.fn((_enabled?: boolean) => Promise.resolve()),
+	applyRelatedThreadsDisplay: vi.fn(),
 	dispatchMobileLiteIgnoredUsersSync: vi.fn(),
 	sendMessage: vi.fn<(name: string, data?: unknown) => Promise<unknown>>(() => Promise.resolve({ success: false })),
 	getOwnUsername: vi.fn<() => string | null>(() => null),
@@ -155,6 +156,10 @@ vi.mock('../logic/quote-selection', () => ({
 	syncMobileLiteQuoteSelection: mocks.syncMobileLiteQuoteSelection,
 }))
 
+vi.mock('@/features/related-threads', () => ({
+	applyRelatedThreadsDisplay: mocks.applyRelatedThreadsDisplay,
+}))
+
 vi.mock('./whats-new', () => ({
 	getLatestMobileLiteEntry: mocks.getLatestMobileLiteEntry,
 	getMobileLiteChangelog: mocks.getMobileLiteChangelog,
@@ -226,7 +231,7 @@ describe('Mobile Lite panel injection', () => {
 		)
 		mocks.getMobileLiteImgbbApiKey.mockResolvedValue('')
 		mocks.saveMobileLiteImgbbApiKey.mockResolvedValue(undefined)
-		mocks.getSettings.mockResolvedValue({ liveThreadEnabled: false, hideThreadEnabled: true })
+		mocks.getSettings.mockResolvedValue({ liveThreadEnabled: false, hideThreadEnabled: true, relatedThreadsDisplay: 'hidden' })
 		mocks.setSetting.mockReset()
 		mocks.applyMobileLiteHiddenThreads.mockReset()
 		mocks.syncMobileLiteLiveThreadButton.mockResolvedValue(undefined)
@@ -1240,6 +1245,19 @@ describe('Mobile Lite panel injection', () => {
 		})
 		expect(mocks.syncMobileLiteLiveThreadButton).toHaveBeenCalledWith(true)
 		expect(await screen.findByText('Modo Live activado.')).toBeInTheDocument()
+	})
+
+	it('changes related threads display from Panel MVPremium settings', async () => {
+		const user = userEvent.setup()
+
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+		await user.click(await screen.findByRole('radio', { name: 'Desplegable' }))
+
+		expect(mocks.setSetting).toHaveBeenCalledWith('relatedThreadsDisplay', 'collapsible')
+		expect(mocks.applyRelatedThreadsDisplay).toHaveBeenCalledWith('collapsible')
+		expect(await screen.findByText('Hilos relacionados en desplegable.')).toBeInTheDocument()
 	})
 
 	it('toggles the Mobile Lite gallery button from settings', async () => {
