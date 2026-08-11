@@ -36,7 +36,9 @@ const mocks = vi.hoisted(() => ({
 	),
 	getMobileLiteImgbbApiKey: vi.fn(() => Promise.resolve('')),
 	saveMobileLiteImgbbApiKey: vi.fn((_apiKey: string) => Promise.resolve()),
-	getSettings: vi.fn(() => Promise.resolve({ liveThreadEnabled: false, hideThreadEnabled: true })),
+	getSettings: vi.fn(() =>
+		Promise.resolve({ liveThreadEnabled: false, hideThreadEnabled: true, relatedThreadsDisplay: 'hidden' })
+	),
 	setSetting: vi.fn(),
 	setLiveThreadEnabled: vi.fn(),
 	applyMobileLiteHiddenThreads: vi.fn(),
