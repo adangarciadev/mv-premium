@@ -12,14 +12,28 @@ interface MediaSearchInputProps {
 	placeholder: string
 	isSearching: boolean
 	disabled?: boolean
+	/** Lets the caller pair the field with a visible <label htmlFor>. */
+	id?: string
+	autoFocus?: boolean
 }
 
-export function MediaSearchInput({ ref, value, onChange, placeholder, isSearching, disabled }: MediaSearchInputProps) {
+export function MediaSearchInput({
+	ref,
+	value,
+	onChange,
+	placeholder,
+	isSearching,
+	disabled,
+	id,
+	autoFocus,
+}: MediaSearchInputProps) {
 	return (
 		<div className="relative mb-4">
 			<Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-primary" />
 			<input
 				ref={ref}
+				id={id}
+				autoFocus={autoFocus}
 				type="text"
 				value={value}
 				onChange={e => onChange(e.target.value)}

@@ -1,36 +1,20 @@
 export type MovieRatingTier = 'must-see' | 'recommended' | 'interesting' | 'not-recommended'
 
+/**
+ * A tier is purely the colour temperature of a score. The written verdict lives in the badge,
+ * which the user confirms — see `getSuggestedMovieReviewBadge`.
+ */
 export interface MovieRatingTierConfig {
 	id: MovieRatingTier
 	min: number
-	label: string
 	accent: string
-	mutedAccent: string
 }
 
 export const MOVIE_RATING_TIERS: readonly MovieRatingTierConfig[] = [
-	{
-		id: 'must-see',
-		min: 9,
-		label: 'IMPRESCINDIBLE',
-		accent: '#f6c945',
-		mutedAccent: '#8d742d',
-	},
-	{
-		id: 'recommended',
-		min: 7,
-		label: 'RECOMENDADA',
-		accent: '#eab308',
-		mutedAccent: '#77621b',
-	},
-	{ id: 'interesting', min: 5, label: 'INTERESANTE', accent: '#c4b98e', mutedAccent: '#635f50' },
-	{
-		id: 'not-recommended',
-		min: 0,
-		label: 'NO RECOMENDADA',
-		accent: '#a8a29e',
-		mutedAccent: '#57534e',
-	},
+	{ id: 'must-see', min: 9, accent: '#f6c945' },
+	{ id: 'recommended', min: 7, accent: '#eab308' },
+	{ id: 'interesting', min: 5, accent: '#c4b98e' },
+	{ id: 'not-recommended', min: 0, accent: '#a8a29e' },
 ] as const
 
 export const MOVIE_REVIEW_QUOTE_MAX_LENGTH = 160
@@ -53,6 +37,10 @@ export interface MovieReviewBadgeConfig {
 	text: string
 }
 
+/**
+ * Ordered from the warmest verdict to the coldest; the picker renders them in this order, so the
+ * row reads as a ramp and the suggested one sits where the score puts it.
+ */
 export const MOVIE_REVIEW_BADGES: readonly MovieReviewBadgeConfig[] = [
 	{
 		id: 'masterpiece',
@@ -84,7 +72,7 @@ export const MOVIE_REVIEW_BADGES: readonly MovieReviewBadgeConfig[] = [
 	},
 	{
 		id: 'guilty-pleasure',
-		label: 'CULPABLE PLACER',
+		label: 'PLACER CULPABLE',
 		background: 'rgba(115,82,126,.15)',
 		border: 'rgba(161,117,174,.36)',
 		text: '#c9a8d2',
@@ -113,7 +101,28 @@ export const MOVIE_REVIEW_BADGES: readonly MovieReviewBadgeConfig[] = [
 ] as const
 
 export function getMovieReviewBadge(badge: MovieReviewBadge | null): MovieReviewBadgeConfig | null {
-	return badge ? (MOVIE_REVIEW_BADGES.find(option => option.id === badge) ?? null) : null
+	return badge ? MOVIE_REVIEW_BADGES.find(option => option.id === badge) ?? null : null
+}
+
+/**
+ * The verdict a score implies, so the picker can preselect one and the user confirms rather than
+ * invents. `guilty-pleasure` is never suggested on purpose: it is the one verdict whose whole point
+ * is to contradict the number.
+ */
+const SUGGESTED_BADGE_BY_RATING: readonly { min: number; badge: MovieReviewBadge }[] = [
+	{ min: 9.5, badge: 'masterpiece' },
+	{ min: 8.5, badge: 'must-see' },
+	{ min: 7, badge: 'recommended' },
+	{ min: 5, badge: 'interesting' },
+	{ min: 3.5, badge: 'disappointing' },
+	{ min: 2, badge: 'not-recommended' },
+	{ min: 0, badge: 'terrible' },
+] as const
+
+export function getSuggestedMovieReviewBadge(rating: number): MovieReviewBadge {
+	const normalized = Number.isFinite(rating) ? rating : 0
+	const band = SUGGESTED_BADGE_BY_RATING.find(option => normalized >= option.min)
+	return (band ?? SUGGESTED_BADGE_BY_RATING[SUGGESTED_BADGE_BY_RATING.length - 1]!).badge
 }
 
 export function getMovieRatingTier(rating: number): MovieRatingTierConfig {

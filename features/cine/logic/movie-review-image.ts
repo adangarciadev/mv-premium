@@ -1,3 +1,4 @@
+import { logger } from '@/lib/logger'
 import { sendMessage } from '@/lib/messaging'
 import {
 	buildMovieMetadata,
@@ -23,7 +24,8 @@ async function loadImage(url: string | null | undefined): Promise<HTMLImageEleme
 			image.onerror = reject
 			image.src = source
 		})
-	} catch {
+	} catch (cause) {
+		logger.debug('Movie review card: could not load image, rendering without it', url, cause)
 		return null
 	}
 }
@@ -50,7 +52,14 @@ function getBackdropAmbientColor(image: HTMLImageElement): [number, number, numb
 	if (!sampleCtx) return null
 
 	sampleCtx.drawImage(image, 0, 0, sample.width, sample.height)
-	const pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data
+	let pixels: Uint8ClampedArray
+	try {
+		pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data
+	} catch (cause) {
+		// A tainted canvas would throw here; the glow is decorative, so skip it instead of failing the card.
+		logger.debug('Movie review card: skipping ambient glow, canvas is not readable', cause)
+		return null
+	}
 	let red = 0
 	let green = 0
 	let blue = 0
@@ -85,30 +94,17 @@ function drawAmbientGlow(ctx: CanvasRenderingContext2D, color: [number, number, 
 	ctx.fillRect(0, 0, 790, HEIGHT)
 }
 
-function fitText(
-	ctx: CanvasRenderingContext2D,
-	text: string,
-	maxWidth: number,
-	start: number,
-	min: number,
-	weight = 900
-) {
-	let size = start
-	do {
-		ctx.font = `${weight} ${size}px ${HEAVY_FONT}`
-		size -= 1
-	} while (size >= min && ctx.measureText(text).width > maxWidth)
+const TITLE_MAX_FONT_SIZE = 38
+const TITLE_MIN_FONT_SIZE = 18
+
+export interface MovieTitleLayout {
+	lines: string[]
+	fontSize: number
+	lineHeight: number
 }
 
-function drawWrappedText(
-	ctx: CanvasRenderingContext2D,
-	text: string,
-	x: number,
-	y: number,
-	maxWidth: number,
-	lineHeight: number,
-	maxLines: number
-) {
+/** Breaks text into lines that fit `maxWidth`, using the font already set on the context. */
+function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
 	const words = text.split(' ')
 	const lines: string[] = []
 	let line = ''
@@ -121,6 +117,52 @@ function drawWrappedText(
 		}
 	}
 	if (line) lines.push(line)
+	return lines
+}
+
+/**
+ * Picks the largest heading size at which the title fits in at most two lines.
+ * The title is NEVER truncated: if even the smallest size needs more room, every line is still
+ * drawn, and `fillText`'s maxWidth condenses an unbreakable word rather than cutting it.
+ * Leaves the chosen font set on the context.
+ */
+export function layoutMovieTitle(ctx: CanvasRenderingContext2D, title: string, maxWidth: number): MovieTitleLayout {
+	let lines = [title]
+	let fontSize = TITLE_MIN_FONT_SIZE
+
+	for (let size = TITLE_MAX_FONT_SIZE; size >= TITLE_MIN_FONT_SIZE; size -= 1) {
+		ctx.font = `900 ${size}px ${HEAVY_FONT}`
+		lines = wrapLines(ctx, title, maxWidth)
+		fontSize = size
+		if (lines.length <= 2 && lines.every(line => ctx.measureText(line).width <= maxWidth)) break
+	}
+
+	ctx.font = `900 ${fontSize}px ${HEAVY_FONT}`
+	return { lines, fontSize, lineHeight: Math.round(fontSize * 1.1) }
+}
+
+/**
+ * Clamps a single line to `maxWidth` with an ellipsis, using the font already set on the context.
+ * Canvas `fillText(maxWidth)` only condenses glyphs, so long values must be cut before drawing.
+ */
+export function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+	if (ctx.measureText(text).width <= maxWidth) return text
+	const characters = Array.from(text)
+	let end = characters.length
+	while (end > 1 && ctx.measureText(`${characters.slice(0, end).join('').trimEnd()}…`).width > maxWidth) end -= 1
+	return `${characters.slice(0, end).join('').trimEnd()}…`
+}
+
+function drawWrappedText(
+	ctx: CanvasRenderingContext2D,
+	text: string,
+	x: number,
+	y: number,
+	maxWidth: number,
+	lineHeight: number,
+	maxLines: number
+) {
+	const lines = wrapLines(ctx, text, maxWidth)
 	const visible = lines.slice(0, maxLines)
 	if (lines.length > maxLines) visible[maxLines - 1] = `${visible[maxLines - 1].replace(/[.…]+$/, '')}…`
 	visible.forEach((value, index) => ctx.fillText(value, x, y + index * lineHeight, maxWidth))
@@ -210,7 +252,7 @@ function traceStar(
 	ctx.beginPath()
 	for (let point = 0; point < 10; point += 1) {
 		const radius = point % 2 === 0 ? outerRadius : innerRadius
-		const angle = -Math.PI / 2 + point * Math.PI / 5
+		const angle = -Math.PI / 2 + (point * Math.PI) / 5
 		const pointX = centerX + Math.cos(angle) * radius
 		const pointY = centerY + Math.sin(angle) * radius
 		if (point === 0) ctx.moveTo(pointX, pointY)
@@ -310,14 +352,20 @@ export async function createMovieReviewImage(data: MovieReviewCardData): Promise
 		if (ambientColor) drawAmbientGlow(ctx, ambientColor)
 	}
 
+	const titleMaxWidth = 650
+	const title = layoutMovieTitle(ctx, data.title, titleMaxWidth)
+	// A single line keeps the original baselines (78 / 108); extra lines lift the block and push metadata down.
+	const titleBaseline = 78 - (title.lines.length - 1) * 16
 	ctx.fillStyle = '#fff'
-	fitText(ctx, data.title, 650, 38, 27)
-	ctx.fillText(data.title, 46, 78)
+	title.lines.forEach((line, index) =>
+		ctx.fillText(line, 46, titleBaseline + index * title.lineHeight, titleMaxWidth)
+	)
 	const metadata = buildMovieMetadata(data.director, data.year, data.genres)
-	drawMovieMetadata(ctx, metadata, data.director, 47, 108, 650)
+	const metadataY = titleBaseline + (title.lines.length - 1) * title.lineHeight + 30
+	drawMovieMetadata(ctx, metadata, data.director, 47, metadataY, 650)
 
 	const ratingText = rating === null ? '—' : String(rating).replace('.', ',')
-	ctx.font = `950 43px ${HEAVY_FONT}`
+	ctx.font = `900 43px ${HEAVY_FONT}`
 	ctx.fillStyle = rating === null ? '#74767d' : tier.accent
 	ctx.fillText(ratingText, 46, 177)
 	const ratingWidth = ctx.measureText(ratingText).width
@@ -349,22 +397,27 @@ export async function createMovieReviewImage(data: MovieReviewCardData): Promise
 		cover(ctx, avatar, 42, authorY - 26, 38, 38)
 		ctx.restore()
 	} else {
-		ctx.fillStyle = tier.accent
+		// Without a rating there is no tier yet, so the placeholder stays neutral instead of pre-tinting gold.
+		ctx.fillStyle = rating === null ? '#33343a' : tier.accent
 		ctx.beginPath()
 		ctx.arc(61, authorY - 7, 19, 0, Math.PI * 2)
 		ctx.fill()
 		ctx.font = `900 17px ${HEAVY_FONT}`
-		ctx.fillStyle = '#17130a'
+		ctx.fillStyle = rating === null ? '#c9c7cc' : '#17130a'
 		ctx.textAlign = 'center'
-		ctx.fillText(data.username.charAt(0).toUpperCase(), 61, authorY - 1)
+		// Array.from splits by code point, so an astral first character is not cut into half a surrogate pair.
+		ctx.fillText((Array.from(data.username.trim())[0] ?? '?').toUpperCase(), 61, authorY - 1)
 		ctx.textAlign = 'left'
 	}
+	const authorLabel = 'Vista y valorada por'
 	ctx.font = `600 13px ${UI_FONT}`
 	ctx.fillStyle = '#b8b5b8'
-	ctx.fillText('Vista y valorada por', 93, authorY - 2)
+	ctx.fillText(authorLabel, 93, authorY - 2)
+	const usernameX = 93 + ctx.measureText(authorLabel).width + 7
+	const usernameMaxWidth = Math.max(80, 940 - usernameX)
 	ctx.font = `800 13px ${UI_FONT}`
 	ctx.fillStyle = '#fff'
-	ctx.fillText(data.username, 216, authorY - 2)
+	ctx.fillText(truncateToWidth(ctx, data.username, usernameMaxWidth), usernameX, authorY - 2, usernameMaxWidth)
 	ctx.font = `800 10px ${UI_FONT}`
 	ctx.fillStyle = '#8e8b91'
 	ctx.textAlign = 'right'

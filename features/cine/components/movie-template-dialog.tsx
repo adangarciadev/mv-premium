@@ -618,7 +618,11 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert, onCreateReview 
 						{onCreateReview && mediaType === 'movie' && (
 							<button
 								type="button"
-								onClick={() => { handleClose(); window.setTimeout(onCreateReview, 0) }}
+								onClick={() => {
+									// The parent swaps both dialogs in one render; closing here first showed a frame of the bare page.
+									dispatch({ type: 'RESET' })
+									onCreateReview()
+								}}
 								className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
 							>
 								<Star className="h-3.5 w-3.5" /> Crear crítica visual

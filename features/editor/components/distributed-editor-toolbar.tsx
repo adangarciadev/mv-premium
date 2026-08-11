@@ -25,6 +25,7 @@ import { FormattingToolbarButtons } from './toolbar/formatting-toolbar-buttons'
 import { HeaderToolbarButton } from './toolbar/header-toolbar-button'
 import { HistoryToolbarButtons } from './toolbar/history-toolbar-buttons'
 import { CineToolbarButton } from './toolbar/cine-toolbar-button'
+import { MovieReviewToolbarButton } from './toolbar/movie-review-toolbar-button'
 import { GameToolbarButton } from './toolbar/game-toolbar-button'
 import { ApiKeyDialog, ImageDropzone } from './toolbar'
 import { StandardToolbarButtons } from './toolbar/standard-toolbar-buttons'
@@ -462,6 +463,9 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 					/>
 					{featureToggles.gifPickerEnabled && <GifPicker onInsert={insertText} variant="native" />}
 					{featureToggles.cinemaButtonEnabled && <CineToolbarButton onFullSheet={() => setShowMovieDialog(true)} />}
+					{featureToggles.cinemaButtonEnabled && (
+						<MovieReviewToolbarButton onClick={() => setShowMovieReviewDialog(true)} />
+					)}
 					{featureToggles.gameButtonEnabled && <GameToolbarButton onClick={() => setShowGameDialog(true)} />}
 				</>,
 				containers.media
@@ -609,7 +613,10 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 					isOpen={showMovieDialog}
 					onClose={() => setShowMovieDialog(false)}
 					onInsert={handleInsertMediaTemplate}
-					onCreateReview={() => setShowMovieReviewDialog(true)}
+					onCreateReview={() => {
+						setShowMovieDialog(false)
+						setShowMovieReviewDialog(true)
+					}}
 				/>
 			)}
 
