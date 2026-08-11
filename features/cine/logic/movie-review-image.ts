@@ -14,8 +14,14 @@ const HEIGHT = 453
 const UI_FONT = 'Inter, "Segoe UI", Arial, sans-serif'
 const HEAVY_FONT = 'Inter, "Segoe UI Black", "Arial Black", "Segoe UI", Arial, sans-serif'
 
-async function loadImage(url: string | null | undefined): Promise<HTMLImageElement | null> {
-	if (!url) return null
+/**
+ * Decoded images, keyed by URL. The card is redrawn on every keystroke of the quote, and without
+ * this each redraw re-fetched, re-base64'd and re-decoded the same backdrop, poster and avatar.
+ * Entries are promises so concurrent redraws share one in-flight load instead of racing.
+ */
+const imageCache = new Map<string, Promise<HTMLImageElement | null>>()
+
+async function fetchImage(url: string): Promise<HTMLImageElement | null> {
 	try {
 		const source = url.startsWith('data:') ? url : (await sendMessage('fetchMovieReviewImage', { url })).dataUrl
 		return await new Promise((resolve, reject) => {
@@ -28,6 +34,20 @@ async function loadImage(url: string | null | undefined): Promise<HTMLImageEleme
 		logger.debug('Movie review card: could not load image, rendering without it', url, cause)
 		return null
 	}
+}
+
+function loadImage(url: string | null | undefined): Promise<HTMLImageElement | null> {
+	if (!url) return Promise.resolve(null)
+	const cached = imageCache.get(url)
+	if (cached) return cached
+
+	const pending = fetchImage(url)
+	imageCache.set(url, pending)
+	// A failed load is not worth caching; the next redraw should be free to try again.
+	void pending.then(image => {
+		if (!image) imageCache.delete(url)
+	})
+	return pending
 }
 
 function cover(
@@ -44,56 +64,6 @@ function cover(
 	ctx.drawImage(image, (image.width - sw) / 2, (image.height - sh) / 2, sw, sh, x, y, width, height)
 }
 
-function getBackdropAmbientColor(image: HTMLImageElement): [number, number, number] | null {
-	const sample = document.createElement('canvas')
-	sample.width = 24
-	sample.height = 14
-	const sampleCtx = sample.getContext('2d', { willReadFrequently: true })
-	if (!sampleCtx) return null
-
-	sampleCtx.drawImage(image, 0, 0, sample.width, sample.height)
-	let pixels: Uint8ClampedArray
-	try {
-		pixels = sampleCtx.getImageData(0, 0, sample.width, sample.height).data
-	} catch (cause) {
-		// A tainted canvas would throw here; the glow is decorative, so skip it instead of failing the card.
-		logger.debug('Movie review card: skipping ambient glow, canvas is not readable', cause)
-		return null
-	}
-	let red = 0
-	let green = 0
-	let blue = 0
-	let totalWeight = 0
-
-	for (let index = 0; index < pixels.length; index += 4) {
-		const pixelRed = pixels[index]
-		const pixelGreen = pixels[index + 1]
-		const pixelBlue = pixels[index + 2]
-		const luminance = 0.2126 * pixelRed + 0.7152 * pixelGreen + 0.0722 * pixelBlue
-		if (luminance < 24) continue
-
-		const chroma = Math.max(pixelRed, pixelGreen, pixelBlue) - Math.min(pixelRed, pixelGreen, pixelBlue)
-		const weight = 0.35 + chroma / 180
-		red += pixelRed * weight
-		green += pixelGreen * weight
-		blue += pixelBlue * weight
-		totalWeight += weight
-	}
-
-	if (totalWeight === 0) return null
-	return [Math.round(red / totalWeight), Math.round(green / totalWeight), Math.round(blue / totalWeight)]
-}
-
-function drawAmbientGlow(ctx: CanvasRenderingContext2D, color: [number, number, number]) {
-	const [red, green, blue] = color
-	const glow = ctx.createRadialGradient(315, 220, 24, 315, 220, 500)
-	glow.addColorStop(0, `rgba(${red},${green},${blue},0.04)`)
-	glow.addColorStop(0.55, `rgba(${red},${green},${blue},0.018)`)
-	glow.addColorStop(1, `rgba(${red},${green},${blue},0)`)
-	ctx.fillStyle = glow
-	ctx.fillRect(0, 0, 790, HEIGHT)
-}
-
 const TITLE_MAX_FONT_SIZE = 38
 const TITLE_MIN_FONT_SIZE = 18
 
@@ -103,19 +73,52 @@ export interface MovieTitleLayout {
 	lineHeight: number
 }
 
+/**
+ * Breaks a single word that is wider than the column, by code point so surrogate pairs survive.
+ * Returns the finished lines plus the remainder still being filled.
+ */
+function breakLongWord(
+	ctx: CanvasRenderingContext2D,
+	word: string,
+	maxWidth: number
+): { lines: string[]; rest: string } {
+	const lines: string[] = []
+	let chunk = ''
+	for (const character of Array.from(word)) {
+		if (chunk && ctx.measureText(chunk + character).width > maxWidth) {
+			lines.push(chunk)
+			chunk = character
+		} else {
+			chunk += character
+		}
+	}
+	return { lines, rest: chunk }
+}
+
 /** Breaks text into lines that fit `maxWidth`, using the font already set on the context. */
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
-	const words = text.split(' ')
 	const lines: string[] = []
 	let line = ''
-	for (const word of words) {
+
+	for (const word of text.split(' ')) {
 		const candidate = line ? `${line} ${word}` : word
-		if (ctx.measureText(candidate).width <= maxWidth || !line) line = candidate
-		else {
-			lines.push(line)
+		if (ctx.measureText(candidate).width <= maxWidth) {
+			line = candidate
+			continue
+		}
+
+		if (line) lines.push(line)
+		// A word wider than the column has to be split, or fillText would condense it into an
+		// unreadable ribbon: 160 characters with no spaces are a single "word".
+		if (ctx.measureText(word).width > maxWidth) {
+			const broken = breakLongWord(ctx, word, maxWidth)
+			lines.push(...broken.lines)
+			line = broken.rest
+		} else {
 			line = word
 		}
 	}
+
 	if (line) lines.push(line)
 	return lines
 }
@@ -191,10 +194,10 @@ function drawMovieMetadata(
 			return width + segmentWidth + ctx.measureText(separator).width
 		}, 0)
 
-	let fontSize = 14
+	let fontSize = 20
 	let lineWidth = measureLine(fontSize)
 	if (lineWidth > maxWidth) {
-		fontSize = 12
+		fontSize = 17
 		lineWidth = measureLine(fontSize)
 	}
 	const horizontalScale = Math.min(1, maxWidth / lineWidth)
@@ -262,10 +265,10 @@ function traceStar(
 }
 
 function drawStars(ctx: CanvasRenderingContext2D, rating: number, x: number, y: number, color: string) {
-	const outerRadius = 7.5
-	const innerRadius = 3.45
-	const step = 16.4
-	const centerY = y - 6.5
+	const outerRadius = 10
+	const innerRadius = 4.6
+	const step = 22
+	const centerY = y - 9
 
 	ctx.save()
 	ctx.lineJoin = 'round'
@@ -298,41 +301,47 @@ function drawStars(ctx: CanvasRenderingContext2D, rating: number, x: number, y: 
 	ctx.restore()
 }
 
-export async function createMovieReviewImage(data: MovieReviewCardData): Promise<Blob> {
-	const canvas = document.createElement('canvas')
-	canvas.width = WIDTH
-	canvas.height = HEIGHT
-	const ctx = canvas.getContext('2d')
-	if (!ctx) throw new Error('Canvas is not available')
+const POSTER_X = 958
+const POSTER_Y = 42
+const POSTER_WIDTH = 190
+const POSTER_HEIGHT = 285
 
-	const [backdrop, poster, avatar] = await Promise.all([
-		loadImage(data.backdropUrl),
-		loadImage(data.posterUrl),
-		loadImage(data.avatarUrl),
-	])
-	const rating = data.rating === null ? null : normalizeMovieRating(data.rating)
-	const tier = getMovieRatingTier(rating ?? 7)
-	const badge = getMovieReviewBadge(data.badge)
-	const quote = normalizeMovieReviewQuote(data.quote)
-	const posterX = 958
-	const posterWidth = 190
-	const posterHeight = 285
+interface CardImages {
+	backdrop: HTMLImageElement | null
+	poster: HTMLImageElement | null
+	avatar: HTMLImageElement | null
+}
 
+function loadCardImages(data: MovieReviewCardData): Promise<CardImages> {
+	return Promise.all([loadImage(data.backdropUrl), loadImage(data.posterUrl), loadImage(data.avatarUrl)]).then(
+		([backdrop, poster, avatar]) => ({ backdrop, poster, avatar })
+	)
+}
+
+/**
+ * Backdrop, veils and poster depend only on the movie, but the card is redrawn on every keystroke
+ * of the quote. Rendering them once into an offscreen canvas turns each redraw into one drawImage.
+ */
+const staticLayerCache = new Map<string, HTMLCanvasElement>()
+const STATIC_LAYER_CACHE_LIMIT = 4
+
+function drawStaticLayer(ctx: CanvasRenderingContext2D, images: CardImages) {
 	const base = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT)
 	base.addColorStop(0, '#090a0d')
 	base.addColorStop(0.7, '#121116')
 	base.addColorStop(1, '#060608')
 	ctx.fillStyle = base
 	ctx.fillRect(0, 0, WIDTH, HEIGHT)
-	const backdropHeight = HEIGHT
+
 	const backdropWidth = Math.round(HEIGHT * (16 / 9))
 	const backdropX = WIDTH - backdropWidth
-	if (backdrop) {
+	if (images.backdrop) {
 		ctx.save()
 		ctx.globalAlpha = 0.68
-		cover(ctx, backdrop, backdropX, 0, backdropWidth, backdropHeight)
+		cover(ctx, images.backdrop, backdropX, 0, backdropWidth, HEIGHT)
 		ctx.restore()
 	}
+
 	const veil = ctx.createLinearGradient(0, 0, 1010, 0)
 	veil.addColorStop(0, 'rgba(7,8,11,.99)')
 	veil.addColorStop(0.22, 'rgba(7,8,11,.96)')
@@ -342,24 +351,74 @@ export async function createMovieReviewImage(data: MovieReviewCardData): Promise
 	veil.addColorStop(1, 'rgba(7,8,11,.12)')
 	ctx.fillStyle = veil
 	ctx.fillRect(0, 0, WIDTH, HEIGHT)
+
 	const bottom = ctx.createLinearGradient(0, 210, 0, HEIGHT)
 	bottom.addColorStop(0, 'rgba(7,8,11,0)')
 	bottom.addColorStop(1, 'rgba(7,8,11,.96)')
 	ctx.fillStyle = bottom
 	ctx.fillRect(0, 0, WIDTH, HEIGHT)
-	if (backdrop) {
-		const ambientColor = getBackdropAmbientColor(backdrop)
-		if (ambientColor) drawAmbientGlow(ctx, ambientColor)
+
+	if (images.poster) {
+		ctx.save()
+		ctx.shadowColor = 'rgba(0,0,0,.65)'
+		ctx.shadowBlur = 18
+		roundedRect(ctx, POSTER_X, POSTER_Y, POSTER_WIDTH, POSTER_HEIGHT, 9)
+		ctx.clip()
+		cover(ctx, images.poster, POSTER_X, POSTER_Y, POSTER_WIDTH, POSTER_HEIGHT)
+		ctx.restore()
+		roundedRect(ctx, POSTER_X, POSTER_Y, POSTER_WIDTH, POSTER_HEIGHT, 9)
+		ctx.strokeStyle = 'rgba(255,255,255,.16)'
+		ctx.lineWidth = 1
+		ctx.stroke()
+	} else {
+		ctx.fillStyle = 'rgba(255,255,255,.06)'
+		roundedRect(ctx, POSTER_X, POSTER_Y, POSTER_WIDTH, POSTER_HEIGHT, 9)
+		ctx.fill()
+		ctx.font = `800 20px ${UI_FONT}`
+		ctx.fillStyle = '#77737a'
+		ctx.textAlign = 'center'
+		ctx.fillText('SIN PÓSTER', POSTER_X + POSTER_WIDTH / 2, POSTER_Y + POSTER_HEIGHT / 2)
+		ctx.textAlign = 'left'
 	}
+}
+
+function getStaticLayer(data: MovieReviewCardData, images: CardImages): HTMLCanvasElement {
+	const key = `${data.backdropUrl ?? ''}|${data.posterUrl ?? ''}`
+	const cached = staticLayerCache.get(key)
+	if (cached) return cached
+
+	const layer = document.createElement('canvas')
+	layer.width = WIDTH
+	layer.height = HEIGHT
+	const layerCtx = layer.getContext('2d')
+	if (!layerCtx) throw new Error('Canvas is not available')
+	drawStaticLayer(layerCtx, images)
+
+	if (staticLayerCache.size >= STATIC_LAYER_CACHE_LIMIT) {
+		const oldest = staticLayerCache.keys().next().value
+		if (oldest !== undefined) staticLayerCache.delete(oldest)
+	}
+	staticLayerCache.set(key, layer)
+	return layer
+}
+
+/** Synchronous draw of the whole card. Every input must already be loaded. */
+function drawMovieReviewCard(ctx: CanvasRenderingContext2D, data: MovieReviewCardData, images: CardImages) {
+	const { avatar } = images
+	const rating = data.rating === null ? null : normalizeMovieRating(data.rating)
+	const tier = getMovieRatingTier(rating ?? 7)
+	const badge = getMovieReviewBadge(data.badge)
+	const quote = normalizeMovieReviewQuote(data.quote)
+
+	ctx.clearRect(0, 0, WIDTH, HEIGHT)
+	ctx.drawImage(getStaticLayer(data, images), 0, 0)
 
 	const titleMaxWidth = 650
 	const title = layoutMovieTitle(ctx, data.title, titleMaxWidth)
 	// A single line keeps the original baselines (78 / 108); extra lines lift the block and push metadata down.
 	const titleBaseline = 78 - (title.lines.length - 1) * 16
 	ctx.fillStyle = '#fff'
-	title.lines.forEach((line, index) =>
-		ctx.fillText(line, 46, titleBaseline + index * title.lineHeight, titleMaxWidth)
-	)
+	title.lines.forEach((line, index) => ctx.fillText(line, 46, titleBaseline + index * title.lineHeight, titleMaxWidth))
 	const metadata = buildMovieMetadata(data.director, data.year, data.genres)
 	const metadataY = titleBaseline + (title.lines.length - 1) * title.lineHeight + 30
 	drawMovieMetadata(ctx, metadata, data.director, 47, metadataY, 650)
@@ -369,23 +428,24 @@ export async function createMovieReviewImage(data: MovieReviewCardData): Promise
 	ctx.fillStyle = rating === null ? '#74767d' : tier.accent
 	ctx.fillText(ratingText, 46, 177)
 	const ratingWidth = ctx.measureText(ratingText).width
-	ctx.font = `600 13px ${UI_FONT}`
+	ctx.font = `600 18px ${UI_FONT}`
 	ctx.fillStyle = '#aaa7ad'
-	ctx.fillText('/10', 51 + ratingWidth, 174)
-	drawStars(ctx, rating ?? 0, 126 + ratingWidth, 172, rating === null ? '#5f6066' : tier.accent)
+	ctx.fillText('/10', 53 + ratingWidth, 174)
+	drawStars(ctx, rating ?? 0, 138 + ratingWidth, 172, rating === null ? '#5f6066' : tier.accent)
 
 	if (badge) {
-		ctx.font = `800 10px ${UI_FONT}`
+		// Kept below the metadata's weight on purpose: it is a stamp, not a second headline.
+		ctx.font = `800 17px ${UI_FONT}`
 		ctx.fillStyle = badge.border
-		ctx.fillRect(47, 194, 2, 18)
+		ctx.fillRect(47, 195, 3, 23)
 		ctx.fillStyle = badge.text
-		ctx.fillText(badge.label, 57, 207)
+		ctx.fillText(badge.label, 60, 212)
 	}
 
 	if (quote) {
-		ctx.font = `italic 700 18px ${UI_FONT}`
+		ctx.font = `italic 700 21px ${UI_FONT}`
 		ctx.fillStyle = '#f1f0ed'
-		drawWrappedText(ctx, `“${quote}”`, 46, badge ? 258 : 232, 570, 25, 3)
+		drawWrappedText(ctx, `“${quote}”`, 46, badge ? 262 : 236, 570, 27, 4)
 	}
 
 	const authorY = 399
@@ -402,50 +462,45 @@ export async function createMovieReviewImage(data: MovieReviewCardData): Promise
 		ctx.beginPath()
 		ctx.arc(61, authorY - 7, 19, 0, Math.PI * 2)
 		ctx.fill()
-		ctx.font = `900 17px ${HEAVY_FONT}`
+		ctx.font = `900 20px ${HEAVY_FONT}`
 		ctx.fillStyle = rating === null ? '#c9c7cc' : '#17130a'
 		ctx.textAlign = 'center'
 		// Array.from splits by code point, so an astral first character is not cut into half a surrogate pair.
-		ctx.fillText((Array.from(data.username.trim())[0] ?? '?').toUpperCase(), 61, authorY - 1)
+		ctx.fillText((Array.from(data.username.trim())[0] ?? '?').toUpperCase(), 61, authorY)
 		ctx.textAlign = 'left'
 	}
 	const authorLabel = 'Vista y valorada por'
-	ctx.font = `600 13px ${UI_FONT}`
+	ctx.font = `600 18px ${UI_FONT}`
 	ctx.fillStyle = '#b8b5b8'
-	ctx.fillText(authorLabel, 93, authorY - 2)
-	const usernameX = 93 + ctx.measureText(authorLabel).width + 7
-	const usernameMaxWidth = Math.max(80, 940 - usernameX)
-	ctx.font = `800 13px ${UI_FONT}`
+	ctx.fillText(authorLabel, 93, authorY)
+	const usernameX = 93 + ctx.measureText(authorLabel).width + 9
+	// The footer is gone, so the username may run to the right edge before the safe margin.
+	const usernameMaxWidth = Math.max(80, 1150 - usernameX)
+	ctx.font = `800 18px ${UI_FONT}`
 	ctx.fillStyle = '#fff'
-	ctx.fillText(truncateToWidth(ctx, data.username, usernameMaxWidth), usernameX, authorY - 2, usernameMaxWidth)
-	ctx.font = `800 10px ${UI_FONT}`
-	ctx.fillStyle = '#8e8b91'
-	ctx.textAlign = 'right'
-	ctx.fillText('MV PREMIUM  ·  DATOS DE TMDB', 1154, 400)
-	ctx.textAlign = 'left'
+	ctx.fillText(truncateToWidth(ctx, data.username, usernameMaxWidth), usernameX, authorY, usernameMaxWidth)
+}
 
-	if (poster) {
-		ctx.save()
-		ctx.shadowColor = 'rgba(0,0,0,.65)'
-		ctx.shadowBlur = 18
-		roundedRect(ctx, posterX, 42, posterWidth, posterHeight, 9)
-		ctx.clip()
-		cover(ctx, poster, posterX, 42, posterWidth, posterHeight)
-		ctx.restore()
-		roundedRect(ctx, posterX, 42, posterWidth, posterHeight, 9)
-		ctx.strokeStyle = 'rgba(255,255,255,.16)'
-		ctx.lineWidth = 1
-		ctx.stroke()
-	} else {
-		ctx.fillStyle = 'rgba(255,255,255,.06)'
-		roundedRect(ctx, posterX, 42, posterWidth, posterHeight, 9)
-		ctx.fill()
-		ctx.font = `800 14px ${UI_FONT}`
-		ctx.fillStyle = '#77737a'
-		ctx.textAlign = 'center'
-		ctx.fillText('SIN PÓSTER', posterX + posterWidth / 2, 190)
-		ctx.textAlign = 'left'
+/** Draws the card onto a canvas already sized to the card, for a live preview without encoding a PNG. */
+export async function renderMovieReviewCard(canvas: HTMLCanvasElement, data: MovieReviewCardData): Promise<void> {
+	const ctx = canvas.getContext('2d')
+	if (!ctx) throw new Error('Canvas is not available')
+	if (canvas.width !== WIDTH || canvas.height !== HEIGHT) {
+		canvas.width = WIDTH
+		canvas.height = HEIGHT
 	}
+	drawMovieReviewCard(ctx, data, await loadCardImages(data))
+}
+
+/** Encodes the card as a PNG. Only needed when the image leaves the page: upload and download. */
+export async function createMovieReviewImage(data: MovieReviewCardData): Promise<Blob> {
+	const canvas = document.createElement('canvas')
+	canvas.width = WIDTH
+	canvas.height = HEIGHT
+	const ctx = canvas.getContext('2d')
+	if (!ctx) throw new Error('Canvas is not available')
+
+	drawMovieReviewCard(ctx, data, await loadCardImages(data))
 
 	return await new Promise((resolve, reject) =>
 		canvas.toBlob(blob => (blob ? resolve(blob) : reject(new Error('Could not create image'))), 'image/png')

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Check from 'lucide-react/dist/esm/icons/check'
 import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
 import Film from 'lucide-react/dist/esm/icons/film'
@@ -19,7 +19,7 @@ import { useMovieSearch, useMovieTemplateData } from '@/features/cine/hooks/use-
 import { getPosterUrl, type TMDBMovie } from '@/services/api/tmdb'
 import { getCurrentUser, type CurrentUser } from '@/entrypoints/options/lib/current-user'
 import { getApiKey, uploadImage } from '@/services/api/imgbb'
-import { createMovieReviewImage } from '@/features/cine/logic/movie-review-image'
+import { createMovieReviewImage, renderMovieReviewCard } from '@/features/cine/logic/movie-review-image'
 import {
 	getMovieRatingTier,
 	getSuggestedMovieReviewBadge,
@@ -76,11 +76,13 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 	const [selected, setSelected] = useState<TMDBMovie | null>(null)
 	const [rating, setRating] = useState<number | null>(null)
 	const [quote, setQuote] = useState('')
+	// 180ms sat right on normal typing speed, so it fired on almost every keystroke instead of coalescing.
+	const [debouncedQuote] = useDebounce(quote, 400)
 	const [badge, setBadge] = useState<MovieReviewBadge | null>(null)
 	const [user, setUser] = useState<CurrentUser | null>(null)
-	const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 	const [previewError, setPreviewError] = useState<string | null>(null)
-	const [isPreviewGenerating, setIsPreviewGenerating] = useState(false)
+	/** Only true until the first frame lands: redraws are now fast enough that a spinner would just flicker. */
+	const [isPreviewEmpty, setIsPreviewEmpty] = useState(true)
 	const [isGenerating, setIsGenerating] = useState(false)
 	const [error, setError] = useState<string | null>(null)
 	const [uploadedUrl, setUploadedUrl] = useState<string | null>(null)
@@ -90,15 +92,14 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 	const [badgeTouched, setBadgeTouched] = useState(false)
 	const [retainedResults, setRetainedResults] = useState<TMDBMovie[]>([])
 	const [retainedSearchKey, setRetainedSearchKey] = useState<string | null>(null)
-	/** Object URL currently held by the preview <img>; owned here so it is revoked exactly once. */
-	const previewUrlRef = useRef<string | null>(null)
-	/** Last successfully rendered card, reused by insert and retry so the canvas is not redrawn. */
-	const renderedBlobRef = useRef<Blob | null>(null)
+	/** The preview is a live canvas, so there is no PNG encode and no object URL per keystroke. */
+	const previewCanvasRef = useRef<HTMLCanvasElement | null>(null)
 	const isUnmountedRef = useRef(false)
 	const search = useMovieSearch(debouncedQuery, isOpen && !selected)
 	const details = useMovieTemplateData(selected?.id ?? 0, isOpen && !!selected)
 	const selectMovie = (movie: TMDBMovie) => {
 		setSelected(movie)
+		setIsPreviewEmpty(true)
 		setRating(null)
 		setBadge(null)
 		setQuote('')
@@ -170,12 +171,6 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 		}
 	}, [expectedSearchKey, search.data, search.resolvedKey])
 
-	const releasePreviewUrl = useCallback(() => {
-		if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
-		previewUrlRef.current = null
-		renderedBlobRef.current = null
-	}, [])
-
 	useEffect(() => {
 		if (isOpen) {
 			void getCurrentUser().then(setUser)
@@ -196,17 +191,14 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 			setCopied(false)
 			setBadgeTouched(false)
 			setPreviewError(null)
-			setIsPreviewGenerating(false)
-			releasePreviewUrl()
-			setPreviewUrl(null)
+			setIsPreviewEmpty(true)
 		}
-	}, [isOpen, releasePreviewUrl])
+	}, [isOpen])
 	useEffect(
 		() => () => {
 			isUnmountedRef.current = true
-			releasePreviewUrl()
 		},
-		[releasePreviewUrl]
+		[]
 	)
 
 	const cardData = useMemo<MovieReviewCardData | null>(
@@ -220,51 +212,39 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 						posterUrl: details.data.posterUrl,
 						backdropUrl: details.data.backdropUrl,
 						rating,
-						quote,
+						// Only the quote is debounced; rating and verdict repaint immediately.
+						quote: debouncedQuote,
 						badge,
 						username: user?.username || 'Usuario',
 						avatarUrl: user?.avatarUrl,
 					}
 				: null,
-		[badge, details.data, quote, rating, user]
+		[badge, debouncedQuote, details.data, rating, user]
 	)
 
 	useEffect(() => {
-		if (!cardData) return
+		const canvas = previewCanvasRef.current
+		if (!cardData || !canvas) return
 		let cancelled = false
-		setIsPreviewGenerating(true)
 		setPreviewError(null)
-		const timer = window.setTimeout(() => {
-			void createMovieReviewImage(cardData)
-				.then(blob => {
-					if (cancelled) return
-					// The previous URL is only released once its replacement exists, so the visible <img> is never revoked.
-					const objectUrl = URL.createObjectURL(blob)
-					if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current)
-					previewUrlRef.current = objectUrl
-					renderedBlobRef.current = blob
-					setPreviewUrl(objectUrl)
-				})
-				.catch(cause => {
-					if (!cancelled) setPreviewError(cause instanceof Error ? cause.message : 'No se pudo generar la vista previa')
-				})
-				.finally(() => {
-					if (!cancelled) setIsPreviewGenerating(false)
-				})
-		}, 180)
+		void renderMovieReviewCard(canvas, cardData)
+			.then(() => {
+				if (!cancelled) setIsPreviewEmpty(false)
+			})
+			.catch(cause => {
+				if (!cancelled) setPreviewError(cause instanceof Error ? cause.message : 'No se pudo generar la vista previa')
+			})
 		return () => {
 			cancelled = true
-			window.clearTimeout(timer)
 		}
-	}, [cardData])
+	}, [cardData, selected, uploadedUrl])
 
 	const handleInsert = async () => {
 		if (!cardData || rating === null) return
 		setIsGenerating(true)
 		setError(null)
 		try {
-			const blob = renderedBlobRef.current ?? (await createMovieReviewImage(cardData))
-			renderedBlobRef.current = blob
+			const blob = await createMovieReviewImage(cardData)
 			const result = await uploadImage(blob)
 			if (isUnmountedRef.current) return
 			if (!result.success || !result.url) throw new Error(result.error || 'No se pudo subir la crítica')
@@ -289,15 +269,19 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 	/** The dialog wears the colour its card will use, so control and output stop disagreeing. */
 	const tierAccent = rating === null ? null : getMovieRatingTier(rating).accent
 
-	const handleDownload = () => {
-		if (!previewUrl) return
+	const handleDownload = async () => {
+		if (!cardData) return
+		const blob = await createMovieReviewImage(cardData)
+		const objectUrl = URL.createObjectURL(blob)
 		const link = document.createElement('a')
-		link.href = previewUrl
+		link.href = objectUrl
 		link.download = `critica-${(details.data?.title || 'pelicula')
 			.toLowerCase()
 			.replace(/[^a-z0-9]+/g, '-')
 			.replace(/^-|-$/g, '')}.png`
 		link.click()
+		// The download has already been handed to the browser, so the URL can go on the next tick.
+		window.setTimeout(() => URL.revokeObjectURL(objectUrl), 0)
 	}
 
 	const stepDescription = uploadedUrl
@@ -329,8 +313,8 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 							onCopy={() => void handleCopyUrl()}
 							copied={copied}
 							secondaryInsertLabel="Descargar PNG"
-							onSecondaryInsert={handleDownload}
-							secondaryInsertDisabled={!previewUrl}
+							onSecondaryInsert={() => void handleDownload()}
+							secondaryInsertDisabled={!cardData}
 							onInsert={onClose}
 							insertLabel="Cerrar"
 						/>
@@ -340,8 +324,8 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 							backLabel="← Cambiar película"
 							backDisabled={isGenerating}
 							secondaryInsertLabel="Descargar PNG"
-							onSecondaryInsert={handleDownload}
-							secondaryInsertDisabled={!previewUrl || isGenerating}
+							onSecondaryInsert={() => void handleDownload()}
+							secondaryInsertDisabled={!cardData || isGenerating}
 							onInsert={() => void handleInsert()}
 							insertLabel={isGenerating ? 'Subiendo crítica…' : 'Generar e insertar'}
 							insertIcon={
@@ -577,8 +561,8 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 										maxLength={MOVIE_REVIEW_QUOTE_MAX_LENGTH}
 										onChange={e => setQuote(e.target.value)}
 										placeholder="Resume lo que te ha parecido en una frase…"
-										rows={3}
-										className="resize-none border-border/70 bg-black/20 pl-9 font-medium italic"
+										rows={4}
+										className="resize-none border-border/70 bg-black/20 py-2.5 pl-9 font-medium italic leading-relaxed"
 									/>
 								</div>
 							</section>
@@ -597,13 +581,7 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 					)}
 					<div className="min-w-0 self-start rounded-xl border border-border/70 bg-black/45 p-4 shadow-inner">
 						<p className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Vista previa</p>
-						{previewUrl ? (
-							<img
-								src={previewUrl}
-								alt="Vista previa de la crítica visual"
-								className="block h-auto w-full rounded-lg transition-opacity duration-200"
-							/>
-						) : details.error ? (
+						{details.error ? (
 							<div
 								role="alert"
 								className="flex aspect-[1200/453] flex-col items-center justify-center gap-1 rounded-lg bg-black px-8 text-center"
@@ -628,12 +606,19 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 								No se pudo generar la vista previa: {previewError}
 							</div>
 						) : (
-							<div role="status" className="flex aspect-[1200/453] items-center justify-center rounded-lg bg-black">
-								{isPreviewGenerating && (
-									<>
+							<div role="status" className="relative">
+								<canvas
+									ref={previewCanvasRef}
+									width={1200}
+									height={453}
+									aria-label="Vista previa de la crítica visual"
+									className="block h-auto w-full rounded-lg bg-black"
+								/>
+								{isPreviewEmpty && (
+									<span className="absolute inset-0 flex items-center justify-center">
 										<Loader2 className="h-6 w-6 animate-spin text-primary" />
 										<span className="sr-only">Generando la vista previa de la crítica</span>
-									</>
+									</span>
 								)}
 							</div>
 						)}

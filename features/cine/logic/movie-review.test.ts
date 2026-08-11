@@ -4,6 +4,7 @@ import {
 	getMovieRatingTier,
 	getMovieReviewBadge,
 	getSuggestedMovieReviewBadge,
+	MOVIE_RATING_TIERS,
 	MOVIE_REVIEW_BADGES,
 	normalizeMovieRating,
 	normalizeMovieReviewQuote,
@@ -20,6 +21,12 @@ describe('movie review domain', () => {
 		[2.5, 'not-recommended'],
 	])('maps %s to %s', (rating, tier) => {
 		expect(getMovieRatingTier(rating).id).toBe(tier)
+	})
+
+	it('keeps every tier accent distinct, since the accent is now the tier’s only job', () => {
+		const accents = MOVIE_RATING_TIERS.map(tier => tier.accent)
+
+		expect(new Set(accents).size).toBe(accents.length)
 	})
 
 	it('normalizes ratings to half-star increments', () => expect(normalizeMovieRating(8.74)).toBe(8.5))

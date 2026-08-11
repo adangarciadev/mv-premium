@@ -94,12 +94,29 @@ describe('layoutMovieTitle', () => {
 		expect(layout.fontSize).toBe(18)
 	})
 
-	it('leaves an unbreakable word whole and lets the canvas condense it', () => {
+	it('breaks a word wider than the column instead of condensing it into a ribbon', () => {
 		const title = 'A'.repeat(200)
 		const layout = layoutMovieTitle(ctx, title, MAX_WIDTH)
 
-		expect(layout.lines).toEqual([title])
-		expect(layout.fontSize).toBe(18)
+		expect(layout.lines.length).toBeGreaterThan(1)
+		expect(layout.lines.join('')).toBe(title)
+		for (const line of layout.lines) expect(measure(line, layout.fontSize)).toBeLessThanOrEqual(MAX_WIDTH)
+	})
+
+	it('breaks only the oversized token and leaves the surrounding words intact', () => {
+		const title = `Dune ${'B'.repeat(120)} final`
+		const layout = layoutMovieTitle(ctx, title, MAX_WIDTH)
+
+		expect(layout.lines[0].startsWith('Dune')).toBe(true)
+		expect(layout.lines[layout.lines.length - 1].endsWith('final')).toBe(true)
+		expect(layout.lines.join(' ').replace(/\s+/g, '')).toBe(title.replace(/\s+/g, ''))
+		for (const line of layout.lines) expect(measure(line, layout.fontSize)).toBeLessThanOrEqual(MAX_WIDTH)
+	})
+
+	it('keeps surrogate pairs whole when breaking an oversized token', () => {
+		const layout = layoutMovieTitle(ctx, '🎬'.repeat(120), MAX_WIDTH)
+
+		for (const line of layout.lines) expect(line).not.toMatch(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/)
 	})
 
 	it('sets the chosen font on the context before returning', () => {
