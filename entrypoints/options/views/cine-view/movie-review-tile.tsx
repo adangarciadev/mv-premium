@@ -26,8 +26,10 @@ export function MovieReviewTile({ record, sharingPost, onDelete }: MovieReviewTi
 	const permalink = getPostPermalink(record)
 
 	return (
-		<div className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md">
-			<div className="relative aspect-[2/3] w-full bg-muted">
+		<div className="group flex flex-col rounded-lg border border-border bg-card transition-shadow hover:shadow-md">
+			{/* Clipping lives on the poster, not on the card: SimpleTooltip positions itself against
+			    its trigger without a portal, so an overflow-hidden card would cut its tooltips off. */}
+			<div className="relative aspect-[2/3] w-full overflow-hidden rounded-t-lg bg-muted">
 				{record.posterUrl ? (
 					<img src={record.posterUrl} alt={record.title} loading="lazy" className="h-full w-full object-cover" />
 				) : (
