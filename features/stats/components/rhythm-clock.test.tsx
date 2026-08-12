@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { RhythmClock } from './rhythm-clock'
+import { RhythmClock, barHeightPct, clockIntensity, niceBarCeiling } from './rhythm-clock'
 import { accumulateRhythm, createEmptyRhythm, type RhythmStats } from '../logic/rhythm-model'
 
 // Deterministic builders (no generateRandomRhythm) so states are stable.
@@ -54,6 +54,71 @@ function makeStatsWithCurrentAndBusierPastWeek(): RhythmStats {
 	stats = accumulateRhythm(stats, 30 * 60_000, FIXED_NOW, 'current-week')
 	return stats
 }
+
+const MINUTE = 60_000
+const HOUR = 60 * MINUTE
+
+describe('bar scale', () => {
+	const DAY_LADDER = [15 * MINUTE, 30 * MINUTE, 45 * MINUTE, HOUR, 2 * HOUR, 8 * HOUR]
+
+	it('snaps to the first rung at or above the busiest bucket', () => {
+		expect(niceBarCeiling(35 * MINUTE, DAY_LADDER)).toBe(45 * MINUTE)
+		expect(niceBarCeiling(45 * MINUTE, DAY_LADDER)).toBe(45 * MINUTE)
+		expect(niceBarCeiling(46 * MINUTE, DAY_LADDER)).toBe(HOUR)
+	})
+
+	it('falls back to the last rung when the data exceeds the ladder', () => {
+		expect(niceBarCeiling(500 * HOUR, DAY_LADDER)).toBe(8 * HOUR)
+	})
+
+	it('gives a realistic daily average most of the strip instead of crushing it', () => {
+		// The regression this replaces: 35m against a fixed 12h ceiling produced 5%, clamped to 10%.
+		const ceiling = niceBarCeiling(35 * MINUTE, DAY_LADDER)
+
+		expect(barHeightPct(35 * MINUTE, ceiling)).toBe(78)
+	})
+
+	it('keeps quiet buckets visibly shorter than busy ones', () => {
+		const ceiling = niceBarCeiling(40 * MINUTE, DAY_LADDER)
+
+		expect(barHeightPct(40 * MINUTE, ceiling)).toBeGreaterThan(barHeightPct(10 * MINUTE, ceiling))
+	})
+
+	it('keeps an empty bucket shorter than the smallest real one', () => {
+		const ceiling = niceBarCeiling(HOUR, DAY_LADDER)
+
+		expect(barHeightPct(0, ceiling)).toBeLessThan(barHeightPct(1, ceiling))
+	})
+
+	it('never exceeds the strip', () => {
+		expect(barHeightPct(99 * HOUR, HOUR)).toBe(100)
+	})
+})
+
+describe('clock wedge intensity', () => {
+	const HOUR_LADDER = [MINUTE, 2 * MINUTE, 5 * MINUTE, 10 * MINUTE, HOUR]
+
+	it('spreads a few minutes per hour across the ramp instead of its first step', () => {
+		// The regression this replaces: a 3m29s peak hour against a fixed 1h ceiling gave 0.058,
+		// so every wedge rendered at the minimum radius and the faintest fill.
+		const peak = 3 * MINUTE + 29_000
+		const ceiling = niceBarCeiling(peak, HOUR_LADDER)
+
+		expect(ceiling).toBe(5 * MINUTE)
+		expect(clockIntensity(peak, ceiling)).toBeGreaterThan(0.65)
+	})
+
+	it('keeps the busiest hour at the top of the ramp and an empty hour at the bottom', () => {
+		const ceiling = niceBarCeiling(10 * MINUTE, HOUR_LADDER)
+
+		expect(clockIntensity(10 * MINUTE, ceiling)).toBe(1)
+		expect(clockIntensity(0, ceiling)).toBe(0)
+	})
+
+	it('is safe when there is no data at all', () => {
+		expect(clockIntensity(0, 0)).toBe(0)
+	})
+})
 
 describe('RhythmClock', () => {
 	beforeEach(() => {
@@ -124,18 +189,21 @@ describe('RhythmClock', () => {
 		expect(screen.queryByText(/Ver d.*a actual/)).not.toBeInTheDocument()
 	})
 
-	it('scales weekday bars against a full day instead of the busiest visible day', () => {
+	it('scales weekday bars against a round ceiling just above the busiest day', () => {
 		render(<RhythmClock stats={makeEightHourWeekdayStats()} />)
 
-		expect(screen.getByLabelText(/Seleccionar Lunes, MEDIA 8h/)).toHaveStyle({ height: '67%' })
+		// 8h snaps to the 8h rung, so the busiest day fills the strip.
+		expect(screen.getByLabelText(/Seleccionar Lunes, MEDIA 8h/)).toHaveStyle({ height: '100%' })
+		expect(screen.getByText(/ESCALA 8h/)).toBeInTheDocument()
 	})
 
-	it('scales weekly bars against a useful visual week instead of a relative curve', () => {
+	it('scales weekly bars against a round ceiling just above the busiest week', () => {
 		render(<RhythmClock stats={makeWeeklyScaleStats()} />)
 
 		fireEvent.click(screen.getByRole('button', { name: 'Semana' }))
 
-		expect(screen.getByLabelText(/Ver d.*as de la semana .* TOTAL 20h/)).toHaveStyle({ height: '67%' })
+		expect(screen.getByLabelText(/Ver d.*as de la semana .* TOTAL 20h/)).toHaveStyle({ height: '100%' })
+		expect(screen.getByText(/ESCALA 20h/)).toBeInTheDocument()
 	})
 
 	it('features the current week by default instead of the busiest week', () => {

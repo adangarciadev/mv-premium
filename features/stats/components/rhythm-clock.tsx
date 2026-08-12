@@ -87,13 +87,90 @@ const STRIP_EMPTY_FILL = 'color-mix(in srgb, var(--foreground) 11%, transparent)
 const segmentedRadiusStyle = { borderRadius: 'var(--radius)' } as const
 const segmentedItemRadiusStyle = { borderRadius: 'max(2px, calc(var(--radius) - 2px))' } as const
 
-const CLOCK_BUCKET_MAX_MS = 60 * 60_000 // a clock bucket represents one capped hour.
+const MINUTE_MS = 60_000
+const HOUR_MS = 60 * MINUTE_MS
 
-const DAY_BAR_MAX_MS = 12 * 60 * 60_000
-const WEEK_BAR_MAX_MS = 30 * 60 * 60_000
+/**
+ * Hour buckets hold the average time spent inside one hour of the day, which for a normal user is
+ * a few minutes — against a fixed one-hour ceiling every wedge collapsed onto the minimum radius
+ * and the first step of the colour ramp. The ceiling adapts to the busiest hour instead, and the
+ * legend prints it so the ramp stays quantitative.
+ *
+ * The rungs are dense below ten minutes because that is where real data lives; a coarse jump there
+ * leaves the peak wedge short of the ring's outer edge and wastes most of the radial range.
+ */
+const HOUR_BUCKET_CEILINGS = [
+	MINUTE_MS,
+	2 * MINUTE_MS,
+	3 * MINUTE_MS,
+	4 * MINUTE_MS,
+	5 * MINUTE_MS,
+	7 * MINUTE_MS,
+	10 * MINUTE_MS,
+	15 * MINUTE_MS,
+	20 * MINUTE_MS,
+	30 * MINUTE_MS,
+	45 * MINUTE_MS,
+	HOUR_MS,
+] as const
 
-function clockIntensity(ms: number): number {
-	return Math.min(1, Math.max(0, ms) / CLOCK_BUCKET_MAX_MS)
+/**
+ * Bars are scaled against a round ceiling picked just above the busiest bucket in view, and that
+ * ceiling is printed beside the strip.
+ *
+ * A fixed ceiling (12h per day, 30h per week) crushed every realistic user onto the clamp floor —
+ * a 35m daily average is 5% of 12h — so every bar looked identical. A purely relative scale has the
+ * opposite failure: the busiest bar always fills the strip, so 2 minutes looks like 8 hours. Snapping
+ * to a labelled round ceiling gives the comparison back without the chart overstating magnitude.
+ */
+const DAY_BAR_CEILINGS = [
+	15 * MINUTE_MS,
+	30 * MINUTE_MS,
+	45 * MINUTE_MS,
+	HOUR_MS,
+	90 * MINUTE_MS,
+	2 * HOUR_MS,
+	3 * HOUR_MS,
+	4 * HOUR_MS,
+	6 * HOUR_MS,
+	8 * HOUR_MS,
+	12 * HOUR_MS,
+	24 * HOUR_MS,
+] as const
+
+const WEEK_BAR_CEILINGS = [
+	HOUR_MS,
+	2 * HOUR_MS,
+	3 * HOUR_MS,
+	5 * HOUR_MS,
+	8 * HOUR_MS,
+	12 * HOUR_MS,
+	20 * HOUR_MS,
+	30 * HOUR_MS,
+	50 * HOUR_MS,
+	80 * HOUR_MS,
+	120 * HOUR_MS,
+	7 * 24 * HOUR_MS,
+] as const
+
+/** Empty buckets keep a stub so the strip never has holes; the smallest real value stays taller. */
+const EMPTY_BAR_PCT = 6
+const MIN_BAR_PCT = 14
+
+/** Smallest round ceiling at or above the busiest bucket in view. */
+export function niceBarCeiling(maxMs: number, ladder: readonly number[]): number {
+	return ladder.find(step => maxMs <= step) ?? ladder[ladder.length - 1]
+}
+
+export function barHeightPct(ms: number, ceiling: number): number {
+	if (ms <= 0) return EMPTY_BAR_PCT
+	if (ceiling <= 0) return MIN_BAR_PCT
+	return Math.max(MIN_BAR_PCT, Math.min(100, Math.round((ms / ceiling) * 100)))
+}
+
+export function clockIntensity(ms: number, ceiling: number): number {
+	if (ceiling <= 0) return 0
+	return Math.min(1, Math.max(0, ms) / ceiling)
 }
 
 /** Heatmap fill for an intensity 0–1 (shared by clock wedges and strip cells). */
@@ -106,22 +183,14 @@ function primaryMix(percent: number): string {
 	return `color-mix(in srgb, var(--primary) ${percent}%, transparent)`
 }
 
-function dayStripHeightPct(ms: number): number {
-	if (ms <= 0) return 8
-	return Math.max(10, Math.min(100, Math.round((ms / DAY_BAR_MAX_MS) * 100)))
-}
-
-function dayStripIntensity(ms: number): number {
-	return Math.min(1, Math.max(0, ms) / DAY_BAR_MAX_MS)
-}
-
-function weekStripHeightPct(ms: number): number {
-	if (ms <= 0) return 10
-	return Math.max(16, Math.min(100, Math.round((ms / WEEK_BAR_MAX_MS) * 100)))
-}
-
-function weekStripIntensity(ms: number): number {
-	return Math.min(1, Math.max(0, ms) / WEEK_BAR_MAX_MS)
+/**
+ * Bars carry magnitude in their height, so their fill is reserved for state: a single resting
+ * colour, full primary for the selected/current bucket. Tinting by value too would double-encode
+ * what the height already says and leave selection nothing to stand out with.
+ */
+function barFill(hasValue: boolean, isActive: boolean): string {
+	if (!hasValue) return STRIP_EMPTY_FILL
+	return isActive ? 'var(--primary)' : primaryMix(48)
 }
 
 /** Time with seconds, dropping zero components ("2m 10s", "2m", "10s", "1h 5s"). */
@@ -378,6 +447,7 @@ function WeekdayStrip({
 	const [hovered, setHovered] = useState<number | null>(null)
 	const avgs = WEEKDAYS.map(({ index }) => (stats.weekdays[index] || 0) / Math.max(1, counts[index]))
 	const max = Math.max(...avgs, 0)
+	const ceiling = niceBarCeiling(max, DAY_BAR_CEILINGS)
 	const peakPos = max > 0 ? avgs.indexOf(max) : -1
 	const featuredWeekday = hovered ?? selected ?? todayWeekday
 	const featuredPos = featuredWeekday === null ? -1 : WEEKDAYS.findIndex(({ index }) => index === featuredWeekday)
@@ -386,7 +456,7 @@ function WeekdayStrip({
 	const featuredValue = featuredPos >= 0 ? avgs[featuredPos] : 0
 	return (
 		<div className="space-y-2">
-			<div className="flex h-5 items-center justify-center">
+			<div className="relative flex h-5 items-center justify-center">
 				<span
 					className={cn(
 						'rounded-full border px-2.5 py-0.5 font-data text-[10px] tabular-nums transition-colors',
@@ -399,12 +469,20 @@ function WeekdayStrip({
 						? `${featuredFullLabel} · ${featuredValue > 0 ? `MEDIA ${fmtTime(featuredValue)}` : 'SIN DATOS'}`
 						: 'Pasa por una barra'}
 				</span>
+				{max > 0 && (
+					<span
+						className="absolute right-0 font-data text-[10px] tabular-nums text-muted-foreground/60"
+						title="Altura máxima de las barras. Se ajusta al día más activo, redondeado hacia arriba."
+					>
+						ESCALA {fmtTime(ceiling)}
+					</span>
+				)}
 			</div>
 			<div className="flex items-end justify-center gap-2">
 				{WEEKDAYS.map(({ label, index }, pos) => {
 					const value = avgs[pos]
 					const hasValue = value > 0
-					const heightPct = hasValue ? dayStripHeightPct(value) : 8
+					const heightPct = barHeightPct(value, ceiling)
 					const isPeak = showPeak && pos === peakPos && value > 0
 					const isSelected = selected === index
 					const isTodayDefault = selected === null && index === todayWeekday
@@ -436,7 +514,7 @@ function WeekdayStrip({
 									)}
 									style={{
 										height: `${heightPct}%`,
-										background: hasValue ? heatFill(dayStripIntensity(value)) : STRIP_EMPTY_FILL,
+										background: barFill(hasValue, isSelected || isTodayDefault),
 										borderRadius: 'max(2px, calc(var(--radius) - 2px))',
 										opacity: hasValue ? 1 : 0.72,
 										...(isSelected || isTodayDefault
@@ -491,10 +569,11 @@ function WeekDaysStrip({
 	const selected = selectedWeekday === null ? null : buckets.find(day => day.weekday === selectedWeekday) ?? null
 	const hovered = hoveredKey ? buckets.find(day => day.key === hoveredKey) ?? null : null
 	const featured = hovered ?? selected ?? peak
+	const ceiling = niceBarCeiling(max, DAY_BAR_CEILINGS)
 
 	return (
 		<div className="space-y-2">
-			<div className="flex h-5 items-center justify-center">
+			<div className="relative flex h-5 items-center justify-center">
 				<span
 					className={cn(
 						'rounded-full border px-2.5 py-0.5 font-data text-[10px] tabular-nums transition-colors',
@@ -507,11 +586,19 @@ function WeekDaysStrip({
 						? `${dayBucketLabel(featured)} · ${featured.ms > 0 ? `TOTAL ${fmtTime(featured.ms)}` : 'SIN DATOS'}`
 						: 'Pasa por un día'}
 				</span>
+				{max > 0 && (
+					<span
+						className="absolute right-0 font-data text-[10px] tabular-nums text-muted-foreground/60"
+						title="Altura máxima de las barras. Se ajusta al día más activo, redondeado hacia arriba."
+					>
+						ESCALA {fmtTime(ceiling)}
+					</span>
+				)}
 			</div>
 			<div className="flex items-end justify-center gap-2">
 				{buckets.map(bucket => {
 					const hasValue = bucket.ms > 0
-					const heightPct = hasValue ? dayStripHeightPct(bucket.ms) : 8
+					const heightPct = barHeightPct(bucket.ms, ceiling)
 					const isPeak = peak?.key === bucket.key && hasValue
 					const isSelected = selectedWeekday === bucket.weekday
 					return (
@@ -544,7 +631,7 @@ function WeekDaysStrip({
 									)}
 									style={{
 										height: `${heightPct}%`,
-										background: hasValue ? heatFill(dayStripIntensity(bucket.ms)) : STRIP_EMPTY_FILL,
+										background: barFill(hasValue, isSelected),
 										borderRadius: 'max(2px, calc(var(--radius) - 2px))',
 										opacity: hasValue ? 1 : 0.72,
 										...(isSelected ? { outline: '1.5px solid var(--primary)', outlineOffset: '2px' } : {}),
@@ -593,6 +680,8 @@ function YearWeeksStrip({
 	const selectedWeek = selectedKey ? series.find(week => week.key === selectedKey) ?? null : null
 	const currentWeek = series.find(week => week.key === currentKey) ?? null
 	const featuredWeek = hoveredWeek ?? selectedWeek ?? currentWeek
+	const maxWeekMs = Math.max(...series.map(week => week.ms), 0)
+	const ceiling = niceBarCeiling(maxWeekMs, WEEK_BAR_CEILINGS)
 
 	const monthMarks = useMemo(() => {
 		const marks: { i: number; label: string }[] = []
@@ -609,7 +698,7 @@ function YearWeeksStrip({
 
 	return (
 		<div className="space-y-2">
-			<div className="flex h-5 items-center justify-center">
+			<div className="relative flex h-5 items-center justify-center">
 				<span
 					className={cn(
 						'rounded-full border px-2.5 py-0.5 font-data text-[10px] tabular-nums transition-colors',
@@ -624,15 +713,22 @@ function YearWeeksStrip({
 							}`
 						: 'Pasa por una semana'}
 				</span>
+				{maxWeekMs > 0 && (
+					<span
+						className="absolute right-0 font-data text-[10px] tabular-nums text-muted-foreground/60"
+						title="Altura máxima de las barras. Se ajusta a la semana más activa, redondeada hacia arriba."
+					>
+						ESCALA {fmtTime(ceiling)}
+					</span>
+				)}
 			</div>
-			<div className="flex h-10 items-end gap-[2px]">
+			<div className="flex h-14 items-end gap-[2px]">
 				{series.map(week => {
-					const t = weekStripIntensity(week.ms)
 					const isCurrent = week.key === currentKey
 					const isSelected = selectedKey === week.key
 					const hasValue = week.ms > 0
-					// Every week keeps a small baseline bar so the year never has blank gaps.
-					const heightPct = hasValue ? weekStripHeightPct(week.ms) : 10
+					// Empty weeks keep a stub so the year never has blank gaps.
+					const heightPct = barHeightPct(week.ms, ceiling)
 					const rangeLabel = formatWeekRange(week.weekStart)
 					return (
 						<div
@@ -653,7 +749,7 @@ function YearWeeksStrip({
 								)}
 								style={{
 									height: `${heightPct}%`,
-									background: hasValue ? heatFill(t) : STRIP_EMPTY_FILL,
+									background: barFill(hasValue, isCurrent || isSelected),
 									borderRadius: 'max(1px, calc(var(--radius) - 5px))',
 									opacity: hasValue ? 1 : 0.72,
 									...(isCurrent ? { outline: '1.5px solid var(--primary)', outlineOffset: '1px' } : {}),
@@ -742,6 +838,12 @@ export const RhythmClock = memo(function RhythmClock({
 		const raw = inDay ? stats.weekdayHours[String(selectedWeekday)] ?? Array(24).fill(0) : stats.hours
 		return getAverageRhythmHours(raw, denom)
 	}, [stats, selectedWeekday, inDay, denom])
+
+	/** Adapts to the busiest hour currently shown, so switching weekday rescales the ring. */
+	const clockCeiling = useMemo(
+		() => niceBarCeiling(Math.max(...effectiveHours, 0), HOUR_BUCKET_CEILINGS),
+		[effectiveHours]
+	)
 
 	const view = useMemo(() => {
 		const contextMs = effectiveHours.reduce((a, b) => a + b, 0)
@@ -965,8 +1067,8 @@ export const RhythmClock = memo(function RhythmClock({
 								</defs>
 								<g filter={hasData ? 'url(#mvpRingShadow)' : undefined}>
 								{effectiveHours.map((value, hour) => {
-									// Clock buckets are capped to 1h, so 1h is the literal visual maximum.
-									const t = clockIntensity(value)
+									// Scaled against the busiest hour on screen, rounded up — see HOUR_BUCKET_CEILINGS.
+									const t = clockIntensity(value, clockCeiling)
 									const outer = R_MIN_OUTER + t * (R_RING_OUTER - R_MIN_OUTER)
 									const isPinned = !inDay && pinnedHour === hour
 									const isHover = hoverHour === hour
@@ -1187,7 +1289,7 @@ export const RhythmClock = memo(function RhythmClock({
 
 							<div
 								className="flex items-center gap-1.5 text-[11px] text-muted-foreground"
-								title="Escala del reloj: una hora media llena el bloque; menos tiempo queda más corto y tenue."
+								title={`Escala del reloj: el bloque lleno equivale a ${fmtTime(clockCeiling)} en esa hora. Se ajusta a tu hora más activa, redondeada hacia arriba.`}
 							>
 								<span>Menos tiempo</span>
 								<i className="h-3 w-3 rounded-[3px]" style={{ background: FAINT_FILL }} />
@@ -1195,6 +1297,9 @@ export const RhythmClock = memo(function RhythmClock({
 								<i className="h-3 w-3 rounded-[3px]" style={{ background: primaryMix(70) }} />
 								<i className="h-3 w-3 rounded-[3px]" style={{ background: 'var(--primary)' }} />
 								<span>Más tiempo</span>
+								{view.hasData && (
+									<span className="ml-1 font-data tabular-nums text-muted-foreground/70">· máx {fmtTime(clockCeiling)}</span>
+								)}
 							</div>
 						</div>
 					</div>
