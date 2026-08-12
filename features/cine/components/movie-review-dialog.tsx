@@ -21,6 +21,7 @@ import { getCurrentUser, type CurrentUser } from '@/entrypoints/options/lib/curr
 import { getApiKey, uploadImage } from '@/services/api/imgbb'
 import { createMovieReviewImage, renderMovieReviewCard } from '@/features/cine/logic/movie-review-image'
 import { recordGeneratedMovieReview } from '@/features/cine/logic/movie-review-store'
+import { resetMovieReviewDetection } from '@/features/cine/logic/movie-review-detection'
 import {
 	getMovieRatingTier,
 	getSuggestedMovieReviewBadge,
@@ -253,7 +254,12 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 			setUploadedUrl(result.url)
 			// Fire-and-forget: the review log must never delay or block inserting the card.
 			// Whether this ends up published is decided later, by finding the image in a post.
-			if (selected) void recordGeneratedMovieReview(cardData, selected.id, result.url)
+			if (selected) {
+				void recordGeneratedMovieReview(cardData, selected.id, result.url)
+				// This page load may already have concluded there was nothing to look for.
+				// There is now.
+				resetMovieReviewDetection()
+			}
 		} catch (cause) {
 			if (!isUnmountedRef.current) {
 				setError(cause instanceof Error ? cause.message : 'No se pudo generar la crítica visual')
