@@ -9,3 +9,15 @@
 export { MovieTemplateButton } from './components/movie-template-button'
 export { MovieTemplateDialog } from './components/movie-template-dialog'
 export { MovieReviewDialog } from './components/movie-review-dialog'
+
+// Review log: which reviews the user generated, and which of them got published
+export {
+	confirmMovieReviewPublication,
+	deleteMovieReview,
+	getMovieReviews,
+	getPendingMovieReviews,
+	recordGeneratedMovieReview,
+	watchMovieReviews,
+	type MovieReviewPublication,
+	type MovieReviewRecord,
+} from './logic/movie-review-store'

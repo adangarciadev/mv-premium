@@ -20,6 +20,7 @@ import { getPosterUrl, type TMDBMovie } from '@/services/api/tmdb'
 import { getCurrentUser, type CurrentUser } from '@/entrypoints/options/lib/current-user'
 import { getApiKey, uploadImage } from '@/services/api/imgbb'
 import { createMovieReviewImage, renderMovieReviewCard } from '@/features/cine/logic/movie-review-image'
+import { recordGeneratedMovieReview } from '@/features/cine/logic/movie-review-store'
 import {
 	getMovieRatingTier,
 	getSuggestedMovieReviewBadge,
@@ -250,6 +251,9 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 			if (!result.success || !result.url) throw new Error(result.error || 'No se pudo subir la crítica')
 			onInsert(`[img]${result.url}[/img]\n\n`)
 			setUploadedUrl(result.url)
+			// Fire-and-forget: the review log must never delay or block inserting the card.
+			// Whether this ends up published is decided later, by finding the image in a post.
+			if (selected) void recordGeneratedMovieReview(cardData, selected.id, result.url)
 		} catch (cause) {
 			if (!isUnmountedRef.current) {
 				setError(cause instanceof Error ? cause.message : 'No se pudo generar la crítica visual')
