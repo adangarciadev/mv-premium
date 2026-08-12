@@ -12,6 +12,7 @@ import Home from 'lucide-react/dist/esm/icons/home'
 import Settings from 'lucide-react/dist/esm/icons/settings'
 import Gift from 'lucide-react/dist/esm/icons/gift'
 import Trophy from 'lucide-react/dist/esm/icons/trophy'
+import Clapperboard from 'lucide-react/dist/esm/icons/clapperboard'
 import ListFilter from 'lucide-react/dist/esm/icons/list-filter'
 import StickyNote from 'lucide-react/dist/esm/icons/sticky-note'
 import Layout from 'lucide-react/dist/esm/icons/layout'
@@ -22,6 +23,7 @@ import { getContentRules, watchContentRules } from '@/features/content-rules'
 import { getHiddenThreads, watchHiddenThreads } from '@/features/hidden-threads/logic/storage'
 import { getHiddenSubforums, watchHiddenSubforums } from '@/features/hidden-subforums/logic/storage'
 import { getUserCustomizations, watchUserCustomizations } from '@/features/user-customizations/storage'
+import { getMovieReviews, watchMovieReviews, type MovieReviewRecord } from '@/features/cine/logic/movie-review-store'
 import { useSettingsStore } from '@/store/settings-store'
 import { CommandMenu } from '@/features/command-menu/components/command-menu'
 import { CommandMenuTrigger } from '@/features/command-menu/components/command-menu-trigger'
@@ -59,6 +61,7 @@ interface SidebarCounts {
 	hiddenSubforums: number
 	contentRules: number
 	customizedUsers: number
+	movieReviews: number
 }
 
 const platformItems: NavItem[] = [
@@ -80,6 +83,12 @@ const platformItems: NavItem[] = [
 		badgeKey: 'templates',
 	},
 
+	{
+		title: 'Mis Críticas',
+		path: '/cine',
+		icon: Clapperboard,
+		badgeKey: 'movieReviews',
+	},
 	{
 		title: 'Ranking Subforos',
 		path: '/subforums',
@@ -140,6 +149,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		hiddenSubforums: 0,
 		contentRules: 0,
 		customizedUsers: 0,
+		movieReviews: 0,
 	})
 
 	// Keyboard shortcut for command menu (Ctrl+K / Cmd+K)
@@ -189,6 +199,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			setCounts(prev => ({ ...prev, customizedUsers: Object.keys(data.users).length }))
 		}
 
+		// The badge counts published reviews only; unpublished ones live in their own tab.
+		const countPublishedReviews = (reviews: MovieReviewRecord[]) =>
+			reviews.filter(review => review.publication !== null).length
+
+		const loadMovieReviews = async () => {
+			const reviews = await getMovieReviews()
+			setCounts(prev => ({ ...prev, movieReviews: countPublishedReviews(reviews) }))
+		}
+
 		// Initial load
 		loadDrafts()
 		loadMuted()
@@ -196,6 +215,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		void loadHiddenSubforums()
 		void loadContentRules()
 		void loadCustomizedUsers()
+		void loadMovieReviews()
 
 		// Listeners
 		const unwatchDrafts = draftsStorage.watch(() => loadDrafts())
@@ -214,6 +234,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		const unwatchUserCustomizations = watchUserCustomizations(data => {
 			setCounts(prev => ({ ...prev, customizedUsers: Object.keys(data.users).length }))
 		})
+		const unwatchMovieReviews = watchMovieReviews(reviews => {
+			setCounts(prev => ({ ...prev, movieReviews: countPublishedReviews(reviews) }))
+		})
 
 		return () => {
 			unwatchDrafts()
@@ -222,6 +245,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			unwatchHiddenSubforums()
 			unwatchContentRules()
 			unwatchUserCustomizations()
+			unwatchMovieReviews()
 		}
 	}, [])
 

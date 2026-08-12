@@ -29,6 +29,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 // Views
 import { HomeView } from './views/home-view'
 import { SubforumsView } from './views/subforums-view'
+import { CineView } from './views/cine-view'
 import { DraftsView } from './views/drafts-view'
 import { DraftEditorView } from './views/draft-editor-view'
 import { SettingsView } from './views/settings-view'
@@ -67,6 +68,7 @@ const routeLabels: Record<string, string> = {
 	'hidden-subforums': 'Subforos ocultos',
 	favorites: 'Subforos Favoritos',
 	subforums: 'Subforos',
+	cine: 'Mis Críticas',
 	users: 'Usuarios',
 	'mobile-lite-qr': 'QR Mobile Lite',
 	settings: 'Ajustes',
@@ -249,6 +251,7 @@ export default function OptionsApp() {
 						<Routes>
 							<Route path="/" element={<HomeView />} />
 							<Route path="/subforums" element={<SubforumsView />} />
+							<Route path="/cine" element={<CineView />} />
 							{/* Drafts */}
 							<Route path="/drafts" element={<DraftsView filterType="draft" />} />
 							<Route path="/drafts/new" element={<DraftEditorView docType="draft" />} />
