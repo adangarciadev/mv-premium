@@ -145,7 +145,7 @@ export function EditorDialogs({
 			</AlertDialog>
 
 			{/* Movie Template Dialog */}
-			<MovieTemplateDialog isOpen={dialogs.isOpen('movie')} onClose={dialogs.close} onInsert={onInsertMovieTemplate} onCreateReview={() => dialogs.open('movieReview')} />
+			<MovieTemplateDialog isOpen={dialogs.isOpen('movie')} onClose={dialogs.close} onInsert={onInsertMovieTemplate} />
 			<MovieReviewDialog isOpen={dialogs.isOpen('movieReview')} onClose={dialogs.close} onInsert={onInsertMovieTemplate} />
 
 			{/* Game Template Dialog */}

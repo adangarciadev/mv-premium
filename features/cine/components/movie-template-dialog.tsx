@@ -15,7 +15,6 @@ import BookOpen from 'lucide-react/dist/esm/icons/book-open'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import Clapperboard from 'lucide-react/dist/esm/icons/clapperboard'
 import Layers from 'lucide-react/dist/esm/icons/layers'
-import Star from 'lucide-react/dist/esm/icons/star'
 import { browser } from 'wxt/browser'
 import {
 	buildMovieThreadTitle,
@@ -62,7 +61,6 @@ interface MovieTemplateDialogProps {
 	isOpen: boolean
 	onClose: () => void
 	onInsert: (template: string, meta?: MediaTemplateInsertMeta) => void
-	onCreateReview?: () => void
 }
 
 type MediaType = 'movie' | 'tv' | 'anime' | 'manga'
@@ -225,7 +223,7 @@ function dialogReducer(state: DialogState, action: DialogAction): DialogState {
 // Component
 // =============================================================================
 
-export function MovieTemplateDialog({ isOpen, onClose, onInsert, onCreateReview }: MovieTemplateDialogProps) {
+export function MovieTemplateDialog({ isOpen, onClose, onInsert }: MovieTemplateDialogProps) {
 	const [state, dispatch] = useReducer(dialogReducer, initialState)
 	const {
 		step, mediaType, searchQuery, selectedId, selectedItem,
@@ -611,23 +609,10 @@ export function MovieTemplateDialog({ isOpen, onClose, onInsert, onCreateReview 
 						))}
 					</div>
 
-					<div className="mb-2 flex h-7 shrink-0 items-center justify-between">
+					<div className="mb-2 flex h-7 shrink-0 items-center">
 						<span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
 							Buscar {MEDIA_TYPE_LABELS[mediaType]}
 						</span>
-						{onCreateReview && mediaType === 'movie' && (
-							<button
-								type="button"
-								onClick={() => {
-									// The parent swaps both dialogs in one render; closing here first showed a frame of the bare page.
-									dispatch({ type: 'RESET' })
-									onCreateReview()
-								}}
-								className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-primary transition-colors hover:bg-primary/10"
-							>
-								<Star className="h-3.5 w-3.5" /> Crear crítica visual
-							</button>
-						)}
 					</div>
 
 					<MediaSearchInput

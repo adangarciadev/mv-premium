@@ -613,10 +613,6 @@ export function DistributedEditorToolbar({ textarea, toolbarContainer }: Distrib
 					isOpen={showMovieDialog}
 					onClose={() => setShowMovieDialog(false)}
 					onInsert={handleInsertMediaTemplate}
-					onCreateReview={() => {
-						setShowMovieDialog(false)
-						setShowMovieReviewDialog(true)
-					}}
 				/>
 			)}
 
