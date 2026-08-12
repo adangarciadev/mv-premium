@@ -121,6 +121,8 @@ export interface Settings {
 	hideThreadEnabled: boolean
 	hideIgnoredUserThreadsEnabled: boolean
 	relatedThreadsDisplay: RelatedThreadsDisplay
+	/** 0 = no limit. Measured from the thread's LAST message, not from when it was created. */
+	relatedThreadsMaxAgeMonths: number
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: boolean

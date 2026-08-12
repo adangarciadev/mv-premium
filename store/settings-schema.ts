@@ -101,6 +101,7 @@ export const settingsSchema = z.object({
 	classicThreadActionsEnabled: z.boolean().default(false),
 	hideIgnoredUserThreadsEnabled: z.boolean().default(true),
 	relatedThreadsDisplay: relatedThreadsDisplaySchema.default('hidden'),
+	relatedThreadsMaxAgeMonths: z.number().int().min(0).max(300).catch(0).default(0),
 
 	// Feature Toggles - Users
 	mutedWordsEnabled: z.boolean().default(false),

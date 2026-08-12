@@ -78,6 +78,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	hideThreadEnabled: true,
 	hideIgnoredUserThreadsEnabled: true,
 	relatedThreadsDisplay: 'hidden',
+	relatedThreadsMaxAgeMonths: 0,
 	// Feature Toggles - Users
 	mutedWordsEnabled: false,
 	mutedWords: [],

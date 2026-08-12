@@ -23,6 +23,7 @@ export const RUNTIME_CACHE_KEYS = {
 	THREAD_ACTIONS_PRESENTATION: 'mvp-thread-actions-presentation-cache',
 	NAVBAR_SEARCH_ENABLED: 'mvp-navbar-search-enabled-cache',
 	RELATED_THREADS_DISPLAY: 'mvp-related-threads-display-cache',
+	RELATED_THREADS_MAX_AGE: 'mvp-related-threads-max-age-cache',
 } as const
 
 export const EARLY_STYLE_IDS = {

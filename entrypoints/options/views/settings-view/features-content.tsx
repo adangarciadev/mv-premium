@@ -21,6 +21,8 @@ import Package from 'lucide-react/dist/esm/icons/package'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Store from 'lucide-react/dist/esm/icons/store'
 import CalendarDays from 'lucide-react/dist/esm/icons/calendar-days'
+import CalendarClock from 'lucide-react/dist/esm/icons/calendar-clock'
+import Check from 'lucide-react/dist/esm/icons/check'
 import MousePointerClick from 'lucide-react/dist/esm/icons/mouse-pointer-click'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
 import Wand2 from 'lucide-react/dist/esm/icons/wand-2'
@@ -48,6 +50,40 @@ const ITAD_COUNTRY_OPTIONS: Array<{ value: ItadCountry; label: string }> = [
 	{ value: 'US', label: 'Estados Unidos - USD' },
 ]
 
+const MAX_AGE_MONTHS_LIMIT = 300
+
+/** Digits only, capped at three characters, so the field cannot hold a number we would reject. */
+function sanitizeMaxAgeDraft(raw: string): string {
+	return raw.replace(/\D/g, '').slice(0, 3)
+}
+
+/** An empty field means "no limit", so 0 is never something the user has to type or decode. */
+function parseMaxAgeDraft(draft: string): number {
+	const months = Number.parseInt(draft, 10)
+	return Number.isFinite(months) && months > 0 ? months : 0
+}
+
+/** Exact, not approximate: 20 months is 1 año y 8 meses, and saying "unos 1,7 años" just hedges. */
+function formatMonthsAsYears(months: number): string {
+	const years = Math.floor(months / 12)
+	if (years === 0) return ''
+
+	const yearPart = `${years} ${years === 1 ? 'año' : 'años'}`
+	const restMonths = months % 12
+	if (restMonths === 0) return yearPart
+	return `${yearPart} y ${restMonths} ${restMonths === 1 ? 'mes' : 'meses'}`
+}
+
+/** Hint beside the months field: what the current draft would actually do. */
+function describeMaxAgeDraft(draft: string): string {
+	const months = parseMaxAgeDraft(draft)
+	if (months === 0) return 'Sin límite: se muestran todos'
+
+	const label = `${months} ${months === 1 ? 'mes' : 'meses'} sin actividad`
+	const asYears = formatMonthsAsYears(months)
+	return asYears ? `${label} · ${asYears}` : label
+}
+
 const NAVIGATION_SETTING_IDS = ['new-homepage', 'navbar-search']
 const EDITOR_SETTING_IDS = ['cinema-button', 'game-button', 'gif-picker', 'drafts-button', 'template-button', 'auto-tags']
 const CONTENT_SETTING_IDS = [
@@ -62,6 +98,7 @@ const CONTENT_SETTING_IDS = [
 	'pinned-posts',
 	'thread-preview',
 	'related-threads-display',
+	'related-threads-max-age',
 	'thread-summarizer',
 	'post-summary',
 	'save-thread',
@@ -94,6 +131,7 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		pinnedPostsEnabled,
 		threadPreviewEnabled,
 		relatedThreadsDisplay,
+		relatedThreadsMaxAgeMonths,
 		threadSummarizerEnabled,
 		postSummaryEnabled,
 		saveThreadEnabled,
@@ -189,6 +227,30 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		toast.success('Visualización de hilos relacionados actualizada', {
 			description: 'Recargando pestañas de Mediavida...',
 		})
+		await new Promise(resolve => setTimeout(resolve, 300))
+		await reloadMediavidaTabs()
+	}
+
+	// Typed into, not saved into: writing "20" would otherwise commit "2" first, with its own
+	// toast and tab reload. The value is applied only when the user confirms.
+	const [maxAgeDraft, setMaxAgeDraft] = useState(
+		relatedThreadsMaxAgeMonths > 0 ? String(relatedThreadsMaxAgeMonths) : ''
+	)
+	const maxAgeDraftMonths = parseMaxAgeDraft(maxAgeDraft)
+	const maxAgeExceedsLimit = maxAgeDraftMonths > MAX_AGE_MONTHS_LIMIT
+	const maxAgeDirty = maxAgeDraftMonths !== relatedThreadsMaxAgeMonths && !maxAgeExceedsLimit
+
+	const handleRelatedThreadsMaxAgeCommit = async () => {
+		if (!maxAgeDirty) return
+
+		setSetting('relatedThreadsMaxAgeMonths', maxAgeDraftMonths)
+		setMaxAgeDraft(maxAgeDraftMonths > 0 ? String(maxAgeDraftMonths) : '')
+		toast.success(
+			maxAgeDraftMonths === 0
+				? 'Se mostrarán todos los hilos relacionados'
+				: `Se ocultarán los que lleven más de ${maxAgeDraftMonths} ${maxAgeDraftMonths === 1 ? 'mes' : 'meses'} sin actividad`,
+			{ description: 'Recargando pestañas de Mediavida...' }
+		)
 		await new Promise(resolve => setTimeout(resolve, 300))
 		await reloadMediavidaTabs()
 	}
@@ -529,6 +591,58 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 						<SelectItem value="original">Vista original de Mediavida</SelectItem>
 					</SelectContent>
 				</Select>
+			</SettingRow>
+
+			<SettingRow
+				{...rowState('related-threads-max-age')}
+				icon={<CalendarClock className="h-4 w-4" />}
+				label="Antigüedad máxima de los hilos relacionados"
+				description="Oculta los hilos cuyo último mensaje sea más antiguo. Se mide desde la última respuesta, no desde que se creó el hilo. Déjalo en 0 para no filtrar nada."
+			>
+				<div className="flex flex-col items-end gap-1.5">
+					<div className="flex items-center gap-2">
+						<Input
+							type="number"
+							min={1}
+							max={MAX_AGE_MONTHS_LIMIT}
+							step={1}
+							value={maxAgeDraft}
+							placeholder="Sin límite"
+							disabled={relatedThreadsDisplay === 'hidden'}
+							onChange={event => setMaxAgeDraft(sanitizeMaxAgeDraft(event.target.value))}
+							onKeyDown={event => {
+								if (event.key === 'Enter') {
+									event.preventDefault()
+									void handleRelatedThreadsMaxAgeCommit()
+								}
+							}}
+							className="w-[110px]"
+							aria-label="Antigüedad máxima en meses de los hilos relacionados. Vacío = sin límite"
+						/>
+						{/* The unit stays visible: a bare number box does not say months, days or years. */}
+						<span className="text-sm text-muted-foreground">meses</span>
+						<Button
+							size="icon-sm"
+							variant={maxAgeDirty ? 'default' : 'ghost'}
+							disabled={!maxAgeDirty || relatedThreadsDisplay === 'hidden'}
+							onClick={() => void handleRelatedThreadsMaxAgeCommit()}
+							title={maxAgeExceedsLimit ? `El máximo es ${MAX_AGE_MONTHS_LIMIT} meses` : maxAgeDirty ? 'Aplicar' : 'Ya aplicado'}
+							aria-label="Aplicar la antigüedad máxima"
+						>
+							<Check className="h-4 w-4" />
+						</Button>
+					</div>
+					{maxAgeExceedsLimit ? (
+						<span role="alert" className="text-xs font-medium text-destructive">
+							Máximo {MAX_AGE_MONTHS_LIMIT} meses ({formatMonthsAsYears(MAX_AGE_MONTHS_LIMIT)})
+						</span>
+					) : (
+						<span className="text-xs text-muted-foreground/80">
+							{describeMaxAgeDraft(maxAgeDraft)}
+							{maxAgeDirty && <span className="ml-1 text-primary">· sin aplicar</span>}
+						</span>
+					)}
+				</div>
 			</SettingRow>
 
 			<SettingRow

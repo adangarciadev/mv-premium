@@ -257,6 +257,18 @@ export const SETTINGS_SEARCH_INDEX: SettingSearchItem[] = [
 		isEnabled: settings => settings.relatedThreadsDisplay !== 'hidden',
 	},
 	{
+		id: 'related-threads-max-age',
+		category: 'features',
+		section: 'Hilos',
+		label: 'Antigüedad máxima de los hilos relacionados',
+		description:
+			'Oculta los hilos relacionados cuyo último mensaje sea más antiguo que el límite. Se mide desde la última respuesta, no desde la creación del hilo.',
+		keywords: ['hilos', 'relacionados', 'antiguos', 'antigüedad', 'meses', 'actividad', 'viejos', 'filtrar'],
+		settingKeys: ['relatedThreadsMaxAgeMonths'],
+		requiresReload: true,
+		isEnabled: settings => settings.relatedThreadsDisplay !== 'hidden' && settings.relatedThreadsMaxAgeMonths > 0,
+	},
+	{
 		id: 'content-rules',
 		category: 'features',
 		section: 'Hilos',
