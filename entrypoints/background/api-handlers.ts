@@ -4,6 +4,7 @@
  */
 
 import { browser } from 'wxt/browser'
+import { storage } from '#imports'
 import { logger } from '@/lib/logger'
 import { fetchSteamBundleDetails, fetchSteamGameDetails, searchSteamApps } from '@/services/api/steam'
 import { fetchGogGameDetails } from '@/services/api/gog'
@@ -727,6 +728,34 @@ async function requestGiphy(
 /**
  * Setup options page opener handler
  */
+/**
+ * Id of the dashboard tab we opened, kept in session storage so it survives the service worker
+ * being torn down. Tracking it is what lets the dashboard be reused without the "tabs" permission:
+ * `tabs.query({ url })` silently returns [] for the extension's own pages without it, which is why
+ * every click used to open a new tab. `tabs.get`/`tabs.update` need no such permission.
+ */
+const dashboardTabStorage = storage.defineItem<number | null>('session:mvp-dashboard-tab-id', {
+	fallback: null,
+})
+
+async function focusExistingDashboard(url: string): Promise<boolean> {
+	const tabId = await dashboardTabStorage.getValue()
+	if (tabId === null) return false
+
+	try {
+		const tab = await browser.tabs.get(tabId)
+		// Without the "tabs" permission tab.url is undefined, so navigate unconditionally when unknown.
+		if (tab.url !== url) await browser.tabs.update(tabId, { url })
+		await browser.tabs.update(tabId, { active: true })
+		if (typeof tab.windowId === 'number') await browser.windows.update(tab.windowId, { focused: true })
+		return true
+	} catch {
+		// The tab was closed since we stored it.
+		await dashboardTabStorage.setValue(null)
+		return false
+	}
+}
+
 export function setupOptionsHandler(): void {
 	onMessage('openOptionsPage', async ({ data: view }) => {
 		let url = browser.runtime.getURL('/options.html')
@@ -735,25 +764,10 @@ export function setupOptionsHandler(): void {
 			url += `#/${view}`
 		}
 
-		const baseOptionsUrl = browser.runtime.getURL('/options.html')
-		const existingTabs = await browser.tabs.query({ url: `${baseOptionsUrl}*` })
-		const existingTab = existingTabs[0]
+		if (await focusExistingDashboard(url)) return
 
-		if (existingTab?.id) {
-			if (existingTab.url !== url) {
-				await browser.tabs.update(existingTab.id, { url })
-			}
-
-			await browser.tabs.update(existingTab.id, { active: true })
-
-			if (typeof existingTab.windowId === 'number') {
-				await browser.windows.update(existingTab.windowId, { focused: true })
-			}
-
-			return
-		}
-
-		await browser.tabs.create({ url })
+		const created = await browser.tabs.create({ url })
+		await dashboardTabStorage.setValue(created.id ?? null)
 	})
 }
 

@@ -46,6 +46,31 @@ function getAvatarUrl(img: HTMLImageElement): string {
 	return img.currentSrc || img.src
 }
 
+/**
+ * Mediavida serves the same avatar at several sizes: "<base>.png" is the 32x32 used in the navbar,
+ * "<base>_full.png" is the profile-sized one. Deriving it means the quality no longer depends on
+ * which page happened to be open when the user was detected.
+ *
+ * Returns null when the URL is not a Mediavida avatar or is already the full-size variant.
+ */
+export function getLargeAvatarUrl(avatarUrl: string): string | null {
+	const match = /^(.*\/img\/users\/avatar\/.+?)(_big|_full)?(\.[a-z0-9]+)$/i.exec(avatarUrl)
+	if (!match) return null
+
+	const large = `${match[1]}_full${match[3]}`
+	return large === avatarUrl ? null : large
+}
+
+/** Not every avatar has a full-size variant, so the derived URL is probed before it is stored. */
+function imageExists(url: string): Promise<boolean> {
+	return new Promise(resolve => {
+		const image = new Image()
+		image.onload = () => resolve(image.naturalWidth > 0)
+		image.onerror = () => resolve(false)
+		image.src = url
+	})
+}
+
 function findBestAvatarFromLinks(username: string): HTMLImageElement | null {
 	const candidates: HTMLImageElement[] = []
 	const profileLinks = document.querySelectorAll<HTMLAnchorElement>('a[href*="/id/"]')
@@ -130,7 +155,16 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
  */
 export async function detectAndSaveCurrentUser(): Promise<void> {
 	const user = detectCurrentUser()
-	if (user) {
-		await saveCurrentUser(user)
+	if (!user) return
+
+	// This runs on every Mediavida page and overwrites what is stored, so without upgrading here the
+	// navbar's 32x32 avatar would replace the good one as soon as the user left their own profile.
+	const large = user.avatarUrl ? getLargeAvatarUrl(user.avatarUrl) : null
+	if (large) {
+		const stored = await getCurrentUser()
+		// Already resolved for this avatar: no need to probe the network again on every page load.
+		if (stored?.avatarUrl === large || (await imageExists(large))) user.avatarUrl = large
 	}
+
+	await saveCurrentUser(user)
 }
