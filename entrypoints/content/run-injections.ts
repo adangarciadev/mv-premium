@@ -353,6 +353,11 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		const { initRelatedThreadsDisplay } = await import('@/features/related-threads')
 		initRelatedThreadsDisplay()
 
+		// Confirms which generated review cards ended up published. Returns immediately once a
+		// page load has established there is nothing pending, which is the common case.
+		const { detectPublishedMovieReviews } = await import('@/features/cine/logic/movie-review-detection')
+		void detectPublishedMovieReviews()
+
 		const twitterLiteEnabled = useSettingsStore.getState().twitterLiteEmbedsEnabled === true
 		if (twitterLiteEnabled) {
 			const { replaceTwitterEmbedsWithLite, startTwitterLiteEmbedGuard } = await import(
