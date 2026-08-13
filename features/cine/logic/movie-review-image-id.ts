@@ -27,6 +27,28 @@ const FILE_EXTENSION = /\.[a-z0-9]+$/i
 const VALID_IDENTIFIER = /^[A-Za-z0-9_\-/]+$/
 
 /**
+ * Query parameters image proxies use to carry the original URL.
+ *
+ * Mediavida does not serve external images directly: it rewrites them through wsrv.nl, so a
+ * published card arrives as `https://wsrv.nl/?n=-1&output=webp&url=<encoded original>`. The
+ * proxy's own path carries nothing, so without unwrapping there is no identifier to find.
+ */
+const PROXY_URL_PARAMS = ['url', 'u', 'src']
+
+/** How many nested proxies to unwrap before giving up, in case one ever points at itself. */
+const MAX_PROXY_DEPTH = 3
+
+function unwrapProxiedUrl(parsed: URL): string | null {
+	for (const param of PROXY_URL_PARAMS) {
+		// searchParams decodes for us, so %2F is a slash again by the time we see it.
+		const value = parsed.searchParams.get(param)
+		if (value && /^https?:\/\//i.test(value)) return value
+	}
+
+	return null
+}
+
+/**
  * Stable identifier inside an uploaded card URL, or null when nothing usable can be
  * extracted. A null result means the record can never be confirmed automatically, which
  * is the safe outcome: it stays pending rather than matching the wrong image.
@@ -36,18 +58,24 @@ const VALID_IDENTIFIER = /^[A-Za-z0-9_\-/]+$/
  * ImgBB serves `i.ibb.co/<id>/<generic-name>.jpg`. Taking only the last segment would throw
  * away ImgBB's real identifier and keep a filename we generate ourselves.
  */
-export function extractImageId(url: string): string | null {
+export function extractImageId(url: string, depth = 0): string | null {
 	if (!url) return null
 
-	let pathname: string
+	let parsed: URL
 	try {
 		// The base only matters for relative inputs; the pathname is what we read either way.
-		pathname = new URL(url, 'https://mvp.invalid').pathname
+		parsed = new URL(url, 'https://mvp.invalid')
 	} catch {
 		return null
 	}
 
-	const segments = pathname.split('/').filter(Boolean)
+	// A proxied image's identity is the identity of what it proxies.
+	if (depth < MAX_PROXY_DEPTH) {
+		const original = unwrapProxiedUrl(parsed)
+		if (original) return extractImageId(original, depth + 1)
+	}
+
+	const segments = parsed.pathname.split('/').filter(Boolean)
 	if (segments.length === 0) return null
 
 	// Only the filename carries an extension and a size suffix. Directory segments are the
@@ -60,8 +88,17 @@ export function extractImageId(url: string): string | null {
 	return identifier.length >= MIN_IMAGE_ID_LENGTH ? identifier : null
 }
 
-/** True when a candidate image source carries the given identifier. */
+/**
+ * True when a candidate image source carries the given identifier.
+ *
+ * Extraction comes first because a substring test is not enough on its own: Mediavida serves
+ * images through a proxy that percent-encodes the original URL, and an ImgBB identifier spans
+ * two path segments, so its slash arrives as %2F and the raw substring never matches. The
+ * substring check stays as a fallback for URL shapes we have not met yet.
+ */
 export function sourceMatchesImageId(source: string, imageId: string): boolean {
 	if (!source || imageId.length < MIN_IMAGE_ID_LENGTH) return false
+	if (extractImageId(source) === imageId) return true
+
 	return source.includes(imageId)
 }

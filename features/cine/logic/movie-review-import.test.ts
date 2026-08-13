@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CARD_RATIO } from './movie-card-shape'
-import { collectCandidateImages, filterByCardShape } from './movie-review-import'
+import { collectCandidateImages, collectCandidatesInPost, filterByCardShape } from './movie-review-import'
 
 function makeDocument(html: string): HTMLElement {
 	const root = document.createElement('div')
@@ -82,6 +82,48 @@ describe('collectCandidateImages', () => {
 
 	it('handles a document with no posts at all', () => {
 		expect(collectCandidateImages(makeDocument('<p>Nada</p>'), 'SupermaN_CK', new Set())).toEqual([])
+	})
+
+	/**
+	 * querySelectorAll only searches descendants, so a post element passed as the root finds
+	 * nothing: a post does not contain itself. That is what collectCandidatesInPost is for.
+	 */
+	it('finds nothing when handed a post element, which is why the per-post variant exists', () => {
+		const post = makeDocument(ownPost('45', '<img src="https://iili.io/4ypDNabBJ.png">')).firstElementChild!
+
+		expect(collectCandidateImages(post, 'SupermaN_CK', new Set())).toEqual([])
+	})
+})
+
+describe('collectCandidatesInPost', () => {
+	function makePost(html: string, author = 'SupermaN_CK', num = '45'): HTMLElement {
+		const root = document.createElement('div')
+		root.innerHTML = ownPost(num, html, author)
+		return root.firstElementChild as HTMLElement
+	}
+
+	it('collects images from the post element itself', () => {
+		expect(
+			collectCandidatesInPost(makePost('<img src="https://iili.io/4ypDNabBJ.png">'), 'SupermaN_CK', new Set())
+		).toEqual([{ imageUrl: 'https://iili.io/4ypDNabBJ.png', imageId: '4ypDNabBJ', postNumber: '45' }])
+	})
+
+	it('collects several cards from a single post', () => {
+		const post = makePost('<img src="https://iili.io/aaaaaaaaa.png"><img src="https://iili.io/bbbbbbbbb.png">')
+
+		expect(collectCandidatesInPost(post, 'SupermaN_CK', new Set())).toHaveLength(2)
+	})
+
+	it('ignores a post by another user', () => {
+		const post = makePost('<img src="https://iili.io/4ypDNabBJ.png">', 'otro')
+
+		expect(collectCandidatesInPost(post, 'SupermaN_CK', new Set())).toEqual([])
+	})
+
+	it('skips images already registered', () => {
+		const post = makePost('<img src="https://iili.io/4ypDNabBJ.png">')
+
+		expect(collectCandidatesInPost(post, 'SupermaN_CK', new Set(['4ypDNabBJ']))).toEqual([])
 	})
 })
 

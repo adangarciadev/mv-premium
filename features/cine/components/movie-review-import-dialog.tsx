@@ -240,12 +240,13 @@ export function MovieReviewImportDialog({ isOpen, onClose, candidates, onSaved }
 			onClose={onClose}
 			icon={<Film className="h-4 w-4" />}
 			title="Guardar en mis críticas"
-			description="La nota y el título están dibujados dentro de la imagen, así que no se pueden leer solos. Dinos qué película es y qué nota le pusiste; la tienes escrita en la propia card."
+			description="Dinos qué película es y qué nota le pusiste."
 			width={720}
 			height="auto"
 			closeDisabled={isSaving}
 			footer={
-				<div className="flex items-center justify-between gap-3">
+				// The shell renders this slot raw, so the padding and the divider belong here.
+				<div className="flex shrink-0 items-center justify-between gap-3 border-t border-border bg-background px-5 py-4">
 					<p className="m-0 text-xs text-muted-foreground">
 						{completeCount === 0
 							? 'Rellena al menos una para poder guardar.'
@@ -266,6 +267,12 @@ export function MovieReviewImportDialog({ isOpen, onClose, candidates, onSaved }
 					</Button>
 				</div>
 			)}
+
+			{/* The header description truncates to one line, so the explanation lives here. */}
+			<p className="mb-4 text-sm text-muted-foreground">
+				La nota y el título están dibujados dentro de la imagen, así que no se pueden leer solos. Los tienes escritos en
+				la propia card.
+			</p>
 
 			<ul className="m-0 flex list-none flex-col gap-3 p-0">
 				{candidates.map(candidate => (

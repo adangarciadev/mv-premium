@@ -32,6 +32,7 @@ export const DOM_MARKERS = {
 		PIN_INJECTED: 'mvp-pin-injected',
 		SUMMARY_INJECTED: 'mvp-summary-injected',
 		MUTED_REVEALED: 'mvp-muted-revealed',
+		REVIEW_IMPORT_INJECTED: 'mvp-review-import-injected',
 		RELATED_THREADS_MODE: 'mvp-related-threads-mode',
 		RELATED_THREADS_CONTENT_ID: 'mvp-related-threads-content-id',
 		// Injection Status

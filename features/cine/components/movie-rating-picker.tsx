@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 interface MovieRatingPickerProps {
@@ -39,22 +39,35 @@ function StarGlyph({ fill, gradientId }: { fill: 0 | 0.5 | 1; gradientId: string
 /**
  * Half-step rating control.
  *
- * A native range input drives it: one tab stop, real arrow/Home/End semantics, screen reader
- * announcements, and half steps reachable by keyboard and touch — none of which a grid of
- * custom radios provided. The stars are presentation only; the input sits transparently on top
- * with a zero-width thumb so pointer position maps linearly onto the ten stars.
+ * A native range input carries the accessibility: one tab stop, real arrow/Home/End semantics,
+ * and screen reader announcements, none of which a grid of custom radios provided.
+ *
+ * Pointer input is handled here rather than by the input, because a range maps position to the
+ * NEAREST step. That puts every boundary a quarter of a star early: the left edge of star 8
+ * would set 7, its centre 7.5, and only its right edge 8, which reads as the control reacting
+ * before the pointer arrives. Rounding up instead makes the half of the star under the pointer
+ * the value it sets.
  */
 export function MovieRatingPicker({ value, onChange, accent }: MovieRatingPickerProps) {
 	const [hoverValue, setHoverValue] = useState<number | null>(null)
 	const gradientBase = useId().replace(/:/g, '')
+	const inputRef = useRef<HTMLInputElement>(null)
+	const trackRef = useRef<HTMLDivElement>(null)
 	const visualValue = hoverValue ?? value ?? 0
 	const displayedRating = hoverValue ?? value
 
-	const ratingFromPointer = (event: React.PointerEvent<HTMLInputElement>) => {
-		const rect = event.currentTarget.getBoundingClientRect()
-		if (rect.width === 0) return MIN_RATING
-		const raw = ((event.clientX - rect.left) / rect.width) * MAX_RATING
-		return Math.min(MAX_RATING, Math.max(MIN_RATING, Math.round(raw * 2) / 2))
+	const ratingFromClientX = (clientX: number) => {
+		const rect = trackRef.current?.getBoundingClientRect()
+		if (!rect || rect.width === 0) return MIN_RATING
+
+		const raw = ((clientX - rect.left) / rect.width) * MAX_RATING
+		return Math.min(MAX_RATING, Math.max(MIN_RATING, Math.ceil(raw * 2) / 2))
+	}
+
+	const commitFromPointer = (clientX: number) => {
+		const next = ratingFromClientX(clientX)
+		setHoverValue(next)
+		onChange(next)
 	}
 
 	return (
@@ -74,8 +87,22 @@ export function MovieRatingPicker({ value, onChange, accent }: MovieRatingPicker
 					<small className="ml-1.5 text-sm font-semibold tracking-normal text-muted-foreground">/ 10</small>
 				</strong>
 			</div>
-			<div className="relative border-y border-border/45 py-2" onPointerLeave={() => setHoverValue(null)}>
+			<div
+				ref={trackRef}
+				className="relative cursor-pointer border-y border-border/45 py-2"
+				onPointerLeave={() => setHoverValue(null)}
+				onPointerMove={event => {
+					// Held button means a drag, so the value follows the pointer.
+					if (event.buttons & 1) commitFromPointer(event.clientX)
+					else setHoverValue(ratingFromClientX(event.clientX))
+				}}
+				onPointerDown={event => {
+					commitFromPointer(event.clientX)
+					inputRef.current?.focus()
+				}}
+			>
 				<input
+					ref={inputRef}
 					type="range"
 					min={0}
 					max={MAX_RATING}
@@ -84,10 +111,10 @@ export function MovieRatingPicker({ value, onChange, accent }: MovieRatingPicker
 					aria-label="Valoración de la película, de 0,5 a 10"
 					aria-valuetext={value === null ? 'Sin valorar' : `${formatRating(value)} sobre 10`}
 					onChange={event => onChange(Math.max(MIN_RATING, Number(event.target.value)))}
-					onPointerMove={event => setHoverValue(ratingFromPointer(event))}
 					className={cn(
-						'peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer appearance-none bg-transparent opacity-0',
-						// A zero-width thumb keeps the pointer-to-value mapping linear across the ten stars.
+						// Keyboard only: pointer events belong to the wrapper, which rounds up instead of
+						// to the nearest step.
+						'peer pointer-events-none absolute inset-0 z-10 m-0 h-full w-full appearance-none bg-transparent opacity-0',
 						'[&::-webkit-slider-thumb]:h-0 [&::-webkit-slider-thumb]:w-0 [&::-webkit-slider-thumb]:appearance-none',
 						'[&::-moz-range-thumb]:h-0 [&::-moz-range-thumb]:w-0 [&::-moz-range-thumb]:border-0'
 					)}

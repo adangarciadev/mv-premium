@@ -35,6 +35,7 @@ export const FEATURE_IDS = {
 	// Dynamic Feature Prefixes (used with ID/Counter)
 	FAVORITE_SUBFORUM_BTN_PREFIX: 'mvp-favorite-subforum-btn-',
 	POST_SUMMARY_POPOVER_PREFIX: 'mvp-post-summary-popover-',
+	MOVIE_REVIEW_IMPORT: 'mvp-movie-review-import',
 	TOOLBAR_PREFIX: 'mvp-distributed-toolbar-',
 	TOOLBAR_FALLBACK_PREFIX: 'mvp-distributed-toolbar-fallback-',
 	TOOLBAR_STATE_PREFIX: 'mvp-toolbar-state-',

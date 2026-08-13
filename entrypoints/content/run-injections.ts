@@ -358,6 +358,11 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		const { detectPublishedMovieReviews } = await import('@/features/cine/logic/movie-review-detection')
 		void detectPublishedMovieReviews()
 
+		// Offers to register cards published before the review log existed. Returns immediately
+		// when the user has no posts on this page.
+		const { injectMovieReviewImportButtons } = await import('@/features/cine/logic/inject-import-button')
+		void injectMovieReviewImportButtons()
+
 		const twitterLiteEnabled = useSettingsStore.getState().twitterLiteEmbedsEnabled === true
 		if (twitterLiteEnabled) {
 			const { replaceTwitterEmbedsWithLite, startTwitterLiteEmbedGuard } = await import(

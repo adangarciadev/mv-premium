@@ -26,27 +26,14 @@ function getImageUrl(image: Element): string {
 	return image.getAttribute('src') || image.getAttribute('data-src') || ''
 }
 
-/**
- * Every not-yet-registered image inside the user's own posts.
- *
- * Shape is deliberately not considered here: measuring an image means loading it, so that
- * happens later and only for whatever survives this much cheaper pass.
- *
- * A card that appears in more than one post is reported once, against the first post it was
- * found in. Identity is the image, and a record can only be registered against one message.
- */
-export function collectCandidateImages(
-	root: ParentNode,
-	username: string,
-	registeredIds: Set<string>
-): CandidateImage[] {
+function collectFromPosts(posts: HTMLElement[], username: string, registeredIds: Set<string>): CandidateImage[] {
 	if (!username) return []
 
 	const normalizedUser = username.toLowerCase()
 	const candidates: CandidateImage[] = []
 	const seen = new Set<string>()
 
-	for (const post of Array.from(root.querySelectorAll<HTMLElement>(POST_SELECTOR))) {
+	for (const post of posts) {
 		if ((post.dataset.autor || '').toLowerCase() !== normalizedUser) continue
 
 		const postNumber = post.dataset.num || ''
@@ -65,6 +52,38 @@ export function collectCandidateImages(
 	}
 
 	return candidates
+}
+
+/**
+ * Every not-yet-registered image inside the user's own posts, searching a container such as a
+ * whole page or a document parsed from a fetched one.
+ *
+ * Shape is deliberately not considered here: measuring an image means loading it, so that
+ * happens later and only for whatever survives this much cheaper pass.
+ *
+ * A card that appears in more than one post is reported once, against the first post it was
+ * found in. Identity is the image, and a record can only be registered against one message.
+ */
+export function collectCandidateImages(
+	root: ParentNode,
+	username: string,
+	registeredIds: Set<string>
+): CandidateImage[] {
+	return collectFromPosts(Array.from(root.querySelectorAll<HTMLElement>(POST_SELECTOR)), username, registeredIds)
+}
+
+/**
+ * The same, for a post element the caller already has in hand.
+ *
+ * This exists because `querySelectorAll` only searches descendants: passing a post element to
+ * `collectCandidateImages` finds nothing, since a post does not contain itself.
+ */
+export function collectCandidatesInPost(
+	post: HTMLElement,
+	username: string,
+	registeredIds: Set<string>
+): CandidateImage[] {
+	return collectFromPosts([post], username, registeredIds)
 }
 
 /**
