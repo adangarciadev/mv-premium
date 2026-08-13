@@ -7,6 +7,10 @@
 import { logger } from '@/lib/logger'
 import { sendMessage } from '@/lib/messaging'
 
+/** Typography of the Cine compositions: heavy for titles and scores, UI for everything else. */
+export const UI_FONT = 'Inter, "Segoe UI", Arial, sans-serif'
+export const HEAVY_FONT = 'Inter, "Segoe UI Black", "Arial Black", "Segoe UI", Arial, sans-serif'
+
 /**
  * Decoded images, keyed by URL. A composition is redrawn on every edit, and without this each
  * redraw re-fetched, re-base64'd and re-decoded the same backdrop, poster and avatar.
@@ -60,6 +64,15 @@ export function cover(
 	const sw = width / scale
 	const sh = height / scale
 	ctx.drawImage(image, (image.width - sw) / 2, (image.height - sh) / 2, sw, sh, x, y, width, height)
+}
+
+/** Shortens text to fit a width, ending in an ellipsis. */
+export function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+	if (ctx.measureText(text).width <= maxWidth) return text
+	const characters = Array.from(text)
+	let end = characters.length
+	while (end > 1 && ctx.measureText(`${characters.slice(0, end).join('').trimEnd()}…`).width > maxWidth) end -= 1
+	return `${characters.slice(0, end).join('').trimEnd()}…`
 }
 
 /** Traces a rounded rectangle. The caller fills, strokes or clips it. */

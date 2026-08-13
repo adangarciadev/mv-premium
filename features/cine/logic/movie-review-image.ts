@@ -1,4 +1,7 @@
-import { cover, loadImage, roundedRect } from './canvas-utils'
+import { cover, HEAVY_FONT, loadImage, roundedRect, truncateToWidth, UI_FONT } from './canvas-utils'
+
+// Re-exported from its original home so existing importers keep working.
+export { truncateToWidth }
 import {
 	buildMovieMetadata,
 	getMovieRatingTier,
@@ -10,8 +13,6 @@ import {
 
 const WIDTH = 1200
 const HEIGHT = 453
-const UI_FONT = 'Inter, "Segoe UI", Arial, sans-serif'
-const HEAVY_FONT = 'Inter, "Segoe UI Black", "Arial Black", "Segoe UI", Arial, sans-serif'
 
 const TITLE_MAX_FONT_SIZE = 38
 const TITLE_MIN_FONT_SIZE = 18
@@ -97,14 +98,6 @@ export function layoutMovieTitle(ctx: CanvasRenderingContext2D, title: string, m
  * Clamps a single line to `maxWidth` with an ellipsis, using the font already set on the context.
  * Canvas `fillText(maxWidth)` only condenses glyphs, so long values must be cut before drawing.
  */
-export function truncateToWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
-	if (ctx.measureText(text).width <= maxWidth) return text
-	const characters = Array.from(text)
-	let end = characters.length
-	while (end > 1 && ctx.measureText(`${characters.slice(0, end).join('').trimEnd()}…`).width > maxWidth) end -= 1
-	return `${characters.slice(0, end).join('').trimEnd()}…`
-}
-
 function drawWrappedText(
 	ctx: CanvasRenderingContext2D,
 	text: string,
