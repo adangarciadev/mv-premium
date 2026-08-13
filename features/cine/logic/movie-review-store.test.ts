@@ -21,12 +21,14 @@ vi.mock('#imports', () => ({
 
 import {
 	buildGeneratedReviewRecord,
+	buildImportedReviewRecord,
 	confirmMovieReviewPublication,
 	deleteMovieReview,
 	getMovieReviews,
 	getPendingMovieReviews,
 	movieReviewsStorage,
 	recordGeneratedMovieReview,
+	updateMovieReview,
 	upsertMovieReview,
 	type MovieReviewRecord,
 } from './movie-review-store'
@@ -204,5 +206,87 @@ describe('recordGeneratedMovieReview', () => {
 		await expect(recordGeneratedMovieReview(makeCardData(), 1, 'https://iili.io/ab.png')).resolves.toBeUndefined()
 
 		expect(await getMovieReviews()).toEqual([])
+	})
+})
+
+describe('buildImportedReviewRecord', () => {
+	const publication = {
+		threadUrl: 'https://www.mediavida.com/foro/cine/hilo-123',
+		threadTitle: 'Hilo de cine',
+		postNumber: '45',
+		confirmedAt: 1_700_000_000_000,
+	}
+
+	function makeInput(overrides: Record<string, unknown> = {}) {
+		return {
+			imageUrl: 'https://iili.io/4ypDNabBJ.png',
+			tmdbId: 693134,
+			title: 'Dune: Parte dos',
+			year: '2024',
+			posterUrl: null,
+			rating: 8.5,
+			badge: 'masterpiece' as const,
+			publication,
+			...overrides,
+		}
+	}
+
+	it('builds a record that is already published', () => {
+		expect(buildImportedReviewRecord(makeInput(), 5000)).toMatchObject({
+			imageId: '4ypDNabBJ',
+			source: 'imported',
+			rating: 8.5,
+			createdAt: 5000,
+			publication,
+		})
+	})
+
+	it('leaves the quote empty, because it cannot be recovered from the image', () => {
+		expect(buildImportedReviewRecord(makeInput(), 0)?.quote).toBe('')
+	})
+
+	it('keeps the whole path as identity for an ImgBB upload', () => {
+		const record = buildImportedReviewRecord(
+			makeInput({ imageUrl: 'https://i.ibb.co/0jZ8XKq/image-1700000000000.jpg' }),
+			0
+		)
+
+		expect(record?.imageId).toBe('0jZ8XKq/image-1700000000000')
+	})
+
+	it('refuses to build a record without a usable identifier', () => {
+		expect(buildImportedReviewRecord(makeInput({ imageUrl: 'https://iili.io/ab.png' }), 0)).toBeNull()
+	})
+})
+
+describe('updateMovieReview', () => {
+	beforeEach(() => {
+		storageValues.clear()
+	})
+
+	it('corrects a wrongly picked film without touching its publication', async () => {
+		await upsertMovieReview(makeRecord({ publication: publishedAt('45') }))
+
+		expect(await updateMovieReview('4ypDNabBJ', { title: 'Otra película', tmdbId: 999, rating: 6 })).toBe(true)
+
+		const [record] = await getMovieReviews()
+		expect(record.title).toBe('Otra película')
+		expect(record.tmdbId).toBe(999)
+		expect(record.rating).toBe(6)
+		expect(record.publication?.postNumber).toBe('45')
+	})
+
+	it('leaves untouched fields alone', async () => {
+		await upsertMovieReview(makeRecord())
+
+		await updateMovieReview('4ypDNabBJ', { rating: 6 })
+
+		const [record] = await getMovieReviews()
+		expect(record.title).toBe('Dune: Parte dos')
+		expect(record.badge).toBe('masterpiece')
+	})
+
+	it('reports failure for an unknown identifier', async () => {
+		expect(await updateMovieReview('nosuchid00', { rating: 5 })).toBe(false)
 	})
 })

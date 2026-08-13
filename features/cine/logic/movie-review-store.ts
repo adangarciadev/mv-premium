@@ -171,3 +171,63 @@ export async function recordGeneratedMovieReview(
 		logger.error('No se pudo registrar la crítica generada', error)
 	}
 }
+
+export interface ImportedReviewInput {
+	imageUrl: string
+	tmdbId: number
+	title: string
+	year: string
+	posterUrl: string | null
+	rating: number
+	badge: MovieReviewBadge | null
+	publication: MovieReviewPublication
+}
+
+/**
+ * Builds a record for a card published before this feature existed. It arrives already
+ * published, because the message it came from is where we found it.
+ *
+ * The quote stays empty: it is drawn into the PNG as pixels and cannot be read back. Asking
+ * the user to retype it would be asking them to transcribe their own screenshot.
+ */
+export function buildImportedReviewRecord(
+	input: ImportedReviewInput,
+	now: number = Date.now()
+): MovieReviewRecord | null {
+	const imageId = extractImageId(input.imageUrl)
+	if (imageId === null) return null
+
+	return {
+		imageId,
+		imageUrl: input.imageUrl,
+		tmdbId: input.tmdbId,
+		title: input.title,
+		year: input.year,
+		posterUrl: input.posterUrl,
+		rating: input.rating,
+		badge: input.badge,
+		quote: '',
+		createdAt: now,
+		source: 'imported',
+		publication: input.publication,
+	}
+}
+
+/**
+ * Corrects a record's data, typically after an import picked the wrong film.
+ *
+ * Publication details are deliberately outside the allowed changes: they are observed facts
+ * about a message, not something the user should be able to retype.
+ */
+export async function updateMovieReview(
+	imageId: string,
+	changes: Partial<Pick<MovieReviewRecord, 'tmdbId' | 'title' | 'year' | 'posterUrl' | 'rating' | 'badge' | 'quote'>>
+): Promise<boolean> {
+	const records = await getMovieReviews()
+	const index = records.findIndex(record => record.imageId === imageId)
+	if (index === -1) return false
+
+	records[index] = { ...records[index], ...changes }
+	await saveMovieReviews(records)
+	return true
+}
