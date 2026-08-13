@@ -18,19 +18,44 @@ export const HEAVY_FONT = 'Inter, "Segoe UI Black", "Arial Black", "Segoe UI", A
  */
 const imageCache = new Map<string, Promise<HTMLImageElement | null>>()
 
+/**
+ * Retries once before giving up.
+ *
+ * The image travels through the background script, and an MV3 service worker is stopped
+ * whenever the browser decides it has been idle. A request that arrives mid-shutdown simply
+ * dies, which is why posters went missing at random while the avatar beside them loaded. The
+ * retry lands after the worker has restarted.
+ */
+const FETCH_ATTEMPTS = 2
+const RETRY_DELAY_MS = 250
+
+async function fetchImageOnce(url: string): Promise<HTMLImageElement> {
+	const source = url.startsWith('data:') ? url : (await sendMessage('fetchMovieReviewImage', { url })).dataUrl
+
+	return await new Promise((resolve, reject) => {
+		const image = new Image()
+		image.onload = () => resolve(image)
+		image.onerror = reject
+		image.src = source
+	})
+}
+
 async function fetchImage(url: string): Promise<HTMLImageElement | null> {
-	try {
-		const source = url.startsWith('data:') ? url : (await sendMessage('fetchMovieReviewImage', { url })).dataUrl
-		return await new Promise((resolve, reject) => {
-			const image = new Image()
-			image.onload = () => resolve(image)
-			image.onerror = reject
-			image.src = source
-		})
-	} catch (cause) {
-		logger.debug('Movie review card: could not load image, rendering without it', url, cause)
-		return null
+	for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt++) {
+		try {
+			return await fetchImageOnce(url)
+		} catch (cause) {
+			if (attempt === FETCH_ATTEMPTS) {
+				logger.debug('Cine: could not load image after retrying, rendering without it', url, cause)
+				return null
+			}
+
+			logger.debug('Cine: image request failed, retrying', url, cause)
+			await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS))
+		}
 	}
+
+	return null
 }
 
 /**

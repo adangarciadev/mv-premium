@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Film from 'lucide-react/dist/esm/icons/film'
-import Images from 'lucide-react/dist/esm/icons/images'
+import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import Star from 'lucide-react/dist/esm/icons/star'
 import Trophy from 'lucide-react/dist/esm/icons/trophy'
 import { toast } from 'sonner'
@@ -28,10 +28,10 @@ import {
 	type MovieReviewRecord,
 } from '@/features/cine/logic/movie-review-store'
 import { MovieReviewTile } from './movie-review-tile'
-import { MuralShareDialog } from './mural-share-dialog'
+import { RecapShareDialog } from './recap-share-dialog'
 
-/** Below this a wall is not a wall, it is a poster with company. */
-const MIN_MURAL_REVIEWS = 3
+/** Below this there is no distribution to show, only three bars and a podium of everything. */
+const MIN_RECAP_REVIEWS = 3
 
 function StatCard({ icon, value, label }: { icon: ReactNode; value: string; label: string }) {
 	return (
@@ -54,7 +54,7 @@ export function CineView() {
 	const [year, setYear] = useState('all')
 	const [badge, setBadge] = useState<MovieReviewBadge | 'all'>('all')
 	const [pendingDelete, setPendingDelete] = useState<MovieReviewRecord | null>(null)
-	const [isSharingMural, setIsSharingMural] = useState(false)
+	const [isSharingRecap, setIsSharingRecap] = useState(false)
 
 	useEffect(() => {
 		let mounted = true
@@ -109,19 +109,19 @@ export function CineView() {
 
 				<SimpleTooltip
 					content={
-						published.length < MIN_MURAL_REVIEWS
-							? `Necesitas al menos ${MIN_MURAL_REVIEWS} críticas publicadas`
-							: 'Genera una imagen con tus pósters para pegarla en un hilo'
+						published.length < MIN_RECAP_REVIEWS
+							? `Necesitas al menos ${MIN_RECAP_REVIEWS} críticas publicadas`
+							: 'Genera una imagen con cómo puntúas y tu podio, para pegarla en un hilo'
 					}
 				>
 					<span>
 						<Button
 							variant="outline"
-							onClick={() => setIsSharingMural(true)}
-							disabled={published.length < MIN_MURAL_REVIEWS}
+							onClick={() => setIsSharingRecap(true)}
+							disabled={published.length < MIN_RECAP_REVIEWS}
 						>
-							<Images className="mr-1.5 h-4 w-4" />
-							Compartir mural
+							<Sparkles className="mr-1.5 h-4 w-4" />
+							Compartir resumen
 						</Button>
 					</span>
 				</SimpleTooltip>
@@ -239,7 +239,7 @@ export function CineView() {
 				</TabsContent>
 			</Tabs>
 
-			<MuralShareDialog isOpen={isSharingMural} onClose={() => setIsSharingMural(false)} records={published} />
+			<RecapShareDialog isOpen={isSharingRecap} onClose={() => setIsSharingRecap(false)} records={published} />
 
 			<ConfirmDialog
 				open={pendingDelete !== null}

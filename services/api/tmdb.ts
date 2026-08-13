@@ -337,12 +337,20 @@ function getDirectorFromCredits(credits: TMDBCredits | undefined): string | null
 	return firstCreditName(credits?.crew.filter(c => c.job === 'Director') ?? [])
 }
 
-async function getMovieReleaseDetails(movieId: number): Promise<TMDBMovieDetailsWithCredits> {
+/**
+ * Details and credits in a single request. Two calls per film would double the traffic for
+ * data TMDB is happy to send together.
+ */
+export async function getMovieDetailsWithCredits(movieId: number): Promise<TMDBMovieDetailsWithCredits> {
 	return fetchTMDB<TMDBMovieDetailsWithCredits>(
 		`/movie/${movieId}`,
 		{ append_to_response: 'credits', language: 'es-ES' },
 		{ ttl: CACHE_TTL.LONG, persist: false }
 	)
+}
+
+async function getMovieReleaseDetails(movieId: number): Promise<TMDBMovieDetailsWithCredits> {
+	return getMovieDetailsWithCredits(movieId)
 }
 
 async function enrichMovieRelease(release: UpcomingSpanishMovieRelease): Promise<UpcomingSpanishMovieRelease> {
@@ -473,16 +481,12 @@ export async function getUpcomingSpanishMovieReleases({
 		})
 	)
 
-	const mappedTmdbReleases = tmdbReleases.filter(
-		(release): release is UpcomingSpanishMovieRelease => release !== null
-	)
+	const mappedTmdbReleases = tmdbReleases.filter((release): release is UpcomingSpanishMovieRelease => release !== null)
 	const selectedReleases = mergeMovieReleases(mappedTmdbReleases)
 		.filter((release): release is UpcomingSpanishMovieRelease => release !== null)
 		.sort(
 			(a, b) =>
-				a.releaseTimestamp - b.releaseTimestamp ||
-				b.voteAverage - a.voteAverage ||
-				a.title.localeCompare(b.title, 'es')
+				a.releaseTimestamp - b.releaseTimestamp || b.voteAverage - a.voteAverage || a.title.localeCompare(b.title, 'es')
 		)
 
 	const enrichedReleases = await Promise.all(selectedReleases.map(enrichMovieRelease))
