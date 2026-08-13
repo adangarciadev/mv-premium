@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import Film from 'lucide-react/dist/esm/icons/film'
+import Images from 'lucide-react/dist/esm/icons/images'
 import Star from 'lucide-react/dist/esm/icons/star'
 import Trophy from 'lucide-react/dist/esm/icons/trophy'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { SimpleTooltip } from '@/components/ui/simple-tooltip'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MOVIE_REVIEW_BADGES, type MovieReviewBadge } from '@/features/cine/logic/movie-review'
@@ -25,6 +28,10 @@ import {
 	type MovieReviewRecord,
 } from '@/features/cine/logic/movie-review-store'
 import { MovieReviewTile } from './movie-review-tile'
+import { MuralShareDialog } from './mural-share-dialog'
+
+/** Below this a wall is not a wall, it is a poster with company. */
+const MIN_MURAL_REVIEWS = 3
 
 function StatCard({ icon, value, label }: { icon: ReactNode; value: string; label: string }) {
 	return (
@@ -47,6 +54,7 @@ export function CineView() {
 	const [year, setYear] = useState('all')
 	const [badge, setBadge] = useState<MovieReviewBadge | 'all'>('all')
 	const [pendingDelete, setPendingDelete] = useState<MovieReviewRecord | null>(null)
+	const [isSharingMural, setIsSharingMural] = useState(false)
 
 	useEffect(() => {
 		let mounted = true
@@ -91,11 +99,32 @@ export function CineView() {
 
 	return (
 		<div className="flex flex-col gap-6 p-6">
-			<div>
-				<h1 className="text-2xl font-bold">Mis Críticas</h1>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Las películas que has valorado con la card de crítica, con enlace al mensaje donde las publicaste.
-				</p>
+			<div className="flex flex-wrap items-start justify-between gap-3">
+				<div>
+					<h1 className="text-2xl font-bold">Mis Críticas</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Las películas que has valorado con la card de crítica, con enlace al mensaje donde las publicaste.
+					</p>
+				</div>
+
+				<SimpleTooltip
+					content={
+						published.length < MIN_MURAL_REVIEWS
+							? `Necesitas al menos ${MIN_MURAL_REVIEWS} críticas publicadas`
+							: 'Genera una imagen con tus pósters para pegarla en un hilo'
+					}
+				>
+					<span>
+						<Button
+							variant="outline"
+							onClick={() => setIsSharingMural(true)}
+							disabled={published.length < MIN_MURAL_REVIEWS}
+						>
+							<Images className="mr-1.5 h-4 w-4" />
+							Compartir mural
+						</Button>
+					</span>
+				</SimpleTooltip>
 			</div>
 
 			<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -209,6 +238,8 @@ export function CineView() {
 					)}
 				</TabsContent>
 			</Tabs>
+
+			<MuralShareDialog isOpen={isSharingMural} onClose={() => setIsSharingMural(false)} records={published} />
 
 			<ConfirmDialog
 				open={pendingDelete !== null}
