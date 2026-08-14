@@ -26,10 +26,18 @@ describe('collectCandidateImages', () => {
 		expect(collectCandidateImages(root, 'SupermaN_CK', new Set())).toEqual([])
 	})
 
+	/** The same name in a different case — the underscore has to survive, or it is another user. */
 	it('compares the author case-insensitively', () => {
-		const root = makeDocument(ownPost('45', '<img src="https://iili.io/4ypDNabBJ.png">', 'supermanck'))
+		const root = makeDocument(ownPost('45', '<img src="https://iili.io/4ypDNabBJ.png">', 'SUPERMAN_CK'))
 
 		expect(collectCandidateImages(root, 'SupermaN_CK', new Set())).toHaveLength(1)
+	})
+
+	/** And a name that merely looks similar is still somebody else. */
+	it('does not match an author whose name only resembles the user', () => {
+		const root = makeDocument(ownPost('45', '<img src="https://iili.io/4ypDNabBJ.png">', 'supermanck'))
+
+		expect(collectCandidateImages(root, 'SupermaN_CK', new Set())).toEqual([])
 	})
 
 	it('skips images already registered', () => {

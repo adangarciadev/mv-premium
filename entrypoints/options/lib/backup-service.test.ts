@@ -512,8 +512,8 @@ describe('backup-service · mediaffinity', () => {
 	})
 
 	it('carries the reviews and the runtime cache into the backup', async () => {
-		storageMockState.store.set('local:mvp-movie-reviews', [review])
-		storageMockState.store.set('local:mvp-movie-runtimes', { '27205': 148 })
+		setStoredValue(STORAGE_KEYS.MOVIE_REVIEWS, [review])
+		setStoredValue(STORAGE_KEYS.MOVIE_RUNTIMES, { '27205': 148 })
 
 		const backup = await createBackupData()
 
@@ -528,7 +528,7 @@ describe('backup-service · mediaffinity', () => {
 
 		expect(result.success).toBe(true)
 		expect(result.stats?.movieReviews).toBe(1)
-		expect(storageMockState.store.get('local:mvp-movie-reviews')).toEqual([review])
+		expect(storageMockState.store.get(STORAGE_KEYS.MOVIE_REVIEWS)).toEqual([review])
 	})
 
 	/** A backup written before this section existed has to keep importing. */

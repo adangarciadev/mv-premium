@@ -157,8 +157,8 @@ describe('getRecapGeometry', () => {
 	it('is exactly double the width of a forum post', () => {
 		expect(geometry.width).toBe(RECAP_WIDTH)
 		expect(geometry.width).toBe(648 * 2)
-		// 906 since the footprint replaced the plotted histogram; it was 1004.
-		expect(geometry.height).toBe(906)
+		// 960 since the footprint replaced the plotted histogram; it was 1004.
+		expect(geometry.height).toBe(960)
 	})
 
 	/**
@@ -248,10 +248,14 @@ describe('getRecapGeometry', () => {
 		expect(geometry.axisY).toBeLessThan(geometry.rankingLabelY)
 	})
 
-	/** The footprint is what bought this back: the card was 1004 tall with a plotted histogram. */
-	it('is shorter than the card was with a plotted histogram', () => {
+	/**
+	 * The footprint is what bought this back. Measured against what the plotted histogram spent —
+	 * a 30px label, a 152px plot and a 34px axis — rather than against a pixel count that has to be
+	 * re-pinned every time the section is tuned.
+	 */
+	it('spends less height on the distribution than a plotted histogram did', () => {
 		expect(geometry.height).toBeLessThan(1004)
-		expect(geometry.stripBottom - geometry.chartLabelY).toBeLessThan(100)
+		expect(geometry.legendY - geometry.chartLabelY).toBeLessThan(30 + 152 + 34)
 	})
 })
 

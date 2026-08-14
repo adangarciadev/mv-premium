@@ -22,6 +22,120 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.6.0',
+		date: '2026-08-15',
+		title: 'Mediaffinity: tu registro de cine, con galería, diario y resumen para compartir',
+		summary:
+			'Las críticas de cine dejan de ser imágenes sueltas y pasan a ser un registro. Mediaffinity guarda cada crítica que publicas, la reconoce sola en tus mensajes y te la enseña de dos maneras: una galería de carteles para recorrer tu colección y un diario denso para encontrar y comparar. Añade revisionados, horas de cine, buscador por título y una imagen de resumen lista para pegar en un hilo. Los hilos relacionados estrenan filtro por antigüedad, y el backup por fin se lleva tus críticas.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Mediaffinity: el registro de tus críticas publicadas, con dos modos de verlo. Galería enseña los carteles grandes para recorrer la colección; Diario los pone en filas con las notas alineadas para encontrar y comparar. La elección se recuerda.',
+				category: 'Mediaffinity',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Revisionados: al crear una card puedes marcar si ya habías visto la película, y la extensión lo propone sola cuando ya la tienes en tu registro. La card publicada lleva un símbolo de revisionado y el dashboard lo señala en cada ficha.',
+				category: 'Mediaffinity',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Horas de cine: el encabezado suma cuánto tiempo llevas delante de la pantalla contando cada visionado, con las duraciones de TMDB guardadas para no volver a pedirlas.',
+				category: 'Mediaffinity',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Buscador por título dentro de tus críticas, con acentos y mayúsculas ignorados: «parasitos» encuentra «Parásitos». Busca siempre en toda tu colección, no solo en lo que hay cargado en pantalla.',
+				category: 'Mediaffinity',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Resumen compartible: una imagen con tus cifras, la distribución de tus notas, quién y qué repites, y tu primera y última crítica del periodo. Se sube y copia el BBCode listo para pegar en un hilo.',
+				category: 'Mediaffinity',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Importar críticas antiguas: las cards que publicaste antes de instalar la extensión se añaden al registro desde el botón que aparece sobre ellas en el foro.',
+				category: 'Mediaffinity',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Filtrar los hilos relacionados por antigüedad: puedes ocultar los que llevan meses o años sin un solo mensaje y quedarte solo con los que siguen vivos.',
+				category: 'Experiencia',
+				surface: 'shared',
+			},
+			{
+				type: 'improvement',
+				description:
+					'La vista previa de la card se dibuja en directo mientras escribes, en vez de generar una imagen completa con cada tecla.',
+				category: 'Mediaffinity',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description:
+					'La frase de la card admite 160 caracteres y puede ocupar tres líneas.',
+				category: 'Mediaffinity',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'El backup de Ajustes avanzados ya incluye tus críticas de Mediaffinity y tus hilos recortados. Antes se exportaban sin ellos y al restaurar no volvían: el informe de importación te dice ahora cuántas críticas se han recuperado.',
+				category: 'Copias de seguridad',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'Los carteles vuelven a dibujarse en las cards y en el resumen. Faltaba el permiso del servidor de imágenes de TMDB, así que la descarga se bloqueaba y quedaba un hueco gris en su lugar.',
+				category: 'Mediaffinity',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'Los desplegables dejan de quedarse anclados a media página al hacer scroll con uno abierto.',
+				category: 'Experiencia',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'Los tooltips ya no se quedan colgados en pantalla después de cerrar el diálogo que abrieron.',
+				category: 'Experiencia',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'La gráfica de Tiempo en Mediavida se ajusta a tus datos en vez de a un máximo fijo, así que las horas flojas dejan de verse planas.',
+				category: 'Estadísticas',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'El avatar de tu perfil se guarda a tamaño completo en lugar de la miniatura de la barra de navegación.',
+				category: 'Usuarios',
+				surface: 'desktop',
+			},
+		],
+	},
+	{
 		version: '3.5.0',
 		date: '2026-08-09',
 		title: 'Críticas visuales de cine y más control al terminar los hilos',

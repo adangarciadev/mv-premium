@@ -40,15 +40,22 @@ const CATEGORY_ICONS: Record<string, { icon: typeof LayoutDashboard; color: stri
 	navegación: { icon: Compass, color: 'text-blue-500' },
 	multimedia: { icon: Film, color: 'text-purple-500' },
 	cine: { icon: Film, color: 'text-purple-500' },
+	// Before 'ia': the match is a substring test, and "mediaffinity" contains it.
+	mediaffinity: { icon: Film, color: 'text-purple-500' },
 	comunidad: { icon: Users, color: 'text-green-500' },
 	usuarios: { icon: Users, color: 'text-green-500' },
 	perfiles: { icon: Users, color: 'text-green-500' },
 	inteligencia: { icon: Brain, color: 'text-pink-600' },
-	ia: { icon: Brain, color: 'text-pink-600' },
 	'mobile lite': { icon: Smartphone, color: 'text-amber-500' },
 	escritorio: { icon: Monitor, color: 'text-slate-500' },
 	'copias de seguridad': { icon: Layers, color: 'text-blue-500' },
 	sincronización: { icon: Layers, color: 'text-blue-500' },
+	/*
+	 * Last, and it has to stay last: the lookup is a substring test in insertion order, and "ia" is
+	 * inside "copias de seguridad" and "mediaffinity" alike. Ahead of them it swallowed both, which
+	 * is why backups have been showing a brain and their own entry below was never reached.
+	 */
+	ia: { icon: Brain, color: 'text-pink-600' },
 }
 
 /**
