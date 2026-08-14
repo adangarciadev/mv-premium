@@ -65,6 +65,8 @@ export default defineConfig({
 			'https://cdn.syndication.twimg.com/*',
 			'https://graphql.anilist.co/*',
 			'https://s4.anilist.co/*',
+			'https://api.themoviedb.org/*',
+			'https://image.tmdb.org/*',
 			'*://api.igdb.com/*',
 			'*://id.twitch.tv/*',
 			'https://itunes.apple.com/*',

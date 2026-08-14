@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Check from 'lucide-react/dist/esm/icons/check'
 import CheckCircle2 from 'lucide-react/dist/esm/icons/check-circle-2'
+import Eye from 'lucide-react/dist/esm/icons/eye'
 import Film from 'lucide-react/dist/esm/icons/film'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import Search from 'lucide-react/dist/esm/icons/search'
@@ -51,7 +52,14 @@ function TmdbAttribution() {
 	)
 }
 
-/** Two states, ordered the way the viewing happened: the first time, then every time after. */
+/**
+ * Two states, ordered the way the viewing happened: the first time, then every time after.
+ *
+ * Plain data only. Holding the icon components here crashed the whole content script on startup:
+ * this constant is evaluated the moment the module loads, and in the bundle the icon modules are
+ * initialised after it, so the reference landed in the temporal dead zone. The icon is chosen
+ * during render instead, where the binding is long since ready.
+ */
 const VIEWING_OPTIONS = [
 	{ label: 'Primera vez', isRewatch: false },
 	{ label: 'Revisionado', isRewatch: true },
@@ -523,12 +531,14 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 							<section className="py-5">
 								<div className="mb-3 flex items-baseline justify-between">
 									<p className="text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground">Visionado</p>
+									{/* Nombra la fuente del dato, no solo el dato: es lo que explica por qué el
+									    interruptor viene ya puesto. */}
 									<span className="text-[10px] text-muted-foreground">
 										{priorReviews === 0
-											? 'No la tienes en tu registro'
+											? 'No está en Mediaffinity'
 											: priorReviews === 1
-												? 'Ya la criticaste una vez'
-												: `Ya la criticaste ${priorReviews} veces`}
+												? '1 crítica en Mediaffinity'
+												: `${priorReviews} críticas en Mediaffinity`}
 									</span>
 								</div>
 								<div
@@ -537,39 +547,41 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 									aria-label="Tipo de visionado"
 									onKeyDown={handleViewingKeyDown}
 								>
-									{VIEWING_OPTIONS.map(option => {
-										const isSelected = option.isRewatch === rewatch
+									{VIEWING_OPTIONS.map(({ label, isRewatch }) => {
+										const isSelected = isRewatch === rewatch
 										return (
 											<button
-												key={option.label}
+												key={label}
 												type="button"
 												role="radio"
 												aria-checked={isSelected}
 												tabIndex={isSelected ? 0 : -1}
 												ref={element => {
-													viewingRefs.current[option.isRewatch ? 1 : 0] = element
+													viewingRefs.current[isRewatch ? 1 : 0] = element
 												}}
-												onClick={() => setRewatch(option.isRewatch)}
+												onClick={() => setRewatch(isRewatch)}
 												className={cn(
-													'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary',
+													'inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[11px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary',
 													isSelected
 														? 'border-primary/60 bg-primary/10 font-bold text-primary'
 														: 'border-border/70 bg-background/40 text-muted-foreground hover:border-primary/40 hover:text-foreground'
 												)}
 											>
-												{option.isRewatch ? (
+												{isRewatch ? (
 													<RotateCcw aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
 												) : (
-													<Check aria-hidden="true" className={cn('h-3 w-3 shrink-0', !isSelected && 'opacity-0')} />
+													<Eye aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
 												)}
-												{option.label}
+												{label}
 											</button>
 										)
 									})}
 								</div>
 								<p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-									Si ya la habías visto antes de usar la extensión, márcala igualmente: en la card saldrá el símbolo de
-									revisionado.
+									{priorReviews > 0
+										? 'Viene marcada como revisionado porque esta película ya está en tu registro. Cámbialo si esta vez no fue una revisión.'
+										: 'Si ya la habías visto antes de usar la extensión, marca «Revisionado» igualmente: la extensión solo sabe lo que le has contado.'}{' '}
+									En la card publicada saldrá el símbolo de revisionado.
 								</p>
 							</section>
 							<section className="py-5">

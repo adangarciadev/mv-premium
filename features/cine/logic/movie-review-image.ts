@@ -354,6 +354,17 @@ function getStaticLayer(data: MovieReviewCardData, images: CardImages): HTMLCanv
 	if (!layerCtx) throw new Error('Canvas is not available')
 	drawStaticLayer(layerCtx, images)
 
+	/*
+	 * A layer drawn while one of its images was missing is never kept.
+	 *
+	 * `loadImage` deletes a failed URL from its own cache so the next redraw retries it, but this
+	 * layer sat above that and undid it: one lost request — a service worker still waking up, a
+	 * rate-limited burst — and the "SIN PÓSTER" placeholder got baked into a canvas that every
+	 * later redraw reused, for the whole session, while the URL itself worked perfectly.
+	 */
+	const isComplete = (!data.backdropUrl || images.backdrop) && (!data.posterUrl || images.poster)
+	if (!isComplete) return layer
+
 	if (staticLayerCache.size >= STATIC_LAYER_CACHE_LIMIT) {
 		const oldest = staticLayerCache.keys().next().value
 		if (oldest !== undefined) staticLayerCache.delete(oldest)

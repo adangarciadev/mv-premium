@@ -46,7 +46,10 @@ async function fetchImage(url: string): Promise<HTMLImageElement | null> {
 			return await fetchImageOnce(url)
 		} catch (cause) {
 			if (attempt === FETCH_ATTEMPTS) {
-				logger.debug('Cine: could not load image after retrying, rendering without it', url, cause)
+				// A warning rather than a debug line: this one degrades what the user gets — a card
+				// without its poster — and `debug` is stripped from production, which is exactly where
+				// the failure needed explaining.
+				logger.warn('Cine: could not load image after retrying, rendering without it', url, cause)
 				return null
 			}
 
