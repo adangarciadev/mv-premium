@@ -65,6 +65,9 @@ export default defineConfig({
 			'https://cdn.syndication.twimg.com/*',
 			'https://graphql.anilist.co/*',
 			'https://s4.anilist.co/*',
+			// The API answers with `Access-Control-Allow-Origin: *`, which is why it worked without a
+			// permission; the image CDN does not send it, so without this CORS blocks the background's
+			// fetch for a poster and cards are drawn with a grey gap where the artwork goes.
 			'https://api.themoviedb.org/*',
 			'https://image.tmdb.org/*',
 			'*://api.igdb.com/*',

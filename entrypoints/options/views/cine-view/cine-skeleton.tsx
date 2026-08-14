@@ -23,7 +23,7 @@ export function CineSkeleton() {
 				<div className="h-9 w-32 animate-pulse rounded-md bg-muted" />
 			</div>
 
-			{/* Mismas medidas que la parrilla de Galería, para que el contenido no dé un salto al llegar. */}
+			{/* The same measurements as the Galería grid, so the content does not jump when it lands. */}
 			<div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-x-[18px] gap-y-7">
 				{Array.from({ length: 12 }, (_, index) => (
 					<div key={index} className="flex flex-col gap-2.5">

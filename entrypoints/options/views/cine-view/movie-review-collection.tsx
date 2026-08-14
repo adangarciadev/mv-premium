@@ -168,8 +168,8 @@ export function MovieReviewCollection({ records, view, viewings, onDelete }: Mov
 
 			{hasMore && (
 				<>
-					{/* El centinela va por encima del indicador, no debajo: así se cruza con el margen de
-					    precarga bastante antes de que el pie llegue a estar a la vista. */}
+					{/* The sentinel sits above the indicator, not below it, so it crosses the preload margin
+					    well before the foot of the list is anywhere near the viewport. */}
 					<div ref={sentinelRef} aria-hidden className="h-px w-full" />
 					<MoreAhead />
 				</>

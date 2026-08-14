@@ -40,19 +40,19 @@ function RuntimeFigure({ minutes }: { minutes: number }) {
 		<p
 			className={cn(
 				'flex items-baseline gap-2 border-l border-border/50 pl-5 sm:pl-7',
-				// Dos capas: una sombra corta que despega el trazo del cartel y una ancha que apaga
-				// lo que haya detrás. Sobre un póster en llamas, una sola no basta.
+				// Two layers: a tight shadow that lifts the strokes off the artwork and a wide one that
+				// dims whatever is behind them. Over a poster in flames, one is not enough.
 				'[text-shadow:0_1px_2px_rgba(0,0,0,0.92),0_2px_26px_rgba(0,0,0,0.8)]'
 			)}
-			// Los minutos exactos viven aquí, al alcance de quien los quiera, sin partir el titular en
-			// tres piezas de tamaño decreciente.
+			// The exact minutes live here, within reach of anyone who wants them, without splitting the
+			// headline into three pieces of decreasing size.
 			title={formatRuntimeExact(minutes)}
 		>
 			<span className="font-display text-5xl font-bold leading-none tracking-[-0.04em] text-primary sm:text-6xl">
 				{value}
 			</span>
-			{/* La unidad en blanco: el acento se queda entero para la cifra, y sobre un cartel claro el
-			    blanco aguanta mejor que un naranja a menor tamaño. */}
+			{/* The unit in white: the accent stays whole for the figure, and over a bright poster white
+			    holds up better than an orange set this much smaller. */}
 			<span className="font-display text-xl font-semibold leading-none text-foreground sm:text-2xl">{unit}</span>
 		</p>
 	)
@@ -176,7 +176,7 @@ export function CineHero({ stats, movieCount, runtimeMinutes, posterUrls, onShar
 						</div>
 
 						{runtimeMinutes === null ? (
-							// Reserva el hueco mientras TMDB responde: sin esto el titular da un salto al llegar.
+							// Holds the space while TMDB answers; without it the headline jumps when the figure lands.
 							<div className="border-l border-border/50 pl-5 sm:pl-7" aria-hidden>
 								<div className="h-12 w-36 animate-pulse rounded-md bg-muted/60 sm:h-14" />
 							</div>

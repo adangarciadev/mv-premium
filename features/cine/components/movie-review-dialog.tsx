@@ -531,8 +531,8 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 							<section className="py-5">
 								<div className="mb-3 flex items-baseline justify-between">
 									<p className="text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground">Visionado</p>
-									{/* Nombra la fuente del dato, no solo el dato: es lo que explica por qué el
-									    interruptor viene ya puesto. */}
+									{/* Names where the answer comes from, not just the answer: that is what explains why
+									    the switch arrives already set. */}
 									<span className="text-[10px] text-muted-foreground">
 										{priorReviews === 0
 											? 'No está en Mediaffinity'

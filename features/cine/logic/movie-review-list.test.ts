@@ -295,8 +295,8 @@ describe('getDistinctPosterUrls', () => {
 })
 
 /**
- * Galería enseña películas, Diario enseña críticas. Sin este agrupado, una película revisionada
- * tres veces ocupaba tres huecos de la parrilla con el mismo cartel.
+ * Galería shows films, Diario shows reviews. Without this grouping, a film watched three times
+ * took three slots of the wall with the same poster in each.
  */
 describe('groupMovieReviews', () => {
 	it('gives a film one entry however many times it was reviewed', () => {

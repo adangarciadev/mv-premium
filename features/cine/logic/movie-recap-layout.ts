@@ -8,7 +8,7 @@
  *
  * Pure maths, kept apart from the renderer so the composition can be tested without a canvas.
  */
-import { getMovieReviewStats } from './movie-review-list'
+import { countUniqueMovies, getMovieReviewStats } from './movie-review-list'
 import type { MovieReviewRecord } from './movie-review-store'
 
 /**
@@ -21,8 +21,20 @@ export const RECAP_PADDING = 48
 /** The whole image is a card, so its corners are rounded and its edge is drawn. */
 export const RECAP_RADIUS = 26
 
-/** Ten bands, one per point, matching how a ten-point score is read aloud. */
-export const RATING_BAND_COUNT = 10
+/**
+ * One band per half point, because that is the resolution the scores are actually given in.
+ *
+ * Ten whole-point bands folded every half up into the point above it: a 7,5 was drawn as an eight,
+ * and someone who scores almost everything on the halves saw a distribution that was not theirs.
+ * Twenty bands is the same scale at the granularity it is voted on.
+ */
+export const RATING_BAND_COUNT = 20
+
+/** The step each band covers. Scores are normalised to this in `normalizeMovieRating`. */
+export const RATING_BAND_STEP = 0.5
+
+/** Ground showing between cells. One pixel — half a pixel at the size a post displays it. */
+const CELL_GAP = 1
 
 /** How many entries each ranking column shows. */
 export const RANKING_SIZE = 4
@@ -34,9 +46,28 @@ const SECTION_GAP = 26
 
 const TITLE_BLOCK_HEIGHT = 96
 const FACTS_HEIGHT = 70
-const CHART_LABEL_HEIGHT = 30
-const CHART_PLOT_HEIGHT = 152
-const CHART_AXIS_HEIGHT = 34
+/**
+ * The footprint's own rhythm, all of it measured from the section's label baseline.
+ *
+ * The peak sits beside that label rather than beside the band, which is what lets the band run the
+ * full content width — and a band that reaches both edges reads as one piece instead of a chart
+ * parked in a column. It costs the card some height, and that is the trade.
+ */
+const CHART_TOP_GAP = 30
+const PEAK_VALUE_OFFSET = 46
+/**
+ * Close under the peak's own line rather than a section away from it.
+ *
+ * Stacking the caption, the score and the count on three lines reserved so much height that the
+ * band ended up marooned at the bottom of the section, and the score read as a fourth headline
+ * figure rather than as the name of the gold cell. Two lines put it within reach of the thing it
+ * describes.
+ */
+const STRIP_OFFSET = 62
+/** The footprint is a band, not a plot: its height is a constant, not a scale. */
+const STRIP_HEIGHT = 58
+const AXIS_OFFSET = 24
+const LEGEND_OFFSET = 48
 const RANKING_LABEL_HEIGHT = 28
 const RANKING_ROW_HEIGHT = 42
 const RANKING_COLUMN_GAP = 32
@@ -50,7 +81,7 @@ const ENDS_CARD_GAP = 32
 const ENDS_TEXT_GAP = 18
 
 export interface RatingBand {
-	/** Upper bound of the band, and its label: band 8 holds scores above 7 up to 8. */
+	/** The score this band holds: 0,5 · 1 · 1,5 … 10. Also its label on the axis. */
 	band: number
 	count: number
 }
@@ -73,13 +104,20 @@ export interface RecapGeometry {
 	factsY: number
 	factsRuleBottomY: number
 	chartLabelY: number
-	chartTop: number
-	chartBottom: number
-	axisTickY: number
+	/** The most repeated score, right-aligned: its caption, then score and count on one line. */
+	peakCaptionY: number
+	peakValueY: number
+	/** The intensity strip: one cell per half point, all of them the same width. */
+	stripTop: number
+	stripBottom: number
+	stripHeight: number
+	stripWidth: number
+	cellWidth: number
+	cellX(index: number): number
+	/** Baseline of the numbers under the strip. */
 	axisY: number
-	barWidth: number
-	barGap: number
-	barX(index: number): number
+	/** Baseline of the line that explains the grey. */
+	legendY: number
 	rankingLabelY: number
 	rankingTop: number
 	rankingColumnWidth: number
@@ -105,13 +143,14 @@ export function getRatingHistogram(records: MovieReviewRecord[]): RatingBand[] {
 	const counts = new Array<number>(RATING_BAND_COUNT).fill(0)
 
 	for (const record of records) {
-		// Scores run 0.5 to 10, so band k holds (k-1, k]. A 7.5 counts as an eight, the same
-		// way half stars round up on a star scale.
-		const band = Math.min(RATING_BAND_COUNT, Math.max(1, Math.ceil(record.rating)))
-		counts[band - 1] += 1
+		// Scores run 0,5 to 10 in half points, so each one has a band of its own. A rating that
+		// somehow arrives off the half is pulled to the nearest one rather than rounded up a whole
+		// point, which is what used to turn every 7,5 into an eight.
+		const index = Math.round(record.rating / RATING_BAND_STEP) - 1
+		counts[Math.min(RATING_BAND_COUNT - 1, Math.max(0, index))] += 1
 	}
 
-	return counts.map((count, index) => ({ band: index + 1, count }))
+	return counts.map((count, index) => ({ band: (index + 1) * RATING_BAND_STEP, count }))
 }
 
 /** The tallest band, or null when there is nothing to highlight. */
@@ -235,9 +274,6 @@ export function getRecapGeometry(rankingColumns: number = RANKING_COLUMN_COUNT):
 	const contentRight = RECAP_WIDTH - RECAP_PADDING
 	const contentWidth = contentRight - contentLeft
 
-	const barGap = 10
-	const barWidth = (contentWidth - barGap * (RATING_BAND_COUNT - 1)) / RATING_BAND_COUNT
-
 	const titleY = RECAP_PADDING + 30
 	const subtitleY = RECAP_PADDING + 70
 	const identityY = RECAP_PADDING + 34
@@ -246,13 +282,18 @@ export function getRecapGeometry(rankingColumns: number = RANKING_COLUMN_COUNT):
 	const factsY = factsRuleTopY + FACTS_HEIGHT / 2
 	const factsRuleBottomY = factsRuleTopY + FACTS_HEIGHT
 
-	const chartLabelY = factsRuleBottomY + SECTION_GAP
-	const chartTop = chartLabelY + CHART_LABEL_HEIGHT
-	const chartBottom = chartTop + CHART_PLOT_HEIGHT
-	const axisTickY = chartBottom + 10
-	const axisY = chartBottom + CHART_AXIS_HEIGHT / 2 + 8
+	const chartLabelY = factsRuleBottomY + CHART_TOP_GAP
+	const stripTop = chartLabelY + STRIP_OFFSET
+	const stripBottom = stripTop + STRIP_HEIGHT
+	const axisY = stripBottom + AXIS_OFFSET
+	const legendY = stripBottom + LEGEND_OFFSET
 
-	const rankingLabelY = chartBottom + CHART_AXIS_HEIGHT + SECTION_GAP
+	// Every cell is the same width, whatever it holds: the whole point of the footprint is that the
+	// scale is the constant and only the intensity moves.
+	const stripWidth = contentWidth
+	const cellWidth = stripWidth / RATING_BAND_COUNT
+
+	const rankingLabelY = legendY + SECTION_GAP
 	const rankingTop = rankingLabelY + RANKING_LABEL_HEIGHT
 	const columns = Math.max(1, rankingColumns)
 	const rankingColumnWidth = (contentWidth - RANKING_COLUMN_GAP * (columns - 1)) / columns
@@ -276,13 +317,16 @@ export function getRecapGeometry(rankingColumns: number = RANKING_COLUMN_COUNT):
 		factsY,
 		factsRuleBottomY,
 		chartLabelY,
-		chartTop,
-		chartBottom,
-		axisTickY,
+		peakCaptionY: chartLabelY,
+		peakValueY: chartLabelY + PEAK_VALUE_OFFSET,
+		stripTop,
+		stripBottom,
+		stripHeight: STRIP_HEIGHT,
+		stripWidth,
+		cellWidth: cellWidth - CELL_GAP,
+		cellX: (index: number) => contentLeft + index * cellWidth,
 		axisY,
-		barWidth,
-		barGap,
-		barX: (index: number) => contentLeft + index * (barWidth + barGap),
+		legendY,
 		rankingLabelY,
 		rankingTop,
 		rankingColumnWidth,
@@ -302,17 +346,13 @@ export function getRecapGeometry(rankingColumns: number = RANKING_COLUMN_COUNT):
 	}
 }
 
-/** Height of a bar in pixels, scaled to the tallest band. */
-export function getBarHeight(count: number, peakCount: number, plotHeight: number = CHART_PLOT_HEIGHT): number {
-	if (count <= 0 || peakCount <= 0) return 0
-	return (count / peakCount) * plotHeight
-}
-
 /** Where inside a card the poster sits. */
 export const ENDS_CARD_INSET = ENDS_CARD_PADDING
 
 export interface RecapFacts {
 	count: number
+	/** Distinct films behind those reviews. Equal to the count unless something was rewatched. */
+	movies: number
 	averageRating: number | null
 	/** Total runtime in minutes, when TMDB could be reached. */
 	minutes: number | null
@@ -331,6 +371,7 @@ export function getRecapFacts(
 
 	return {
 		count: stats.count,
+		movies: countUniqueMovies(records),
 		averageRating: stats.averageRating,
 		minutes: enrichment.minutes,
 		directors: getRanking(enrichment.directors),

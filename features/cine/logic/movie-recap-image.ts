@@ -9,7 +9,6 @@ import { cover, HEAVY_FONT, loadImage, roundedRect, truncateToWidth, UI_FONT } f
 import { mapWithConcurrency } from './movie-recap-enrichment'
 import {
 	ENDS_CARD_INSET,
-	getBarHeight,
 	getFirstAndLast,
 	getPeakBand,
 	getRatingHistogram,
@@ -19,6 +18,7 @@ import {
 	type RecapGeometry,
 } from './movie-recap-layout'
 import type { MovieReviewRecord } from './movie-review-store'
+import type { RuntimeDisplay } from './movie-runtime-cache'
 
 export interface RecapData {
 	records: MovieReviewRecord[]
@@ -37,19 +37,22 @@ const ACCENT = '#f6c945'
 const ACCENT_SOFT = 'rgba(246,201,69,.14)'
 const ACCENT_EDGE = 'rgba(246,201,69,.42)'
 
-/**
- * A neutral, not a faded gold. Gold at low opacity over this ground mixes down to olive, which
- * reads as muddy rather than recessive. This grey is the lightest step that still clears 3:1
- * against the surface, so the bars read as marks while the peak carries all the colour.
- */
-const BAR_DIM = '#4c4d57'
-const BAR_EMPTY = 'rgba(255,255,255,.09)'
-const BAR_EMPTY_HEIGHT = 3
 const SURFACE = 'rgba(255,255,255,.055)'
 const SURFACE_EDGE = 'rgba(255,255,255,.09)'
 const TRACK = 'rgba(255,255,255,.028)'
 /** Reserved so a full-length ranking bar never reaches under its own count. */
 const RANKING_COUNT_COLUMN = 46
+
+/** The intensity ramp for the footprint: floor, ceiling and the curve between them. */
+const FOOTPRINT_FLOOR = 0.28
+const FOOTPRINT_CEILING = 0.9
+const FOOTPRINT_GAMMA = 0.62
+/** An empty band is not blank: the gaps in a distribution are a finding too. */
+const FOOTPRINT_EMPTY = 0.05
+/** A near-white, so the ramp reads as intensity and never picks up a hue of its own. */
+const FOOTPRINT_INK = '233,232,238'
+/** Only the two outer ends of the band are rounded. */
+const STRIP_RADIUS = 7
 
 const TITLE_INK = '#fff'
 const SUBTITLE_INK = '#8b8792'
@@ -65,7 +68,6 @@ const POSTER_BORDER = 'rgba(255,255,255,.16)'
 const PLACEHOLDER_FILL = 'rgba(255,255,255,.06)'
 
 const AVATAR_SIZE = 46
-const BAR_RADIUS = 4
 const PILL_RADIUS = 9
 
 function formatRating(rating: number): string {
@@ -171,7 +173,12 @@ function drawHeader(
  * Reading "18 críticas · 7,5 media" keeps the eye on a column of numbers; putting the label
  * first would make each figure start somewhere different.
  */
-function drawFacts(ctx: CanvasRenderingContext2D, geometry: RecapGeometry, facts: RecapFacts, runtime: string | null) {
+function drawFacts(
+	ctx: CanvasRenderingContext2D,
+	geometry: RecapGeometry,
+	facts: RecapFacts,
+	runtime: RuntimeDisplay | null
+) {
 	drawRule(ctx, geometry, geometry.factsRuleTopY)
 	drawRule(ctx, geometry, geometry.factsRuleBottomY)
 
@@ -179,11 +186,19 @@ function drawFacts(ctx: CanvasRenderingContext2D, geometry: RecapGeometry, facts
 		{ value: String(facts.count), label: facts.count === 1 ? 'crítica' : 'críticas' },
 	]
 
-	if (facts.averageRating !== null) {
-		groups.push({ value: formatRating(facts.averageRating), label: 'media', accent: true })
+	// Only when the two disagree; otherwise it is the same fact stated twice, and it is what makes
+	// the repeats column below mean anything.
+	if (facts.movies > 0 && facts.movies < facts.count) {
+		groups.push({ value: String(facts.movies), label: 'películas' })
 	}
 
-	if (runtime) groups.push({ value: runtime, label: 'de cine' })
+	if (facts.averageRating !== null) {
+		groups.push({ value: formatRating(facts.averageRating), label: 'de media', accent: true })
+	}
+
+	// The unit travels in the label, like every other figure in this row: the number carries the
+	// weight and the word stays quiet. It used to be baked into the value and print bold.
+	if (runtime) groups.push({ value: runtime.value, label: `${runtime.unit} de cine` })
 
 	ctx.textAlign = 'left'
 	ctx.textBaseline = 'middle'
@@ -209,55 +224,143 @@ function drawFacts(ctx: CanvasRenderingContext2D, geometry: RecapGeometry, facts
 	})
 }
 
-function drawHistogram(ctx: CanvasRenderingContext2D, geometry: RecapGeometry, records: MovieReviewRecord[]) {
+/**
+ * Intensity for a band, on a curve between linear and root.
+ *
+ * The floor is the argument. A linear ramp put a single review at a tenth of the ceiling, which on
+ * this ground is indistinguishable from an empty band — and with fourteen of twenty bands holding
+ * exactly one review, the image ended up claiming a distribution its owner never voted. A plain
+ * root fixed that but spent nearly all its travel doing it, crowding everything above two into the
+ * top third. Easing the exponent to 0.62 and widening the travel at both ends buys the middle back
+ * without letting the floor sink.
+ */
+function footprintAlpha(count: number, peakCount: number): number {
+	if (count <= 0) return FOOTPRINT_EMPTY
+	if (peakCount <= 0) return FOOTPRINT_FLOOR
+	return FOOTPRINT_FLOOR + (FOOTPRINT_CEILING - FOOTPRINT_FLOOR) * Math.pow(count / peakCount, FOOTPRINT_GAMMA)
+}
+
+/**
+ * Five words and three swatches, right under the band.
+ *
+ * Without them the strip is a row of greys with no stated rule: the gold is understood because it
+ * matches the figure beside it, but nothing says a lighter cell means more reviews. The sentence
+ * states the rule and the swatches show it, on a line that had to exist anyway.
+ */
+function drawFootprintLegend(ctx: CanvasRenderingContext2D, geometry: RecapGeometry) {
+	// Sentence case in the ordinary secondary grey: an aside, not another category. Set in spaced
+	// caps with an equals sign it read as a fifth section heading.
+	const text = 'Más claro, más críticas'
+
+	ctx.textAlign = 'right'
+	ctx.textBaseline = 'middle'
+	ctx.font = `500 13px ${UI_FONT}`
+	ctx.fillStyle = FACT_INK
+	ctx.fillText(text, geometry.contentRight, geometry.legendY)
+
+	const chipWidth = 11
+	const chipGap = 3
+	const chipsWidth = chipWidth * 3 + chipGap * 2
+	let cursor = geometry.contentRight - ctx.measureText(text).width - 14 - chipsWidth
+
+	for (const share of [0.1, 0.45, 1]) {
+		ctx.fillStyle = `rgba(${FOOTPRINT_INK},${footprintAlpha(share, 1).toFixed(3)})`
+		roundedRect(ctx, cursor, geometry.legendY - 5, chipWidth, 10, 2)
+		ctx.fill()
+		cursor += chipWidth + chipGap
+	}
+
+	ctx.textAlign = 'left'
+}
+
+/**
+ * How you score, as a footprint rather than a plot.
+ *
+ * Twenty cells of identical width, one per half point, with frequency carried by intensity instead
+ * of height. Bars needed a height axis and, at half-point resolution, fourteen columns of one made
+ * a picket fence out of what should read at a glance; this reads as a single band whose weight
+ * shifts along the scale.
+ *
+ * The band runs the full content width and the peak sits up in the label's row, right-aligned. The
+ * section is named for what it shows rather than for a turn of phrase: on a dashboard "cómo
+ * puntúas" introduces an analysis, but this is an image someone meets with no context.
+ */
+function drawFootprint(ctx: CanvasRenderingContext2D, geometry: RecapGeometry, records: MovieReviewRecord[]) {
 	const bands = getRatingHistogram(records)
 	const peak = getPeakBand(bands)
 	const peakCount = peak?.count ?? 0
 
-	drawSectionLabel(ctx, 'CÓMO PUNTÚAS', geometry.contentLeft, geometry.chartLabelY + 12)
+	drawSectionLabel(ctx, 'DISTRIBUCIÓN DE TUS NOTAS', geometry.contentLeft, geometry.chartLabelY)
 
-	const plotHeight = geometry.chartBottom - geometry.chartTop
+	/*
+	 * The most repeated score, right-aligned on two lines rather than three.
+	 *
+	 * "PICO" was our word, not the reader's: it asks them to think about a distribution before they
+	 * can read the number. And putting the count on the score's own line, after a middot, keeps the
+	 * whole block short enough to sit near the band instead of floating a section above it — which
+	 * is what made the figure look like a KPI of its own rather than the name of the gold cell.
+	 */
+	ctx.textAlign = 'right'
+	ctx.textBaseline = 'alphabetic'
 
-	bands.forEach((band, index) => {
-		const x = geometry.barX(index)
-		const isPeak = peak !== null && band.band === peak.band
-		const height = getBarHeight(band.count, peakCount, plotHeight)
+	ctx.font = `800 10px ${UI_FONT}`
+	ctx.fillStyle = AXIS_INK
+	ctx.fillText(spaced('MÁS REPETIDA'), geometry.contentRight, geometry.peakCaptionY)
 
-		if (height > 0) {
-			ctx.fillStyle = isPeak ? ACCENT : BAR_DIM
-			// Rounded at the data end only; the base stays anchored to the axis.
-			roundedRect(ctx, x, geometry.chartBottom - height, geometry.barWidth, height + BAR_RADIUS, BAR_RADIUS)
-			ctx.fill()
+	let valueRight = geometry.contentRight
+	if (peak) {
+		const count = `· ${peakCount} ${peakCount === 1 ? 'crítica' : 'críticas'}`
+		ctx.font = `600 17px ${UI_FONT}`
+		ctx.fillStyle = FACT_INK
+		ctx.fillText(count, geometry.contentRight, geometry.peakValueY)
+		valueRight -= ctx.measureText(count).width + 12
+	}
 
-			ctx.textAlign = 'center'
-			ctx.textBaseline = 'bottom'
-			ctx.font = `${isPeak ? 900 : 700} ${isPeak ? 21 : 17}px ${isPeak ? HEAVY_FONT : UI_FONT}`
-			ctx.fillStyle = isPeak ? ACCENT : FACT_INK
-			ctx.fillText(String(band.count), x + geometry.barWidth / 2, geometry.chartBottom - height - 10)
-		} else {
-			// "You never score below a four" is a finding, so the empty half of the scale has to
-			// look measured. Without this it reads as a rendering gap.
-			ctx.fillStyle = BAR_EMPTY
-			roundedRect(ctx, x, geometry.chartBottom - BAR_EMPTY_HEIGHT, geometry.barWidth, BAR_EMPTY_HEIGHT, 1.5)
-			ctx.fill()
-		}
-
-		// A tick per band, so the axis reads as a scale rather than a row of loose numbers.
-		ctx.beginPath()
-		ctx.moveTo(x + geometry.barWidth / 2, geometry.chartBottom + 4)
-		ctx.lineTo(x + geometry.barWidth / 2, geometry.axisTickY)
-		ctx.strokeStyle = isPeak ? ACCENT_EDGE : RULE
-		ctx.lineWidth = 1
-		ctx.stroke()
-
-		ctx.textAlign = 'center'
-		ctx.textBaseline = 'middle'
-		ctx.font = `${isPeak ? 800 : 600} 16px ${UI_FONT}`
-		ctx.fillStyle = isPeak ? FACT_STRONG_INK : AXIS_INK
-		ctx.fillText(String(band.band), x + geometry.barWidth / 2, geometry.axisY)
-	})
+	ctx.font = `900 44px ${HEAVY_FONT}`
+	ctx.fillStyle = peak ? ACCENT : AXIS_INK
+	ctx.fillText(peak ? formatRating(peak.band) : '—', valueRight, geometry.peakValueY)
 
 	ctx.textAlign = 'left'
+
+	/*
+	 * The whole strip is clipped to one rounded rectangle and the cells are painted as plain
+	 * rectangles inside it. That is what makes it read as a single band: only the two outer ends are
+	 * rounded, and the one pixel of ground left between cells is a seam rather than a border — half
+	 * a pixel once a post halves the image.
+	 */
+	ctx.save()
+	roundedRect(ctx, geometry.contentLeft, geometry.stripTop, geometry.stripWidth, geometry.stripHeight, STRIP_RADIUS)
+	ctx.clip()
+
+	bands.forEach((band, index) => {
+		const isPeak = peak !== null && band.band === peak.band
+		ctx.fillStyle = isPeak ? ACCENT : `rgba(${FOOTPRINT_INK},${footprintAlpha(band.count, peakCount).toFixed(3)})`
+		ctx.fillRect(geometry.cellX(index), geometry.stripTop, geometry.cellWidth, geometry.stripHeight)
+	})
+
+	ctx.restore()
+
+	/*
+	 * Whole points only, plus the peak wherever it lands. Twenty numbers under twenty cells would
+	 * turn the axis into a texture. Set lighter than the old bar axis and a size larger: at the 648px
+	 * a post displays this at, every figure here is halved.
+	 */
+	ctx.textAlign = 'center'
+	ctx.textBaseline = 'middle'
+
+	bands.forEach((band, index) => {
+		const isPeak = peak !== null && band.band === peak.band
+		if (!Number.isInteger(band.band) && !isPeak) return
+
+		ctx.font = `${isPeak ? 800 : 500} 16px ${UI_FONT}`
+		ctx.fillStyle = isPeak ? ACCENT : AXIS_INK
+		ctx.fillText(formatRating(band.band), geometry.cellX(index) + geometry.cellWidth / 2, geometry.axisY)
+	})
+
+	drawFootprintLegend(ctx, geometry)
+
+	ctx.textAlign = 'left'
+	ctx.textBaseline = 'alphabetic'
 }
 
 /**
@@ -396,23 +499,43 @@ function drawEnds(
 			ctx.fillText(truncateToWidth(ctx, meta, width), textX, posterY + 40)
 		}
 
-		ctx.font = `900 38px ${HEAVY_FONT}`
-		ctx.fillStyle = ACCENT
-		ctx.fillText(formatRating(record.rating), textX, posterY + 74)
-
-		// Anchored to the foot of the poster rather than flowing after the score, so both cards
-		// end on the same line whatever their titles do.
+		// Anchored to the foot of the poster rather than flowing after the title, so both cards end
+		// on the same line whatever their titles do.
 		ctx.textBaseline = 'bottom'
 		ctx.font = `500 14px ${UI_FONT}`
 		ctx.fillStyle = LABEL_INK
 		ctx.fillText(truncateToWidth(ctx, formatDate(record.createdAt), width), textX, posterY + geometry.posterHeight)
+
+		/*
+		 * The score in the far corner of the card, not under the title.
+		 *
+		 * Set against the card's own edge it reads as the card's verdict rather than as the third
+		 * line of a paragraph, it stops competing with the title for the same left margin, and the
+		 * two cards line their figures up with each other however long their titles run.
+		 *
+		 * It is also the largest thing on this half of the image on purpose, and the faint gold bloom
+		 * lifts it off a ground that is otherwise entirely flat. That bloom is the only one in the
+		 * whole composition; it is what buys the figure its weight without a single extra element.
+		 */
+		ctx.save()
+		ctx.textAlign = 'right'
+		ctx.font = `900 52px ${HEAVY_FONT}`
+		ctx.fillStyle = ACCENT
+		ctx.shadowColor = 'rgba(246,201,69,.28)'
+		ctx.shadowBlur = 18
+		ctx.fillText(
+			formatRating(record.rating),
+			cardX + geometry.endsCardWidth - ENDS_CARD_INSET,
+			cardY + geometry.endsCardHeight - ENDS_CARD_INSET
+		)
+		ctx.restore()
 	})
 
 	ctx.textAlign = 'left'
 	ctx.textBaseline = 'alphabetic'
 }
 
-async function drawRecap(ctx: CanvasRenderingContext2D, data: RecapData, runtime: string | null): Promise<void> {
+async function drawRecap(ctx: CanvasRenderingContext2D, data: RecapData, runtime: RuntimeDisplay | null): Promise<void> {
 	// The repeats column only exists when something was repeated, and the row divides the same
 	// content width either way — so the columns are laid out from however many there turn out to be.
 	const rankings = [
@@ -446,7 +569,7 @@ async function drawRecap(ctx: CanvasRenderingContext2D, data: RecapData, runtime
 	drawGround(ctx, geometry)
 	drawHeader(ctx, geometry, data, avatar)
 	drawFacts(ctx, geometry, data.facts, runtime)
-	drawHistogram(ctx, geometry, data.records)
+	drawFootprint(ctx, geometry, data.records)
 	rankings.forEach((ranking, column) => drawRankingColumn(ctx, geometry, column, ranking.heading, ranking.entries))
 	drawEnds(ctx, geometry, entries, posters)
 
@@ -469,7 +592,7 @@ async function drawRecap(ctx: CanvasRenderingContext2D, data: RecapData, runtime
 export async function renderMovieRecap(
 	canvas: HTMLCanvasElement,
 	data: RecapData,
-	runtime: string | null
+	runtime: RuntimeDisplay | null
 ): Promise<void> {
 	const geometry = getRecapGeometry()
 	if (canvas.width !== geometry.width) canvas.width = geometry.width
@@ -483,7 +606,7 @@ export async function renderMovieRecap(
 }
 
 /** Renders offscreen and encodes, for upload and download. */
-export async function createMovieRecapImage(data: RecapData, runtime: string | null): Promise<Blob> {
+export async function createMovieRecapImage(data: RecapData, runtime: RuntimeDisplay | null): Promise<Blob> {
 	const geometry = getRecapGeometry()
 	const canvas = document.createElement('canvas')
 	canvas.width = geometry.width

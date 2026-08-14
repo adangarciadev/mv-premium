@@ -21,9 +21,9 @@ import {
 import {
 	collectRecapEnrichment,
 	EMPTY_ENRICHMENT,
-	formatRuntime,
 	type RecapEnrichment,
 } from '@/features/cine/logic/movie-recap-enrichment'
+import { splitRuntimeForDisplay } from '@/features/cine/logic/movie-runtime-cache'
 import { createMovieRecapImage, renderMovieRecap, type RecapData } from '@/features/cine/logic/movie-recap-image'
 import type { MovieReviewRecord } from '@/features/cine/logic/movie-review-store'
 
@@ -68,7 +68,12 @@ export function RecapShareDialog({ isOpen, onClose, records }: RecapShareDialogP
 
 	const defaultTitle = 'Mi cine'
 	const facts = useMemo(() => getRecapFacts(selected, enrichment), [selected, enrichment])
-	const runtime = formatRuntime(facts.minutes)
+	// The same function the Mediaffinity headline uses, so the two surfaces cannot disagree: the
+	// image used to say "145 horas" where the dashboard said "145,8 horas".
+	const runtime = useMemo(
+		() => (facts.minutes === null ? null : splitRuntimeForDisplay(facts.minutes)),
+		[facts.minutes]
+	)
 
 	useEffect(() => {
 		if (!isOpen) {

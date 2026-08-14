@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-	getBarHeight,
 	getFirstAndLast,
 	getRanking,
 	getPeakBand,
@@ -37,14 +36,17 @@ describe('getRatingHistogram', () => {
 		const bands = getRatingHistogram([])
 
 		expect(bands).toHaveLength(RATING_BAND_COUNT)
-		expect(bands.map(band => band.band)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+		expect(bands[0].band).toBe(0.5)
+		expect(bands[bands.length - 1].band).toBe(10)
 		expect(bands.every(band => band.count === 0)).toBe(true)
 	})
 
-	it('rounds a half point up, the way half stars do', () => {
+	/** Folding halves into the point above drew a distribution the user never voted. */
+	it('gives a half point a band of its own', () => {
 		const bands = getRatingHistogram([makeRecord({ rating: 7.5 })])
 
-		expect(bands.find(band => band.band === 8)?.count).toBe(1)
+		expect(bands.find(band => band.band === 7.5)?.count).toBe(1)
+		expect(bands.find(band => band.band === 8)?.count).toBe(0)
 		expect(bands.find(band => band.band === 7)?.count).toBe(0)
 	})
 
@@ -55,15 +57,25 @@ describe('getRatingHistogram', () => {
 	it('keeps the lowest and highest scores inside the scale', () => {
 		const bands = getRatingHistogram([makeRecord({ rating: 0.5 }), makeRecord({ rating: 10 })])
 
-		expect(bands.find(band => band.band === 1)?.count).toBe(1)
+		expect(bands.find(band => band.band === 0.5)?.count).toBe(1)
 		expect(bands.find(band => band.band === 10)?.count).toBe(1)
 	})
 
-	it('counts a real spread', () => {
+	it('counts a real spread without merging the halves into the points', () => {
 		const ratings = [9.5, 9, 8.5, 8.5, 8.5, 8, 8, 8, 7.5, 7.5, 7, 6.5, 6, 5.5]
 		const bands = getRatingHistogram(ratings.map(rating => makeRecord({ rating })))
+		const counts = new Map(bands.map(band => [band.band, band.count]))
 
-		expect(bands.map(band => band.count)).toEqual([0, 0, 0, 0, 0, 2, 2, 5, 4, 1])
+		expect(counts.get(5.5)).toBe(1)
+		expect(counts.get(6)).toBe(1)
+		expect(counts.get(6.5)).toBe(1)
+		expect(counts.get(7)).toBe(1)
+		expect(counts.get(7.5)).toBe(2)
+		expect(counts.get(8)).toBe(3)
+		expect(counts.get(8.5)).toBe(3)
+		expect(counts.get(9)).toBe(1)
+		expect(counts.get(9.5)).toBe(1)
+		expect(counts.get(10)).toBe(0)
 	})
 })
 
@@ -73,6 +85,13 @@ describe('getPeakBand', () => {
 
 		expect(getPeakBand(bands)?.band).toBe(8)
 		expect(getPeakBand(bands)?.count).toBe(3)
+	})
+
+	/** The peak can land on a half, which is the whole point of twenty bands. */
+	it('can peak on a half point', () => {
+		const bands = getRatingHistogram([7.5, 7.5, 8, 9].map(rating => makeRecord({ rating })))
+
+		expect(getPeakBand(bands)?.band).toBe(7.5)
 	})
 
 	it('has nothing to highlight in an empty distribution', () => {
@@ -138,17 +157,44 @@ describe('getRecapGeometry', () => {
 	it('is exactly double the width of a forum post', () => {
 		expect(geometry.width).toBe(RECAP_WIDTH)
 		expect(geometry.width).toBe(648 * 2)
-		expect(geometry.height).toBe(1004)
+		// 906 since the footprint replaced the plotted histogram; it was 1004.
+		expect(geometry.height).toBe(906)
 	})
 
-	it('spans the bars across the full content width', () => {
-		expect(geometry.barX(0)).toBe(RECAP_PADDING)
-		expect(geometry.barX(RATING_BAND_COUNT - 1) + geometry.barWidth).toBeCloseTo(geometry.contentRight, 6)
+	/**
+	 * Every cell the same width, edge to edge: the scale is the constant, only the intensity moves,
+	 * and a band that reaches both margins reads as one piece rather than a chart in a column.
+	 */
+	it('spans the strip in equal cells across the whole content width', () => {
+		expect(geometry.cellX(0)).toBe(geometry.contentLeft)
+		expect(geometry.stripWidth).toBe(geometry.contentRight - geometry.contentLeft)
+
+		const pitch = geometry.stripWidth / RATING_BAND_COUNT
+		expect(geometry.cellX(1) - geometry.cellX(0)).toBeCloseTo(pitch, 6)
+		expect(geometry.cellX(RATING_BAND_COUNT - 1) + pitch).toBeCloseTo(geometry.contentRight, 6)
 	})
 
-	it('leaves a gap between adjacent bars rather than a border', () => {
-		expect(geometry.barGap).toBeGreaterThanOrEqual(2)
-		expect(geometry.barX(1) - (geometry.barX(0) + geometry.barWidth)).toBeCloseTo(geometry.barGap, 6)
+	/** A seam, not a border: the twenty cells have to read as one band. */
+	it('leaves barely a pixel of ground between cells', () => {
+		const pitch = geometry.stripWidth / RATING_BAND_COUNT
+		const seam = pitch - geometry.cellWidth
+
+		expect(seam).toBeGreaterThan(0)
+		expect(seam).toBeLessThanOrEqual(2)
+	})
+
+	/** The peak shares the label's row and lands close enough to the band to be read against it. */
+	it('sets the peak beside the section label, just above the strip', () => {
+		expect(geometry.peakCaptionY).toBe(geometry.chartLabelY)
+		expect(geometry.peakCaptionY).toBeLessThan(geometry.peakValueY)
+		expect(geometry.peakValueY).toBeLessThan(geometry.stripTop)
+		expect(geometry.stripTop - geometry.peakValueY).toBeLessThan(24)
+	})
+
+	/** The legend sits under the axis and still inside the section, never against the next one. */
+	it('puts the legend below the axis and clear of the rankings', () => {
+		expect(geometry.legendY).toBeGreaterThan(geometry.axisY)
+		expect(geometry.legendY).toBeLessThan(geometry.rankingLabelY)
 	})
 
 	it('fits three ranking columns edge to edge', () => {
@@ -187,9 +233,9 @@ describe('getRecapGeometry', () => {
 		expect(geometry.factsRuleTopY).toBeLessThan(geometry.factsY)
 		expect(geometry.factsY).toBeLessThan(geometry.factsRuleBottomY)
 		expect(geometry.factsRuleBottomY).toBeLessThan(geometry.chartLabelY)
-		expect(geometry.chartLabelY).toBeLessThan(geometry.chartTop)
-		expect(geometry.chartTop).toBeLessThan(geometry.chartBottom)
-		expect(geometry.chartBottom).toBeLessThan(geometry.axisY)
+		expect(geometry.chartLabelY).toBeLessThan(geometry.stripTop)
+		expect(geometry.stripTop).toBeLessThan(geometry.stripBottom)
+		expect(geometry.stripBottom).toBeLessThan(geometry.axisY)
 		expect(geometry.axisY).toBeLessThan(geometry.rankingLabelY)
 		expect(geometry.rankingLabelY).toBeLessThan(geometry.rankingTop)
 		expect(geometry.rankingRowY(3) + geometry.rankingRowHeight).toBeLessThanOrEqual(geometry.endsLabelY)
@@ -197,30 +243,18 @@ describe('getRecapGeometry', () => {
 	})
 
 	/** The axis band has to be inside the image, or the score labels get cropped. */
-	it('leaves room below the plot for the axis labels', () => {
-		expect(geometry.axisY).toBeGreaterThan(geometry.chartBottom)
+	it('leaves room below the strip for the axis labels', () => {
+		expect(geometry.axisY).toBeGreaterThan(geometry.stripBottom)
 		expect(geometry.axisY).toBeLessThan(geometry.rankingLabelY)
 	})
-})
 
-describe('getBarHeight', () => {
-	it('gives the tallest band the full plot height', () => {
-		expect(getBarHeight(5, 5, 200)).toBe(200)
-	})
-
-	it('scales the rest against the peak', () => {
-		expect(getBarHeight(1, 5, 200)).toBe(40)
-		expect(getBarHeight(4, 5, 200)).toBe(160)
-	})
-
-	it('draws nothing for an empty band', () => {
-		expect(getBarHeight(0, 5, 200)).toBe(0)
-	})
-
-	it('does not divide by a peak of zero', () => {
-		expect(getBarHeight(0, 0, 200)).toBe(0)
+	/** The footprint is what bought this back: the card was 1004 tall with a plotted histogram. */
+	it('is shorter than the card was with a plotted histogram', () => {
+		expect(geometry.height).toBeLessThan(1004)
+		expect(geometry.stripBottom - geometry.chartLabelY).toBeLessThan(100)
 	})
 })
+
 
 describe('getRanking', () => {
 	it('counts repetitions and orders by how often they appear', () => {

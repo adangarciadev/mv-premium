@@ -80,7 +80,7 @@ export function MovieReviewRow({ record, viewing, onDelete }: MovieReviewRowProp
 					{record.title}
 				</h3>
 
-				{/* La marca de revisionado va con la fecha: es esta sesión la que fue una revisión. */}
+				{/* The rewatch mark belongs with the date: it is this sitting that was a repeat. */}
 				<p className="font-data hidden items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground sm:flex">
 					<span>{DATE_FORMAT.format(record.createdAt)}</span>
 					{isRewatch && viewing && (

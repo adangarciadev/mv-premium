@@ -203,11 +203,10 @@ export function CineView() {
 						{published.length > 0 && (
 							<div className="flex flex-wrap items-center gap-2">
 								{/*
-								 * `position="popper"` en los tres, en vez del `item-aligned` que trae el componente
-								 * por defecto. Ese modo coloca la lista una sola vez, alineando la opción elegida
-								 * sobre el disparador, y no vuelve a anclarla: al hacer scroll la página se movía
-								 * por debajo y la lista se quedaba clavada en mitad del hero. El modo popper la
-								 * ancla al disparador y la reposiciona mientras esté abierta.
+								 * `position="popper"` on all three, rather than the component's default `item-aligned`.
+								 * That mode places the list once, aligning the chosen option over the trigger, and never
+								 * re-anchors it: scrolling moved the page underneath and left the list stranded across
+								 * the header. Popper anchors it to the trigger and repositions while it is open.
 								 */}
 								<Select value={sortBy} onValueChange={value => setSortBy(value as MovieReviewSort)}>
 									<SelectTrigger className="w-44">
@@ -334,7 +333,7 @@ export function CineView() {
 
 			<RecapShareDialog isOpen={isSharingRecap} onClose={() => setIsSharingRecap(false)} records={published} />
 
-			{/* Galería borra la película entera, así que el diálogo dice cuántas críticas se lleva. */}
+			{/* Galería deletes the whole film, so the dialog says how many reviews it takes with it. */}
 			<ConfirmDialog
 				open={pendingDelete !== null}
 				onOpenChange={open => !open && setPendingDelete(null)}
