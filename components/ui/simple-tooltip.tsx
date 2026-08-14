@@ -33,6 +33,24 @@ function SimpleTooltip({ children, content, side = 'top', delayDuration = 300, d
 		setIsVisible(false)
 	}
 
+	/**
+	 * Only keyboard focus opens the tooltip.
+	 *
+	 * A dialog returns focus to whatever opened it when it closes, and that fired `focus` on a
+	 * trigger the pointer was nowhere near — the tooltip appeared over the page and stayed there,
+	 * because the matching `blur` only arrives once something else is clicked. `:focus-visible` is
+	 * exactly the distinction the browser already makes between "tabbed here" and "was clicked".
+	 */
+	const handleFocus = (event: React.FocusEvent<HTMLDivElement>) => {
+		const target = event.target as HTMLElement
+		try {
+			if (!target.matches(':focus-visible')) return
+		} catch {
+			// A browser without :focus-visible in matches() keeps the old behaviour.
+		}
+		showTooltip()
+	}
+
 	// Calculate position when shown
 	useEffect(() => {
 		if (isVisible && triggerRef.current && tooltipRef.current) {
@@ -85,8 +103,11 @@ function SimpleTooltip({ children, content, side = 'top', delayDuration = 300, d
 			className="relative inline-flex"
 			onMouseEnter={showTooltip}
 			onMouseLeave={hideTooltip}
-			onFocus={showTooltip}
+			onFocus={handleFocus}
 			onBlur={hideTooltip}
+			// Acting on the trigger is the end of the tooltip's job: without this it survived the
+			// click and sat over whatever the click opened.
+			onPointerDown={hideTooltip}
 		>
 			{children}
 			{isVisible && (

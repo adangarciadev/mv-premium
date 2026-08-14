@@ -80,6 +80,10 @@
 
   --border-soft: color-mix(in oklab, var(--foreground) 10%, transparent);
   --glow-primary: color-mix(in oklab, var(--primary) 14%, transparent);
+  /* Half the strength of --glow-primary. The page glow reads as atmosphere behind a dense view
+   * and as a stain behind an empty one, so it gets its own dial rather than sharing the token
+   * that lights up numbers and progress bars. */
+  --glow-atmosphere: color-mix(in oklab, var(--primary) 7%, transparent);
   --shadow-rest: 0 1px 2px rgb(0 0 0 / 0.25), 0 6px 18px -10px rgb(0 0 0 / 0.35);
   --shadow-lift:
     0 1px 2px rgb(0 0 0 / 0.35),
@@ -165,7 +169,7 @@ h1, h2, h3 {
  * vs background-color), and adapts to any preset via --primary. --- */
 [data-slot='sidebar-inset'] {
   background-image:
-    radial-gradient(1000px 520px at 75% -12%, var(--glow-primary), transparent 65%),
+    radial-gradient(1000px 520px at 75% -12%, var(--glow-atmosphere), transparent 65%),
     radial-gradient(800px 600px at -12% 112%, color-mix(in oklab, var(--primary) 6%, transparent), transparent 60%),
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.022'/%3E%3C/svg%3E");
 }
