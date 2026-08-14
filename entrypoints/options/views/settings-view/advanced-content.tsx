@@ -56,6 +56,8 @@ interface BackupPreview {
 	favoriteSubforums: number
 	hiddenThreads: number
 	hiddenSubforums: number
+	movieReviews: number
+	clippedThreads: number
 	delayPreferences: number
 	subforumStats: number
 	rhythmDays: number
@@ -131,6 +133,8 @@ function createBackupPreview(data: BackupData, lastExportedAt: string | null): B
 		favoriteSubforums: countArray(data.data.content.favoriteSubforums),
 		hiddenThreads: countArray(data.data.content.hiddenThreads),
 		hiddenSubforums: countArray(data.data.content.hiddenSubforums),
+		movieReviews: countArray(data.data.mediaffinity.reviews),
+		clippedThreads: countArray(data.data.content.threadClipperHistory),
 		delayPreferences: countDefinedValues([data.data.preferences.nativeLiveDelay, data.data.preferences.liveThreadDelay]),
 		subforumStats: countObjectKeys(data.data.stats.timeStats),
 		rhythmDays: countRhythmDays(data.data.stats.rhythmStats),
@@ -354,6 +358,13 @@ export function AdvancedContent({
 						formatCount(backupPreview.savedThemes, 'tema guardado', 'temas guardados'),
 						formatCount(backupPreview.appearanceItems, 'valor visual', 'valores visuales'),
 						formatCount(backupPreview.delayPreferences, 'delay', 'delays'),
+					].join(' · '),
+				},
+				{
+					label: 'Mediaffinity',
+					value: [
+						formatCount(backupPreview.movieReviews, 'crítica', 'críticas'),
+						formatCount(backupPreview.clippedThreads, 'hilo recortado', 'hilos recortados'),
 					].join(' · '),
 				},
 				{
@@ -647,6 +658,8 @@ export function AdvancedContent({
 							importStats.contentRules +
 							importStats.hiddenThreads +
 							importStats.hiddenSubforums +
+							importStats.movieReviews +
+							importStats.clippedThreads +
 							(importStats.rhythmStatsUpdated ? 1 : 0) +
 							(importStats.themesUpdated ? 1 : 0) +
 							(importStats.settingsUpdated ? 1 : 0)
@@ -722,6 +735,24 @@ export function AdvancedContent({
 											<span className="text-primary text-[8px]">●</span>
 											<span>
 												{importStats.favorites} {importStats.favorites === 1 ? 'Foro Favorito' : 'Foros Favoritos'}
+											</span>
+										</div>
+									)}
+									{importStats.movieReviews > 0 && (
+										<div className="flex items-center gap-2">
+											<span className="text-primary text-[8px]">●</span>
+											<span>
+												{importStats.movieReviews} {importStats.movieReviews === 1 ? 'Crítica' : 'Críticas'} de
+												Mediaffinity
+											</span>
+										</div>
+									)}
+									{importStats.clippedThreads > 0 && (
+										<div className="flex items-center gap-2">
+											<span className="text-primary text-[8px]">●</span>
+											<span>
+												{importStats.clippedThreads}{' '}
+												{importStats.clippedThreads === 1 ? 'Hilo Recortado' : 'Hilos Recortados'}
 											</span>
 										</div>
 									)}

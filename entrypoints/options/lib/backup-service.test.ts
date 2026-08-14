@@ -64,6 +64,7 @@ import {
 	backupContainsPersonalApiKeys,
 	createBackupData,
 	importBackupData,
+	validateBackupData,
 	type BackupData,
 } from './backup-service'
 
@@ -102,6 +103,7 @@ function createBaseBackup(overrides: Partial<BackupData['data']> = {}): BackupDa
 			content: {
 				pinnedPosts: [],
 			},
+			mediaffinity: {},
 			preferences: {},
 			stats: {},
 			...overrides,
@@ -482,5 +484,73 @@ describe('backup-service', () => {
 				themesUpdated: true,
 			})
 		})
+	})
+})
+
+/**
+ * Mediaffinity was missing from the schema entirely: exports carried no reviews and imports had
+ * nothing to restore, silently. These pin the round trip.
+ */
+describe('backup-service · mediaffinity', () => {
+	const review = {
+		imageId: 'x1PkQlvUcW',
+		imageUrl: 'https://iili.io/x1PkQlvUcW.png',
+		tmdbId: 27205,
+		title: 'Origen',
+		year: '2010',
+		posterUrl: null,
+		rating: 10,
+		badge: 'masterpiece',
+		quote: '',
+		createdAt: 1_771_027_200_000,
+		source: 'imported',
+		publication: { threadUrl: 'u', threadTitle: 't', postNumber: '1', confirmedAt: 1 },
+	}
+
+	beforeEach(() => {
+		storageMockState.store.clear()
+	})
+
+	it('carries the reviews and the runtime cache into the backup', async () => {
+		storageMockState.store.set('local:mvp-movie-reviews', [review])
+		storageMockState.store.set('local:mvp-movie-runtimes', { '27205': 148 })
+
+		const backup = await createBackupData()
+
+		expect(backup.data.mediaffinity.reviews).toEqual([review])
+		expect(backup.data.mediaffinity.runtimes).toEqual({ '27205': 148 })
+	})
+
+	it('restores them on import and reports how many came back', async () => {
+		const result = await importBackupData(
+			createBaseBackup({ mediaffinity: { reviews: [review], runtimes: { '27205': 148 } } })
+		)
+
+		expect(result.success).toBe(true)
+		expect(result.stats?.movieReviews).toBe(1)
+		expect(storageMockState.store.get('local:mvp-movie-reviews')).toEqual([review])
+	})
+
+	/** A backup written before this section existed has to keep importing. */
+	it('accepts a backup with no mediaffinity block at all', () => {
+		const backup = createBaseBackup()
+		delete (backup.data as Record<string, unknown>).mediaffinity
+
+		const validated = validateBackupData(backup)
+
+		expect(validated.data.mediaffinity.reviews).toBeUndefined()
+	})
+
+	/** Restoring is when things have already gone wrong: one bad entry must not cost the rest. */
+	it('drops malformed entries instead of refusing the whole list', () => {
+		const validated = validateBackupData(
+			createBaseBackup({ mediaffinity: { reviews: [review, { title: 'sin imageId' }, null] } })
+		)
+
+		expect(validated.data.mediaffinity.reviews).toEqual([review])
+	})
+
+	it('refuses a reviews block that is not a list', () => {
+		expect(() => validateBackupData(createBaseBackup({ mediaffinity: { reviews: { nope: true } } }))).toThrow()
 	})
 })

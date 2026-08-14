@@ -59,7 +59,24 @@ export interface BackupData {
 			contentRules?: unknown
 			userCustomizations?: unknown
 			favoriteSubforums?: unknown
+			threadClipperHistory?: unknown
 			pinnedPosts: PinnedPostsBackupEntry[]
+		}
+		/**
+		 * Mediaffinity keeps the least reproducible data in the extension: a log of reviews the user
+		 * actually published, over years. Drafts get rewritten and themes get remade, but this cannot
+		 * be recovered from anywhere once it is gone — it was missing from backups entirely.
+		 *
+		 * Optional, so backups written before this section still import.
+		 */
+		mediaffinity: {
+			reviews?: unknown
+			/**
+			 * Runtimes are a regenerable cache and would normally be left out. They are 13 bytes per
+			 * film, and carrying them spares a restored profile a burst of hundreds of TMDB requests
+			 * the first time the dashboard opens.
+			 */
+			runtimes?: unknown
 		}
 		preferences: {
 			nativeLiveDelay?: unknown
@@ -100,6 +117,8 @@ export interface BackupImportStats {
 	contentRules: number
 	hiddenThreads: number
 	hiddenSubforums: number
+	movieReviews: number
+	clippedThreads: number
 }
 
 export interface BackupImportResult {
@@ -123,6 +142,8 @@ const EMPTY_STATS: BackupImportStats = {
 	contentRules: 0,
 	hiddenThreads: 0,
 	hiddenSubforums: 0,
+	movieReviews: 0,
+	clippedThreads: 0,
 }
 
 const EXCLUDED_STORAGE_KEYS = [
@@ -281,6 +302,22 @@ function countMutedWords(settings: Record<string, unknown>): number {
 	return Array.isArray(settings.mutedWords) ? settings.mutedWords.length : 0
 }
 
+/**
+ * Reviews come back as a list or not at all.
+ *
+ * Anything that is not a record with a usable `imageId` is dropped rather than refused: a backup is
+ * restored precisely when something has gone wrong, and losing every review because one entry is
+ * malformed is the worst possible moment to be strict.
+ */
+function validateMovieReviews(value: unknown): unknown[] | undefined {
+	if (value === undefined) return undefined
+	if (!Array.isArray(value)) {
+		throw new Error('El backup no es válido: mediaffinity.reviews debe ser una lista.')
+	}
+
+	return value.filter(entry => isRecord(entry) && typeof entry.imageId === 'string' && entry.imageId.length > 0)
+}
+
 function validatePinnedPosts(value: unknown): PinnedPostsBackupEntry[] {
 	if (value === undefined) return []
 	if (!Array.isArray(value)) {
@@ -326,6 +363,8 @@ export function validateBackupData(input: unknown, options: BackupImportOptions 
 	const content = isRecord(data.content) ? data.content : {}
 	const preferences = isRecord(data.preferences) ? data.preferences : {}
 	const stats = isRecord(data.stats) ? data.stats : {}
+	// Absent in backups written before Mediaffinity was part of the schema, which still import.
+	const mediaffinity = isRecord(data.mediaffinity) ? data.mediaffinity : {}
 	const excluded = isRecord(input.excluded) ? input.excluded : {}
 	const excludedSecretFields = excluded.secretFields
 
@@ -357,7 +396,12 @@ export function validateBackupData(input: unknown, options: BackupImportOptions 
 				contentRules: content.contentRules,
 				userCustomizations: content.userCustomizations,
 				favoriteSubforums: content.favoriteSubforums,
+				threadClipperHistory: content.threadClipperHistory,
 				pinnedPosts: validatePinnedPosts(content.pinnedPosts),
+			},
+			mediaffinity: {
+				reviews: validateMovieReviews(mediaffinity.reviews),
+				runtimes: isRecord(mediaffinity.runtimes) ? mediaffinity.runtimes : undefined,
 			},
 			preferences: {
 				nativeLiveDelay: preferences.nativeLiveDelay,
@@ -438,7 +482,12 @@ export async function createBackupData(options: BackupOptions = {}): Promise<Bac
 				contentRules: getSnapshotValue(snapshot, STORAGE_KEYS.CONTENT_RULES),
 				userCustomizations: getSnapshotValue(snapshot, STORAGE_KEYS.USER_CUSTOMIZATIONS),
 				favoriteSubforums: getSnapshotValue(snapshot, STORAGE_KEYS.FAVORITE_SUBFORUMS),
+				threadClipperHistory: getSnapshotValue(snapshot, STORAGE_KEYS.THREAD_CLIPPER_HISTORY),
 				pinnedPosts: createPinnedPostsBackup(snapshot),
+			},
+			mediaffinity: {
+				reviews: getSnapshotValue(snapshot, STORAGE_KEYS.MOVIE_REVIEWS),
+				runtimes: getSnapshotValue(snapshot, STORAGE_KEYS.MOVIE_RUNTIMES),
 			},
 			preferences: {
 				nativeLiveDelay: getSnapshotValue(snapshot, STORAGE_KEYS.NATIVE_LIVE_DELAY),
@@ -547,6 +596,13 @@ export async function importBackupData(input: unknown, options: BackupImportOpti
 		if (await writeIfDefined(STORAGE_KEYS.FAVORITE_SUBFORUMS, data.content.favoriteSubforums)) {
 			stats.favorites = countArray(data.content.favoriteSubforums)
 		}
+		if (await writeIfDefined(STORAGE_KEYS.THREAD_CLIPPER_HISTORY, data.content.threadClipperHistory)) {
+			stats.clippedThreads = countArray(data.content.threadClipperHistory)
+		}
+		if (await writeIfDefined(STORAGE_KEYS.MOVIE_REVIEWS, data.mediaffinity.reviews)) {
+			stats.movieReviews = countArray(data.mediaffinity.reviews)
+		}
+		await writeIfDefined(STORAGE_KEYS.MOVIE_RUNTIMES, data.mediaffinity.runtimes)
 
 		for (const entry of data.content.pinnedPosts) {
 			if (entry.posts.length > 0) {
