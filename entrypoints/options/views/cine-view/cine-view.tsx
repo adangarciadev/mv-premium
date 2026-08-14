@@ -191,10 +191,25 @@ export function CineView() {
 						<TabsTrigger value="published">Publicadas ({published.length})</TabsTrigger>
 						<TabsTrigger value="pending">Sin publicar ({pending.length})</TabsTrigger>
 					</TabsList>
-					<InfoPill title="Publicadas y sin publicar">
-						Una crítica pasa sola a <strong className="font-semibold text-foreground">Publicadas</strong> cuando la
-						extensión encuentra su imagen dentro de un mensaje tuyo. No hay nada que marcar a mano. Las que se quedaron
-						sin publicar no cuentan para ninguna de tus cifras.
+					<InfoPill title="Cómo se publica una crítica">
+						<p>
+							Una crítica pasa sola a <strong className="font-semibold text-foreground">Publicadas</strong> cuando la
+							extensión encuentra su imagen dentro de un mensaje tuyo. No hay nada que marcar a mano, y las que se
+							quedan sin publicar no cuentan para ninguna de tus cifras.
+						</p>
+						<p className="mt-2">
+							El enlace de la imagen se guarda desde que la generas, así que{' '}
+							<strong className="font-semibold text-foreground">nunca se pierde</strong>: en Sin publicar, pasa por
+							encima de una crítica y usa el botón de copiar para llevarte su BBCode. Al pegarlo en un mensaje, pasará
+							sola a Publicadas.
+						</p>
+						<p className="mt-2">
+							Si alguna se quedó por el camino, bórrala sin miedo: no cuenta para tus cifras y borrarla no deja rastro.
+						</p>
+						<p className="mt-2">
+							Y si ya tenías cards publicadas antes de instalar la extensión, el botón con forma de estrella que aparece
+							sobre ellas en el foro las añade a tu registro.
+						</p>
 					</InfoPill>
 				</div>
 
@@ -202,17 +217,11 @@ export function CineView() {
 					<div className={TAB_PANEL_INNER}>
 						{published.length > 0 && (
 							<div className="flex flex-wrap items-center gap-2">
-								{/*
-								 * `position="popper"` on all three, rather than the component's default `item-aligned`.
-								 * That mode places the list once, aligning the chosen option over the trigger, and never
-								 * re-anchors it: scrolling moved the page underneath and left the list stranded across
-								 * the header. Popper anchors it to the trigger and repositions while it is open.
-								 */}
 								<Select value={sortBy} onValueChange={value => setSortBy(value as MovieReviewSort)}>
 									<SelectTrigger className="w-44">
 										<SelectValue />
 									</SelectTrigger>
-									<SelectContent position="popper" className="max-h-72">
+									<SelectContent className="max-h-72">
 										<SelectItem value="recent">Más recientes</SelectItem>
 										<SelectItem value="oldest">Más antiguas</SelectItem>
 										<SelectItem value="rating">Mejor valoradas</SelectItem>
@@ -224,7 +233,7 @@ export function CineView() {
 									<SelectTrigger className="w-36">
 										<SelectValue placeholder="Año" />
 									</SelectTrigger>
-									<SelectContent position="popper" className="max-h-72">
+									<SelectContent className="max-h-72">
 										<SelectItem value="all">Todos los años</SelectItem>
 										{years.map(option => (
 											<SelectItem key={option} value={option}>
@@ -238,7 +247,7 @@ export function CineView() {
 									<SelectTrigger className="w-52">
 										<SelectValue placeholder="Veredicto" />
 									</SelectTrigger>
-									<SelectContent position="popper" className="max-h-72">
+									<SelectContent className="max-h-72">
 										<SelectItem value="all">Todos los veredictos</SelectItem>
 										{MOVIE_REVIEW_BADGES.map(option => (
 											<SelectItem key={option.id} value={option.id}>
@@ -314,11 +323,6 @@ export function CineView() {
 							/>
 						) : (
 							<>
-								<p className="max-w-[65ch] text-sm text-muted-foreground">
-									Generaste estas críticas pero no se han encontrado publicadas en ningún mensaje. Si las publicas, se
-									moverán solas a la otra pestaña. Si alguna se quedó por el camino, bórrala sin miedo: no cuenta para
-									tus cifras y borrarla no deja rastro.
-								</p>
 								<MovieReviewCollection
 									records={pending}
 									view={view}

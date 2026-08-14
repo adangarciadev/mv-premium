@@ -44,10 +44,21 @@ function SelectTrigger({
 	)
 }
 
+/**
+ * Positioned against the trigger, not against the chosen item.
+ *
+ * Radix's other mode, `item-aligned`, places the list once so the selected option sits over the
+ * trigger, and then never re-anchors it. That is the right behaviour for a native macOS menu and
+ * the wrong one for anything inside a scroll container: the page moves underneath and the list
+ * stays where it was, stranded across unrelated content and impossible to dismiss by scrolling.
+ * `popper` keeps it attached to the trigger and flips it when there is no room below.
+ *
+ * Pass `position="item-aligned"` explicitly if a particular menu really wants the old behaviour.
+ */
 function SelectContent({
 	className,
 	children,
-	position = 'item-aligned',
+	position = 'popper',
 	align = 'center',
 	container,
 	...props

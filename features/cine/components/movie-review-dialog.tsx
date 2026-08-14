@@ -348,7 +348,7 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 	}
 
 	const stepDescription = uploadedUrl
-		? 'Ya está en tu mensaje. Guarda una copia si la quieres reutilizar.'
+		? 'Ya está en tu mensaje, y guardada en Mediaffinity por si la necesitas.'
 		: selected
 			? 'Tu valoración personal convertida en una card cinematográfica.'
 			: 'Elige la película que acabas de ver.'
@@ -485,8 +485,9 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 							<h3 className="m-0 text-lg font-extrabold tracking-tight">Crítica insertada</h3>
 							<p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
 								La imagen se ha subido a {uploadHost} y ya está en tu mensaje como{' '}
-								<code className="rounded bg-black/30 px-1 py-0.5 text-[11px]">[img]</code>. Guárdala si quieres
-								reutilizarla: no podrás recuperarla desde aquí.
+								<code className="rounded bg-black/30 px-1 py-0.5 text-[11px]">[img]</code>. Si pierdes el enlace, lo
+								tienes guardado en <strong className="font-semibold text-foreground">Mediaffinity → Sin publicar</strong>{' '}
+								hasta que la publiques.
 							</p>
 							<p className="mt-3 break-all rounded-md border border-border/60 bg-black/25 px-3 py-2 text-xs text-muted-foreground">
 								{uploadedUrl}

@@ -1,6 +1,8 @@
+import Copy from 'lucide-react/dist/esm/icons/copy'
 import Film from 'lucide-react/dist/esm/icons/film'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { formatMovieRating, getMovieRatingTier, getMovieReviewBadge } from '@/features/cine/logic/movie-review'
 import type { MovieViewing } from '@/features/cine/logic/movie-review-list'
@@ -13,6 +15,22 @@ interface MovieReviewTileProps {
 	/** How many reviews this one film has. One tile stands for all of them. */
 	reviewCount: number
 	onDelete: (record: MovieReviewRecord) => void
+}
+
+/**
+ * Puts the card back within reach of a post.
+ *
+ * The uploaded URL has always been stored on the record, but nothing ever showed it, so losing the
+ * link meant the only way out of the pending tray was deleting the review — even though the
+ * extension knew exactly where the image lived the whole time.
+ */
+async function copyBBCode(record: MovieReviewRecord) {
+	try {
+		await navigator.clipboard.writeText(`[img]${record.imageUrl}[/img]`)
+		toast.success('BBCode copiado', { description: 'Pégalo en un mensaje y la crítica pasará sola a Publicadas.' })
+	} catch {
+		toast.error('No se pudo copiar', { description: record.imageUrl })
+	}
 }
 
 /** Permalink to the exact message that carries this review. */
@@ -102,6 +120,25 @@ export function MovieReviewTile({ record, viewing, reviewCount, onDelete }: Movi
 						className="absolute inset-0 z-10 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 						aria-label={`Ver en Mediavida el mensaje con la crítica de ${record.title}`}
 					/>
+				)}
+
+				{/* A pending review has no message to open, so its slot carries the way to publish it. */}
+				{!permalink && (
+					<button
+						type="button"
+						onClick={() => void copyBBCode(record)}
+						title="Copiar el BBCode de esta crítica"
+						aria-label={`Copiar el BBCode de la crítica de ${record.title}`}
+						className={cn(
+							'absolute right-[2.375rem] top-1.5 z-20 grid h-7 w-7 place-items-center rounded-md border border-border bg-background shadow-sm',
+							'text-foreground opacity-0 transition-[opacity,background-color,color,border-color] duration-200',
+							'hover:border-primary hover:text-primary',
+							'focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+							'group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
+						)}
+					>
+						<Copy className="h-3.5 w-3.5" />
+					</button>
 				)}
 
 				<button

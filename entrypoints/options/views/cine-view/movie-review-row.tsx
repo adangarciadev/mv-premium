@@ -1,6 +1,8 @@
+import Copy from 'lucide-react/dist/esm/icons/copy'
 import Film from 'lucide-react/dist/esm/icons/film'
 import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
+import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { formatMovieRating, getMovieRatingTier, getMovieReviewBadge } from '@/features/cine/logic/movie-review'
 import type { MovieViewing } from '@/features/cine/logic/movie-review-list'
@@ -15,6 +17,16 @@ interface MovieReviewRowProps {
 function getPostPermalink(record: MovieReviewRecord): string | null {
 	if (!record.publication) return null
 	return `${record.publication.threadUrl}#${record.publication.postNumber}`
+}
+
+/** See the tile: the uploaded URL was on the record all along, just never shown. */
+async function copyBBCode(record: MovieReviewRecord) {
+	try {
+		await navigator.clipboard.writeText(`[img]${record.imageUrl}[/img]`)
+		toast.success('BBCode copiado', { description: 'Pégalo en un mensaje y la crítica pasará sola a Publicadas.' })
+	} catch {
+		toast.error('No se pudo copiar', { description: record.imageUrl })
+	}
 }
 
 function getRewatchTitle(viewing: MovieViewing): string {
@@ -116,6 +128,25 @@ export function MovieReviewRow({ record, viewing, onDelete }: MovieReviewRowProp
 					className="absolute inset-0 z-10 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
 					aria-label={`Ver en Mediavida el mensaje con la crítica de ${record.title}`}
 				/>
+			)}
+
+			{!permalink && (
+				<button
+					type="button"
+					onClick={() => void copyBBCode(record)}
+					title="Copiar el BBCode de esta crítica"
+					aria-label={`Copiar el BBCode de la crítica de ${record.title}`}
+					className={cn(
+						DIARY_ACTION,
+						'z-20 grid h-7 place-items-center rounded-md border border-transparent text-muted-foreground',
+						'opacity-0 transition-[opacity,color,border-color]',
+						'hover:border-primary hover:text-primary',
+						'focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+						'group-hover:opacity-100 [@media(hover:none)]:opacity-100'
+					)}
+				>
+					<Copy className="h-3.5 w-3.5" />
+				</button>
 			)}
 
 			<button

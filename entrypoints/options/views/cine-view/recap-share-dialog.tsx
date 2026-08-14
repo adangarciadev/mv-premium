@@ -252,7 +252,7 @@ export function RecapShareDialog({ isOpen, onClose, records }: RecapShareDialogP
 						<SelectTrigger className="w-52">
 							<SelectValue placeholder="Periodo" />
 						</SelectTrigger>
-						<SelectContent>
+						<SelectContent className="max-h-72">
 							<SelectItem value="all">Todas mis críticas</SelectItem>
 							{years.map(option => (
 								<SelectItem key={option} value={option}>
