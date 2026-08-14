@@ -1,19 +1,13 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Film from 'lucide-react/dist/esm/icons/film'
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
-import Star from 'lucide-react/dist/esm/icons/star'
-import Trophy from 'lucide-react/dist/esm/icons/trophy'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
-import { SimpleTooltip } from '@/components/ui/simple-tooltip'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MOVIE_REVIEW_BADGES, type MovieReviewBadge } from '@/features/cine/logic/movie-review'
 import {
-	countSharingPost,
 	filterMovieReviews,
 	getAvailableYears,
 	getMovieReviewStats,
@@ -27,25 +21,28 @@ import {
 	watchMovieReviews,
 	type MovieReviewRecord,
 } from '@/features/cine/logic/movie-review-store'
+import { CineHero } from './cine-hero'
+import { CineSkeleton } from './cine-skeleton'
 import { MovieReviewTile } from './movie-review-tile'
 import { RecapShareDialog } from './recap-share-dialog'
 
 /** Below this there is no distribution to show, only three bars and a podium of everything. */
 const MIN_RECAP_REVIEWS = 3
 
-function StatCard({ icon, value, label }: { icon: ReactNode; value: string; label: string }) {
-	return (
-		<Card>
-			<CardContent className="flex items-center gap-3 p-4">
-				<div className="shrink-0 text-muted-foreground">{icon}</div>
-				<div className="min-w-0">
-					<p className="text-2xl font-bold leading-none tabular-nums">{value}</p>
-					<p className="mt-1 truncate text-xs text-muted-foreground">{label}</p>
-				</div>
-			</CardContent>
-		</Card>
-	)
-}
+/**
+ * Radix always renders the panel element and only marks the inactive one with `hidden`, which the
+ * UA stylesheet turns into `display: none`. Any author class declaring `display` beats that, so a
+ * `flex` here would leave the inactive panel generating a box, and its margin plus the root's gap
+ * would push the active panel down. Layout classes go on the inner wrapper instead.
+ */
+const TAB_PANEL = 'mt-4 flex-none'
+const TAB_PANEL_INNER = 'flex flex-col gap-4'
+
+/** The empty states share one floor, so their different copy lengths cannot diverge either. */
+const EMPTY_STATE_HEIGHT = 'min-h-[26rem]'
+
+/** Enough slices to read as a wall at full width; beyond this each one is too thin to tell apart. */
+const HERO_POSTER_COUNT = 14
 
 export function CineView() {
 	const [records, setRecords] = useState<MovieReviewRecord[]>([])
@@ -79,10 +76,26 @@ export function CineView() {
 	const { published, pending } = useMemo(() => splitByPublication(records), [records])
 	const stats = useMemo(() => getMovieReviewStats(published), [published])
 	const years = useMemo(() => getAvailableYears(published), [published])
+	// Best rated first, so the films you rate highest are the ones colouring the backdrop.
+	const heroPosterUrls = useMemo(
+		() =>
+			sortMovieReviews(published, 'rating')
+				.map(record => record.posterUrl)
+				.filter((url): url is string => url !== null)
+				.slice(0, HERO_POSTER_COUNT),
+		[published]
+	)
 	const visible = useMemo(
 		() => sortMovieReviews(filterMovieReviews(published, { year, badge }), sortBy),
 		[published, year, badge, sortBy]
 	)
+
+	const isFiltered = year !== 'all' || badge !== 'all'
+
+	const clearFilters = useCallback(() => {
+		setYear('all')
+		setBadge('all')
+	}, [])
 
 	const handleDelete = useCallback(async () => {
 		if (!pendingDelete) return
@@ -94,148 +107,131 @@ export function CineView() {
 	}, [pendingDelete])
 
 	if (isLoading) {
-		return <p className="p-6 text-sm text-muted-foreground">Cargando tus críticas…</p>
+		return <CineSkeleton />
 	}
 
 	return (
-		<div className="flex flex-col gap-6 p-6">
-			<div className="flex flex-wrap items-start justify-between gap-3">
-				<div>
-					<h1 className="text-2xl font-bold">Mis Críticas</h1>
-					<p className="mt-1 text-sm text-muted-foreground">
-						Las películas que has valorado con la card de crítica, con enlace al mensaje donde las publicaste.
-					</p>
-				</div>
+		<div className="flex flex-col gap-6">
+			<CineHero
+				stats={stats}
+				posterUrls={heroPosterUrls}
+				onShare={() => setIsSharingRecap(true)}
+				minRecapReviews={MIN_RECAP_REVIEWS}
+			/>
 
-				<SimpleTooltip
-					content={
-						published.length < MIN_RECAP_REVIEWS
-							? `Necesitas al menos ${MIN_RECAP_REVIEWS} críticas publicadas`
-							: 'Genera una imagen con cómo puntúas y tu podio, para pegarla en un hilo'
-					}
-				>
-					<span>
-						<Button
-							variant="outline"
-							onClick={() => setIsSharingRecap(true)}
-							disabled={published.length < MIN_RECAP_REVIEWS}
-						>
-							<Sparkles className="mr-1.5 h-4 w-4" />
-							Compartir resumen
-						</Button>
-					</span>
-				</SimpleTooltip>
-			</div>
-
-			<div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-				<StatCard icon={<Film className="h-5 w-5" />} value={String(stats.count)} label="Críticas publicadas" />
-				<StatCard
-					icon={<Star className="h-5 w-5" />}
-					value={stats.averageRating === null ? '—' : stats.averageRating.toFixed(1)}
-					label="Nota media"
-				/>
-				<StatCard
-					icon={<Trophy className="h-5 w-5" />}
-					value={stats.best ? stats.best.rating.toFixed(1) : '—'}
-					label={stats.best ? stats.best.title : 'Mejor valorada'}
-				/>
-			</div>
-
-			<Tabs defaultValue="published">
+			<Tabs defaultValue="published" className="reveal reveal-d2">
 				<TabsList>
 					<TabsTrigger value="published">Publicadas ({published.length})</TabsTrigger>
 					<TabsTrigger value="pending">Sin publicar ({pending.length})</TabsTrigger>
 				</TabsList>
 
-				<TabsContent value="published" className="mt-4 flex flex-col gap-4">
-					{published.length > 0 && (
-						<div className="flex flex-wrap gap-2">
-							<Select value={sortBy} onValueChange={value => setSortBy(value as MovieReviewSort)}>
-								<SelectTrigger className="w-44">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="recent">Más recientes</SelectItem>
-									<SelectItem value="oldest">Más antiguas</SelectItem>
-									<SelectItem value="rating">Mejor valoradas</SelectItem>
-									<SelectItem value="title">Por título</SelectItem>
-								</SelectContent>
-							</Select>
+				<TabsContent value="published" className={TAB_PANEL}>
+					<div className={TAB_PANEL_INNER}>
+						{published.length > 0 && (
+							<div className="flex flex-wrap items-center gap-2">
+								<Select value={sortBy} onValueChange={value => setSortBy(value as MovieReviewSort)}>
+									<SelectTrigger className="w-44">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="recent">Más recientes</SelectItem>
+										<SelectItem value="oldest">Más antiguas</SelectItem>
+										<SelectItem value="rating">Mejor valoradas</SelectItem>
+										<SelectItem value="title">Por título</SelectItem>
+									</SelectContent>
+								</Select>
 
-							<Select value={year} onValueChange={setYear}>
-								<SelectTrigger className="w-36">
-									<SelectValue placeholder="Año" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">Todos los años</SelectItem>
-									{years.map(option => (
-										<SelectItem key={option} value={option}>
-											{option}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+								<Select value={year} onValueChange={setYear}>
+									<SelectTrigger className="w-36">
+										<SelectValue placeholder="Año" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="all">Todos los años</SelectItem>
+										{years.map(option => (
+											<SelectItem key={option} value={option}>
+												{option}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 
-							<Select value={badge} onValueChange={value => setBadge(value as MovieReviewBadge | 'all')}>
-								<SelectTrigger className="w-52">
-									<SelectValue placeholder="Veredicto" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">Todos los veredictos</SelectItem>
-									{MOVIE_REVIEW_BADGES.map(option => (
-										<SelectItem key={option.id} value={option.id}>
-											{option.label}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					)}
+								<Select value={badge} onValueChange={value => setBadge(value as MovieReviewBadge | 'all')}>
+									<SelectTrigger className="w-52">
+										<SelectValue placeholder="Veredicto" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="all">Todos los veredictos</SelectItem>
+										{MOVIE_REVIEW_BADGES.map(option => (
+											<SelectItem key={option.id} value={option.id}>
+												{option.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
 
-					{visible.length === 0 ? (
-						<EmptyState
-							icon={Film}
-							title={published.length === 0 ? 'Todavía no hay críticas publicadas' : 'Ningún resultado'}
-							description={
-								published.length === 0
-									? 'Crea una crítica con la card desde el editor de Mediavida y publícala. Aparecerá aquí sola.'
-									: 'Prueba a quitar algún filtro.'
-							}
-						/>
-					) : (
-						<div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-							{visible.map(record => (
-								<MovieReviewTile
-									key={record.imageId}
-									record={record}
-									sharingPost={countSharingPost(published, record)}
-									onDelete={setPendingDelete}
-								/>
-							))}
-						</div>
-					)}
-				</TabsContent>
+								{isFiltered && (
+									<Button variant="ghost" size="sm" onClick={clearFilters}>
+										Quitar filtros
+									</Button>
+								)}
 
-				<TabsContent value="pending" className="mt-4">
-					{pending.length === 0 ? (
-						<EmptyState
-							icon={Film}
-							title="No hay nada pendiente"
-							description="Aquí aparecen las críticas que generaste pero nunca llegaste a publicar."
-						/>
-					) : (
-						<div className="flex flex-col gap-4">
-							<p className="text-sm text-muted-foreground">
-								Generaste estas críticas pero no se han encontrado publicadas en ningún mensaje. Si las publicas, se
-								moverán solas a la otra pestaña.
-							</p>
+								<p aria-live="polite" className="font-data ml-auto text-xs text-muted-foreground">
+									{isFiltered ? `${visible.length} de ${published.length}` : `${published.length} películas`}
+								</p>
+							</div>
+						)}
+
+						{visible.length === 0 ? (
+							<EmptyState
+								className={EMPTY_STATE_HEIGHT}
+								icon={Film}
+								title={published.length === 0 ? 'Todavía no hay críticas publicadas' : 'Ningún resultado'}
+								description={
+									published.length === 0
+										? 'Crea una crítica con la card desde el editor de Mediavida y publícala. Aparecerá aquí sola.'
+										: 'Prueba a quitar algún filtro.'
+								}
+								action={
+									published.length > 0 ? (
+										<Button variant="outline" onClick={clearFilters}>
+											Quitar filtros
+										</Button>
+									) : undefined
+								}
+							/>
+						) : (
 							<div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-								{pending.map(record => (
-									<MovieReviewTile key={record.imageId} record={record} sharingPost={0} onDelete={setPendingDelete} />
+								{visible.map(record => (
+									<MovieReviewTile key={record.imageId} record={record} onDelete={setPendingDelete} />
 								))}
 							</div>
-						</div>
-					)}
+						)}
+					</div>
+				</TabsContent>
+
+				<TabsContent value="pending" className={TAB_PANEL}>
+					<div className={TAB_PANEL_INNER}>
+						{pending.length === 0 ? (
+							<EmptyState
+								className={EMPTY_STATE_HEIGHT}
+								icon={Film}
+								title="No hay nada pendiente"
+								description="Aquí aparecen las críticas que generaste pero nunca llegaste a publicar."
+							/>
+						) : (
+							<>
+								<p className="max-w-[65ch] text-sm text-muted-foreground">
+									Generaste estas críticas pero no se han encontrado publicadas en ningún mensaje. Si las publicas, se
+									moverán solas a la otra pestaña.
+								</p>
+								<div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+									{pending.map(record => (
+										<MovieReviewTile key={record.imageId} record={record} onDelete={setPendingDelete} />
+									))}
+								</div>
+							</>
+						)}
+					</div>
 				</TabsContent>
 			</Tabs>
 

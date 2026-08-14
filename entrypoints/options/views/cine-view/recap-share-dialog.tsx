@@ -4,7 +4,7 @@ import Check from 'lucide-react/dist/esm/icons/check'
 import Copy from 'lucide-react/dist/esm/icons/copy'
 import Download from 'lucide-react/dist/esm/icons/download'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
-import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
+import Image from 'lucide-react/dist/esm/icons/image'
 import Upload from 'lucide-react/dist/esm/icons/upload'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -184,7 +184,7 @@ export function RecapShareDialog({ isOpen, onClose, records }: RecapShareDialogP
 		<MediaDialogShell
 			isOpen={isOpen}
 			onClose={onClose}
-			icon={<Sparkles className="h-4 w-4" />}
+			icon={<Image className="h-4 w-4" />}
 			title="Compartir resumen"
 			description="Cómo puntúas, tus extremos y tus cifras, en una imagen para pegar en un hilo."
 			width={880}

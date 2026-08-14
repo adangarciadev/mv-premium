@@ -307,6 +307,125 @@ h1, h2, h3 {
   animation-delay: 0.35s;
 }
 
+/* ============================================================
+ * Cine hero — the one authored moment on Mis Críticas.
+ * The top-rated poster, blown up and blurred past recognition,
+ * drifts and dissolves as the header scrolls out of the top.
+ * Scroll-driven where the browser supports it; a still frame
+ * everywhere else, which is a composition of its own and not a
+ * degraded one. The scroller is <main>, but `view()` resolves
+ * against the nearest scrollport, so nothing has to know that.
+ * ============================================================ */
+/* No `overflow: hidden` here on purpose: it would also clip tooltips escaping the header, and
+ * SimpleTooltip positions itself without a portal. The clipping lives on the backdrop instead. */
+.cine-hero {
+  position: relative;
+  /* Same expression Tailwind's `rounded-xl` resolves to, so the hero follows the radius the
+   * user picks in the theme editor instead of pinning its own. */
+  border-radius: calc(var(--radius) + 4px);
+  background-color: var(--surface-1);
+
+  /* Backdrop dials, grouped so the whole treatment can be tuned from one place. */
+  --cine-backdrop-opacity: 0.45;
+  /* Where the wall starts fading in. Everything left of this is clean surface for the text. */
+  --cine-backdrop-start: 40%;
+}
+
+.cine-hero-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+/* Sharp, never blurred. Blur averages fourteen film posters into brown mud, and the wall only
+ * reads as a wall while you can tell they are posters. It recedes by being dimmed and slightly
+ * desaturated, and contrast under the text comes from the mask keeping artwork out of the
+ * reading column entirely rather than from drowning it in scrim. */
+.cine-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  filter: saturate(88%);
+  opacity: var(--cine-backdrop-opacity);
+  -webkit-mask-image: linear-gradient(
+    100deg,
+    transparent var(--cine-backdrop-start),
+    rgba(0, 0, 0, 0.5) calc(var(--cine-backdrop-start) + 18%),
+    #000 calc(var(--cine-backdrop-start) + 42%)
+  );
+  mask-image: linear-gradient(
+    100deg,
+    transparent var(--cine-backdrop-start),
+    rgba(0, 0, 0, 0.5) calc(var(--cine-backdrop-start) + 18%),
+    #000 calc(var(--cine-backdrop-start) + 42%)
+  );
+  /* Promotes the layer so the drift only composites. */
+  will-change: transform, opacity;
+}
+
+/* Each poster takes an equal slice, so the wall always fills the hero whether there are four
+ * films or forty. At this blur they stop being pictures and become a band of the collection's
+ * own colour. */
+.cine-hero-poster {
+  flex: 1 1 0;
+  min-width: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/* Contrast over an arbitrary poster is guaranteed structurally, not hoped for:
+ * the reading column sits where the scrim is still near-opaque, and only the far
+ * edge lets the artwork's colour through. */
+/* One layer, never two stacked: stacking multiplies coverage and the wall disappears. With the
+ * mask already keeping artwork out of the reading column, this only has to sit the posters back
+ * into the card instead of drowning them. */
+.cine-hero-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    100deg,
+    transparent var(--cine-backdrop-start),
+    color-mix(in oklab, var(--background) 45%, transparent) calc(var(--cine-backdrop-start) + 30%),
+    color-mix(in oklab, var(--background) 30%, transparent) 100%
+  );
+}
+
+/* Narrow enough that the reading column spans the whole hero, so the scrim stops
+ * reserving a colour band on the right and goes near-solid under the text. */
+/* Narrow enough that the text spans the whole card, so the wall retreats further right and
+ * sits back harder rather than competing with copy that now runs under it. */
+@media (max-width: 900px) {
+  .cine-hero {
+    --cine-backdrop-start: 55%;
+    --cine-backdrop-opacity: 0.35;
+  }
+}
+
+.cine-hero-body {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes cine-hero-drift {
+  to {
+    transform: scale(1.08) translate3d(0, 6%, 0);
+    opacity: 0;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .cine-hero-media {
+    animation: cine-hero-drift linear both;
+    animation-timeline: view();
+    animation-range: exit;
+  }
+}
+
 /* Collapsible (Radix) — slide open/close using the measured content height. */
 @keyframes mvp-collapsible-down {
   from { height: 0; opacity: 0; }
@@ -332,6 +451,10 @@ h1, h2, h3 {
   }
   .reveal,
   .bar-grow {
+    animation: none;
+  }
+  /* The hero keeps its framing, loses its drift. */
+  .cine-hero-media {
     animation: none;
   }
   [data-slot='collapsible-content'][data-state='open'],

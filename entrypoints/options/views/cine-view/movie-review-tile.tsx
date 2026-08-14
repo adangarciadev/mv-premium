@@ -1,16 +1,12 @@
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Film from 'lucide-react/dist/esm/icons/film'
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2'
-import { Button } from '@/components/ui/button'
-import { SimpleTooltip } from '@/components/ui/simple-tooltip'
 import { cn } from '@/lib/utils'
 import { getMovieRatingTier, getMovieReviewBadge } from '@/features/cine/logic/movie-review'
 import type { MovieReviewRecord } from '@/features/cine/logic/movie-review-store'
 
 interface MovieReviewTileProps {
 	record: MovieReviewRecord
-	/** How many other reviews live in the same message; 0 hides the hint. */
-	sharingPost: number
 	onDelete: (record: MovieReviewRecord) => void
 }
 
@@ -20,77 +16,94 @@ function getPostPermalink(record: MovieReviewRecord): string | null {
 	return `${record.publication.threadUrl}#${record.publication.postNumber}`
 }
 
-export function MovieReviewTile({ record, sharingPost, onDelete }: MovieReviewTileProps) {
+/**
+ * One film on the wall. The poster is the whole target — it links to the message it was
+ * published in — and the controls only surface on hover or keyboard focus, so eighteen of
+ * these read as a shelf of posters instead of thirty-six competing buttons.
+ */
+export function MovieReviewTile({ record, onDelete }: MovieReviewTileProps) {
 	const tier = getMovieRatingTier(record.rating)
 	const badge = getMovieReviewBadge(record.badge)
 	const permalink = getPostPermalink(record)
 
 	return (
-		<div className="group flex flex-col rounded-lg border border-border bg-card transition-shadow hover:shadow-md">
-			{/* Clipping lives on the poster, not on the card: SimpleTooltip positions itself against
-			    its trigger without a portal, so an overflow-hidden card would cut its tooltips off. */}
-			<div className="relative aspect-[2/3] w-full overflow-hidden rounded-t-lg bg-muted">
+		<div className="group flex flex-col gap-2">
+			<div
+				className={cn(
+					'relative aspect-[2/3] w-full overflow-hidden rounded-xl border border-border bg-muted',
+					'transition-[box-shadow,border-color] duration-200',
+					'group-hover:shadow-lift group-focus-within:shadow-lift'
+				)}
+			>
 				{record.posterUrl ? (
-					<img src={record.posterUrl} alt={record.title} loading="lazy" className="h-full w-full object-cover" />
+					<img src={record.posterUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
 				) : (
 					<div className="flex h-full w-full items-center justify-center text-muted-foreground">
 						<Film className="h-8 w-8" />
 					</div>
 				)}
 
-				{/* Solid chip, never text straight over the artwork: posters are bright and busy. */}
-				<span
-					className="absolute bottom-2 left-2 rounded-md px-2 py-1 text-sm font-bold tabular-nums shadow-sm"
-					style={{ backgroundColor: tier.accent, color: '#17130a' }}
+				{/* Chips ride a scrim, never bare text over artwork: posters are bright and busy. */}
+				<div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-end gap-1.5 bg-gradient-to-t from-black/80 via-black/45 to-transparent p-2 pt-10">
+					<span
+						className="rounded-md px-2 py-1 text-sm font-bold tabular-nums shadow-sm"
+						style={{ backgroundColor: tier.accent, color: '#17130a' }}
+					>
+						{record.rating.toFixed(1)}
+					</span>
+
+					{badge && (
+						<span
+							className="rounded border px-1.5 py-1 text-[10px] font-bold uppercase leading-none tracking-wide"
+							style={{ backgroundColor: badge.background, borderColor: badge.border, color: badge.text }}
+						>
+							{badge.label}
+						</span>
+					)}
+				</div>
+
+				{permalink && (
+					<>
+						{/* Stretched link: the poster is the primary action, and the delete button
+						    sits above it as a sibling rather than nested inside an anchor. */}
+						<a
+							href={permalink}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+							aria-label={`Ver en Mediavida el mensaje con la crítica de ${record.title}`}
+						/>
+						<span
+							aria-hidden
+							className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-center gap-1.5 bg-gradient-to-b from-black/70 to-transparent p-2 pb-8 pr-11 text-xs font-medium text-white opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+						>
+							<ExternalLink className="h-3.5 w-3.5 shrink-0" />
+							Ver el mensaje
+						</span>
+					</>
+				)}
+
+				<button
+					type="button"
+					onClick={() => onDelete(record)}
+					aria-label={`Eliminar del registro la crítica de ${record.title}`}
+					className={cn(
+						'absolute right-2 top-2 z-20 rounded-md border border-border bg-background p-2 shadow-sm',
+						'text-foreground opacity-0 transition-[opacity,background-color,color,border-color] duration-200',
+						'hover:border-destructive hover:bg-destructive hover:text-destructive-foreground',
+						'focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+						'group-hover:opacity-100 group-focus-within:opacity-100'
+					)}
 				>
-					{record.rating.toFixed(1)}
-				</span>
+					<Trash2 className="h-4 w-4" />
+				</button>
 			</div>
 
-			<div className="flex flex-1 flex-col gap-1 p-3">
+			<div className="min-w-0">
 				<h3 className="line-clamp-2 text-sm font-semibold leading-tight" title={record.title}>
 					{record.title}
 				</h3>
-				{record.year && <p className="text-xs text-muted-foreground">{record.year}</p>}
-
-				{badge && (
-					<span
-						className="mt-1 w-fit rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-						style={{ backgroundColor: badge.background, borderColor: badge.border, color: badge.text }}
-					>
-						{badge.label}
-					</span>
-				)}
-
-				{sharingPost > 0 && (
-					<p className="mt-1 text-[11px] text-muted-foreground">
-						{sharingPost === 1 ? 'Junto a 1 más en el mismo mensaje' : `Junto a ${sharingPost} más en el mismo mensaje`}
-					</p>
-				)}
-
-				<div className="mt-auto flex items-center gap-1 pt-2">
-					{permalink && (
-						<SimpleTooltip content="Ver el mensaje en Mediavida">
-							<Button variant="outline" size="sm" className="flex-1" asChild>
-								<a href={permalink} target="_blank" rel="noopener noreferrer">
-									<ExternalLink className="mr-1 h-3 w-3" />
-									Ver
-								</a>
-							</Button>
-						</SimpleTooltip>
-					)}
-					<SimpleTooltip content="Eliminar del registro">
-						<Button
-							variant="ghost"
-							size="sm"
-							className={cn('text-muted-foreground hover:text-destructive', !permalink && 'flex-1')}
-							onClick={() => onDelete(record)}
-							aria-label={`Eliminar la crítica de ${record.title}`}
-						>
-							<Trash2 className="h-3 w-3" />
-						</Button>
-					</SimpleTooltip>
-				</div>
+				{record.year && <p className="font-data mt-0.5 text-xs text-muted-foreground">{record.year}</p>}
 			</div>
 		</div>
 	)

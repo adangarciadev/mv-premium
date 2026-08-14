@@ -72,17 +72,3 @@ export function getAvailableYears(records: MovieReviewRecord[]): string[] {
 	const years = new Set(records.map(record => record.year).filter(Boolean))
 	return Array.from(years).sort((a, b) => b.localeCompare(a))
 }
-
-/** How many OTHER reviews share this record's message, for the "junto a N más" hint. */
-export function countSharingPost(records: MovieReviewRecord[], record: MovieReviewRecord): number {
-	if (!record.publication) return 0
-
-	const { threadUrl, postNumber } = record.publication
-
-	return records.filter(
-		other =>
-			other.imageId !== record.imageId &&
-			other.publication?.threadUrl === threadUrl &&
-			other.publication?.postNumber === postNumber
-	).length
-}

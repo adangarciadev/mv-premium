@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-	countSharingPost,
 	filterMovieReviews,
 	getAvailableYears,
 	getMovieReviewStats,
@@ -134,6 +133,7 @@ describe('filterMovieReviews', () => {
 	it('returns everything with no filters applied', () => {
 		expect(filterMovieReviews(records, { year: 'all', badge: 'all' })).toHaveLength(3)
 	})
+
 })
 
 describe('getAvailableYears', () => {
@@ -151,37 +151,5 @@ describe('getAvailableYears', () => {
 
 	it('returns nothing for an empty collection', () => {
 		expect(getAvailableYears([])).toEqual([])
-	})
-})
-
-describe('countSharingPost', () => {
-	it('counts the other reviews published in the same message', () => {
-		const target = makeRecord({ imageId: 'aaaaaaaaa', publication: publishedAt('45') })
-		const records = [
-			target,
-			makeRecord({ imageId: 'bbbbbbbbb', publication: publishedAt('45') }),
-			makeRecord({ imageId: 'ccccccccc', publication: publishedAt('88') }),
-		]
-
-		expect(countSharingPost(records, target)).toBe(1)
-	})
-
-	it('does not confuse the same post number in a different thread', () => {
-		const target = makeRecord({ imageId: 'aaaaaaaaa', publication: publishedAt('45') })
-		const records = [
-			target,
-			makeRecord({
-				imageId: 'bbbbbbbbb',
-				publication: publishedAt('45', 'https://www.mediavida.com/foro/cine/otro-hilo-2'),
-			}),
-		]
-
-		expect(countSharingPost(records, target)).toBe(0)
-	})
-
-	it('counts nothing for an unpublished record', () => {
-		const target = makeRecord({ imageId: 'aaaaaaaaa' })
-
-		expect(countSharingPost([target, makeRecord({ imageId: 'bbbbbbbbb' })], target)).toBe(0)
 	})
 })
