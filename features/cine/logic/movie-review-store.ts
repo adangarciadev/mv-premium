@@ -35,6 +35,12 @@ export interface MovieReviewRecord {
 	createdAt: number
 	source: 'generated' | 'imported'
 	publication: MovieReviewPublication | null
+	/**
+	 * Declared by the user when the card was made. Optional on purpose: records written before
+	 * this existed, and imported ones, carry no answer at all — for those the viewing order
+	 * decides, which is what `getMovieViewings` does.
+	 */
+	rewatch?: boolean
 }
 
 const MOVIE_REVIEWS_KEY = `local:${STORAGE_KEYS.MOVIE_REVIEWS}` as const
@@ -151,7 +157,13 @@ export function buildGeneratedReviewRecord(
 		createdAt: now,
 		source: 'generated',
 		publication: null,
+		rewatch: cardData.rewatch,
 	}
+}
+
+/** How many reviews already exist for a film, so a new card can default to being a rewatch. */
+export async function countMovieReviewsForMovie(tmdbId: number): Promise<number> {
+	return (await getMovieReviews()).filter(record => record.tmdbId === tmdbId).length
 }
 
 /**

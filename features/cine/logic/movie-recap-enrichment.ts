@@ -66,15 +66,25 @@ export async function mapWithConcurrency<T, R>(
 /**
  * Collects runtime, directors and genres for the given reviews.
  * Films that cannot be looked up are simply absent from the totals.
+ *
+ * A film reviewed twice is looked up once but counted twice for runtime and once for everyone
+ * involved in it: rewatching Dune really is another 166 minutes of your life, but it does not make
+ * Villeneuve any more of a recurring director than one viewing did.
  */
 export async function collectRecapEnrichment(records: MovieReviewRecord[]): Promise<RecapEnrichment> {
 	if (records.length === 0) return EMPTY_ENRICHMENT
 
-	const details = await mapWithConcurrency(records, CONCURRENCY, async record => {
+	const viewingsByMovie = new Map<number, number>()
+	for (const record of records) {
+		viewingsByMovie.set(record.tmdbId, (viewingsByMovie.get(record.tmdbId) ?? 0) + 1)
+	}
+	const movieIds = Array.from(viewingsByMovie.keys())
+
+	const details = await mapWithConcurrency(movieIds, CONCURRENCY, async tmdbId => {
 		try {
-			return await getMovieDetailsWithCredits(record.tmdbId)
+			return await getMovieDetailsWithCredits(tmdbId)
 		} catch (error) {
-			logger.debug('Resumen de cine: no se pudieron obtener los detalles de', record.tmdbId, error)
+			logger.debug('Resumen de cine: no se pudieron obtener los detalles de', tmdbId, error)
 			return null
 		}
 	})
@@ -86,11 +96,12 @@ export async function collectRecapEnrichment(records: MovieReviewRecord[]): Prom
 	let minutes = 0
 	let hasRuntime = false
 
-	for (const detail of details) {
-		if (!detail) continue
+	details.forEach((detail, index) => {
+		if (!detail) return
+		const viewings = viewingsByMovie.get(movieIds[index]) ?? 1
 
 		if (typeof detail.runtime === 'number' && detail.runtime > 0) {
-			minutes += detail.runtime
+			minutes += detail.runtime * viewings
 			hasRuntime = true
 		}
 
@@ -107,7 +118,7 @@ export async function collectRecapEnrichment(records: MovieReviewRecord[]): Prom
 		for (const member of detail.credits?.cast?.slice(0, BILLED_CAST_DEPTH) ?? []) {
 			if (member?.name) actors.push(member.name)
 		}
-	}
+	})
 
 	return { minutes: hasRuntime ? minutes : null, directors, genres, actors, directorById }
 }

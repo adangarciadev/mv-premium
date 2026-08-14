@@ -84,7 +84,7 @@ const platformItems: NavItem[] = [
 	},
 
 	{
-		title: 'Mis Críticas',
+		title: 'Mediaffinity',
 		path: '/cine',
 		icon: Clapperboard,
 		badgeKey: 'movieReviews',

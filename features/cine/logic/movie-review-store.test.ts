@@ -64,6 +64,7 @@ function makeCardData(overrides: Partial<MovieReviewCardData> = {}): MovieReview
 		quote: 'Un espectáculo de una ambición desmedida.',
 		username: 'adan',
 		badge: 'masterpiece',
+		rewatch: false,
 		...overrides,
 	}
 }
@@ -165,7 +166,19 @@ describe('buildGeneratedReviewRecord', () => {
 			createdAt: 5000,
 			source: 'generated',
 			publication: null,
+			rewatch: false,
 		})
+	})
+
+	it('carries the rewatch the user declared on the card', () => {
+		const record = buildGeneratedReviewRecord(
+			makeCardData({ rewatch: true }),
+			693134,
+			'https://iili.io/4ypDNabBJ.png',
+			5000
+		)
+
+		expect(record?.rewatch).toBe(true)
 	})
 
 	it('keeps the whole path as identity for an ImgBB upload', () => {

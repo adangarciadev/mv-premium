@@ -23,10 +23,11 @@ export function CineSkeleton() {
 				<div className="h-9 w-32 animate-pulse rounded-md bg-muted" />
 			</div>
 
-			<div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-				{Array.from({ length: 10 }, (_, index) => (
-					<div key={index} className="flex flex-col gap-2">
-						<div className="aspect-[2/3] w-full animate-pulse rounded-xl bg-muted" />
+			{/* Mismas medidas que la parrilla de Galería, para que el contenido no dé un salto al llegar. */}
+			<div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-x-[18px] gap-y-7">
+				{Array.from({ length: 12 }, (_, index) => (
+					<div key={index} className="flex flex-col gap-2.5">
+						<div className="aspect-[2/3] w-full animate-pulse rounded-md bg-muted" />
 						<div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
 						<div className="h-3 w-10 animate-pulse rounded bg-muted" />
 					</div>

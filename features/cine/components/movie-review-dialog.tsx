@@ -5,6 +5,7 @@ import Film from 'lucide-react/dist/esm/icons/film'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
 import Search from 'lucide-react/dist/esm/icons/search'
 import Quote from 'lucide-react/dist/esm/icons/quote'
+import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import Send from 'lucide-react/dist/esm/icons/send'
 import Star from 'lucide-react/dist/esm/icons/star'
 import { useDebounce } from 'use-debounce'
@@ -20,7 +21,7 @@ import { getPosterUrl, type TMDBMovie } from '@/services/api/tmdb'
 import { getCurrentUser, type CurrentUser } from '@/entrypoints/options/lib/current-user'
 import { getApiKey, uploadImage } from '@/services/api/imgbb'
 import { createMovieReviewImage, renderMovieReviewCard } from '@/features/cine/logic/movie-review-image'
-import { recordGeneratedMovieReview } from '@/features/cine/logic/movie-review-store'
+import { countMovieReviewsForMovie, recordGeneratedMovieReview } from '@/features/cine/logic/movie-review-store'
 import { resetMovieReviewDetection } from '@/features/cine/logic/movie-review-detection'
 import {
 	getMovieRatingTier,
@@ -49,6 +50,12 @@ function TmdbAttribution() {
 		</div>
 	)
 }
+
+/** Two states, ordered the way the viewing happened: the first time, then every time after. */
+const VIEWING_OPTIONS = [
+	{ label: 'Primera vez', isRewatch: false },
+	{ label: 'Revisionado', isRewatch: true },
+] as const
 
 interface MovieReviewDialogProps {
 	isOpen: boolean
@@ -81,6 +88,10 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 	// 180ms sat right on normal typing speed, so it fired on almost every keystroke instead of coalescing.
 	const [debouncedQuote] = useDebounce(quote, 400)
 	const [badge, setBadge] = useState<MovieReviewBadge | null>(null)
+	/** Declared, not deduced — see `MovieReviewCardData.rewatch`. */
+	const [rewatch, setRewatch] = useState(false)
+	/** How many reviews of this film are already logged, which is what pre-arms the switch. */
+	const [priorReviews, setPriorReviews] = useState(0)
 	const [user, setUser] = useState<CurrentUser | null>(null)
 	const [previewError, setPreviewError] = useState<string | null>(null)
 	/** Only true until the first frame lands: redraws are now fast enough that a spinner would just flicker. */
@@ -106,6 +117,8 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 		setBadge(null)
 		setQuote('')
 		setBadgeTouched(false)
+		setRewatch(false)
+		setPriorReviews(0)
 	}
 
 	/** Rating drives the verdict until the user overrides it, then it stops. */
@@ -142,6 +155,15 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 		[]
 	)
 	const badgeRefs = useRef<(HTMLButtonElement | null)[]>([])
+	const viewingRefs = useRef<(HTMLButtonElement | null)[]>([])
+
+	/** Arrow keys move between the two viewing chips, the same way they move between verdicts. */
+	const handleViewingKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+		if (!['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp'].includes(event.key)) return
+		event.preventDefault()
+		setRewatch(!rewatch)
+		viewingRefs.current[rewatch ? 0 : 1]?.focus()
+	}
 
 	const handleBadgeKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
 		const direction =
@@ -165,6 +187,26 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 			setRetainedSearchKey(null)
 		}
 	}
+
+	/**
+	 * A film already in the log makes this viewing a repeat, so the switch arrives on. It only ever
+	 * turns itself on: the store knows what it has recorded, never what the user watched before it
+	 * existed, so turning it off is a decision only they can make.
+	 */
+	useEffect(() => {
+		if (!selected) return
+		let cancelled = false
+
+		void countMovieReviewsForMovie(selected.id).then(count => {
+			if (cancelled || count === 0) return
+			setPriorReviews(count)
+			setRewatch(true)
+		})
+
+		return () => {
+			cancelled = true
+		}
+	}, [selected])
 
 	useEffect(() => {
 		if (search.resolvedKey === expectedSearchKey && search.data) {
@@ -194,6 +236,8 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 			setBadgeTouched(false)
 			setPreviewError(null)
 			setIsPreviewEmpty(true)
+			setRewatch(false)
+			setPriorReviews(0)
 		}
 	}, [isOpen])
 	useEffect(
@@ -217,11 +261,12 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 						// Only the quote is debounced; rating and verdict repaint immediately.
 						quote: debouncedQuote,
 						badge,
+						rewatch,
 						username: user?.username || 'Usuario',
 						avatarUrl: user?.avatarUrl,
 					}
 				: null,
-		[badge, debouncedQuote, details.data, rating, user]
+		[badge, debouncedQuote, details.data, rating, rewatch, user]
 	)
 
 	useEffect(() => {
@@ -468,6 +513,64 @@ export function MovieReviewDialog({ isOpen, onClose, onInsert }: MovieReviewDial
 										</p>
 									</div>
 								</div>
+							</section>
+
+							{/*
+							 * A section of its own, with the same chips as the verdict below it. Buried in the
+							 * corner of the film row it read as decoration and went unnoticed — and it is the
+							 * one field here the extension cannot work out on its own.
+							 */}
+							<section className="py-5">
+								<div className="mb-3 flex items-baseline justify-between">
+									<p className="text-[10px] font-bold uppercase tracking-[.18em] text-muted-foreground">Visionado</p>
+									<span className="text-[10px] text-muted-foreground">
+										{priorReviews === 0
+											? 'No la tienes en tu registro'
+											: priorReviews === 1
+												? 'Ya la criticaste una vez'
+												: `Ya la criticaste ${priorReviews} veces`}
+									</span>
+								</div>
+								<div
+									className="flex flex-wrap gap-1.5"
+									role="radiogroup"
+									aria-label="Tipo de visionado"
+									onKeyDown={handleViewingKeyDown}
+								>
+									{VIEWING_OPTIONS.map(option => {
+										const isSelected = option.isRewatch === rewatch
+										return (
+											<button
+												key={option.label}
+												type="button"
+												role="radio"
+												aria-checked={isSelected}
+												tabIndex={isSelected ? 0 : -1}
+												ref={element => {
+													viewingRefs.current[option.isRewatch ? 1 : 0] = element
+												}}
+												onClick={() => setRewatch(option.isRewatch)}
+												className={cn(
+													'inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[11px] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary',
+													isSelected
+														? 'border-primary/60 bg-primary/10 font-bold text-primary'
+														: 'border-border/70 bg-background/40 text-muted-foreground hover:border-primary/40 hover:text-foreground'
+												)}
+											>
+												{option.isRewatch ? (
+													<RotateCcw aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+												) : (
+													<Check aria-hidden="true" className={cn('h-3 w-3 shrink-0', !isSelected && 'opacity-0')} />
+												)}
+												{option.label}
+											</button>
+										)
+									})}
+								</div>
+								<p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+									Si ya la habías visto antes de usar la extensión, márcala igualmente: en la card saldrá el símbolo de
+									revisionado.
+								</p>
 							</section>
 							<section className="py-5">
 								<MovieRatingPicker value={rating} onChange={selectRating} accent={tierAccent} />

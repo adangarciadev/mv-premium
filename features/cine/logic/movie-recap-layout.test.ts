@@ -7,6 +7,7 @@ import {
 	getRatingHistogram,
 	getRecapFacts,
 	getRecapGeometry,
+	getRewatchRanking,
 	RATING_BAND_COUNT,
 	RECAP_PADDING,
 	RECAP_WIDTH,
@@ -273,5 +274,68 @@ describe('getRecapFacts', () => {
 		expect(facts.directors).toEqual([])
 		expect(facts.genres).toEqual([])
 		expect(facts.actors).toEqual([])
+	})
+})
+
+/**
+ * The countable version of "what you keep going back to". Letterboxd shows repetitions, never a
+ * podium ranked on scores, and this column follows the same rule.
+ */
+describe('getRewatchRanking', () => {
+	it('ranks the films reviewed more than once, most repeated first', () => {
+		const records = [
+			makeRecord({ imageId: 'a', tmdbId: 27205, title: 'Origen' }),
+			makeRecord({ imageId: 'b', tmdbId: 27205, title: 'Origen' }),
+			makeRecord({ imageId: 'c', tmdbId: 27205, title: 'Origen' }),
+			makeRecord({ imageId: 'd', tmdbId: 438631, title: 'Dune' }),
+			makeRecord({ imageId: 'e', tmdbId: 438631, title: 'Dune' }),
+		]
+
+		expect(getRewatchRanking(records)).toEqual([
+			{ name: 'Origen', count: 3 },
+			{ name: 'Dune', count: 2 },
+		])
+	})
+
+	it('leaves out films seen once, because a single viewing is not a repetition', () => {
+		const records = [
+			makeRecord({ imageId: 'a', tmdbId: 27205, title: 'Origen' }),
+			makeRecord({ imageId: 'b', tmdbId: 438631, title: 'Dune' }),
+		]
+
+		expect(getRewatchRanking(records)).toEqual([])
+	})
+
+	/** A rewatch of a film seen before any of this happened has no number the period can print. */
+	it('ignores a lone review flagged as a rewatch', () => {
+		expect(getRewatchRanking([makeRecord({ rewatch: true })])).toEqual([])
+	})
+
+	it('keeps only as many as asked for', () => {
+		const records = [1, 2, 3, 4, 5].flatMap(tmdbId => [
+			makeRecord({ imageId: `${tmdbId}a`, tmdbId, title: `Película ${tmdbId}` }),
+			makeRecord({ imageId: `${tmdbId}b`, tmdbId, title: `Película ${tmdbId}` }),
+		])
+
+		expect(getRewatchRanking(records, 3)).toHaveLength(3)
+	})
+
+	it('has nothing to rank in an empty collection', () => {
+		expect(getRewatchRanking([])).toEqual([])
+	})
+})
+
+describe('getRecapGeometry with a fourth ranking column', () => {
+	it('divides the same content width between four columns', () => {
+		const geometry = getRecapGeometry(4)
+
+		expect(geometry.rankingX(0)).toBe(geometry.contentLeft)
+		expect(geometry.rankingX(3) + geometry.rankingColumnWidth).toBeCloseTo(geometry.contentRight, 6)
+		expect(geometry.rankingColumnWidth).toBeLessThan(getRecapGeometry(3).rankingColumnWidth)
+	})
+
+	/** Only the row of columns changes: the image must stay the same size either way. */
+	it('does not change the height of the image', () => {
+		expect(getRecapGeometry(4).height).toBe(getRecapGeometry(3).height)
 	})
 })

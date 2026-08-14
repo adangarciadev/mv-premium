@@ -34,6 +34,8 @@ export const STORAGE_KEYS = {
 	CONTENT_RULES: 'mvp-content-rules',
 	SAVED_THREADS: 'mvp-saved-threads',
 	MOVIE_REVIEWS: 'mvp-movie-reviews',
+	MOVIE_REVIEWS_VIEW: 'mvp-movie-reviews-view',
+	MOVIE_RUNTIMES: 'mvp-movie-runtimes',
 	USER_CUSTOMIZATIONS: 'mvp-user-customizations',
 	FAVORITE_SUBFORUMS: 'mvp-favorite-subforums',
 	LIVE_THREADS: 'mvp-live-threads',

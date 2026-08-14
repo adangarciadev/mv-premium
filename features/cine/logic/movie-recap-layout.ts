@@ -27,6 +27,9 @@ export const RATING_BAND_COUNT = 10
 /** How many entries each ranking column shows. */
 export const RANKING_SIZE = 4
 
+/** Direction, cast and genre. A fourth joins them only when there is something repeated to show. */
+export const RANKING_COLUMN_COUNT = 3
+
 const SECTION_GAP = 26
 
 const TITLE_BLOCK_HEIGHT = 96
@@ -206,7 +209,28 @@ export function getPeriodLabel(records: MovieReviewRecord[]): string | null {
 	return `${month(from)} – ${month(to)} ${year(to)}`
 }
 
-export function getRecapGeometry(): RecapGeometry {
+/**
+ * Films seen more than once in the period, most repeated first.
+ *
+ * Only what can be counted here appears: a lone review flagged as a rewatch is a fact about a
+ * viewing that happened before any of this, and the period has no number to put beside it.
+ */
+export function getRewatchRanking(records: MovieReviewRecord[], size: number = RANKING_SIZE): RankedEntry[] {
+	const counts = new Map<number, RankedEntry>()
+
+	for (const record of records) {
+		const existing = counts.get(record.tmdbId)
+		if (existing) existing.count += 1
+		else counts.set(record.tmdbId, { name: record.title, count: 1 })
+	}
+
+	return Array.from(counts.values())
+		.filter(entry => entry.count > 1)
+		.sort((a, b) => b.count - a.count)
+		.slice(0, size)
+}
+
+export function getRecapGeometry(rankingColumns: number = RANKING_COLUMN_COUNT): RecapGeometry {
 	const contentLeft = RECAP_PADDING
 	const contentRight = RECAP_WIDTH - RECAP_PADDING
 	const contentWidth = contentRight - contentLeft
@@ -230,7 +254,8 @@ export function getRecapGeometry(): RecapGeometry {
 
 	const rankingLabelY = chartBottom + CHART_AXIS_HEIGHT + SECTION_GAP
 	const rankingTop = rankingLabelY + RANKING_LABEL_HEIGHT
-	const rankingColumnWidth = (contentWidth - RANKING_COLUMN_GAP * 2) / 3
+	const columns = Math.max(1, rankingColumns)
+	const rankingColumnWidth = (contentWidth - RANKING_COLUMN_GAP * (columns - 1)) / columns
 
 	const endsLabelY = rankingTop + RANKING_ROW_HEIGHT * RANKING_SIZE + SECTION_GAP
 	const endsTop = endsLabelY + ENDS_LABEL_HEIGHT
@@ -294,6 +319,8 @@ export interface RecapFacts {
 	directors: RankedEntry[]
 	actors: RankedEntry[]
 	genres: RankedEntry[]
+	/** Films reviewed more than once. Empty for a collection with nothing repeated. */
+	rewatches: RankedEntry[]
 }
 
 export function getRecapFacts(
@@ -309,5 +336,6 @@ export function getRecapFacts(
 		directors: getRanking(enrichment.directors),
 		actors: getRanking(enrichment.actors),
 		genres: getRanking(enrichment.genres),
+		rewatches: getRewatchRanking(records),
 	}
 }

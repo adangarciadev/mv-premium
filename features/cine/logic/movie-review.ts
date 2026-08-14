@@ -134,6 +134,14 @@ export function normalizeMovieRating(rating: number): number {
 	return Math.min(10, Math.max(0.5, Math.round(rating * 2) / 2))
 }
 
+/**
+ * Scores move in half points, so the only decimal that ever carries meaning is the half. A whole
+ * score is written whole — "10", not "10.0" — the way anyone would say it out loud.
+ */
+export function formatMovieRating(rating: number): string {
+	return Number.isInteger(rating) ? String(rating) : rating.toFixed(1)
+}
+
 export function normalizeMovieReviewQuote(quote: string): string {
 	const normalized = quote.trim().replace(/\s+/g, ' ')
 	if (normalized.length <= MOVIE_REVIEW_QUOTE_MAX_LENGTH) return normalized
@@ -157,4 +165,12 @@ export interface MovieReviewCardData {
 	username: string
 	avatarUrl?: string
 	badge: MovieReviewBadge | null
+	/**
+	 * Whether this viewing is a rewatch.
+	 *
+	 * Declared by the user, not deduced. The store only knows what has been logged since the
+	 * extension was installed, so the first review of a film you have seen five times would
+	 * otherwise be stuck reading as a first viewing.
+	 */
+	rewatch: boolean
 }

@@ -68,7 +68,7 @@ const routeLabels: Record<string, string> = {
 	'hidden-subforums': 'Subforos ocultos',
 	favorites: 'Subforos Favoritos',
 	subforums: 'Subforos',
-	cine: 'Mis Críticas',
+	cine: 'Mediaffinity',
 	users: 'Usuarios',
 	'mobile-lite-qr': 'QR Mobile Lite',
 	settings: 'Ajustes',

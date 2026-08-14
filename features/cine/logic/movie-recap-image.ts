@@ -413,7 +413,17 @@ function drawEnds(
 }
 
 async function drawRecap(ctx: CanvasRenderingContext2D, data: RecapData, runtime: string | null): Promise<void> {
-	const geometry = getRecapGeometry()
+	// The repeats column only exists when something was repeated, and the row divides the same
+	// content width either way — so the columns are laid out from however many there turn out to be.
+	const rankings = [
+		{ heading: 'DIRECCIÓN', entries: data.facts.directors },
+		{ heading: 'INTÉRPRETES', entries: data.facts.actors },
+		{ heading: 'GÉNEROS', entries: data.facts.genres },
+	]
+	if (data.facts.rewatches.length > 0) {
+		rankings.push({ heading: 'LO QUE REPITES', entries: data.facts.rewatches })
+	}
+	const geometry = getRecapGeometry(rankings.length)
 
 	const { first, last } = getFirstAndLast(data.records)
 	const entries = [first, last].filter(Boolean).map(record => ({
@@ -437,9 +447,7 @@ async function drawRecap(ctx: CanvasRenderingContext2D, data: RecapData, runtime
 	drawHeader(ctx, geometry, data, avatar)
 	drawFacts(ctx, geometry, data.facts, runtime)
 	drawHistogram(ctx, geometry, data.records)
-	drawRankingColumn(ctx, geometry, 0, 'DIRECCIÓN', data.facts.directors)
-	drawRankingColumn(ctx, geometry, 1, 'INTÉRPRETES', data.facts.actors)
-	drawRankingColumn(ctx, geometry, 2, 'GÉNEROS', data.facts.genres)
+	rankings.forEach((ranking, column) => drawRankingColumn(ctx, geometry, column, ranking.heading, ranking.entries))
 	drawEnds(ctx, geometry, entries, posters)
 
 	ctx.restore()

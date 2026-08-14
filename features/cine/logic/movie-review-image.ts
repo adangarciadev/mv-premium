@@ -221,6 +221,46 @@ function drawStars(ctx: CanvasRenderingContext2D, rating: number, x: number, y: 
 	ctx.restore()
 }
 
+/**
+ * The rewatch mark: a circular arrow, traced by hand for the same reason the stars are.
+ *
+ * "↺" is a glyph the platform may or may not have, and a missing one would print as a box on
+ * someone else's machine. It sits between the score and the stars, at the weight of the hairline
+ * artwork around it — it is a footnote to the score, not a second badge.
+ */
+function drawRewatchMark(ctx: CanvasRenderingContext2D, x: number, y: number, color: string) {
+	const radius = 8
+	const end = Math.PI * 1.72
+
+	ctx.save()
+	ctx.strokeStyle = color
+	ctx.globalAlpha = 0.85
+	ctx.lineWidth = 2.1
+	ctx.lineCap = 'round'
+
+	ctx.beginPath()
+	ctx.arc(x, y, radius, Math.PI * 0.16, end)
+	ctx.stroke()
+
+	// The head points along the circle, so the ring reads as travelling rather than as a broken O.
+	const tipX = x + Math.cos(end) * radius
+	const tipY = y + Math.sin(end) * radius
+	const alongX = -Math.sin(end)
+	const alongY = Math.cos(end)
+	const acrossX = Math.cos(end)
+	const acrossY = Math.sin(end)
+
+	ctx.beginPath()
+	ctx.moveTo(tipX + alongX * 5, tipY + alongY * 5)
+	ctx.lineTo(tipX - alongX * 3 + acrossX * 4.5, tipY - alongY * 3 + acrossY * 4.5)
+	ctx.lineTo(tipX - alongX * 3 - acrossX * 4.5, tipY - alongY * 3 - acrossY * 4.5)
+	ctx.closePath()
+	ctx.fillStyle = color
+	ctx.fill()
+
+	ctx.restore()
+}
+
 const POSTER_X = 958
 const POSTER_Y = 42
 const POSTER_WIDTH = 190
@@ -351,6 +391,7 @@ function drawMovieReviewCard(ctx: CanvasRenderingContext2D, data: MovieReviewCar
 	ctx.font = `600 18px ${UI_FONT}`
 	ctx.fillStyle = '#aaa7ad'
 	ctx.fillText('/10', 53 + ratingWidth, 174)
+	if (data.rewatch) drawRewatchMark(ctx, 105 + ratingWidth, 163, rating === null ? '#5f6066' : tier.accent)
 	drawStars(ctx, rating ?? 0, 138 + ratingWidth, 172, rating === null ? '#5f6066' : tier.accent)
 
 	if (badge) {
