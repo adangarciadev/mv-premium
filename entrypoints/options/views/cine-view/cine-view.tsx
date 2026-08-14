@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useDebounce } from 'use-debounce'
 import Film from 'lucide-react/dist/esm/icons/film'
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
+import Search from 'lucide-react/dist/esm/icons/search'
+import X from 'lucide-react/dist/esm/icons/x'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MOVIE_REVIEW_BADGES, type MovieReviewBadge } from '@/features/cine/logic/movie-review'
@@ -64,6 +69,13 @@ export function CineView() {
 	const [isLoading, setIsLoading] = useState(true)
 	const [sortBy, setSortBy] = useState<MovieReviewSort>('recent')
 	const [year, setYear] = useState('all')
+	const [query, setQuery] = useState('')
+	/**
+	 * Long enough to skip the middle of a word, short enough that the grid feels live. Filtering is
+	 * synchronous, so this is not waiting on anything — it is only there to stop rebuilding the wall
+	 * on every keystroke.
+	 */
+	const [debouncedQuery] = useDebounce(query, 250)
 	const [badge, setBadge] = useState<MovieReviewBadge | 'all'>('all')
 	/** Everything the pending confirmation would remove: one review, or every review of a film. */
 	const [pendingDelete, setPendingDelete] = useState<MovieReviewRecord[] | null>(null)
@@ -134,12 +146,19 @@ export function CineView() {
 	// about how many times you sat through the film, so a year filter must not renumber it and an
 	// unpublished card still counts as a viewing.
 	const viewings = useMemo(() => getMovieViewings(records), [records])
+	/**
+	 * Filtering runs over every published review, never over the batch on screen. The grid renders
+	 * thirty at a time as you scroll, so a search of what is rendered would only find what you had
+	 * already scrolled past.
+	 */
 	const visible = useMemo(
-		() => sortMovieReviews(filterMovieReviews(published, { year, badge }), sortBy),
-		[published, year, badge, sortBy]
+		() => sortMovieReviews(filterMovieReviews(published, { year, badge, query: debouncedQuery }), sortBy),
+		[published, year, badge, debouncedQuery, sortBy]
 	)
 
-	const isFiltered = year !== 'all' || badge !== 'all'
+	const isFiltered = year !== 'all' || badge !== 'all' || debouncedQuery.trim() !== ''
+	/** The typed text has not reached the results yet — the only real waiting there is here. */
+	const isSearching = query !== debouncedQuery
 
 	/**
 	 * Each mode counts its own unit, because each shows a different number of things: Galería puts
@@ -156,6 +175,7 @@ export function CineView() {
 	const clearFilters = useCallback(() => {
 		setYear('all')
 		setBadge('all')
+		setQuery('')
 	}, [])
 
 	const handleDelete = useCallback(async () => {
@@ -217,6 +237,45 @@ export function CineView() {
 					<div className={TAB_PANEL_INNER}>
 						{published.length > 0 && (
 							<div className="flex flex-wrap items-center gap-2">
+								<div className="relative">
+									<Search
+										aria-hidden
+										className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+									/>
+									<Input
+										value={query}
+										onChange={event => setQuery(event.target.value)}
+										placeholder="Buscar por título"
+										aria-label="Buscar entre tus críticas por título"
+										className="h-9 w-56 pl-8 pr-8"
+									/>
+									{/*
+									 * One slot of a fixed size holds both: while the debounce is pending there is nothing
+									 * to clear yet, and once it settles there is nothing to wait for.
+									 *
+									 * The centring lives on this wrapper and never on the spinner. Tailwind's `animate-spin`
+									 * keyframe sets `transform: rotate(...)` outright, so a `-translate-y-1/2` on the same
+									 * element is wiped out for the length of the animation and restored between cycles —
+									 * which is the icon bobbing up and down.
+									 */}
+									<span className="absolute right-2 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center">
+										{isSearching ? (
+											<Loader2 aria-hidden className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+										) : (
+											query !== '' && (
+												<button
+													type="button"
+													onClick={() => setQuery('')}
+													aria-label="Borrar la búsqueda"
+													className="grid h-full w-full place-items-center rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+												>
+													<X className="h-3.5 w-3.5" />
+												</button>
+											)
+										)}
+									</span>
+								</div>
+
 								<Select value={sortBy} onValueChange={value => setSortBy(value as MovieReviewSort)}>
 									<SelectTrigger className="w-44">
 										<SelectValue />

@@ -150,13 +150,48 @@ describe('filterMovieReviews', () => {
 	]
 
 	it('filters by year, by badge, and by both at once', () => {
-		expect(filterMovieReviews(records, { year: '2024', badge: 'all' })).toHaveLength(2)
-		expect(filterMovieReviews(records, { year: 'all', badge: 'masterpiece' })).toHaveLength(2)
-		expect(filterMovieReviews(records, { year: '2024', badge: 'masterpiece' })).toHaveLength(1)
+		expect(filterMovieReviews(records, { year: '2024', badge: 'all', query: '' })).toHaveLength(2)
+		expect(filterMovieReviews(records, { year: 'all', badge: 'masterpiece', query: '' })).toHaveLength(2)
+		expect(filterMovieReviews(records, { year: '2024', badge: 'masterpiece', query: '' })).toHaveLength(1)
 	})
 
 	it('returns everything with no filters applied', () => {
-		expect(filterMovieReviews(records, { year: 'all', badge: 'all' })).toHaveLength(3)
+		expect(filterMovieReviews(records, { year: 'all', badge: 'all', query: '' })).toHaveLength(3)
+	})
+
+	/** Nobody types accents into a search box, and this catalogue is full of them. */
+	it('matches a title ignoring case and accents', () => {
+		const titled = [
+			makeRecord({ imageId: 'a', title: 'Parásitos' }),
+			makeRecord({ imageId: 'b', title: 'El padrino' }),
+			makeRecord({ imageId: 'c', title: 'La habitación de al lado' }),
+		]
+
+		const search = (query: string) =>
+			filterMovieReviews(titled, { year: 'all', badge: 'all', query }).map(record => record.imageId)
+
+		expect(search('parasitos')).toEqual(['a'])
+		expect(search('PADRINO')).toEqual(['b'])
+		expect(search('habitacion')).toEqual(['c'])
+	})
+
+	it('matches anywhere in the title, not only at the start', () => {
+		const titled = [makeRecord({ imageId: 'a', title: 'El caballero oscuro' })]
+
+		expect(filterMovieReviews(titled, { year: 'all', badge: 'all', query: 'oscuro' })).toHaveLength(1)
+	})
+
+	it('ignores surrounding whitespace and an empty query', () => {
+		expect(filterMovieReviews(records, { year: 'all', badge: 'all', query: '   ' })).toHaveLength(3)
+	})
+
+	it('combines the search with the other filters', () => {
+		const titled = [
+			makeRecord({ imageId: 'a', title: 'Dune', year: '2021', badge: 'masterpiece' }),
+			makeRecord({ imageId: 'b', title: 'Dune: Parte dos', year: '2024', badge: 'masterpiece' }),
+		]
+
+		expect(filterMovieReviews(titled, { year: '2024', badge: 'all', query: 'dune' })).toHaveLength(1)
 	})
 
 })

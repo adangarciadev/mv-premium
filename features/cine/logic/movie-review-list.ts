@@ -24,6 +24,19 @@ export interface MovieReviewStats {
 export interface MovieReviewFilters {
 	year: string
 	badge: MovieReviewBadge | 'all'
+	/** Free text matched against the title. Empty means no restriction. */
+	query: string
+}
+
+/**
+ * Case and accents folded away, so "parasitos" finds "Parásitos" and "el padrino" finds "El
+ * Padrino". Nobody types accents into a search box, and a Spanish film catalogue is full of them.
+ */
+function foldForSearch(value: string): string {
+	return value
+		.normalize('NFD')
+		.replace(/\p{Diacritic}/gu, '')
+		.toLowerCase()
 }
 
 /** Published state is derived, never stored. */
@@ -72,10 +85,20 @@ export function sortMovieReviews(records: MovieReviewRecord[], sort: MovieReview
 	}
 }
 
+/**
+ * Applied to the whole collection, always — never to what is currently on screen.
+ *
+ * The grid renders in batches as you scroll, so a search that ran over the rendered slice would
+ * only ever find what you had already scrolled past. Filtering upstream of the batching means the
+ * batches are cut from the results, not the results from the batches.
+ */
 export function filterMovieReviews(records: MovieReviewRecord[], filters: MovieReviewFilters): MovieReviewRecord[] {
+	const query = foldForSearch(filters.query.trim())
+
 	return records.filter(record => {
 		if (filters.year !== 'all' && record.year !== filters.year) return false
 		if (filters.badge !== 'all' && record.badge !== filters.badge) return false
+		if (query && !foldForSearch(record.title).includes(query)) return false
 		return true
 	})
 }
