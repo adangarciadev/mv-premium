@@ -47,7 +47,15 @@ export const selectImgbbApiKey = (state: SettingsStoreState) => state.imgbbApiKe
 export const selectTmdbApiKey = (state: SettingsStoreState) => state.tmdbApiKey
 export const selectGiphyApiKey = (state: SettingsStoreState) => state.giphyApiKey
 export const selectGeminiApiKey = (state: SettingsStoreState) => state.geminiApiKey
+export const selectFootballDataApiKey = (state: SettingsStoreState) => state.footballDataApiKey
 export const selectAIModel = (state: SettingsStoreState) => state.aiModel
+
+// =============================================================================
+// FOOTBALL CALENDAR SELECTORS
+// =============================================================================
+
+export const selectFootballCalendarEnabled = (state: SettingsStoreState) => state.footballCalendarEnabled
+export const selectFootballFavoriteTeamIds = (state: SettingsStoreState) => state.footballFavoriteTeamIds
 
 // =============================================================================
 // NAVIGATION SELECTORS

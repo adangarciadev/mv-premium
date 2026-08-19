@@ -48,6 +48,7 @@ interface SettingsActions {
 
 	// AI Settings
 	setGeminiApiKey: (key: string) => void
+	setFootballDataApiKey: (key: string) => void
 	setAIModel: (model: Settings['aiModel']) => void
 
 	// Sync
@@ -58,6 +59,10 @@ interface SettingsActions {
 	setLiveThreadEnabled: (enabled: boolean) => void
 	setNativeLiveDelayEnabled: (enabled: boolean) => void
 	setLiveThreadDelayEnabled: (enabled: boolean) => void
+
+	// Football Calendar
+	setFootballCalendarEnabled: (enabled: boolean) => void
+	setFootballFavoriteTeamIds: (teamIds: number[]) => void
 
 	// Users
 	setMutedWordsEnabled: (enabled: boolean) => void
@@ -193,6 +198,7 @@ export const useSettingsStore = create<SettingsState>()(
 
 			// AI Settings
 			setGeminiApiKey: key => set({ geminiApiKey: key }),
+			setFootballDataApiKey: key => set({ footballDataApiKey: key }),
 			setAIModel: model => set({ aiModel: model }),
 
 			// Sync
@@ -208,6 +214,10 @@ export const useSettingsStore = create<SettingsState>()(
 				}),
 			setNativeLiveDelayEnabled: enabled => set({ nativeLiveDelayEnabled: enabled }),
 			setLiveThreadDelayEnabled: enabled => set({ liveThreadDelayEnabled: enabled }),
+
+			// Football Calendar
+			setFootballCalendarEnabled: enabled => set({ footballCalendarEnabled: enabled }),
+			setFootballFavoriteTeamIds: teamIds => set({ footballFavoriteTeamIds: teamIds }),
 
 			// Users
 			setMutedWordsEnabled: enabled => set({ mutedWordsEnabled: enabled }),

@@ -30,6 +30,7 @@ import { setupAiHandlers } from './ai-handlers'
 import { setupStatsHandlers } from './stats-handlers'
 import { setupIgdbHandlers } from './igdb-handlers'
 import { setupItadHandlers } from './itad-handlers'
+import { setupFootballHandlers } from './football-handlers'
 import { highlightCode } from './prism-highlighter'
 import { setupTwitterLiteNetworkGuard } from './twitter-lite-network-guard'
 import { resetMobileLiteWhatsNew } from '@/features/mobile-lite/logic/whats-new'
@@ -127,6 +128,9 @@ export default defineBackground({
 
 		// IsThereAnyDeal handlers (game prices)
 		setupItadHandlers()
+
+		// Football Data handlers (match calendar)
+		setupFootballHandlers()
 
 		// Strict Twitter Lite network guard (blocks native Twitter embeds until explicit user action)
 		setupTwitterLiteNetworkGuard()

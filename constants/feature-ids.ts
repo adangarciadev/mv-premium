@@ -31,6 +31,7 @@ export const FEATURE_IDS = {
 	GAME_RELEASE_CALENDAR: 'mvp-game-release-calendar',
 	GAME_RELEASE_CALENDAR_MOVIL: 'mvp-game-release-calendar-movil',
 	MOVIE_RELEASE_CALENDAR: 'mvp-movie-release-calendar',
+	FOOTBALL_CALENDAR: 'mvp-football-calendar',
 
 	// Dynamic Feature Prefixes (used with ID/Counter)
 	FAVORITE_SUBFORUM_BTN_PREFIX: 'mvp-favorite-subforum-btn-',

@@ -92,6 +92,7 @@ const CONTENT_SETTING_IDS = [
 	'itad-search',
 	'game-release-calendar',
 	'movie-release-calendar',
+	'football-calendar',
 	'thread-clipper',
 	'content-rules',
 	'classic-thread-actions',
@@ -125,6 +126,7 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		gameReleaseCalendarJuegosEnabled,
 		gameReleaseCalendarJuegosMovilEnabled,
 		movieReleaseCalendarCineEnabled,
+		footballCalendarEnabled,
 		threadClipperSubforums,
 		contentRulesEnabled,
 		classicThreadActionsEnabled,
@@ -170,6 +172,7 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				| 'gameReleaseCalendarJuegosEnabled'
 				| 'gameReleaseCalendarJuegosMovilEnabled'
 				| 'movieReleaseCalendarCineEnabled'
+				| 'footballCalendarEnabled'
 				| 'contentRulesEnabled'
 				| 'classicThreadActionsEnabled'
 				| 'pinnedPostsEnabled'
@@ -518,6 +521,18 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				<Switch
 					checked={movieReleaseCalendarCineEnabled}
 					onCheckedChange={withToastAndReload('movieReleaseCalendarCineEnabled', true)}
+				/>
+			</SettingRow>
+
+			<SettingRow
+				{...rowState('football-calendar')}
+				icon={<CalendarClock className="h-4 w-4" />}
+				label="Calendario de fútbol"
+				description="Muestra un carril cronológico de La Liga y la Champions en el subforo Deportes. Requiere una API key gratuita de football-data.org."
+			>
+				<Switch
+					checked={footballCalendarEnabled}
+					onCheckedChange={withToastAndReload('footballCalendarEnabled', true)}
 				/>
 			</SettingRow>
 

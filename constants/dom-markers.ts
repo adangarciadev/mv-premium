@@ -155,6 +155,7 @@ export const DOM_MARKERS = {
 		GAME_RELEASE_CALENDAR: 'mvp-game-release-calendar',
 		GAME_RELEASE_CALENDAR_MOVIL: 'mvp-game-release-calendar-movil',
 		MOVIE_RELEASE_CALENDAR: 'mvp-movie-release-calendar',
+		FOOTBALL_CALENDAR: 'mvp-football-calendar',
 		// Gallery
 		GALLERY_BTN: 'mvp-gallery-btn',
 		GALLERY_TRIGGER: 'mvp-gallery-trigger',

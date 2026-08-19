@@ -195,6 +195,7 @@ export async function runDesktopContentMain(ctx: unknown): Promise<void> {
 	// =====================================================================
 	const isThread = isThreadPage()
 	const isCine = isCineForum()
+	const isDeportes = /^\/foro\/deportes\/?$/.test(pathname)
 	const isFavorites = isFavoritesPage()
 	const isForumGlobalView = isForumGlobalViewPage()
 	const isBookmarks = isBookmarksPage()
@@ -208,6 +209,7 @@ export async function runDesktopContentMain(ctx: unknown): Promise<void> {
 	const pageContext: PageContext = {
 		isThread,
 		isCine,
+		isDeportes,
 		isFavorites,
 		isForumGlobalView,
 		isBookmarks,

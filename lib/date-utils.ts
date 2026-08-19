@@ -27,6 +27,17 @@ export function formatDateKey(date: Date): string {
 }
 
 /**
+ * Format a Date to an ISO calendar day (YYYY-MM-DD) in LOCAL time.
+ * Distinct from formatDateKey, which returns DD-MM-YYYY for storage keys.
+ */
+export function formatIsoDateKey(date: Date): string {
+	const year = date.getFullYear()
+	const month = String(date.getMonth() + 1).padStart(2, '0')
+	const day = String(date.getDate()).padStart(2, '0')
+	return `${year}-${month}-${day}`
+}
+
+/**
  * Parse a date key (DD-MM-YYYY) back to a Date object
  * Returns null if the key is invalid
  */

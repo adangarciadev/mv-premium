@@ -6,6 +6,7 @@ import Image from 'lucide-react/dist/esm/icons/image'
 import Sparkles from 'lucide-react/dist/esm/icons/sparkles'
 import Zap from 'lucide-react/dist/esm/icons/zap'
 import Settings2 from 'lucide-react/dist/esm/icons/settings-2'
+import Trophy from 'lucide-react/dist/esm/icons/trophy'
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
 import ExternalLink from 'lucide-react/dist/esm/icons/external-link'
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2'
@@ -19,6 +20,7 @@ import { SettingRow, ApiKeyInput } from '../../components/settings'
 import { ProviderStatusBadge } from '../../components/settings/provider-status-badge'
 import { useSettingsStore } from '@/store/settings-store'
 import { getAvailableModels, testGeminiConnection } from '@/services/ai/gemini-service'
+import { testFootballDataConnection } from '@/services'
 import type { GeminiModel } from '@/store/settings-types'
 import {
 	getSettingDomId,
@@ -35,6 +37,11 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 	const { geminiApiKey, setGeminiApiKey, aiModel, setAIModel } = useSettingsStore()
 	const [testingGemini, setTestingGemini] = useState(false)
 	const [geminiExpanded, setGeminiExpanded] = useState(false)
+
+	// Football Data state
+	const { footballDataApiKey, setFootballDataApiKey } = useSettingsStore()
+	const [testingFootballData, setTestingFootballData] = useState(false)
+	const [footballDataExpanded, setFootballDataExpanded] = useState(false)
 
 	// Test Gemini connection and validate selected model
 	const handleTestGemini = async () => {
@@ -69,6 +76,31 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 		}
 	}
 
+	const handleTestFootballData = async () => {
+		setTestingFootballData(true)
+		try {
+			const result = await testFootballDataConnection()
+
+			if (result.ok) {
+				toast.success('Conexión correcta con football-data.org')
+				return
+			}
+
+			const messages = {
+				'no-key': 'Introduce primero tu API key',
+				'invalid-key': 'La API key no es válida o no tiene permisos',
+				'quota-exceeded': 'Has agotado el límite de peticiones por minuto, prueba en un minuto',
+				network: 'No se pudo conectar con football-data.org',
+			} as const
+
+			toast.error(messages[result.reason])
+		} catch {
+			toast.error('No se pudo conectar con football-data.org')
+		} finally {
+			setTestingFootballData(false)
+		}
+	}
+
 	// Helper to show toast on change
 	const withToast =
 		<T,>(setter: (val: T) => void) =>
@@ -87,6 +119,7 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 	const showImageUpload = shouldShowSetting(settingFilter, 'imgbb-api-key')
 	const showGeminiKey = shouldShowSetting(settingFilter, 'gemini-api-key')
 	const showGeminiModel = shouldShowSetting(settingFilter, 'gemini-model')
+	const showFootballDataKey = shouldShowSetting(settingFilter, 'football-data-api-key')
 	const customRowClass = (settingId: string) =>
 		cn(
 			'-mx-2 scroll-mt-28 rounded-lg border border-transparent px-2 transition-colors',
@@ -312,6 +345,89 @@ export function IntegrationsContent({ settingFilter }: { settingFilter?: Setting
 					</SelectContent>
 				</Select>
 			</SettingRow>
+
+			{(showGeminiKey || showGeminiModel) && showFootballDataKey && <Separator />}
+
+			{/* Football Data API Card */}
+			<div
+				id={getSettingDomId('football-data-api-key')}
+				data-setting-id="football-data-api-key"
+				className={customRowClass('football-data-api-key')}
+			>
+				<div className="flex flex-col gap-4 py-4">
+					<div className="flex items-start justify-between gap-4">
+						<div className="flex gap-3">
+							<Trophy className="h-5 w-5 mt-0.5 text-primary" />
+							<div>
+								<h4 className="text-sm font-medium leading-none flex items-center gap-2">
+									football-data.org
+									<ProviderStatusBadge isConfigured={!!footballDataApiKey} />
+								</h4>
+								<p className="text-sm text-muted-foreground mt-1.5 max-w-[350px]">
+									Datos de partidos de La Liga y la Champions League para el calendario de fútbol.
+								</p>
+
+								<div className="flex items-center gap-4 mt-2">
+									<button
+										onClick={() => setFootballDataExpanded(!footballDataExpanded)}
+										aria-expanded={footballDataExpanded}
+										className="flex items-center gap-1 text-xs text-primary hover:underline"
+									>
+										<ChevronDown
+											className={cn('h-3 w-3 transition-transform', footballDataExpanded && 'rotate-180')}
+										/>
+										{footballDataExpanded ? 'Ocultar detalles' : 'Cómo obtener API Key'}
+									</button>
+
+									<button
+										onClick={handleTestFootballData}
+										disabled={testingFootballData}
+										className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
+									>
+										{testingFootballData ? (
+											<Loader2 className="h-3 w-3 animate-spin" />
+										) : (
+											<Zap className="h-3 w-3" />
+										)}
+										Probar conexión
+									</button>
+								</div>
+							</div>
+						</div>
+
+						<div className="flex-shrink-0">
+							<ApiKeyInput
+								value={footballDataApiKey}
+								onChange={setFootballDataApiKey}
+								label="football-data.org"
+								placeholder="Pega aquí tu API key gratuita"
+								allowCopy
+							/>
+						</div>
+					</div>
+
+					{footballDataExpanded && (
+						<div className="text-xs text-muted-foreground space-y-2 pl-8 border-l-2 border-muted ml-2.5 animate-in slide-in-from-top-2 duration-200">
+							<p>
+								La clave de football-data.org es gratuita y se obtiene registrándote en{' '}
+								<a
+									href="https://www.football-data.org/client/register"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="text-primary hover:underline inline-flex items-center gap-0.5"
+								>
+									la página de registro de football-data.org
+									<ExternalLink className="h-3 w-3" />
+								</a>
+								.
+							</p>
+							<p>
+								El plan gratuito permite 10 peticiones por minuto, más que suficiente para el calendario.
+							</p>
+						</div>
+					)}
+				</div>
+			</div>
 		</SettingsSection>
 	)
 }

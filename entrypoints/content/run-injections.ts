@@ -13,6 +13,7 @@
 export interface PageContext {
 	isThread: boolean
 	isCine: boolean
+	isDeportes: boolean
 	isFavorites: boolean
 	isForumGlobalView: boolean
 	isBookmarks: boolean
@@ -336,6 +337,11 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	) {
 		const { injectMovieReleaseCalendar } = await import('@/features/movie-release-calendar')
 		injectMovieReleaseCalendar()
+	}
+
+	if (pageContext?.isDeportes && /^\/foro\/deportes\/?$/.test(window.location.pathname)) {
+		const { injectFootballCalendar } = await import('@/features/football-calendar')
+		injectFootballCalendar()
 	}
 
 	// Sidebar on subforum pages, global view pages (spy, new, unread, top, featured), and thread pages

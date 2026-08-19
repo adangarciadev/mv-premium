@@ -69,6 +69,10 @@ export interface GeminiConnectionResult {
 	availableModelIds?: string[]
 }
 
+export type FootballDataResult =
+	| { ok: true; payload: unknown; requestsRemaining: number | null }
+	| { ok: false; reason: 'no-key' | 'invalid-key' | 'quota-exceeded' | 'network' }
+
 export interface TweetLiteData {
 	username: string
 	displayName: string
@@ -330,6 +334,16 @@ interface ProtocolMap {
 	 * @returns JSON response from IGDB
 	 */
 	igdbRequest: (data: { endpoint: string; body: string }) => unknown
+
+	/**
+	 * Fetch raw football match data via background script.
+	 * Background reads the user's configured API key and proxies the request.
+	 */
+	footballDataRequest: (data: {
+		competition: 'PD' | 'CL'
+		dateFrom: string
+		dateTo: string
+	}) => FootballDataResult
 
 	/**
 	 * Generic AniList GraphQL request via background script.

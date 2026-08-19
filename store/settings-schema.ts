@@ -66,6 +66,11 @@ export const settingsSchema = z.object({
 	geminiApiKey: apiKeySchema.default(''),
 	aiModel: aiModelSchema.default('gemini-3-flash-preview'),
 
+	// Football Calendar
+	footballDataApiKey: apiKeySchema.default(''),
+	footballCalendarEnabled: z.boolean().default(false),
+	footballFavoriteTeamIds: z.array(z.number()).default([]),
+
 	// Sync
 	syncEnabled: z.boolean().default(false),
 

@@ -27,6 +27,11 @@ export const DEFAULT_SETTINGS: Settings = {
 	geminiApiKey: '',
 	aiModel: 'gemini-3-flash-preview',
 
+	// Football Calendar
+	footballDataApiKey: '',
+	footballCalendarEnabled: false,
+	footballFavoriteTeamIds: [],
+
 	// Sync
 	syncEnabled: false,
 

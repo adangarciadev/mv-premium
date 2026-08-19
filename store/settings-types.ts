@@ -70,6 +70,11 @@ export interface Settings {
 	geminiApiKey: string
 	aiModel: GeminiModel
 
+	// Football Calendar
+	footballDataApiKey: string
+	footballCalendarEnabled: boolean
+	footballFavoriteTeamIds: number[]
+
 	// Sync
 	syncEnabled: boolean
 

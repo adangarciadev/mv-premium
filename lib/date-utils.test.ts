@@ -4,7 +4,7 @@
  * Pure utility functions - easy to test without mocks
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { getTodayKey, formatDateKey, parseDateKey, formatDate, formatRelativeDate } from './date-utils'
+import { getTodayKey, formatDateKey, formatIsoDateKey, parseDateKey, formatDate, formatRelativeDate } from './date-utils'
 
 describe('date-utils', () => {
 	describe('formatDateKey()', () => {
@@ -26,6 +26,15 @@ describe('date-utils', () => {
 		it('should handle beginning of year dates', () => {
 			const date = new Date(2025, 0, 1) // January 1, 2025
 			expect(formatDateKey(date)).toBe('01-01-2025')
+		})
+	})
+
+	describe('formatIsoDateKey()', () => {
+		it('should format the local calendar day as YYYY-MM-DD', () => {
+			const date = new Date(2025, 5, 15) // June 15, 2025 (month is 0-indexed)
+
+			expect(formatIsoDateKey(date)).toBe('2025-06-15')
+			expect(formatIsoDateKey(date)).not.toBe('15-06-2025')
 		})
 	})
 
