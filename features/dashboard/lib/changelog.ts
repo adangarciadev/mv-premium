@@ -22,6 +22,57 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.7.0',
+		date: '2026-08-28',
+		title: 'Calendario de fútbol en Deportes: jornadas, directos y clasificación',
+		summary:
+			'El subforo Deportes estrena un calendario de La Liga y la Champions. Se pide la temporada entera de una vez, así que puedes moverte por cualquier jornada sin esperas, con los escudos y los horarios en tu hora local. Mientras hay fútbol, los marcadores se actualizan solos cada minuto y el partido en juego se distingue de un vistazo. Marca tus equipos para tenerlos resaltados, y abre la clasificación en un panel lateral sin perder los partidos de vista.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Calendario de La Liga y Champions en el subforo Deportes, agrupado por día y navegable jornada a jornada. Se descarga la temporada completa de una sola vez, así que cambiar de jornada es instantáneo y no consume peticiones. Un botón te devuelve a la jornada en curso cuando te has alejado.',
+				category: 'Fútbol',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Marcadores en directo: mientras se juega un partido, el resultado se actualiza solo cada minuto sin recargar la página. El partido en juego lleva un marcador naranja con pulso, el ya terminado uno claro con el resultado, y el que aún no ha empezado su hora de inicio.',
+				category: 'Fútbol',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Clasificación en un panel lateral, con partidos jugados, ganados, empatados, perdidos, goles a favor y en contra, diferencia y puntos. Las zonas de Champions, Europa League y descenso van marcadas con su color y su leyenda. Los partidos siguen visibles a la izquierda mientras la consultas.',
+				category: 'Fútbol',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Mis equipos: pulsa sobre un equipo para marcarlo como favorito. Sus partidos aparecen resaltados en el calendario y su fila destacada en la clasificación, y puedes filtrar la jornada para ver solo los tuyos.',
+				category: 'Fútbol',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'Los datos que devuelve football-data.org pueden llegar desordenados entre peticiones: un partido terminado volvía a aparecer con su hora de inicio y perdía el resultado. Ahora un partido nunca retrocede una vez empezado o terminado.',
+				category: 'Fútbol',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'El volcado de mvpDebug() ya no muestra tus claves de API. Las que se guardaban dentro de los ajustes salían sin censurar, así que una captura de pantalla podía exponerlas.',
+				category: 'Ajustes',
+				surface: 'shared',
+			},
+		],
+	},
+	{
 		version: '3.6.0',
 		date: '2026-08-15',
 		title: 'Mediaffinity: tu registro de cine, con galería, diario y resumen para compartir',
