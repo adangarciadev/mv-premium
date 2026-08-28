@@ -41,6 +41,8 @@ import { initUserCardInjector } from '@/features/user-customizations/user-card-i
 import { onMessage } from '@/lib/messaging'
 import { toast } from '@/lib/lazy-toast'
 import { logger } from '@/lib/logger'
+import { redactSecrets } from '@/lib/redact-secrets'
+import { buildFootballDebugReport } from '@/features/football-calendar/logic/debug-report'
 import { RUNTIME_CACHE_KEYS, TOAST_IDS, TOAST_TIMINGS } from '@/constants'
 import { showEarlyHiddenSubforumBlocker } from '@/features/hidden-subforums/logic/early-guard'
 
@@ -99,7 +101,9 @@ export async function runDesktopContentMain(ctx: unknown): Promise<void> {
 
 		const debugData = Object.fromEntries(
 			mvpKeys.map(k => {
-				let value = allData[k]
+				// Secrets first: settings are stored as a JSON string, so the key-name
+				// filter below never saw the API keys living inside them.
+				let value = redactSecrets(allData[k])
 
 				// 1. If object, stringify (as before)
 				if (typeof value === 'object') {
@@ -120,6 +124,13 @@ export async function runDesktopContentMain(ctx: unknown): Promise<void> {
 
 		console.group('🔍 MVP Storage Debug')
 		console.table(debugData)
+
+		const footballRows = buildFootballDebugReport(allData)
+		if (footballRows.length > 0) {
+			console.log('⚽ Calendario de fútbol')
+			console.table(footballRows)
+		}
+
 		console.groupEnd()
 		return { keys: mvpKeys, data: Object.fromEntries(mvpKeys.map(k => [k, allData[k]])) }
 	}
