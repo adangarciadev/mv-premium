@@ -30,7 +30,10 @@ vi.mock('@/services/media', () => ({
 
 import {
 	fetchCompetitionMatches,
-	getDefaultMatchWindow,
+	getSeasonMatchWindow,
+	normalizeStandings,
+	shouldPollMatches,
+	shouldWatchMatches,
 	getFootballCacheTtl,
 	normalizeMatches,
 	testFootballDataConnection,
@@ -253,8 +256,223 @@ describe('football-data service', () => {
 		expect(mocks.setCache).toHaveBeenCalledTimes(1)
 	})
 
-	it('calculates the default match window in local calendar time', () => {
-		expect(getDefaultMatchWindow(new Date(2026, 7, 19, 12, 0, 0))).toEqual(WINDOW)
+	it('spans the whole season for a date in the first half of the campaign', () => {
+		expect(getSeasonMatchWindow(new Date(2026, 7, 19, 12, 0, 0))).toEqual({
+			dateFrom: '2026-07-01',
+			dateTo: '2027-06-30',
+		})
+	})
+
+	it('keeps the same season window for a date after the new year', () => {
+		expect(getSeasonMatchWindow(new Date(2027, 2, 4, 12, 0, 0))).toEqual({
+			dateFrom: '2026-07-01',
+			dateTo: '2027-06-30',
+		})
+	})
+
+	describe('normalizeStandings()', () => {
+		const team = (id: number, name: string) => ({
+			id,
+			name,
+			shortName: name,
+			tla: name.slice(0, 3).toUpperCase(),
+			crest: `https://example.com/${id}.png`,
+		})
+
+		const row = (position: number, id: number, name: string, overrides: Record<string, unknown> = {}) => ({
+			position,
+			team: team(id, name),
+			playedGames: 3,
+			won: 2,
+			draw: 1,
+			lost: 0,
+			points: 7,
+			goalsFor: 5,
+			goalsAgainst: 2,
+			goalDifference: 3,
+			...overrides,
+		})
+
+		it('reads the overall table and ignores home and away variants', () => {
+			const standings = normalizeStandings({
+				standings: [
+					{ stage: 'REGULAR_SEASON', type: 'HOME', table: [row(1, 10, 'Casa')] },
+					{ stage: 'REGULAR_SEASON', type: 'TOTAL', table: [row(1, 20, 'Total')] },
+					{ stage: 'REGULAR_SEASON', type: 'AWAY', table: [row(1, 30, 'Fuera')] },
+				],
+			})
+
+			expect(standings?.stage).toBe('REGULAR_SEASON')
+			expect(standings?.rows.map(entry => entry.team.name)).toEqual(['Total'])
+		})
+
+		it('sorts rows by position', () => {
+			const standings = normalizeStandings({
+				standings: [
+					{
+						stage: 'LEAGUE_STAGE',
+						type: 'TOTAL',
+						table: [row(3, 30, 'Tercero'), row(1, 10, 'Primero'), row(2, 20, 'Segundo')],
+					},
+				],
+			})
+
+			expect(standings?.rows.map(entry => entry.position)).toEqual([1, 2, 3])
+		})
+
+		it('derives the goal difference when the payload omits it', () => {
+			const standings = normalizeStandings({
+				standings: [
+					{
+						stage: 'REGULAR_SEASON',
+						type: 'TOTAL',
+						table: [row(1, 10, 'Casa', { goalDifference: null, goalsFor: 7, goalsAgainst: 3 })],
+					},
+				],
+			})
+
+			expect(standings?.rows[0].goalDifference).toBe(4)
+		})
+
+		it('skips rows without a usable team', () => {
+			const standings = normalizeStandings({
+				standings: [
+					{
+						stage: 'REGULAR_SEASON',
+						type: 'TOTAL',
+						table: [row(1, 10, 'Casa'), { position: 2, team: { id: 'nope' } }],
+					},
+				],
+			})
+
+			expect(standings?.rows).toHaveLength(1)
+		})
+
+		it('reads the season the table belongs to', () => {
+			const standings = normalizeStandings({
+				season: { startDate: '2025-08-15', endDate: '2026-05-24' },
+				standings: [{ stage: 'REGULAR_SEASON', type: 'TOTAL', table: [row(1, 10, 'Casa')] }],
+			})
+
+			expect(standings?.seasonStartYear).toBe(2025)
+		})
+
+		it('leaves the season empty when the payload omits it', () => {
+			const standings = normalizeStandings({
+				standings: [{ stage: 'REGULAR_SEASON', type: 'TOTAL', table: [row(1, 10, 'Casa')] }],
+			})
+
+			expect(standings?.seasonStartYear).toBeNull()
+		})
+
+		it('returns null for a payload without an overall table', () => {
+			expect(normalizeStandings({ standings: [{ type: 'HOME', table: [row(1, 10, 'Casa')] }] })).toBeNull()
+			expect(normalizeStandings({ standings: [] })).toBeNull()
+			expect(normalizeStandings(null)).toBeNull()
+		})
+	})
+
+	it('never caches past the next kickoff', () => {
+		const now = new Date(2026, 7, 19, 18, 0, 0)
+		const kickoffIn20Minutes = normalizeFixture(
+			{ matches: [{ ...unplayedLaLigaMatch, status: 'TIMED', utcDate: new Date(2026, 7, 19, 18, 20, 0).toISOString() }] },
+			'PD'
+		)
+
+		// The old rule cached this snapshot for six hours and kept showing a
+		// kickoff time long after the match had started.
+		expect(getFootballCacheTtl([kickoffIn20Minutes], now)).toBe(20 * 60 * 1000 + 30 * 1000)
+	})
+
+	it('expires immediately when a kickoff has already passed', () => {
+		const now = new Date(2026, 7, 19, 21, 0, 0)
+		const startedButStillTimed = normalizeFixture(
+			{ matches: [{ ...unplayedLaLigaMatch, status: 'TIMED', utcDate: new Date(2026, 7, 19, 20, 30, 0).toISOString() }] },
+			'PD'
+		)
+
+		expect(getFootballCacheTtl([startedButStillTimed], now)).toBe(30 * 1000)
+	})
+
+	describe('shouldWatchMatches()', () => {
+		const now = new Date(2026, 7, 19, 18, 30, 0)
+
+		// The regression: the poll predicate is false half an hour before kickoff,
+		// so nothing was left running to notice the match starting. The watch
+		// predicate keeps a ticker alive across that gap.
+		it('watches a match that has not kicked off yet', () => {
+			const inHalfAnHour = normalizeFixture(
+				{ matches: [{ ...unplayedLaLigaMatch, status: 'TIMED', utcDate: new Date(2026, 7, 19, 19, 0, 0).toISOString() }] },
+				'PD'
+			)
+
+			expect(shouldPollMatches([inHalfAnHour], now)).toBe(false)
+			expect(shouldWatchMatches([inHalfAnHour], now)).toBe(true)
+		})
+
+		it('watches a match that is being played', () => {
+			const live = normalizeFixture({ matches: [{ ...unplayedLaLigaMatch, status: 'IN_PLAY' }] }, 'PD')
+
+			expect(shouldWatchMatches([live], now)).toBe(true)
+		})
+
+		it('ignores a match still more than six hours away', () => {
+			const tomorrow = normalizeFixture(
+				{ matches: [{ ...unplayedLaLigaMatch, status: 'TIMED', utcDate: new Date(2026, 7, 20, 19, 0, 0).toISOString() }] },
+				'PD'
+			)
+
+			expect(shouldWatchMatches([tomorrow], now)).toBe(false)
+		})
+
+		it('stops watching once the matchday is over', () => {
+			const finished = normalizeFixture({ matches: [finishedLaLigaMatch] }, 'PD')
+
+			expect(shouldWatchMatches([finished], now)).toBe(false)
+		})
+	})
+
+	describe('shouldPollMatches()', () => {
+		const now = new Date(2026, 7, 19, 21, 0, 0)
+
+		it('polls while a match is being played', () => {
+			const live = normalizeFixture({ matches: [{ ...unplayedLaLigaMatch, status: 'IN_PLAY' }] }, 'PD')
+
+			expect(shouldPollMatches([live], now)).toBe(true)
+		})
+
+		it('polls when a kickoff has passed but the snapshot still shows it as scheduled', () => {
+			const stale = normalizeFixture(
+				{ matches: [{ ...unplayedLaLigaMatch, status: 'TIMED', utcDate: new Date(2026, 7, 19, 20, 30, 0).toISOString() }] },
+				'PD'
+			)
+
+			expect(shouldPollMatches([stale], now)).toBe(true)
+		})
+
+		it('does not poll for a match that is still hours away', () => {
+			const later = normalizeFixture(
+				{ matches: [{ ...unplayedLaLigaMatch, status: 'TIMED', utcDate: new Date(2026, 7, 20, 20, 30, 0).toISOString() }] },
+				'PD'
+			)
+
+			expect(shouldPollMatches([later], now)).toBe(false)
+		})
+
+		it('stops polling an abandoned fixture whose kickoff is long past', () => {
+			const abandoned = normalizeFixture(
+				{ matches: [{ ...unplayedLaLigaMatch, status: 'TIMED', utcDate: new Date(2026, 7, 19, 12, 0, 0).toISOString() }] },
+				'PD'
+			)
+
+			expect(shouldPollMatches([abandoned], now)).toBe(false)
+		})
+
+		it('does not poll a finished matchday', () => {
+			const finished = normalizeFixture({ matches: [finishedLaLigaMatch] }, 'PD')
+
+			expect(shouldPollMatches([finished], now)).toBe(false)
+		})
 	})
 
 	it('selects the short TTL for active or today-finished matches', () => {
@@ -268,7 +486,7 @@ describe('football-data service', () => {
 			'PD'
 		)
 
-		expect(getFootballCacheTtl([activeMatch], now)).toBe(10 * 60 * 1000)
+		expect(getFootballCacheTtl([activeMatch], now)).toBe(30 * 1000)
 		expect(getFootballCacheTtl([finishedToday], now)).toBe(10 * 60 * 1000)
 	})
 
@@ -311,7 +529,7 @@ describe('football-data service', () => {
 		expect(mocks.setCache).toHaveBeenCalledWith(
 			'PD:2026-08-12:2026-09-02',
 			expect.any(Array),
-			expect.objectContaining({ prefix: 'mv-football-v1', ttl: 6 * 60 * 60 * 1000 })
+			expect.objectContaining({ prefix: 'mv-football-v2', ttl: 6 * 60 * 60 * 1000 })
 		)
 	})
 

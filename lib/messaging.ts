@@ -73,6 +73,11 @@ export type FootballDataResult =
 	| { ok: true; payload: unknown; requestsRemaining: number | null }
 	| { ok: false; reason: 'no-key' | 'invalid-key' | 'quota-exceeded' | 'network' }
 
+/** Standings can also be rejected because the plan does not include the resource. */
+export type FootballStandingsResult =
+	| { ok: true; payload: unknown; requestsRemaining: number | null }
+	| { ok: false; reason: 'no-key' | 'invalid-key' | 'quota-exceeded' | 'network' | 'not-in-plan' }
+
 export interface TweetLiteData {
 	username: string
 	displayName: string
@@ -344,6 +349,9 @@ interface ProtocolMap {
 		dateFrom: string
 		dateTo: string
 	}) => FootballDataResult
+
+	/** Current standings table for one competition. */
+	footballStandingsRequest: (data: { competition: 'PD' | 'CL' }) => FootballStandingsResult
 
 	/**
 	 * Generic AniList GraphQL request via background script.

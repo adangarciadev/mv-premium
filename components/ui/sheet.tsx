@@ -4,6 +4,7 @@ import * as React from 'react'
 import * as SheetPrimitive from '@radix-ui/react-dialog'
 import XIcon from 'lucide-react/dist/esm/icons/x'
 
+import { getShadowContainer } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
@@ -18,8 +19,19 @@ function SheetClose({ ...props }: React.ComponentProps<typeof SheetPrimitive.Clo
 	return <SheetPrimitive.Close data-slot="sheet-close" {...props} />
 }
 
+/**
+ * Renders the sheet in the Shadow DOM when injected into a page, and normally
+ * on the dashboard. Without the container the sheet portals to document.body,
+ * outside the shadow root, and loses every Tailwind style.
+ */
 function SheetPortal({ ...props }: React.ComponentProps<typeof SheetPrimitive.Portal>) {
-	return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+	const isDashboard = window.location.pathname.endsWith('options.html')
+
+	if (isDashboard) {
+		return <SheetPrimitive.Portal data-slot="sheet-portal" {...props} />
+	}
+
+	return <SheetPrimitive.Portal data-slot="sheet-portal" container={getShadowContainer()} {...props} />
 }
 
 function SheetOverlay({ className, ...props }: React.ComponentProps<typeof SheetPrimitive.Overlay>) {

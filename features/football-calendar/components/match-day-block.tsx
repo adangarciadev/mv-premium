@@ -1,6 +1,7 @@
+import { cn } from '@/lib/utils'
 import type { MatchDayGroup } from '../logic/group-matches'
 import { formatDayLabelParts } from '../logic/format-match'
-import { MatchListRow } from './match-list-row'
+import { FixtureCell } from './fixture-cell'
 
 interface MatchDayBlockProps {
 	group: MatchDayGroup
@@ -17,29 +18,37 @@ export function MatchDayBlock({
 }: MatchDayBlockProps) {
 	const headingId = `football-day-${dayGroupKey}-${group.dayKey}`
 	const dayLabel = formatDayLabelParts(group.dayKey)
+	const railLabel = dayLabel.isRelative ? dayLabel.weekday : dayLabel.weekday.slice(0, 3)
 
 	return (
-		<section className="break-inside-avoid" aria-labelledby={headingId}>
-			<h3
-				id={headingId}
-				className="mb-1.5 flex items-center gap-1.5 border-b border-border/60 pb-1.5 text-xs font-black uppercase leading-4 tracking-wide"
-			>
-				{dayLabel.isToday && <span className="h-3 w-0.5 rounded-full bg-primary" aria-hidden="true" />}
-				<span className={dayLabel.isRelative ? 'text-primary' : 'text-muted-foreground'}>
-					{dayLabel.weekday.toUpperCase()}
+		<section className="flex items-start gap-2.5" aria-labelledby={headingId}>
+			<h3 id={headingId} className="flex w-[52px] shrink-0 items-baseline justify-end gap-1.5 pt-1.5">
+				<span
+					className={cn(
+						'text-[10px] font-black uppercase leading-none tracking-[0.1em]',
+						dayLabel.isRelative ? 'text-primary' : 'text-muted-foreground'
+					)}
+				>
+					{railLabel.toUpperCase()}
 				</span>
-				{!dayLabel.isRelative && dayLabel.dayNumber !== null && (
-					<span className="text-foreground">{dayLabel.dayNumber}</span>
+				{dayLabel.dayNumber !== null && (
+					<span
+						className={cn(
+							'text-[13px] font-black leading-none tabular-nums',
+							dayLabel.isToday ? 'text-primary' : 'text-foreground'
+						)}
+					>
+						{dayLabel.dayNumber}
+					</span>
 				)}
 			</h3>
-			<div>
-				{group.matches.map((match, index) => (
-					<MatchListRow
+			<div className="grid min-w-0 flex-1 grid-cols-1 gap-1.5 md:grid-cols-2">
+				{group.matches.map(match => (
+					<FixtureCell
 						key={match.id}
 						match={match}
 						favoriteTeamIds={favoriteTeamIds}
 						onToggleFavoriteTeam={onToggleFavoriteTeam}
-						isFirstOfDay={index === 0}
 					/>
 				))}
 			</div>

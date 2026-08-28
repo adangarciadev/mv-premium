@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FootballCalendar } from './football-calendar'
 
 const fetchCompetitionMatchesMock = vi.hoisted(() => vi.fn())
+const fetchCompetitionStandingsMock = vi.hoisted(() => vi.fn())
 const settingsState = vi.hoisted(() => ({
 	footballFavoriteTeamIds: [] as number[],
 	setFootballFavoriteTeamIds: vi.fn(),
@@ -11,6 +12,12 @@ const settingsState = vi.hoisted(() => ({
 
 vi.mock('@/services', () => ({
 	fetchCompetitionMatches: fetchCompetitionMatchesMock,
+	// The calendar mounts the standings panel, which reads these on render.
+	fetchCompetitionStandings: fetchCompetitionStandingsMock,
+	getCurrentSeasonStartYear: () => 2026,
+	// Keeps the live-refresh ticker out of the tests.
+	shouldPollMatches: () => false,
+	shouldWatchMatches: () => false,
 }))
 
 vi.mock('@/store/settings-store', () => ({
@@ -20,6 +27,7 @@ vi.mock('@/store/settings-store', () => ({
 describe('FootballCalendar', () => {
 	beforeEach(() => {
 		fetchCompetitionMatchesMock.mockReset()
+		fetchCompetitionStandingsMock.mockReset()
 		settingsState.footballFavoriteTeamIds = []
 		settingsState.setFootballFavoriteTeamIds.mockClear()
 	})
@@ -67,6 +75,7 @@ describe('FootballCalendar', () => {
 					competition: 'PD',
 					matchday: 1,
 					stage: 'REGULAR_SEASON',
+					minute: null,
 					home: { id: 10, name: 'Casa FC', shortName: 'Casa', tla: 'CAS', crest: 'https://example.com/casa.png' },
 					away: { id: 20, name: 'Visitante FC', shortName: 'Visitante', tla: 'VIS', crest: 'https://example.com/visitante.png' },
 					score: null,
@@ -76,7 +85,7 @@ describe('FootballCalendar', () => {
 
 		render(<FootballCalendar />)
 
-		expect(await screen.findByText('Casa')).toBeInTheDocument()
+		expect(await screen.findByText('Casa FC')).toBeInTheDocument()
 		expect(screen.getByText('Jornada')).toBeInTheDocument()
 		expect(screen.getByText('1', { exact: true })).toBeInTheDocument()
 		expect(screen.getByRole('heading', { name: 'Calendario de fútbol' }).closest('section')).not.toBeNull()

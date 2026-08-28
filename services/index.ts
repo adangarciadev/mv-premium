@@ -92,8 +92,13 @@ export type { IGDBGame, IGDBCover, IGDBSearchResult, IGDBImageSize } from './api
 // Football Data
 export {
 	fetchCompetitionMatches,
-	getDefaultMatchWindow,
+	getSeasonMatchWindow,
+	getCurrentSeasonStartYear,
+	fetchCompetitionStandings,
+	normalizeStandings,
 	getFootballCacheTtl,
+	shouldPollMatches,
+	shouldWatchMatches,
 	normalizeMatches,
 	testFootballDataConnection,
 } from './api/football-data'
@@ -103,6 +108,9 @@ export type {
 	FootballFetchResult,
 	FootballMatch,
 	FootballScore,
+	FootballStandingRow,
+	FootballStandings,
+	FootballStandingsFetchResult,
 	FootballTeam,
 } from './api/football-data'
 

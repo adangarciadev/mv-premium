@@ -8,7 +8,7 @@
 import { storage } from '#imports'
 import { STORAGE_KEYS } from '@/constants'
 import { logger } from '@/lib/logger'
-import { onMessage, type FootballDataResult } from '@/lib/messaging'
+import { onMessage, type FootballDataResult, type FootballStandingsResult } from '@/lib/messaging'
 
 // =============================================================================
 // Storage Definitions
@@ -63,6 +63,12 @@ function getRequestsRemaining(response: Response): number | null {
 }
 
 function createFailureResult(reason: Extract<FootballDataResult, { ok: false }>['reason']): FootballDataResult {
+	return { ok: false, reason }
+}
+
+function createStandingsFailure(
+	reason: Extract<FootballStandingsResult, { ok: false }>['reason']
+): FootballStandingsResult {
 	return { ok: false, reason }
 }
 
@@ -121,6 +127,52 @@ export function setupFootballHandlers(): void {
 		} catch (error) {
 			logger.error('Football data request failed', error)
 			return createFailureResult('network')
+		}
+	})
+
+	onMessage('footballStandingsRequest', async ({ data }) => {
+		try {
+			const apiKey = await getConfiguredFootballDataApiKey()
+			if (!apiKey) {
+				return createStandingsFailure('no-key')
+			}
+
+			if (!isFootballCompetition(data.competition)) {
+				logger.warn('Rejected football standings request with invalid competition', data.competition)
+				return createStandingsFailure('network')
+			}
+
+			const response = await fetch(`${FOOTBALL_DATA_API_URL}/${data.competition}/standings`, {
+				method: 'GET',
+				headers: {
+					'X-Auth-Token': apiKey,
+				},
+			})
+
+			// The API answers 403 both for a bad key and for a resource the plan
+			// does not cover, so the message body is what tells them apart.
+			if (response.status === 403) {
+				const body = await response.text()
+				return createStandingsFailure(/restricted|not available|tier|plan/i.test(body) ? 'not-in-plan' : 'invalid-key')
+			}
+
+			if (response.status === 429) {
+				return createStandingsFailure('quota-exceeded')
+			}
+
+			if (!response.ok) {
+				return createStandingsFailure('network')
+			}
+
+			const payload: unknown = await response.json()
+			return {
+				ok: true as const,
+				payload,
+				requestsRemaining: getRequestsRemaining(response),
+			}
+		} catch (error) {
+			logger.error('Football standings request failed', error)
+			return createStandingsFailure('network')
 		}
 	})
 }

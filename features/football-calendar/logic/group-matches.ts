@@ -7,31 +7,6 @@ export interface MatchDayGroup {
 	matches: FootballMatch[]
 }
 
-export interface CalendarSections {
-	/** Fixtures involving favourite teams, upcoming only. Empty when none. */
-	favorites: MatchDayGroup[]
-	results: MatchDayGroup[]
-	upcoming: MatchDayGroup[]
-}
-
-/** Partition matches into finished results and non-cancelled upcoming fixtures. */
-export function partitionMatches(matches: FootballMatch[]): {
-	results: FootballMatch[]
-	upcoming: FootballMatch[]
-} {
-	const results = matches
-		.filter(match => match.status === 'FINISHED')
-		.slice()
-		.sort((left, right) => Date.parse(right.utcDate) - Date.parse(left.utcDate))
-
-	const upcoming = matches
-		.filter(match => match.status !== 'FINISHED' && match.status !== 'CANCELLED')
-		.slice()
-		.sort((left, right) => Date.parse(left.utcDate) - Date.parse(right.utcDate))
-
-	return { results, upcoming }
-}
-
 /** Group matches by their local calendar day while preserving input order. */
 export function groupByLocalDay(matches: FootballMatch[]): MatchDayGroup[] {
 	const groups = new Map<string, FootballMatch[]>()
@@ -52,47 +27,6 @@ export function groupByLocalDay(matches: FootballMatch[]): MatchDayGroup[] {
 
 export function isFavoriteMatch(match: FootballMatch, favoriteTeamIds: number[]): boolean {
 	return favoriteTeamIds.includes(match.home.id) || favoriteTeamIds.includes(match.away.id)
-}
-
-export function filterFavorites(matches: FootballMatch[], favoriteTeamIds: number[]): FootballMatch[] {
-	return matches.filter(match => isFavoriteMatch(match, favoriteTeamIds))
-}
-
-export function buildCalendarSections(
-	matches: FootballMatch[],
-	options: { favoriteTeamIds: number[]; onlyFavorites: boolean },
-): CalendarSections {
-	const { results, upcoming } = partitionMatches(matches)
-	const favoriteResults = filterFavorites(results, options.favoriteTeamIds)
-	const favoriteUpcoming = filterFavorites(upcoming, options.favoriteTeamIds)
-
-	if (options.onlyFavorites) {
-		return {
-			favorites: [],
-			results: groupByLocalDay(favoriteResults),
-			upcoming: groupByLocalDay(favoriteUpcoming),
-		}
-	}
-
-	return {
-		favorites: groupByLocalDay(favoriteUpcoming),
-		results: groupByLocalDay(results),
-		upcoming: groupByLocalDay(upcoming),
-	}
-}
-
-/** Build one ascending timeline for the horizontal football rail. */
-export function buildMatchTimeline(
-	matches: FootballMatch[],
-	options: { favoriteTeamIds: number[]; onlyFavorites: boolean },
-): MatchDayGroup[] {
-	const visibleMatches = matches
-		.filter(match => match.status !== 'CANCELLED')
-		.filter(match => !options.onlyFavorites || isFavoriteMatch(match, options.favoriteTeamIds))
-		.slice()
-		.sort((left, right) => Date.parse(left.utcDate) - Date.parse(right.utcDate))
-
-	return groupByLocalDay(visibleMatches)
 }
 
 export interface MatchdayGroup {
@@ -131,12 +65,20 @@ export function groupByMatchday(
 		}
 	}
 
-	return Array.from(buckets, ([key, bucket]) => ({
-		key,
-		matchday: bucket.matchday,
-		stage: bucket.stage,
-		days: groupByLocalDay(bucket.matches),
-	}))
+	return (
+		Array.from(buckets, ([key, bucket]) => ({
+			key,
+			matchday: bucket.matchday,
+			stage: bucket.stage,
+			days: groupByLocalDay(bucket.matches),
+		}))
+			// Numbered matchdays run in league order: a fixture moved forward must not
+			// place matchday 6 before matchday 5. Knockout stages keep their
+			// chronological order through the stable sort.
+			.sort((left, right) =>
+				left.matchday !== null && right.matchday !== null ? left.matchday - right.matchday : 0,
+			)
+	)
 }
 
 export function findCurrentMatchdayIndex(groups: MatchdayGroup[], now: Date = new Date()): number {

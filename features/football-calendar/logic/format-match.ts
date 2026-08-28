@@ -33,6 +33,56 @@ export function formatScoreText(score: FootballScore | null): string | null {
 	return score.decidedBeyondRegularTime ? `${scoreText} (pró.)` : scoreText
 }
 
+/**
+ * Whether a kickoff is still ahead of us today.
+ *
+ * Only then is the time worth accenting. A fixture the API has not updated
+ * keeps its kickoff time long after it was played, and painting that in the
+ * accent colour made a finished match look like it was about to start.
+ */
+export function isUpcomingToday(match: FootballMatch, now: Date = new Date()): boolean {
+	const kickoff = Date.parse(match.utcDate)
+	if (Number.isNaN(kickoff) || kickoff <= now.getTime()) return false
+
+	return formatIsoDateKey(new Date(kickoff)) === formatIsoDateKey(now)
+}
+
+/** No football match runs longer than this, extra time and stoppages included. */
+const MAX_MATCH_DURATION = 2.5 * 60 * 60 * 1000
+
+/**
+ * Whether a match still claiming to be in progress can be believed.
+ *
+ * The API is the only source for the status, and it has been seen holding
+ * IN_PLAY after the final whistle. Past two and a half hours from kickoff the
+ * claim is certainly wrong, and showing a pulsing "playing now" chip on a match
+ * that ended is worse than showing its last known score plainly.
+ */
+export function isLiveStatusStale(match: FootballMatch, now: Date = new Date()): boolean {
+	if (match.status !== 'IN_PLAY' && match.status !== 'PAUSED') return false
+
+	const kickoff = Date.parse(match.utcDate)
+	if (Number.isNaN(kickoff)) return false
+
+	return now.getTime() - kickoff > MAX_MATCH_DURATION
+}
+
+/**
+ * How far into the match we are, for the live chip's tooltip.
+ *
+ * Only reported when the payload actually carries a minute: the wall clock
+ * cannot be turned into a match minute without knowing the interval and
+ * stoppage time, and a guess dressed as data is worse than no data. `PAUSED`
+ * is the API's own way of saying half time, so that one is safe to name.
+ */
+export function formatLiveMinute(match: FootballMatch): string | null {
+	if (match.status === 'PAUSED') return 'Descanso'
+	if (match.status !== 'IN_PLAY') return null
+	if (match.minute === null) return null
+
+	return `${match.minute}'`
+}
+
 export function formatKickoffTime(utcDate: string): string {
 	const date = new Date(utcDate)
 	if (Number.isNaN(date.getTime())) return ''
