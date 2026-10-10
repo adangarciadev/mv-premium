@@ -17,6 +17,7 @@ const flush = async () => { await new Promise(resolve => setTimeout(resolve, 0))
 describe('native favorites menu action', () => {
 	let cleanup: (() => void) | undefined
 	beforeEach(() => {
+		vi.clearAllMocks()
 		mocks.send.mockReset().mockResolvedValue({ opened: 2, failed: 0 })
 		document.body.innerHTML = '<ul id="usermenu"><li class="f2"><a class="flink" href="/foro/favoritos">Favoritos<span id="bf">0</span></a></li><li class="messages"></li></ul>'
 		// Native .flink handlers prevent default navigation to the favorites page.
@@ -33,11 +34,62 @@ describe('native favorites menu action', () => {
 		expect(button()).toBeNull()
 		document.querySelector('.f2')!.insertAdjacentHTML('beforeend', flyout(row(first)))
 		await flush()
-		expect(button()).toHaveTextContent('Abrir no leídos')
+		expect(button()).toHaveTextContent('Abrir no leídos (1)')
 		expect(button()).toHaveAttribute('type', 'button')
 		expect(button()).toHaveAccessibleName(/pestañas en segundo plano/)
 		expect(injectUnreadFavoritesMenu()).toBe(cleanup)
 		expect(document.querySelectorAll(`#${FEATURE_IDS.FAVORITES_OPEN_UNREAD}`)).toHaveLength(1)
+	})
+
+	it('counts unread threads once instead of adding their message badges and updates when the list changes', async () => {
+		mount(row(first) + row(second) + row(first) + row('/foro/cine/leido-789', false))
+		expect(button()).toHaveTextContent('Abrir no leídos (2)')
+		expect(button()).toHaveAccessibleName(/Abrir no leídos \(2\)/)
+		document.querySelector('.threads')!.innerHTML = row(first)
+		await flush()
+		expect(button()).toHaveTextContent('Abrir no leídos (1)')
+	})
+
+	it('opens ten unread threads but blocks eleven with an explanation and keeps native links available', async () => {
+		const rows = (count: number) => Array.from({ length: count }, (_, i) => row(`/foro/cine/hilo-${1000 + i}#1`)).join('')
+		mount(rows(10))
+		expect(button()).toHaveTextContent('Abrir no leídos (10)')
+		button().click()
+		await flush()
+		expect(mocks.send).toHaveBeenCalledOnce()
+		mocks.send.mockClear()
+		document.querySelector('.threads')!.innerHTML = rows(11)
+		await flush()
+		expect(button()).toHaveTextContent('Abrir no leídos (11)')
+		button().click()
+		await flush()
+		expect(mocks.send).not.toHaveBeenCalled()
+		expect(mocks.info).toHaveBeenCalledWith('Tienes 11 hilos favoritos con mensajes nuevos. Puedes abrir hasta 10 a la vez. Abre algunos individualmente y vuelve a intentarlo.')
+		expect(document.querySelectorAll('a.unseen-num')).toHaveLength(11)
+		expect(button()).toBeEnabled()
+	})
+
+	it('includes the star count for unloaded pages and updates when that count changes', async () => {
+		document.getElementById('bf')!.textContent = '12'
+		mount(row(first) + row(second, false).repeat(19))
+		expect(button()).toHaveTextContent('Abrir no leídos (12)')
+		button().click()
+		expect(mocks.send).not.toHaveBeenCalled()
+		expect(mocks.info).toHaveBeenCalledWith(expect.stringContaining('Tienes 12 hilos'))
+		document.getElementById('bf')!.textContent = '5'
+		await flush()
+		expect(button()).toHaveTextContent('Abrir no leídos (5)')
+	})
+
+	it('shows the limit notice when later pages exceed it despite a stale star count', async () => {
+		document.getElementById('bf')!.textContent = '1'
+		mocks.send.mockResolvedValueOnce({ opened: 0, failed: 0, limitExceeded: true, unreadCount: 15 })
+		mount(row(first, false).repeat(20))
+		button().click()
+		await flush()
+		expect(mocks.info).toHaveBeenCalledWith(expect.stringContaining('Tienes 15 hilos'))
+		expect(mocks.success).not.toHaveBeenCalled()
+		expect(button()).toBeEnabled()
 	})
 
 	it('preserves native links and sends only exact unread destinations, deduplicated by thread', async () => {

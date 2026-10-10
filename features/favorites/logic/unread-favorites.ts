@@ -1,5 +1,11 @@
 import { MV_BASE_URL } from '@/constants'
 
+export const MAX_UNREAD_FAVORITE_TABS = 10
+
+export function unreadFavoritesLimitMessage(count: number): string {
+	return `Tienes ${count} hilos favoritos con mensajes nuevos. Puedes abrir hasta ${MAX_UNREAD_FAVORITE_TABS} a la vez. Abre algunos individualmente y vuelve a intentarlo.`
+}
+
 /** Keep the native unread destination, including its page and post anchor. */
 export function normalizeUnreadFavoriteUrl(value: string): string | null {
 	try {
@@ -36,4 +42,7 @@ export interface OpenUnreadFavoritesPayload {
 export interface OpenUnreadFavoritesResult {
 	opened: number
 	failed: number
+	/** No tabs were opened because the complete unread list exceeds the limit. */
+	limitExceeded?: boolean
+	unreadCount?: number
 }

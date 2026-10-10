@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockBrowser } from '../../tests/setup'
-import type { OpenUnreadFavoritesPayload } from '@/features/favorites/logic/unread-favorites'
+import type { OpenUnreadFavoritesPayload, OpenUnreadFavoritesResult } from '@/features/favorites/logic/unread-favorites'
 
 const onMessage = vi.hoisted(() => vi.fn())
 vi.mock('@/lib/messaging', () => ({ onMessage }))
@@ -9,7 +9,7 @@ import { setupFavoritesHandlers } from './favorites-handlers'
 type Handler = (message: {
 	data: OpenUnreadFavoritesPayload
 	sender: { tab: { id: number; windowId: number; url: string } }
-}) => Promise<{ opened: number; failed: number }>
+}) => Promise<OpenUnreadFavoritesResult>
 
 const base = 'https://www.mediavida.com'
 const first = `${base}/foro/juegos/primer-hilo-123/2#45`
@@ -47,6 +47,28 @@ describe('opening unread favorites', () => {
 			`${base}/foro/favoritos/fly/1`, `${base}/foro/favoritos/fly/2`,
 		])
 		expect(mockBrowser.tabs.create).toHaveBeenNthCalledWith(2, { url: second, active: false, windowId: 3, openerTabId: 8 })
+	})
+
+	it.each([10, 11])('enforces the ten-thread limit before creating any of %s tabs', async count => {
+		const urls = Array.from({ length: count }, (_, i) => `${base}/foro/cine/hilo-${1000 + i}#1`)
+		const result = await handler({ data: { urls: [...urls, urls[0]], loadRemaining: false }, sender })
+		if (count === 10) {
+			expect(result).toEqual({ opened: 10, failed: 0 })
+			expect(mockBrowser.tabs.create).toHaveBeenCalledTimes(10)
+		} else {
+			expect(result).toEqual({ opened: 0, failed: 0, limitExceeded: true, unreadCount: 11 })
+			expect(mockBrowser.tabs.create).not.toHaveBeenCalled()
+		}
+	})
+
+	it('opens no partial batch when subsequent pages push the total past ten and permits retry', async () => {
+		const urls = Array.from({ length: 11 }, (_, i) => `${base}/foro/cine/hilo-${1000 + i}#1`)
+		fetchMock.mockResolvedValueOnce(new Response(urls.slice(0, 10).map(url => row(url)).join('') + row(first, false).repeat(10)))
+			.mockResolvedValueOnce(new Response(row(urls[10])))
+		expect(await handler({ data: { urls: urls.slice(0, 10), loadRemaining: true }, sender }))
+			.toEqual({ opened: 0, failed: 0, limitExceeded: true, unreadCount: 11 })
+		expect(mockBrowser.tabs.create).not.toHaveBeenCalled()
+		await expect(handler({ data: { urls: [first], loadRemaining: false }, sender })).resolves.toEqual({ opened: 1, failed: 0 })
 	})
 
 	it('handles an exactly full final page followed by an empty response', async () => {

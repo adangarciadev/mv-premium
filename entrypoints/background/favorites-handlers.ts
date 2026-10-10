@@ -2,7 +2,7 @@ import { browser } from 'wxt/browser'
 import { parse } from 'node-html-parser'
 import { MV_BASE_URL } from '@/constants'
 import { onMessage } from '@/lib/messaging'
-import { uniqueUnreadFavoriteUrls } from '@/features/favorites/logic/unread-favorites'
+import { MAX_UNREAD_FAVORITE_TABS, uniqueUnreadFavoriteUrls } from '@/features/favorites/logic/unread-favorites'
 
 /** Complete the native paginated flyout before opening any tabs. */
 async function loadAllUnreadFavorites(): Promise<string[]> {
@@ -44,6 +44,9 @@ export function setupFavoritesHandlers(): void {
 				...data.urls,
 				...(data.loadRemaining ? await loadAllUnreadFavorites() : []),
 			])
+			if (urls.length > MAX_UNREAD_FAVORITE_TABS) {
+				return { opened: 0, failed: 0, limitExceeded: true, unreadCount: urls.length }
+			}
 			let opened = 0
 			let failed = 0
 			for (const url of urls) {
