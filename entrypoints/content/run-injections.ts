@@ -154,6 +154,13 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	if (!globalFeaturesInitialized) {
 		globalFeaturesInitialized = true
 
+		// Native favorites star menu, including unread threads on later flyout pages.
+		import('@/features/favorites/logic/unread-favorites-menu').then(({ injectUnreadFavoritesMenu }) => {
+			const cleanup = injectUnreadFavoritesMenu()
+			const context = ctx as { onInvalidated?: (callback: () => void) => void } | undefined
+			if (cleanup) context?.onInvalidated?.(cleanup)
+		}).catch(error => logger.error('Failed to initialize unread favorites menu', error))
+
 		// Command Menu - TRULY global (Ctrl+K works everywhere)
 		import('@/features/command-menu/logic/inject-command-menu').then(({ injectCommandMenu }) => {
 			injectCommandMenu()

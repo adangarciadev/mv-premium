@@ -64,6 +64,13 @@ export const MV_SELECTORS = {
 		PULL_RIGHT: '.pull-right',
 		/** User menu in header */
 		USERMENU: '#usermenu',
+		/** Native favorites flyout, created lazily when the star is clicked. */
+		FAVORITES_TRIGGER: '#usermenu a.flink[href="/foro/favoritos"]',
+		FAVORITES_UNREAD_COUNT: '#bf',
+		FAVORITES_FLYOUT: '.froot',
+		FAVORITES_FLYOUT_HEADER: '.flyheader',
+		FAVORITES_FLYOUT_LIST: 'ul.content.threads',
+		UNREAD_FAVORITE_LINK: 'a.unseen-num[href]',
 		/** Avatar wrapper in user menu */
 		USERMENU_AVATAR: 'li.avw',
 		/** Main wrapper */

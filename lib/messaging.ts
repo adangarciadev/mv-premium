@@ -12,6 +12,7 @@
  * - Frontend: Import `sendMessage` to call background functions
  */
 import { defineExtensionMessaging } from '@webext-core/messaging'
+import type { OpenUnreadFavoritesPayload, OpenUnreadFavoritesResult } from '@/features/favorites/logic/unread-favorites'
 import type { DraftMutation, DraftMutationResult } from '@/features/drafts/storage/mutations'
 import type { DraftsData } from '@/features/drafts/storage/types'
 import type { BackupImportOptions, BackupImportResult } from '@/lib/storage/backup-service'
@@ -175,6 +176,7 @@ export interface AgentPageContext {
 }
 
 interface ProtocolMap {
+	openUnreadFavorites: (data: OpenUnreadFavoritesPayload) => OpenUnreadFavoritesResult
 	readDrafts: () => DraftsData
 	mutateDrafts: (data: DraftMutation) => DraftMutationResult
 	restoreBackup: (data: { input: unknown; options?: BackupImportOptions }) => BackupImportResult
