@@ -18,6 +18,7 @@ import {
 } from '@/features/stats/logic/rhythm-model'
 import { MAX_RHYTHM_CHUNK_MS } from '@/features/stats/logic/rhythm-time-constants'
 import type { TimeStats } from '@/features/stats/logic/time-tracker'
+import { enqueueStorageWrite } from '@/lib/storage/write-queue'
 
 const TIME_STATS_KEY = `local:${STORAGE_KEYS.TIME_STATS}` as `local:${string}`
 const RHYTHM_KEY = `local:${STORAGE_KEYS.RHYTHM_STATS}` as `local:${string}`
@@ -32,7 +33,6 @@ const timeStatsStorage = storage.defineItem<TimeStats>(TIME_STATS_KEY, {
 	defaultValue: {},
 })
 
-let writeQueue: Promise<void> = Promise.resolve()
 
 function isValidChunk(payload: RhythmTimeChunkPayload, now = Date.now()): boolean {
 	return (
@@ -75,12 +75,7 @@ async function persistRhythmTimeChunk(payload: RhythmTimeChunkPayload): Promise<
 }
 
 export function recordRhythmTimeChunkForTest(payload: RhythmTimeChunkPayload): Promise<RhythmTimeChunkResult> {
-	const run = writeQueue.then(() => persistRhythmTimeChunk(payload))
-	writeQueue = run.then(
-		() => undefined,
-		() => undefined
-	)
-	return run
+	return enqueueStorageWrite(() => persistRhythmTimeChunk(payload))
 }
 
 export function setupStatsHandlers(): void {

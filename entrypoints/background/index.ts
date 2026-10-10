@@ -28,6 +28,7 @@ import { setupUploadHandlers } from './upload-handlers'
 import { setupApiHandlers } from './api-handlers'
 import { setupAiHandlers } from './ai-handlers'
 import { setupStatsHandlers } from './stats-handlers'
+import { setupStorageHandlers } from './storage-handlers'
 import { setupIgdbHandlers } from './igdb-handlers'
 import { setupItadHandlers } from './itad-handlers'
 import { setupFootballHandlers } from './football-handlers'
@@ -119,6 +120,7 @@ export default defineBackground({
 
 		// Stats persistence handlers
 		setupStatsHandlers()
+		setupStorageHandlers()
 
 		// AI handlers (Gemini)
 		setupAiHandlers()

@@ -56,6 +56,7 @@ export const STORAGE_KEYS = {
 	MOBILE_LITE_LAST_SEEN_VERSION: 'mvp-mobile-lite-last-seen-version',
 	STORAGE_VERSION: 'mvp-storage-version',
 	DRAFTS: 'mvp-drafts',
+	BACKUP_RECOVERY: 'mvp-backup-recovery',
 	EDITOR_PRESERVE: 'mvp-editor-preserve',
 	BOOKMARKS_VIEW_MODE: 'mvp-bookmarks-view-mode',
 	FID_ICONS_CACHE: 'mvp-fid-icons-cache',

@@ -1,6 +1,26 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import LZString from 'lz-string'
 import { STORAGE_KEYS } from '@/constants/storage-keys'
+import { storage } from '#imports'
+import { setupStorageHandlers } from '@/entrypoints/background/storage-handlers'
+import { recoverPendingBackupImport } from '@/lib/storage/backup-transaction'
+import { createDraft, getDrafts } from '@/features/drafts/storage'
+import { DEFAULT_SETTINGS } from '@/store/settings-defaults'
+
+const handlers = vi.hoisted(() => new Map<string, (message: { data: any }) => Promise<unknown>>())
+vi.mock('@/lib/messaging', () => ({
+	onMessage: vi.fn((name: string, handler: (message: { data: any }) => Promise<unknown>) => handlers.set(name, handler)),
+	sendMessage: vi.fn(async (name: string, data: unknown) => {
+		const handler = handlers.get(name)
+		if (!handler) throw new Error(`Missing handler: ${name}`)
+		return handler({ data: data === undefined ? undefined : JSON.parse(JSON.stringify(data)) })
+	}),
+}))
+
+beforeEach(() => {
+	handlers.clear()
+	setupStorageHandlers()
+})
 
 const storageMockState = vi.hoisted(() => ({
 	store: new Map<string, unknown>(),
@@ -124,6 +144,19 @@ describe('backup-service', () => {
 	})
 
 	describe('createBackupData', () => {
+		it('can restore an export containing all current settings', async () => {
+			setStoredValue(STORAGE_KEYS.SETTINGS, JSON.stringify({ state: DEFAULT_SETTINGS, version: 0 }))
+			const backup = await createBackupData()
+			expect((await importBackupData(backup)).success).toBe(true)
+		})
+		it('excludes football credentials by default and detects them for optional import', async () => {
+			setStoredValue(STORAGE_KEYS.SETTINGS, JSON.stringify({ state: { footballDataApiKey: 'fake-football-key' } }))
+			const backup = await createBackupData()
+			expect(backup.data.settings).not.toHaveProperty('footballDataApiKey')
+			expect(backup.excluded.secretFields).toContain('footballDataApiKey')
+			expect(backupContainsPersonalApiKeys(createBaseBackup({ settings: { footballDataApiKey: 'fake-key' } }))).toBe(true)
+			expect((await createBackupData({ includePersonalApiKeys: true })).data.settings.footballDataApiKey).toBe('fake-football-key')
+		})
 		it('exports only safe allowlisted data and strips settings API keys', async () => {
 			setStoredValue(
 				STORAGE_KEYS.SETTINGS,
@@ -246,6 +279,112 @@ describe('backup-service', () => {
 	})
 
 	describe('importBackupData', () => {
+		it.each([
+			{ settings: { mutedWords: 'broken' } },
+			{ settings: { galleryButtonEnabled: 'broken' } },
+			{ settings: { mediaTemplates: { movie: { blocks: 'broken' } } } },
+			{ settings: { workModeOptions: { hideImages: 'yes' } } },
+			{ settings: { shortcuts: { open: 12 } } },
+			{ themes: { ui: { applyFontGlobally: 'yes' }, mediavida: {} } },
+			{ content: { drafts: { drafts: [{ id: 'd', title: 'Draft', content: 42 }], folders: [] }, pinnedPosts: [] } },
+			{ content: { savedThreads: [null], pinnedPosts: [] } },
+			{ content: { hiddenThreads: [{ id: 't' }], pinnedPosts: [] } },
+			{ content: { hiddenSubforums: 'broken', pinnedPosts: [] } },
+			{ content: { contentRules: [{ id: 'r', enabled: 'yes' }], pinnedPosts: [] } },
+			{ content: { userCustomizations: { users: { Ada: { isIgnored: 'yes' } }, globalSettings: {} }, pinnedPosts: [] } },
+			{ content: { favoriteSubforums: [42], pinnedPosts: [] } },
+			{ content: { threadClipperHistory: {}, pinnedPosts: [] } },
+			{ content: { pinnedPosts: [{ threadId: 't', posts: [null] }] } },
+			{ mediaffinity: { runtimes: { '1': 'broken' } } },
+			{ preferences: { liveThreadDelay: -1 } },
+			{ stats: { timeStats: { cine: 'broken' } } },
+			{ stats: { rhythmStats: { hours: [], weekdays: [], weeks: {} } } },
+		] as Partial<BackupData['data']>[])(
+			'rejects invalid section contents without changing storage: %j', async section => {
+				setStoredValue(STORAGE_KEYS.SETTINGS, 'original')
+				const before = Object.fromEntries(storageMockState.store)
+				const result = await importBackupData(createBaseBackup(section))
+				expect(result.success).toBe(false)
+				expect(result.error).toContain('data.')
+				expect(Object.fromEntries(storageMockState.store)).toEqual(before)
+			},
+		)
+
+		it('preserves or imports football credentials according to the explicit choice', async () => {
+			setStoredValue(STORAGE_KEYS.SETTINGS, JSON.stringify({ state: { footballDataApiKey: 'local-fake-key' }, version: 1 }))
+			const backup = createBaseBackup({ settings: { footballDataApiKey: 'backup-fake-key' } })
+			expect((await importBackupData(backup)).success).toBe(true)
+			expect(JSON.parse(storageMockState.store.get(STORAGE_KEYS.SETTINGS) as string).state.footballDataApiKey).toBe('local-fake-key')
+			expect((await importBackupData(backup, { includePersonalApiKeys: true })).success).toBe(true)
+			expect(JSON.parse(storageMockState.store.get(STORAGE_KEYS.SETTINGS) as string).state.footballDataApiKey).toBe('backup-fake-key')
+		})
+
+		it('recovers raw old values and removes newly introduced keys after a write fails', async () => {
+			setStoredValue(STORAGE_KEYS.THEME, 'dark')
+			setStoredValue(STORAGE_KEYS.DRAFTS, '__LZB64__previous-raw-value')
+			const before = Object.fromEntries(storageMockState.store)
+			const originalSet = vi.mocked(storage.setItem).getMockImplementation()!
+			vi.mocked(storage.setItem).mockImplementationOnce(originalSet) // journal
+				.mockImplementationOnce(originalSet) // theme
+				.mockImplementationOnce(originalSet) // new raw-theme key
+				.mockRejectedValueOnce(new Error('quota')) // drafts
+			const result = await importBackupData(createBaseBackup({
+				themes: { ui: { resolvedTheme: 'light', rawTheme: 'system' }, mediavida: {} },
+				content: { drafts: { drafts: [], folders: [] }, pinnedPosts: [] },
+			}))
+			expect(result.success).toBe(false)
+			expect(result.error).toContain('recuperado')
+			expect(Object.fromEntries(storageMockState.store)).toEqual(before)
+		})
+
+		it('does not write anything if the recovery copy cannot be saved', async () => {
+			setStoredValue(STORAGE_KEYS.THEME, 'dark')
+			vi.mocked(storage.setItem).mockRejectedValueOnce(new Error('quota'))
+			const result = await importBackupData(createBaseBackup({ themes: { ui: { resolvedTheme: 'light' }, mediavida: {} } }))
+			expect(result.success).toBe(false)
+			expect(Object.fromEntries(storageMockState.store)).toEqual({ [STORAGE_KEYS.THEME]: 'dark' })
+		})
+
+		it('recovers an interrupted restore before accepting the next draft write', async () => {
+			setStoredValue(STORAGE_KEYS.DRAFTS, { drafts: [], folders: [] })
+			setStoredValue(STORAGE_KEYS.BACKUP_RECOVERY, [{
+				key: STORAGE_KEYS.DRAFTS, existed: true,
+				value: { drafts: [{ id: 'old', title: 'Original', content: 'Text', type: 'draft', createdAt: 1, updatedAt: 1 }], folders: [] },
+			}])
+			await createDraft({ title: 'New', content: 'Text', type: 'draft' })
+			expect((await getDrafts()).map(draft => draft.title).sort()).toEqual(['New', 'Original'])
+			expect(storageMockState.store.has(STORAGE_KEYS.BACKUP_RECOVERY)).toBe(false)
+		})
+
+		it('keeps the recovery copy if rollback fails and can retry it later', async () => {
+			setStoredValue(STORAGE_KEYS.THEME, 'light')
+			setStoredValue(STORAGE_KEYS.BACKUP_RECOVERY, [{ key: STORAGE_KEYS.THEME, existed: true, value: 'dark' }])
+			vi.mocked(storage.setItem).mockRejectedValueOnce(new Error('disk'))
+			await expect(recoverPendingBackupImport()).rejects.toThrow('copia de recuperación')
+			expect(storageMockState.store.has(STORAGE_KEYS.BACKUP_RECOVERY)).toBe(true)
+			await recoverPendingBackupImport()
+			expect(storageMockState.store.get(STORAGE_KEYS.THEME)).toBe('dark')
+			expect(storageMockState.store.has(STORAGE_KEYS.BACKUP_RECOVERY)).toBe(false)
+		})
+
+		it('serializes a draft save after a concurrent restore', async () => {
+			const results = await Promise.all([
+				importBackupData(createBaseBackup({ content: { drafts: { drafts: [], folders: [] }, pinnedPosts: [] } })),
+				createDraft({ title: 'Saved after restore', content: 'Text', type: 'draft' }),
+			])
+			expect(results[0].success).toBe(true)
+			expect((await getDrafts()).map(draft => draft.title)).toEqual(['Saved after restore'])
+		})
+		it('rejects malformed drafts before changing any storage', async () => {
+			setStoredValue(STORAGE_KEYS.THEME, 'dark')
+			const before = Object.fromEntries(storageMockState.store)
+			const result = await importBackupData(createBaseBackup({
+				themes: { ui: { resolvedTheme: 'light' }, mediavida: {} },
+				content: { drafts: 'broken', pinnedPosts: [] },
+			}))
+			expect(result.success).toBe(false)
+			expect(Object.fromEntries(storageMockState.store)).toEqual(before)
+		})
 		it('rejects unsupported backup versions with a clear error', async () => {
 			const result = await importBackupData({
 				schemaVersion: 999,
@@ -403,10 +542,10 @@ describe('backup-service', () => {
 							],
 							folders: [],
 						},
-						savedThreads: [{ id: '/foro/cine/hilo-1', title: 'Hilo' }],
-						hiddenThreads: [{ id: '/foro/juegos/hidden-1', title: 'Hidden' }],
+						savedThreads: [{ id: '/foro/cine/hilo-1', title: 'Hilo', subforum: 'cine', subforumId: '/foro/cine', savedAt: 1 }],
+						hiddenThreads: [{ id: '/foro/juegos/hidden-1', title: 'Hidden', subforum: 'juegos', subforumId: '/foro/juegos', hiddenAt: 1 }],
 						hiddenSubforums: [{ id: 'off-topic', name: 'OFF-Topic', url: '/foro/off-topic', hiddenAt: 1 }],
-						contentRules: [{ id: 'rule-1', name: 'Rule', enabled: true }],
+						contentRules: [{ id: 'rule-1', name: 'Rule', enabled: true, action: 'hide', matchTitle: '', matchAuthor: '', subforumIds: [], createdAt: 1, updatedAt: 1 }],
 						userCustomizations: { users: { Ada: { note: 'Nota privada' } }, globalSettings: {} },
 						favoriteSubforums: [{ id: 'cine', name: 'Cine', url: '/foro/cine', addedAt: 1 }],
 						pinnedPosts: [
@@ -552,5 +691,9 @@ describe('backup-service · mediaffinity', () => {
 
 	it('refuses a reviews block that is not a list', () => {
 		expect(() => validateBackupData(createBaseBackup({ mediaffinity: { reviews: { nope: true } } }))).toThrow()
+	})
+
+	it('refuses a nonempty reviews list with no usable records', () => {
+		expect(() => validateBackupData(createBaseBackup({ mediaffinity: { reviews: [{ imageId: 'x', rating: 'broken' }] } }))).toThrow('ninguna reseña válida')
 	})
 })

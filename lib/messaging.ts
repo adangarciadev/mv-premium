@@ -12,6 +12,9 @@
  * - Frontend: Import `sendMessage` to call background functions
  */
 import { defineExtensionMessaging } from '@webext-core/messaging'
+import type { DraftMutation, DraftMutationResult } from '@/features/drafts/storage/mutations'
+import type { DraftsData } from '@/features/drafts/storage/types'
+import type { BackupImportOptions, BackupImportResult } from '@/lib/storage/backup-service'
 import type { SteamGameDetails, SteamBundleDetails, SteamAppSearchResult } from '@/services/api/steam'
 import type { GogGameDetails } from '@/services/api/gog'
 import type { MobileStoreSearchResult } from '@/services/api/mobile-stores'
@@ -172,6 +175,9 @@ export interface AgentPageContext {
 }
 
 interface ProtocolMap {
+	readDrafts: () => DraftsData
+	mutateDrafts: (data: DraftMutation) => DraftMutationResult
+	restoreBackup: (data: { input: unknown; options?: BackupImportOptions }) => BackupImportResult
 	/**
 	 * Show toast in a specific tab/content script
 	 * Used by background handlers (e.g. context menus) to notify users
