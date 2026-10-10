@@ -105,6 +105,23 @@ Mobile Lite autoformatea solo URLs únicas pegadas en el textarea:
 
 No se interceptan textos largos, varias URLs, ni texto con espacios o saltos de línea.
 
+### Tweets Lite
+
+En `Panel MVPremium` → `Ajustes`, el interruptor `Tweets Lite` utiliza el mismo
+ajuste que escritorio. Está desactivado por defecto. Hay que recargar el hilo
+después de cambiarlo.
+
+- Activarlo y recargar un hilo con tweets de X/Twitter: deben aparecer tarjetas
+  con texto, autor e imágenes, sin cargar automáticamente el iframe original.
+- Comprobar un tweet con carga diferida y otro añadido por el modo Live.
+- Pulsar `Ver tweet`: debe cargar el embed original y permitir reproducir vídeo.
+- Revisar nombres largos, enlaces, tweets citados y estadísticas en pantallas
+  de 320–400 px, en temas claro y oscuro, sin desbordamiento horizontal.
+- Desactivarlo y recargar: deben volver los embeds nativos.
+- Desactivar Mobile Lite con el parámetro de desarrollo: no debe mantenerse el
+  bloqueo de Twitter aunque el ajuste de Tweets Lite estuviera activado.
+- Confirmar que la apariencia y activación de escritorio siguen funcionando.
+
 ## Prueba básica en dispositivo
 
 - Instalar el XPI local en Firefox Android Nightly/Beta o el entorno de pruebas disponible.

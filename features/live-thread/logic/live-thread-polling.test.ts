@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MV_SELECTORS } from '@/constants'
+import { useSettingsStore } from '@/store/settings-store'
+import { reinitializeEmbeds } from '@/lib/content-modules/utils/reinitialize-embeds'
 
 vi.mock('#imports', () => ({
 	storage: {
@@ -66,6 +68,7 @@ import { insertPostAtTop, startPolling, stopPolling } from './live-thread-pollin
 describe('live-thread likes handling', () => {
 	beforeEach(() => {
 		vi.useFakeTimers()
+		vi.mocked(useSettingsStore.getState).mockReturnValue({ twitterLiteEmbedsEnabled: false } as ReturnType<typeof useSettingsStore.getState>)
 		document.body.innerHTML = `<div id="${MV_SELECTORS.THREAD.POSTS_CONTAINER_ID}"></div>`
 		window.history.pushState({}, '', '/foro/feda/hilo-live-724987')
 		vi.stubGlobal(
@@ -81,6 +84,12 @@ describe('live-thread likes handling', () => {
 		stopPolling()
 		vi.unstubAllGlobals()
 		vi.useRealTimers()
+	})
+
+	it('uses Tweets Lite for newly inserted Live posts when enabled on mobile', () => {
+		vi.mocked(useSettingsStore.getState).mockReturnValue({ twitterLiteEmbedsEnabled: true } as ReturnType<typeof useSettingsStore.getState>)
+		insertPostAtTop('<div class="post" data-num="49730"><span data-s9e-mediaembed="twitter"><iframe data-src="https://platform.twitter.com/embed/Tweet.html?id=123"></iframe></span></div>', false, 10, false)
+		expect(reinitializeEmbeds).toHaveBeenCalledWith(expect.any(HTMLElement), { twitterLiteMode: true })
 	})
 
 	it('intercepts likes count clicks and loads modal via fetch instead of navigating', async () => {

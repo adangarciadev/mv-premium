@@ -1,6 +1,58 @@
 export const TWITTER_LITE_STYLE_ID = 'mvp-twitter-lite-styles'
 
 export const TWITTER_LITE_CSS = `
+/* Removing the native twitter class must not activate MV's negative embed margins. */
+html[data-mvp-mobile-twitter-lite] [data-mvp-twitter-lite-host="true"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-card {
+    width: 100%;
+    max-width: 550px;
+    margin-inline: auto;
+    padding: 12px;
+    font-size: 16px;
+    overflow-wrap: anywhere;
+}
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-info-row,
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-footer,
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-metrics {
+    flex-wrap: wrap;
+    gap: 12px;
+}
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-metrics {
+    margin-left: 0;
+}
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-bottom-date {
+    white-space: normal;
+}
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-thread-item .mvp-twitter-lite-content {
+    font-size: 16px;
+}
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-footer button,
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-footer > a {
+    min-height: 44px;
+    padding: 8px 12px;
+    box-sizing: border-box;
+}
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-card button:focus-visible,
+html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-card a:focus-visible {
+    outline: 2px solid var(--main-link, #1d9bf0);
+    outline-offset: 2px;
+}
+@media (max-width: 400px) {
+    html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-thread-item {
+        padding-left: 40px;
+    }
+    html[data-mvp-mobile-twitter-lite] .mvp-twitter-lite-thread-item.current .mvp-twitter-lite-thread-avatar-dot {
+        width: 32px;
+        height: 32px;
+    }
+}
+
 .mvp-twitter-lite-card {
     --twl-bg: #15202b;
     --twl-bg-hover: #1a2d3d;

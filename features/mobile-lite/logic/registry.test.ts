@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
 	isFeatureEnabled: vi.fn(() => true),
 	loggerError: vi.fn(),
 	initBoldColor: vi.fn(),
+	initTwitterLite: vi.fn(),
+	teardownTwitterLite: vi.fn(),
 	teardownBoldColor: vi.fn(),
 	initEditor: vi.fn(),
 	teardownEditor: vi.fn(),
@@ -59,6 +61,11 @@ vi.mock('@/lib/logger', () => ({
 vi.mock('./bold-color', () => ({
 	initMobileLiteBoldColor: mocks.initBoldColor,
 	teardownMobileLiteBoldColor: mocks.teardownBoldColor,
+}))
+
+vi.mock('./twitter-lite', () => ({
+	initMobileLiteTwitterLite: mocks.initTwitterLite,
+	teardownMobileLiteTwitterLite: mocks.teardownTwitterLite,
 }))
 
 vi.mock('./editor-lite', () => ({
@@ -188,7 +195,7 @@ describe('Mobile Lite registry', () => {
 					hasUserMenu: true,
 				})
 			)
-		).toEqual(['bold-color', 'live-thread', 'gallery', 'ignored-users', 'post-gestures', 'panel'])
+		).toEqual(['twitter-lite', 'bold-color', 'live-thread', 'gallery', 'ignored-users', 'post-gestures', 'panel'])
 	})
 
 	it('runs the panel on forum pages even if the user menu is mounted later', () => {
@@ -224,7 +231,7 @@ describe('Mobile Lite registry', () => {
 		window.history.replaceState({}, '', '/foro/deportes/pretemporada-2026-123456')
 		document.body.innerHTML = ''
 
-		expect(getRunnableMobileLiteModuleIds()).toEqual(['bold-color', 'live-thread', 'gallery', 'thread-companion', 'related-threads', 'thread-page-hide', 'thread-summary', 'post-summary', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
+		expect(getRunnableMobileLiteModuleIds()).toEqual(['twitter-lite', 'bold-color', 'live-thread', 'gallery', 'thread-companion', 'related-threads', 'thread-page-hide', 'thread-summary', 'post-summary', 'quote-selection', 'post-gestures', 'editor-lite', 'panel'])
 	})
 
 	it('runs individual hidden thread controls on spy without ignored-author filtering', () => {
@@ -244,6 +251,7 @@ describe('Mobile Lite registry', () => {
 
 		expect(mocks.initBoldColor).toHaveBeenCalledOnce()
 		expect(mocks.initEditor).toHaveBeenCalledOnce()
+		expect(mocks.initTwitterLite).not.toHaveBeenCalled()
 		expect(mocks.initGallery).not.toHaveBeenCalled()
 		expect(mocks.initPostGestures).not.toHaveBeenCalled()
 		expect(mocks.initIgnoredUsersImport).not.toHaveBeenCalled()
@@ -262,6 +270,7 @@ describe('Mobile Lite registry', () => {
 
 		expect(mocks.initBoldColor).toHaveBeenCalledOnce()
 		expect(mocks.initLiveThread).toHaveBeenCalledOnce()
+		expect(mocks.initTwitterLite).toHaveBeenCalledOnce()
 		expect(mocks.initGallery).toHaveBeenCalledOnce()
 		expect(mocks.initIgnoredUsers).toHaveBeenCalledOnce()
 		expect(mocks.initPostGestures).toHaveBeenCalledOnce()

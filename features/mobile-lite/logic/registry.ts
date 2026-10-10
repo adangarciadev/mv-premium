@@ -22,6 +22,7 @@ import { initMobileLiteThreadPageHide, teardownMobileLiteThreadPageHide } from '
 import { initMobileLiteThreadSummary, teardownMobileLiteThreadSummary } from './thread-summary'
 import { initMobileLitePostSummary, teardownMobileLitePostSummary } from './post-summary'
 import { initMobileLiteRelatedThreads, teardownMobileLiteRelatedThreads } from './related-threads'
+import { initMobileLiteTwitterLite, teardownMobileLiteTwitterLite } from './twitter-lite'
 
 export interface MobileLiteContext {
 	hasEditor: boolean
@@ -48,6 +49,12 @@ const USER_CARD_SELECTOR = '#user-card, .f-card'
 const USER_MENU_SELECTOR = '#usermenu'
 
 const MOBILE_LITE_MODULES: MobileLiteModule[] = [
+	{
+		id: 'twitter-lite',
+		init: initMobileLiteTwitterLite,
+		teardown: teardownMobileLiteTwitterLite,
+		shouldRun: context => context.hasPosts || context.isThreadPage,
+	},
 	{
 		id: 'bold-color',
 		init: initMobileLiteBoldColor,

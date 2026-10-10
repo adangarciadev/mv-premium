@@ -2,6 +2,7 @@ import { storage } from '#imports'
 import { browser } from 'wxt/browser'
 import { STORAGE_KEYS } from '@/constants'
 import { logger } from '@/lib/logger'
+import { getPlatformKind } from '@/lib/platform'
 import { TWITTER_LITE_ALLOW_PARAM, TWITTER_LITE_ALLOW_VALUE } from '@/lib/content-modules/twitter-lite/utils'
 
 const settingsStorageItem = storage.defineItem<string | null>(`local:${STORAGE_KEYS.SETTINGS}`, {
@@ -47,6 +48,7 @@ interface DeclarativeNetRequestApi {
 interface PersistedSettingsState {
 	state?: {
 		twitterLiteEmbedsEnabled?: boolean
+		mobileLiteEnabled?: boolean
 	}
 }
 
@@ -68,7 +70,8 @@ function parseTwitterLiteEnabled(rawSettings: string | null): boolean {
 
 	try {
 		const parsed = JSON.parse(rawSettings) as PersistedSettingsState
-		return parsed.state?.twitterLiteEmbedsEnabled === true
+		return parsed?.state?.twitterLiteEmbedsEnabled === true &&
+			(getPlatformKind() !== 'firefox-android' || parsed.state.mobileLiteEnabled === true)
 	} catch (error) {
 		logger.warn('Failed to parse settings for twitter lite network guard', error)
 		return false

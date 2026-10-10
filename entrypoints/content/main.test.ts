@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 	hasMobileLiteIgnoredUsersDevSeed: vi.fn(() => false),
 	seedMobileLiteIgnoredUsersForDev: vi.fn(() => Promise.resolve()),
 	initMobileLite: vi.fn(),
+	teardownMobileLite: vi.fn(),
 	runDesktopContentMain: vi.fn(() => Promise.resolve()),
 	debug: vi.fn(),
 	info: vi.fn(),
@@ -51,6 +52,7 @@ vi.mock('@/features/mobile-lite/logic/dev-ignored-users-seed', () => ({
 
 vi.mock('@/features/mobile-lite', () => ({
 	initMobileLite: mocks.initMobileLite,
+	teardownMobileLite: mocks.teardownMobileLite,
 }))
 
 vi.mock('./desktop-main', () => ({
@@ -61,6 +63,7 @@ describe('content main platform bootstrap', () => {
 	beforeEach(() => {
 		vi.clearAllMocks()
 		mocks.getPlatformKind.mockReturnValue('firefox-android')
+		mocks.getMobileLiteDevActivation.mockReturnValue(null)
 		mocks.getState.mockReturnValue({
 			mobileLiteEnabled: false,
 			setSetting: mocks.setSetting,
@@ -97,6 +100,14 @@ describe('content main platform bootstrap', () => {
 
 		expect(mocks.initMobileLite).toHaveBeenCalledOnce()
 		expect(mocks.runDesktopContentMain).not.toHaveBeenCalled()
+	})
+
+	it('cleans up mobile observers when the content context is invalidated', async () => {
+		const onInvalidated = vi.fn()
+		await runContentMain({ onInvalidated })
+		expect(onInvalidated).toHaveBeenCalledWith(mocks.teardownMobileLite)
+		onInvalidated.mock.calls[0][0]()
+		expect(mocks.teardownMobileLite).toHaveBeenCalledOnce()
 	})
 
 	it('runs desktop initialization outside Firefox Android', async () => {

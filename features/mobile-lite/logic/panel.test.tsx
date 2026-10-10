@@ -37,7 +37,7 @@ const mocks = vi.hoisted(() => ({
 	getMobileLiteImgbbApiKey: vi.fn(() => Promise.resolve('')),
 	saveMobileLiteImgbbApiKey: vi.fn((_apiKey: string) => Promise.resolve()),
 	getSettings: vi.fn(() =>
-		Promise.resolve({ liveThreadEnabled: false, hideThreadEnabled: true, relatedThreadsDisplay: 'hidden' })
+		Promise.resolve({ liveThreadEnabled: false, hideThreadEnabled: true, relatedThreadsDisplay: 'hidden', twitterLiteEmbedsEnabled: false })
 	),
 	setSetting: vi.fn(),
 	setLiveThreadEnabled: vi.fn(),
@@ -235,7 +235,7 @@ describe('Mobile Lite panel injection', () => {
 		)
 		mocks.getMobileLiteImgbbApiKey.mockResolvedValue('')
 		mocks.saveMobileLiteImgbbApiKey.mockResolvedValue(undefined)
-		mocks.getSettings.mockResolvedValue({ liveThreadEnabled: false, hideThreadEnabled: true, relatedThreadsDisplay: 'hidden' })
+		mocks.getSettings.mockResolvedValue({ liveThreadEnabled: false, hideThreadEnabled: true, relatedThreadsDisplay: 'hidden', twitterLiteEmbedsEnabled: false })
 		mocks.setSetting.mockReset()
 		mocks.applyMobileLiteHiddenThreads.mockReset()
 		mocks.syncMobileLiteLiveThreadButton.mockResolvedValue(undefined)
@@ -1234,6 +1234,36 @@ describe('Mobile Lite panel injection', () => {
 			})
 		})
 		expect(await screen.findByText('Color personalizado activado.')).toBeInTheDocument()
+	})
+
+	it('saves Tweets Lite and explains that the thread needs reloading', async () => {
+		const user = userEvent.setup()
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+		const toggle = await screen.findByRole('switch', { name: 'Tweets Lite' })
+		expect(toggle).toHaveAttribute('aria-checked', 'false')
+		await user.click(toggle)
+		expect(mocks.setSetting).toHaveBeenCalledWith('twitterLiteEmbedsEnabled', true)
+		expect(toggle).toHaveAttribute('aria-checked', 'true')
+		expect(await screen.findByText('Tweets Lite activados. Recarga el hilo para aplicar el cambio.')).toBeInTheDocument()
+		await user.click(toggle)
+		expect(mocks.setSetting).toHaveBeenLastCalledWith('twitterLiteEmbedsEnabled', false)
+		expect(toggle).toHaveAttribute('aria-checked', 'false')
+	})
+
+	it('loads the saved Tweets Lite setting and retains it when saving fails', async () => {
+		mocks.getSettings.mockResolvedValue({ liveThreadEnabled: false, hideThreadEnabled: true, relatedThreadsDisplay: 'hidden', twitterLiteEmbedsEnabled: true })
+		mocks.setSetting.mockImplementationOnce(() => { throw new Error('save failed') })
+		const user = userEvent.setup()
+		render(<MobileLitePanel />)
+		await openPanel()
+		await user.click(screen.getByRole('tab', { name: 'Ajustes' }))
+		const toggle = await screen.findByRole('switch', { name: 'Tweets Lite' })
+		await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'))
+		await user.click(toggle)
+		expect(toggle).toHaveAttribute('aria-checked', 'true')
+		expect(await screen.findByText('No se pudo cambiar Tweets Lite. Inténtalo de nuevo.')).toBeInTheDocument()
 	})
 
 	it('toggles the Mobile Lite live thread button from settings', async () => {

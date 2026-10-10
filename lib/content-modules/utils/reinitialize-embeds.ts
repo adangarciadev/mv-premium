@@ -35,7 +35,7 @@ const TWITTER_LITE_HOST_ATTR = 'data-mvp-twitter-lite-host'
 
 const TWITTER_STATUS_URL_REGEX = /https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/([A-Za-z0-9_]+)\/status\/(\d+)/i
 const TWITTER_EMBED_CONTAINER_SELECTOR = `[data-s9e-mediaembed="twitter"], .embed.twitter, [${TWITTER_LITE_HOST_ATTR}="true"]`
-const TWITTER_EMBED_IFRAME_SELECTOR = 'iframe[src*="platform.twitter.com"], iframe[src*="twitter.com"], iframe[src*="x.com"]'
+const TWITTER_EMBED_IFRAME_SELECTOR = 'iframe[src*="platform.twitter.com"], iframe[src*="twitter.com"], iframe[src*="x.com"], iframe[data-src*="platform.twitter.com"], iframe[data-src*="twitter.com"], iframe[data-src*="x.com"]'
 
 // Default heights for different embed types (fallback when MessageChannel fails)
 const DEFAULT_EMBED_HEIGHTS: Record<string, number> = {
@@ -270,7 +270,7 @@ export function startTwitterLiteEmbedGuard(): void {
 		childList: true,
 		subtree: true,
 		attributes: true,
-		attributeFilter: ['src'],
+		attributeFilter: ['src', 'data-src'],
 	})
 
 	injectTwitterLiteStyles()
@@ -293,7 +293,7 @@ function extractTweetUrl(embedContainer: HTMLElement, iframe?: HTMLIFrameElement
 		if (normalized) return normalized
 	}
 
-	const iframeSrc = iframe?.getAttribute('src') || ''
+	const iframeSrc = getTwitterIframeSrc(iframe)
 	if (iframeSrc) {
 		const normalizedIframeSrc = iframeSrc.startsWith('//') ? `https:${iframeSrc}` : iframeSrc
 
@@ -322,8 +322,13 @@ function extractTweetUrl(embedContainer: HTMLElement, iframe?: HTMLIFrameElement
 
 
 
+function getTwitterIframeSrc(iframe?: HTMLIFrameElement | null): string {
+	const src = iframe?.getAttribute('src')?.trim() || ''
+	return (!src || src === 'about:blank') ? iframe?.getAttribute('data-src')?.trim() || '' : src
+}
+
 function resolveTwitterEmbedSrc(tweetUrl: string, iframe?: HTMLIFrameElement | null): string | null {
-	const iframeSrc = iframe?.getAttribute('src')?.trim() || iframe?.src?.trim() || ''
+	const iframeSrc = getTwitterIframeSrc(iframe)
 	if (iframeSrc) {
 		return iframeSrc.startsWith('//') ? `https:${iframeSrc}` : iframeSrc
 	}

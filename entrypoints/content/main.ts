@@ -47,8 +47,10 @@ export async function runContentMain(ctx: unknown): Promise<void> {
 			return
 		}
 
-		const { initMobileLite } = await import('@/features/mobile-lite')
+		const { initMobileLite, teardownMobileLite } = await import('@/features/mobile-lite')
 		initMobileLite()
+		const context = ctx as { onInvalidated?: (callback: () => void) => void } | undefined
+		context?.onInvalidated?.(teardownMobileLite)
 		return
 	}
 

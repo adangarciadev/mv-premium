@@ -227,6 +227,8 @@ export function MobileLitePanel() {
 							quoteSelectionEnabled={toggles.quoteSelectionEnabled}
 							hideThreadButtonEnabled={toggles.hideThreadButtonEnabled}
 							postGesturesEnabled={toggles.postGesturesEnabled}
+							twitterLiteEmbedsEnabled={toggles.twitterLiteEmbedsEnabled}
+							onToggleTwitterLite={toggles.toggleTwitterLite}
 							relatedThreadsDisplay={toggles.relatedThreadsDisplay}
 							savingMobileLiteSetting={toggles.savingMobileLiteSetting}
 							onToggleLiveThread={toggles.toggleLiveThread}

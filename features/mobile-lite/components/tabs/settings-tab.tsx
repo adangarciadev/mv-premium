@@ -11,6 +11,7 @@ import RotateCcw from 'lucide-react/dist/esm/icons/rotate-ccw'
 import TextQuote from 'lucide-react/dist/esm/icons/text-quote'
 import EyeOff from 'lucide-react/dist/esm/icons/eye-off'
 import ListCollapse from 'lucide-react/dist/esm/icons/list-collapse'
+import MessageSquare from 'lucide-react/dist/esm/icons/message-square'
 import type { GeminiModel, RelatedThreadsDisplay } from '@/store/settings-types'
 import type { MobileLiteChangelogEntry } from '../../logic/whats-new'
 import type { StorageUsage } from '../../hooks/use-storage-usage'
@@ -66,6 +67,8 @@ export function SettingsTab({
 	quoteSelectionEnabled,
 	hideThreadButtonEnabled,
 	postGesturesEnabled,
+	twitterLiteEmbedsEnabled,
+	onToggleTwitterLite,
 	relatedThreadsDisplay,
 	savingMobileLiteSetting,
 	onToggleLiveThread,
@@ -113,6 +116,8 @@ export function SettingsTab({
 	quoteSelectionEnabled: boolean
 	hideThreadButtonEnabled: boolean
 	postGesturesEnabled: boolean
+	twitterLiteEmbedsEnabled: boolean
+	onToggleTwitterLite: () => void
 	relatedThreadsDisplay: RelatedThreadsDisplay
 	savingMobileLiteSetting: SavingMobileLiteSetting
 	onToggleLiveThread: () => void
@@ -457,6 +462,34 @@ export function SettingsTab({
 							)
 						})}
 					</div>
+				</div>
+
+				<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">
+					<div className="flex min-w-0 items-center gap-3">
+						<div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#14171d] text-[#f0a020]">
+							<MessageSquare className="h-4 w-4" aria-hidden="true" />
+						</div>
+						<div className="min-w-0">
+							<div className="text-[15px] font-semibold text-[#eef1f6]">Tweets Lite</div>
+							<div id="mvp-mobile-tweets-lite-description" className="mt-0.5 text-xs leading-relaxed text-[#8b95a3]">
+								Tarjetas ligeras de X/Twitter. Recarga el hilo al cambiar este ajuste.
+							</div>
+						</div>
+					</div>
+					<button
+						type="button"
+						role="switch"
+						aria-label="Tweets Lite"
+						aria-describedby="mvp-mobile-tweets-lite-description"
+						aria-checked={twitterLiteEmbedsEnabled}
+						className={SWITCH_WRAPPER_CLASS}
+						disabled={savingMobileLiteSetting === 'twitterLiteEmbedsEnabled'}
+						onClick={onToggleTwitterLite}
+					>
+						<span className={`${SWITCH_TRACK_BASE_CLASS} ${twitterLiteEmbedsEnabled ? 'bg-[#f0a020]' : 'bg-[#3a4254]'}`}>
+							<span className={`${SWITCH_THUMB_BASE_CLASS} ${twitterLiteEmbedsEnabled ? 'translate-x-5' : ''}`} />
+						</span>
+					</button>
 				</div>
 
 				<div className="flex min-h-[60px] items-center justify-between gap-2 py-2 pl-4 pr-2">

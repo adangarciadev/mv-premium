@@ -16,6 +16,7 @@ import type { RelatedThreadsDisplay } from '@/store/settings-types'
  * store, runs its side effect, and rolls back on failure.
  */
 export function useMobileLiteToggles(open: boolean) {
+	const [twitterLiteEmbedsEnabled, setTwitterLiteEmbedsEnabled] = useState(false)
 	const [liveThreadEnabled, setLiveThreadEnabled] = useState(false)
 	const [galleryButtonEnabled, setGalleryButtonEnabled] = useState(true)
 	const [quoteSelectionEnabled, setQuoteSelectionEnabled] = useState(true)
@@ -36,6 +37,7 @@ export function useMobileLiteToggles(open: boolean) {
 			.then(settings => {
 				if (!mounted) return
 				setLiveThreadEnabled(settings.liveThreadEnabled === true)
+				setTwitterLiteEmbedsEnabled(settings.twitterLiteEmbedsEnabled === true)
 				setGalleryButtonEnabled(settings.galleryButtonEnabled !== false)
 				setQuoteSelectionEnabled(settings.quoteSelectionEnabled !== false)
 				setHideThreadButtonEnabled(settings.hideThreadEnabled !== false)
@@ -52,6 +54,22 @@ export function useMobileLiteToggles(open: boolean) {
 			mounted = false
 		}
 	}, [open])
+
+	const toggleTwitterLite = () => {
+		const nextEnabled = !twitterLiteEmbedsEnabled
+		setSavingMobileLiteSetting('twitterLiteEmbedsEnabled')
+		setErrorMessage(null)
+		setStatusMessage(null)
+		try {
+			useSettingsStore.getState().setSetting('twitterLiteEmbedsEnabled', nextEnabled)
+			setTwitterLiteEmbedsEnabled(nextEnabled)
+			setStatusMessage('Tweets Lite ' + (nextEnabled ? 'activados' : 'desactivados') + '. Recarga el hilo para aplicar el cambio.')
+		} catch {
+			setErrorMessage('No se pudo cambiar Tweets Lite. Inténtalo de nuevo.')
+		} finally {
+			setSavingMobileLiteSetting(null)
+		}
+	}
 
 	const toggleLiveThread = async () => {
 		const nextEnabled = !liveThreadEnabled
@@ -165,6 +183,8 @@ export function useMobileLiteToggles(open: boolean) {
 	}
 
 	return {
+		twitterLiteEmbedsEnabled,
+		toggleTwitterLite,
 		liveThreadEnabled,
 		galleryButtonEnabled,
 		quoteSelectionEnabled,

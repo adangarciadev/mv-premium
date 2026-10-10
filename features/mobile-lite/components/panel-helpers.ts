@@ -26,6 +26,7 @@ export type ActiveFilter = 'all' | MobileLiteIgnoreType
 export type PanelTab = 'users' | 'threads' | 'settings'
 export type PanelView = 'main' | 'whats-new'
 export type SavingMobileLiteSetting =
+	| 'twitterLiteEmbedsEnabled'
 	| 'liveThreadEnabled'
 	| 'galleryButtonEnabled'
 	| 'quoteSelectionEnabled'
