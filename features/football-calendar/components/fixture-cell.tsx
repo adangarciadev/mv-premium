@@ -158,9 +158,10 @@ function FixtureChip({ match }: { match: FootballMatch }) {
 		}
 
 		// The goals carry the result on their own: the loser's number recedes and
-		// both team names stay at full strength. The loser is dimmed with a mix
-		// rather than muted-foreground, which loses contrast on the raised chip.
-		const loser = 'text-[color:color-mix(in_srgb,var(--background)70%,transparent)]'
+		// both team names stay at full strength. Keep an explicit inverted colour
+		// so the loser and separator cannot inherit the chip's background colour
+		// when a browser or theme drops a colour-mix text declaration.
+		const loser = 'text-background opacity-70'
 
 		return (
 			<span className={cn(chipClassName, SURFACE.result)}>
