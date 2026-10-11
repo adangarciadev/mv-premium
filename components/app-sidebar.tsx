@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 import ChevronDown from 'lucide-react/dist/esm/icons/chevron-down'
 import Home from 'lucide-react/dist/esm/icons/home'
+import Compass from 'lucide-react/dist/esm/icons/compass'
 import Settings from 'lucide-react/dist/esm/icons/settings'
 import Gift from 'lucide-react/dist/esm/icons/gift'
 import Trophy from 'lucide-react/dist/esm/icons/trophy'
@@ -69,6 +70,11 @@ const platformItems: NavItem[] = [
 		title: 'Inicio',
 		path: '/',
 		icon: Home,
+	},
+	{
+		title: 'Descubre MV Premium',
+		path: '/discover',
+		icon: Compass,
 	},
 	{
 		title: 'Mis Borradores',

@@ -36,6 +36,9 @@ import { SettingsView } from './views/settings-view'
 import { FiltersView } from './views/filters-view'
 import { WhatsNewView } from './views/whats-new-view'
 import { MobileLiteQrView } from './views/mobile-lite-qr-view'
+import { Skeleton } from '@/components/ui/skeleton'
+
+const DiscoverView = lazy(() => import('./views/discover-view').then(module => ({ default: module.DiscoverView })))
 
 const MvThemeView = lazy(() =>
 	import('@/features/mv-theme/components/mv-theme-view').then(module => ({
@@ -57,6 +60,7 @@ function MvThemeViewFallback() {
  */
 const routeLabels: Record<string, string> = {
 	'': 'Inicio',
+	discover: 'Descubre MV Premium',
 
 	drafts: 'Borradores',
 	templates: 'Plantillas',
@@ -250,6 +254,11 @@ export default function OptionsApp() {
 					>
 						<Routes>
 							<Route path="/" element={<HomeView />} />
+							<Route path="/discover" element={
+								<Suspense fallback={<Skeleton className="h-64 w-full" />}>
+									<DiscoverView />
+								</Suspense>
+							} />
 							<Route path="/subforums" element={<SubforumsView />} />
 							<Route path="/cine" element={<CineView />} />
 							{/* Drafts */}

@@ -16,6 +16,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Keep the guide's dense secondary copy legible with every dashboard preset. */
+.discover-guide {
+  --muted-foreground: var(--foreground);
+}
+@supports (color: color-mix(in srgb, black, white)) {
+  .discover-guide {
+    --muted-foreground: color-mix(in srgb, var(--foreground) 85%, var(--background));
+  }
+}
+
+/* Device badges retain the shared variants and the user's theme palette. */
+.discover-guide .discover-platform[data-platform='desktop'] {
+  border-color: var(--foreground);
+}
+.discover-guide .discover-platform[data-platform='mobile'] {
+  background-color: var(--foreground);
+  color: var(--background);
+}
+.discover-guide .discover-platform[data-platform='mobile'],
+.discover-guide .discover-platform[data-platform='both'] {
+  border-color: transparent;
+}
+.discover-guide .discover-card:hover {
+  border-color: var(--foreground);
+}
+
 /* 
  * CSS Variables - Defined OUTSIDE @layer for highest specificity fallback.
  * These act as defaults until ThemeColorsProvider injects dynamic values.
