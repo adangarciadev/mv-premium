@@ -22,6 +22,64 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.8.0',
+		date: '2026-10-18',
+		title: 'Descubre MV Premium, abre tus favoritos pendientes y estrena Tweets Lite en móvil',
+		summary:
+			'El dashboard estrena una guía para encontrar las funciones de la extensión y saber dónde se usan. Desde la estrella de favoritos puedes abrir los hilos con mensajes nuevos en pestañas de fondo, y Mobile Lite incorpora Tweets Lite. También se refuerzan el guardado de borradores y la restauración de backups, y se corrige el contraste de los resultados de fútbol.',
+		changes: [
+			{
+				type: 'feature',
+				description:
+					'Nueva sección «Descubre MV Premium» en el dashboard: un catálogo de funciones con buscador, filtros por categoría y dispositivo, indicaciones de dónde encontrarlas y accesos a sus ajustes.',
+				category: 'Dashboard',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'El menú de la estrella de favoritos añade «Abrir no leídos» para abrir los hilos con mensajes nuevos en pestañas de fondo. Incluye los favoritos de las siguientes páginas del listado y conserva el enlace al punto de lectura.',
+				category: 'Favoritos',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description:
+					'La acción de abrir favoritos muestra cuántos hilos tienen mensajes nuevos y avisa si se supera el límite de 10 pestañas. El listado se actualiza al abrir el menú para evitar mostrar favoritos desfasados.',
+				category: 'Favoritos',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description:
+					'Tweets Lite llega a Mobile Lite: puedes activar las tarjetas ligeras de Twitter/X desde los ajustes móviles para sustituir los embeds nativos. También reconoce los tweets que aparecen al cargar nuevos mensajes en un hilo.',
+				category: 'Mobile Lite',
+				surface: 'mobile-lite',
+			},
+			{
+				type: 'fix',
+				description:
+					'Los cambios en borradores, plantillas y carpetas se guardan de forma coordinada para evitar que las escrituras simultáneas desde varias pestañas se sobrescriban. Al borrar campos opcionales de una plantilla, sus valores anteriores ya no reaparecen.',
+				category: 'Borradores',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'Los backups se validan antes de restaurarlos y las secciones ausentes conservan los datos locales. La restauración guarda una copia de recuperación para deshacer escrituras fallidas y recuperarse de interrupciones. La clave personal de football-data respeta la opción de incluir credenciales al exportar e importar.',
+				category: 'Backups',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description:
+					'Corregido el contraste del marcador en los partidos terminados: los goles del equipo perdedor y el separador mantienen su color aunque el navegador o el tema no apliquen la mezcla de colores.',
+				category: 'Fútbol',
+				surface: 'desktop',
+			},
+		],
+	},
+	{
 		version: '3.7.0',
 		date: '2026-08-28',
 		title: 'Calendario de fútbol en Deportes: jornadas, directos y clasificación',
