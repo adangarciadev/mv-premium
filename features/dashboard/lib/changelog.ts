@@ -22,6 +22,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.8.1',
+		date: '2026-10-20',
+		title: 'Vuelven los GIFs, los calendarios, las ofertas y las fichas de juegos, pelis y series',
+		summary:
+			'La versión 3.8.0 se publicó sin las claves de los servicios externos y varias funciones dejaron de responder. Esta actualización las restaura sin que tengas que hacer nada.',
+		changes: [
+			{
+				type: 'fix',
+				description:
+					'Vuelven a funcionar el selector de GIFs, el calendario de lanzamientos de juegos, el radar de ofertas de IsThereAnyDeal, las plantillas de juegos, pelis y series, el calendario de estrenos de cine y las fichas que aparecen al pasar el ratón por enlaces de pelis y series. Desaparece el aviso en rojo que pedía configurar las claves.',
+				category: 'General',
+				surface: 'shared',
+			},
+		],
+	},
+	{
 		version: '3.8.0',
 		date: '2026-10-18',
 		title: 'Descubre MV Premium, abre tus favoritos pendientes y estrena Tweets Lite en móvil',
