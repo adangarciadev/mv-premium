@@ -11,6 +11,52 @@
  * - .toolbar: Quick reply and other contexts
  */
 
+/* The native live editor reserves a fixed footer height. Discard/Undo can
+ * wrap the actions onto a second line, so let the open editor grow with them.
+ * The extension's own live editor has a separate layout. */
+body.editor #post-editor.live:not(#mvp-live-editor-wrapper *):has(.editor-meta[mvp-save-draft-btn]) {
+	height: auto;
+
+	& .editor-body,
+	& .editor-meta {
+		position: static;
+	}
+
+	& .text-wrap {
+		height: auto;
+		min-height: 0;
+	}
+
+	& textarea#cuerpo {
+		position: static;
+		height: 100px;
+	}
+
+	& .editor-meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 5px;
+		padding-block: 8px;
+	}
+
+	& .editor-meta::after {
+		content: none;
+	}
+
+	& #goext {
+		margin-left: auto;
+	}
+
+	& #btsubmit {
+		order: 1;
+	}
+
+	& .editor-meta:has(#draft-discard) .mvp-clear-content-action {
+		display: none;
+	}
+}
+
 /* Spacers - visible vertical line, manual centering for floated layout */
 .editor-controls .spacer,
 .editor-toolbar .spacer,
