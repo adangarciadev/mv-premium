@@ -102,6 +102,8 @@ export const settingsSchema = z.object({
 	threadClipperSubforums: z.array(z.string()).default(['juegos']),
 	twitterLiteEmbedsEnabled: z.boolean().default(false),
 	threadPreviewEnabled: z.boolean().default(true),
+	tavernEnabled: z.boolean().default(true),
+	tavernLivePanelEnabled: z.boolean().default(true),
 	contentRulesEnabled: z.boolean().default(true),
 	classicThreadActionsEnabled: z.boolean().default(false),
 	hideIgnoredUserThreadsEnabled: z.boolean().default(true),

@@ -270,6 +270,16 @@ export async function runDesktopContentMain(ctx: unknown): Promise<void> {
 	// =====================================================================
 	// 5. RUN FEATURE INJECTIONS with pre-calculated context
 	// =====================================================================
+	useSettingsStore.subscribe((settings, previous) => {
+		if (settings.tavernEnabled === previous.tavernEnabled) return
+		if (settings.tavernEnabled) {
+			void runInjectionsSafely()
+		} else {
+			document.getElementById('mvp-live-tavern')?.remove()
+			document.getElementById('mvp-tavern-dock')?.shadowRoot?.querySelector<HTMLButtonElement>('.leave')?.click()
+			document.getElementById('mvp-gamedev-tavern')?.remove()
+		}
+	})
 	await runInjectionsSafely()
 
 	// Initialize native preview interceptor for code highlighting

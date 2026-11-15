@@ -30,6 +30,7 @@ export interface PageContext {
 
 // Only import truly lightweight utilities statically
 // Heavy features are loaded dynamically below
+import { VALID_SUBFORUM_SLUGS } from '@/lib/subforums'
 import { MV_SELECTORS } from '@/constants'
 import { logger } from '@/lib/logger'
 import { isFeatureEnabled, FeatureFlag } from '@/lib/feature-flags'
@@ -293,7 +294,20 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 	// =========================================================================
 	// Hidden threads first to minimize visible time before canonical filter is applied.
 	// Includes profile pages where "Últimos posts" or similar thread lists may appear.
+	const subforumSlug = window.location.pathname.split('/')[2]
 	const isPaginatedSubforum = /^\/foro\/[^/]+\/p\d+\/?$/.test(window.location.pathname)
+	if (
+		(pageContext?.isThread || pageContext?.isSubforum || isPaginatedSubforum) &&
+		useSettingsStore.getState().tavernEnabled &&
+		VALID_SUBFORUM_SLUGS.has(subforumSlug)
+	) {
+		const { injectTavernLinks } = await import('@/features/tavern/links')
+		if (useSettingsStore.getState().tavernEnabled) injectTavernLinks(Boolean(pageContext?.isThread), subforumSlug)
+		if (pageContext?.isThread && useSettingsStore.getState().tavernLivePanelEnabled) {
+			const { injectLiveTavernPanel } = await import('@/features/tavern/live-panel')
+			if (useSettingsStore.getState().tavernEnabled) injectLiveTavernPanel(subforumSlug)
+		}
+	}
 	const isUserProfilePage = /^\/id\/[^/]+(?:\/.*)?$/.test(window.location.pathname)
 	if (
 		pageContext?.isForumList ||

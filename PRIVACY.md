@@ -1,6 +1,6 @@
 # Política de Privacidad de MV Premium
 
-**Última actualización:** 18 de febrero de 2026
+**Última actualización:** 15 de noviembre de 2026
 
 Esta política describe cómo la extensión **MV Premium** (ID: `aekifnbjmpmbknechejmeanadooapfek`) recoge, usa, almacena y comparte datos.
 
@@ -21,6 +21,7 @@ MV Premium trata datos en dos grupos:
 2. **Datos enviados a servicios de terceros solo cuando usas funciones concretas**:
 - **Subida de imágenes**: si usas esa función, se envía la imagen (base64/archivo) a ImgBB o freeimage.host. En plantillas Anime/Manga, las imágenes de AniList pueden rehostearse automáticamente ahí para que el BBCode se vea correctamente en Mediavida.
 - **Funciones de IA**: si usas resúmenes u otras funciones IA, se envía el prompt/contenido que tú dispares a Gemini (Google).
+- **Taberna de Game Dev**: «Entrar como…» comparte tu nick con la taberna de la comunidad como alias de jugador. Al entrar desde el panel, el juego recuerda ese alias en su almacenamiento local. «Abrir sin compartir mi nick» abre el bar sin añadir tu nick de Mediavida.
 - **Búsqueda/consulta de contenido multimedia**: consultas de GIFs, cine/series, anime/manga, juegos o tweets ligeros pueden enviar términos, URLs o parámetros técnicos a GIPHY, TMDB, AniList, Steam, IGDB/Twitch y endpoints públicos de X/Twitter.
 
 ## 3. Finalidad del tratamiento
@@ -88,7 +89,7 @@ https://github.com/adangarciadev/mv-premium
 
 # MV Premium Privacy Policy
 
-**Last updated:** February 18, 2026
+**Last updated:** November 15, 2026
 
 This policy explains how the **MV Premium** extension (ID: `aekifnbjmpmbknechejmeanadooapfek`) collects, uses, stores, and shares data.
 
@@ -109,6 +110,7 @@ MV Premium processes data in two groups:
 2. **Data sent to third-party services only when you use specific features**:
 - **Image upload**: if you use this feature, the image (base64/file) is sent to ImgBB or freeimage.host. In Anime/Manga templates, AniList images may be automatically rehosted there so the BBCode renders correctly on Mediavida.
 - **AI features**: if you use summaries or other AI features, prompted content is sent to Gemini (Google).
+- **Game Dev Tavern**: choosing “Entrar como…” shares your forum nickname with the community tavern as your player name. When you enter through the panel, the game remembers that name in its local storage. “Abrir sin compartir mi nick” opens the bar without adding your Mediavida nickname.
 - **Multimedia/content queries**: GIF, movies/TV, anime/manga, games, or lightweight tweet features may send queries, URLs, or technical parameters to GIPHY, TMDB, AniList, Steam, IGDB/Twitch, and public X/Twitter endpoints.
 
 ## 3. Purpose of processing

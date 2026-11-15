@@ -118,6 +118,8 @@ export interface Settings {
 	twitterLiteEmbedsEnabled: boolean
 	pinnedPostsEnabled: boolean
 	threadPreviewEnabled: boolean
+	tavernEnabled: boolean
+	tavernLivePanelEnabled: boolean
 	contentRulesEnabled: boolean
 	classicThreadActionsEnabled: boolean
 	threadSummarizerEnabled: boolean

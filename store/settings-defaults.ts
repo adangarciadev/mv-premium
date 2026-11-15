@@ -75,6 +75,8 @@ export const DEFAULT_SETTINGS: Settings = {
 	twitterLiteEmbedsEnabled: false,
 	pinnedPostsEnabled: true,
 	threadPreviewEnabled: true,
+	tavernEnabled: true,
+	tavernLivePanelEnabled: true,
 	contentRulesEnabled: true,
 	classicThreadActionsEnabled: false,
 	threadSummarizerEnabled: true,

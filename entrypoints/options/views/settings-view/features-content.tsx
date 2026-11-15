@@ -132,6 +132,8 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 		classicThreadActionsEnabled,
 		pinnedPostsEnabled,
 		threadPreviewEnabled,
+		tavernEnabled,
+		tavernLivePanelEnabled,
 		relatedThreadsDisplay,
 		relatedThreadsMaxAgeMonths,
 		threadSummarizerEnabled,
@@ -177,6 +179,8 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				| 'classicThreadActionsEnabled'
 				| 'pinnedPostsEnabled'
 				| 'threadPreviewEnabled'
+				| 'tavernEnabled'
+				| 'tavernLivePanelEnabled'
 				| 'threadSummarizerEnabled'
 				| 'postSummaryEnabled'
 				| 'saveThreadEnabled'
@@ -576,6 +580,24 @@ export function FeaturesContent({ settingFilter }: { settingFilter?: SettingsCon
 				description="Permite anclar posts importantes y verlos en un panel lateral."
 			>
 				<Switch checked={pinnedPostsEnabled} onCheckedChange={withToastAndReload('pinnedPostsEnabled', true)} />
+			</SettingRow>
+
+			<SettingRow
+				{...rowState('tavern')}
+				icon={<PanelTopOpen className="h-4 w-4" />}
+				label="Taberna virtual"
+				description="Muestra los accesos a la taberna en los subforos y los hilos de Mediavida."
+			>
+				<Switch checked={tavernEnabled} onCheckedChange={withToastAndReload('tavernEnabled', false)} />
+			</SettingRow>
+
+			<SettingRow
+				{...rowState('tavern-live-panel')}
+				icon={<PanelTopOpen className="h-4 w-4" />}
+				label="Taberna en hilos LIVE"
+				description="Abre la taberna desde cualquier hilo LIVE de un subforo con sala propia."
+			>
+				<Switch disabled={!tavernEnabled} checked={tavernEnabled && tavernLivePanelEnabled} onCheckedChange={withToastAndReload('tavernLivePanelEnabled', true)} />
 			</SettingRow>
 
 			<SettingRow
