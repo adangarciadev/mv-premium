@@ -343,7 +343,8 @@ function ensureHiddenThreadStyles(): void {
 			align-items: center;
 			justify-content: center;
 			gap: 4px;
-			z-index: 2147483646;
+			/* Keep row actions below Mediavida's fixed #header (z-index: 90). */
+			z-index: 8;
 			opacity: 0;
 			visibility: hidden;
 			pointer-events: none;
@@ -381,7 +382,7 @@ function ensureHiddenThreadStyles(): void {
 			left: var(--mvp-premium-menu-left, 0);
 			top: var(--mvp-premium-menu-top, 0);
 			min-width: 184px;
-			z-index: 2147483647;
+			z-index: 9;
 			padding: 6px;
 			border-radius: 6px;
 			border: 1px solid var(--mvp-premium-menu-border);
