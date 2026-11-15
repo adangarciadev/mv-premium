@@ -22,6 +22,38 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.9.0',
+		date: '2026-11-15',
+		title: 'La taberna virtual llega a los subforos y a los hilos LIVE',
+		summary: 'Entra en la taberna de la comunidad desde Mediavida y sigue leyendo el hilo mientras juegas.',
+		changes: [
+			{
+				type: 'feature',
+				description: 'El botón «Taberna» de los subforos y los hilos permite entrar con tu nick de Mediavida o abrir el juego sin compartirlo.',
+				category: 'Taberna',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description: 'En cualquier hilo LIVE de Dev, GameDev, FEDA u Off Topic puedes abrir la sala del subforo en una ventana flotante. Puedes moverla y cambiar su tamaño con el ratón o las flechas. En Ajustes puedes desactivar toda la integración o solo el acceso lateral de los LIVE.',
+				category: 'Taberna',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description: 'Los controles del editor de respuestas ya no se solapan en la vista LIVE de Mediavida.',
+				category: 'Editor',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description: 'Al desplazarte por un perfil, el botón de acciones Premium y su menú quedan por debajo de la cabecera fija.',
+				category: 'Perfil',
+				surface: 'desktop',
+			},
+		],
+	},
+	{
 		version: '3.8.1',
 		date: '2026-10-20',
 		title: 'Vuelven los GIFs, los calendarios, las ofertas y las fichas de juegos, pelis y series',
