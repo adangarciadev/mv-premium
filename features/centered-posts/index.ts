@@ -139,6 +139,7 @@ let resizeListenerInitialized = false
 let resizeRafId: number | undefined
 let cachedSidebarWidthPx = SIDE_BAR_FALLBACK_WIDTH_PX
 let sideStableTopPx: number | null = null
+let sideControlsResizeObserver: ResizeObserver | undefined
 let floatingVideoObserver: MutationObserver | null = null
 let floatingVideoRafId: number | undefined
 let floatingVideoListenersAttached = false
@@ -984,9 +985,9 @@ function resolveControlBarPosition(
 	requested: ControlBarPosition,
 	pageKind: CenteredPostsPageKind
 ): ControlBarPosition {
-	if (pageKind !== 'thread') return 'top'
-	if (requested !== 'side') return 'top'
-	return window.innerWidth >= SIDE_LAYOUT_MIN_WIDTH ? 'side' : 'top'
+	if (pageKind !== 'thread' || requested !== 'side' || window.innerWidth < SIDE_LAYOUT_MIN_WIDTH) return 'top'
+	const space = getSideControlBarSpace()
+	return space && space.width >= SIDE_BAR_MIN_WIDTH_PX ? 'side' : 'top'
 }
 
 function getPrimaryThreadContainer(): HTMLElement | null {
@@ -995,6 +996,14 @@ function getPrimaryThreadContainer(): HTMLElement | null {
 		document.querySelector<HTMLElement>('#posts-wrap') ||
 		document.querySelector<HTMLElement>(MV_SELECTORS.GLOBAL.MAIN_CONTENT)
 	)
+}
+
+function getSideControlBarSpace(): { left: number; width: number } | null {
+	const thread = getPrimaryThreadContainer()
+	if (!thread) return null
+
+	const left = Math.max(SIDE_MIN_INSET_PX, Math.ceil(thread.getBoundingClientRect().right + SIDE_BAR_GAP_PX))
+	return { left, width: document.documentElement.clientWidth - left - SIDE_MIN_INSET_PX }
 }
 
 function getFirstThreadPost(): HTMLElement | null {
@@ -1040,25 +1049,16 @@ function positionSideControlBar(): void {
 	if (appliedPosition !== 'side') return
 
 	const bar = document.getElementById(CONTROL_BAR_ID) as HTMLElement | null
-	const container = getPrimaryThreadContainer()
-	if (!bar || !container) return
+	const space = getSideControlBarSpace()
+	if (!bar || !space || space.width < SIDE_BAR_MIN_WIDTH_PX) return
 
-	const containerRect = container.getBoundingClientRect()
 	const firstPostRect = getFirstThreadPost()?.getBoundingClientRect()
-	const anchorRect = firstPostRect ?? containerRect
-	const measuredSidebarWidth = measureNativeSidebarWidth()
-	const maxWidthByViewport = Math.max(SIDE_BAR_MIN_WIDTH_PX, window.innerWidth - SIDE_MIN_INSET_PX * 2)
-	const targetWidth = Math.min(measuredSidebarWidth, maxWidthByViewport)
+	const targetWidth = Math.min(measureNativeSidebarWidth(), space.width)
 
 	bar.style.setProperty('width', `${targetWidth}px`, 'important')
 	bar.style.setProperty('max-width', `${targetWidth}px`, 'important')
 
 	const barRect = bar.getBoundingClientRect()
-	const barWidth = Math.max(SIDE_BAR_MIN_WIDTH_PX, Math.round(barRect.width))
-	const preferredLeft = Math.round(anchorRect.right + SIDE_BAR_GAP_PX)
-	const maxLeft = Math.round(window.innerWidth - barWidth - SIDE_MIN_INSET_PX)
-	const clampedLeft = Math.max(SIDE_MIN_INSET_PX, Math.min(preferredLeft, maxLeft))
-
 	const minTopPx = getSideModeMinimumTopPx()
 	const barHeight = Math.max(160, Math.round(barRect.height))
 	const maxTop = Math.max(minTopPx, window.innerHeight - barHeight - SIDE_MIN_INSET_PX)
@@ -1070,13 +1070,8 @@ function positionSideControlBar(): void {
 	const preferredTop = sideStableTopPx ?? normalizedMeasuredTop
 	const clampedTop = Math.max(minTopPx, Math.min(preferredTop, maxTop))
 
-	bar.style.left = `${clampedLeft}px`
-	bar.style.right = 'auto'
-	bar.style.top = `${clampedTop}px`
-	bar.style.transform = 'none'
-
 	// Override side-mode fallback CSS rules that use !important.
-	bar.style.setProperty('left', `${clampedLeft}px`, 'important')
+	bar.style.setProperty('left', `${space.left}px`, 'important')
 	bar.style.setProperty('right', 'auto', 'important')
 	bar.style.setProperty('top', `${clampedTop}px`, 'important')
 	bar.style.setProperty('transform', 'none', 'important')
@@ -2565,14 +2560,14 @@ function removeControlBar(): void {
 }
 
 /**
- * Reacts to viewport changes when side mode is enabled.
+ * Reacts to viewport and thread width changes when side mode is requested.
  * If there is not enough lateral space, the bar falls back to top mode.
  */
 function initResponsivePositionListener(): void {
 	if (resizeListenerInitialized) return
 	resizeListenerInitialized = true
 
-	window.addEventListener('resize', () => {
+	const handleResize = () => {
 		if (!requestedEnabled || requestedPosition !== 'side') return
 
 		const pageKind = getCenteredPostsPageKind()
@@ -2626,7 +2621,9 @@ function initResponsivePositionListener(): void {
 
 			applyCenteredPosts(requestedEnabled, requestedSticky, requestedPosition)
 		}, RESIZE_DEBOUNCE_MS)
-	})
+	}
+	window.addEventListener('resize', handleResize)
+	sideControlsResizeObserver = new ResizeObserver(handleResize)
 }
 
 /**
@@ -2651,6 +2648,7 @@ function applyCenteredPosts(
 	const pageKind = getCenteredPostsPageKind()
 	const isSupportedPage = pageKind !== 'unsupported'
 	const classTarget = document.body ?? document.documentElement
+	sideControlsResizeObserver?.disconnect()
 
 	// Remove existing styles (both main and early-inject to avoid duplication)
 	const existingStyle = document.getElementById(STYLE_ID)
@@ -2685,23 +2683,23 @@ function applyCenteredPosts(
 	}
 
 	classTarget?.classList.add(ACTIVE_BODY_CLASS)
-
-	const resolvedPosition = resolveControlBarPosition(requestedControlPosition, pageKind)
-	if (resolvedPosition === 'side') {
-		sideStableTopPx = null
-		measureNativeSidebarWidth()
-	} else {
-		sideStableTopPx = null
-	}
+	sideStableTopPx = null
 
 	// Create and inject styles
 	const styleEl = document.createElement('style')
 	styleEl.id = STYLE_ID
-	styleEl.textContent = generateStyles(sticky, resolvedPosition)
+	styleEl.textContent = generateStyles(sticky, 'top')
 	document.head.appendChild(styleEl)
 	logger.debug('CenteredPosts: Stylesheet injected with id', STYLE_ID)
 
 	if (pageKind === 'thread') {
+		// Measure after the centered layout has expanded the thread to its final width.
+		const resolvedPosition = resolveControlBarPosition(requestedControlPosition, pageKind)
+		if (resolvedPosition === 'side') {
+			measureNativeSidebarWidth()
+			styleEl.textContent = generateStyles(sticky, 'side')
+		}
+
 		// Inject control bar by MOVING native sidebar elements
 		// This preserves all event listeners since we move, not clone
 		injectControlBar(resolvedPosition)
@@ -2712,6 +2710,12 @@ function applyCenteredPosts(
 			requestAnimationFrame(() => positionSideControlBar())
 			window.setTimeout(() => positionSideControlBar(), 220)
 			window.setTimeout(() => positionSideControlBar(), 900)
+		}
+
+		if (requestedControlPosition === 'side') {
+			const thread = getPrimaryThreadContainer()
+			sideControlsResizeObserver?.observe(document.documentElement)
+			if (thread) sideControlsResizeObserver?.observe(thread)
 		}
 
 		startFloatingVideoGuard()

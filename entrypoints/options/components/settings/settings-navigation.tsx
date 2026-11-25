@@ -262,7 +262,7 @@ export function SettingsNavigation({ settingFilter }: { settingFilter?: Settings
 					{...rowState('centered-controls-position')}
 					icon={<Maximize className="h-4 w-4" />}
 					label="Posición de controles"
-					description="Solo en hilos: arriba (barra horizontal) o lateral flotante sin ocupar ancho del hilo. En pantallas estrechas se usa arriba automáticamente."
+					description="Solo en hilos. La barra lateral flota en el margen derecho y pasa arriba si no hay espacio suficiente."
 					className="ml-6 border-l-2 border-primary/30 pl-4"
 				>
 					<Select
