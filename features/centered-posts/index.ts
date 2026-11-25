@@ -18,6 +18,7 @@ import { getCenteredPostsPageKind, type CenteredPostsPageKind } from '@/lib/cont
 const STYLE_ID = DOM_MARKERS.IDS.CENTERED_POSTS_STYLES
 const EARLY_STYLE_ID = EARLY_STYLE_IDS.CENTERED_POSTS
 const CONTROL_BAR_ID = DOM_MARKERS.IDS.CENTERED_CONTROL_BAR
+const STICKY_CONTROL_BAR_Z_INDEX = 50
 const CACHE_KEY = RUNTIME_CACHE_KEYS.CENTERED_POSTS
 const ACTIVE_BODY_CLASS = 'mvp-centered-posts-active'
 const SETTINGS_KEY = `local:${STORAGE_KEYS.SETTINGS}` as `local:${string}`
@@ -336,10 +337,21 @@ function generateStyles(sticky: boolean, position: ControlBarPosition): string {
 					? `
 			position: sticky !important;
 			top: 40px !important;
-			z-index: 50 !important;
+			z-index: ${STICKY_CONTROL_BAR_Z_INDEX} !important;
 			`
 					: ''
 			}
+		}
+
+		${
+			sticky && position === 'top'
+				? `
+		/* Native desktop search is appended to body and can overlap the wrapped toolbar. */
+		body:not(.ts-open) > #thread-search-panel {
+			z-index: ${STICKY_CONTROL_BAR_Z_INDEX + 1};
+		}
+		`
+				: ''
 		}
 
 		/* Control Groups - horizontal layout */
