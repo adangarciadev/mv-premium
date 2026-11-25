@@ -21,12 +21,16 @@ export function normalizeUnreadFavoriteUrl(value: string): string | null {
 	}
 }
 
+export function getUnreadFavoriteThreadId(url: string): string | undefined {
+	return new URL(url).pathname.match(/-(\d+)(?:\/\d+)?\/?$/)?.[1]
+}
+
 /** A thread is opened only once, even if it appears on multiple flyout pages. */
 export function uniqueUnreadFavoriteUrls(values: string[]): string[] {
 	const threads = new Set<string>()
 	return values.flatMap(value => {
 		const url = normalizeUnreadFavoriteUrl(value)
-		const id = url && new URL(url).pathname.match(/-(\d+)(?:\/\d+)?\/?$/)?.[1]
+		const id = url && getUnreadFavoriteThreadId(url)
 		if (!url || !id || threads.has(id)) return []
 		threads.add(id)
 		return [url]

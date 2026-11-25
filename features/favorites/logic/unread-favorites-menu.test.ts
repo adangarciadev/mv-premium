@@ -9,9 +9,11 @@ import { injectUnreadFavoritesMenu } from './unread-favorites-menu'
 
 const first = '/foro/cine/que-pelicula-has-visto-514622/1235#37047'
 const second = '/foro/ia/claude-code-reglas-733745/119#3561'
-const row = (url: string, unread = true) => `<li><div><a class="h" href="${url.split('#')[0]}">Hilo</a>${unread ? `<a class="unseen-num" href="${url}">3</a>` : ''}</div></li>`
+const row = (url: string, unread = true) => `<li${unread ? ' class="unread"' : ''}><div><a class="${unread ? 'hb' : 'h'}" href="${url.split('#')[0]}">Hilo</a>${unread ? `<a class="unseen-num" href="${url}">3</a>` : ''}</div></li>`
 const flyout = (rows: string) => `<div class="flypos froot"><div class="fly flyout"><div class="flyheader">Favoritos</div><div class="nano"><ul class="content threads">${rows}</ul></div><div class="flyfooter"><a href="/foro/favoritos">Ver más</a></div></div></div>`
 const button = () => document.getElementById(FEATURE_IDS.FAVORITES_OPEN_UNREAD) as HTMLButtonElement
+const markButtons = () => document.querySelectorAll<HTMLButtonElement>('.mvp-favorite-mark-read')
+const threadPage = (pagination = '') => new Response(`<ul id="usermenu"><li><a class="flink" href="/foro/favoritos">Favoritos</a></li></ul><div class="post" data-num="1"></div><ul class="pg">${pagination}</ul>`)
 const flush = async () => { await new Promise(resolve => setTimeout(resolve, 0)) }
 
 describe('native favorites menu action', () => {
@@ -23,7 +25,10 @@ describe('native favorites menu action', () => {
 		// Native .flink handlers prevent default navigation to the favorites page.
 		document.querySelector('a.flink')!.addEventListener('click', event => event.preventDefault())
 	})
-	afterEach(() => cleanup?.())
+	afterEach(() => {
+		cleanup?.()
+		vi.unstubAllGlobals()
+	})
 	const mount = (rows: string) => {
 		document.querySelector('.f2')!.insertAdjacentHTML('beforeend', flyout(rows))
 		cleanup = injectUnreadFavoritesMenu()
@@ -111,6 +116,70 @@ describe('native favorites menu action', () => {
 		button().click()
 		await flush()
 		expect(nativeClick).not.toHaveBeenCalled()
+	})
+
+	it('marks one favorite through its last page and updates both counters without opening the thread', async () => {
+		const lastPage = '/foro/cine/que-pelicula-has-visto-514622/1236'
+		const fetchThread = vi.fn()
+			.mockResolvedValueOnce(threadPage(`<li><a href="${lastPage}">1236</a></li>`))
+			.mockResolvedValueOnce(threadPage())
+		vi.stubGlobal('fetch', fetchThread)
+		document.getElementById('bf')!.textContent = '4'
+		mount(row(first) + row(second) + row(second, false).repeat(18))
+		const nativeClick = vi.fn()
+		document.querySelector('.fly')!.addEventListener('click', nativeClick)
+		const [markFirst, markSecond] = markButtons()
+		expect(markFirst).toHaveAccessibleName('Marcar como leído: Hilo')
+		markFirst.focus()
+		markFirst.click()
+		markSecond.click()
+		expect(button()).toBeDisabled()
+		await flush()
+		expect(fetchThread.mock.calls.map(([url]) => url.pathname)).toEqual([first.split('#')[0], lastPage])
+		expect(fetchThread).toHaveBeenCalledWith(expect.any(URL), expect.objectContaining({ credentials: 'same-origin', cache: 'no-store' }))
+		expect(nativeClick).not.toHaveBeenCalled()
+		expect(mocks.send).not.toHaveBeenCalled()
+		const firstRow = document.querySelector('.threads li')!
+		expect(firstRow).not.toHaveClass('unread')
+		expect(firstRow.querySelector('a.h')).toHaveFocus()
+		expect(firstRow.querySelector('.unseen-num')).toBeNull()
+		expect(document.querySelector('.unseen-num')).toHaveAttribute('href', second)
+		expect(markButtons()).toHaveLength(1)
+		expect(button()).toHaveTextContent('Abrir no leídos (3)')
+		expect(document.getElementById('bf')).toHaveTextContent('3')
+	})
+
+	it('keeps the unread badge and allows retry when the thread request returns a login page', async () => {
+		const fetchThread = vi.fn().mockResolvedValueOnce(new Response('<form>Inicia sesión</form>')).mockResolvedValueOnce(threadPage())
+		vi.stubGlobal('fetch', fetchThread)
+		document.getElementById('bf')!.textContent = '1'
+		document.querySelector('.flink')!.classList.add('hl')
+		mount(row(first))
+		markButtons()[0].click()
+		await flush()
+		expect(mocks.error).toHaveBeenCalledWith(expect.stringContaining('No se ha podido marcar'))
+		expect(markButtons()[0]).toHaveAttribute('aria-disabled', 'false')
+		expect(document.querySelector('.unseen-num')).toHaveAttribute('href', first)
+		expect(document.querySelector('.flink')).toHaveClass('hl')
+		markButtons()[0].click()
+		await flush()
+		expect(markButtons()).toHaveLength(0)
+		expect(button()).toBeNull()
+		expect(document.getElementById('bf')).toHaveTextContent('0')
+		expect(document.querySelector('.flink')).not.toHaveClass('hl')
+	})
+
+	it('retains a native star count update received while marking a favorite', async () => {
+		let finish!: (response: Response) => void
+		vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(resolve => { finish = resolve })))
+		const starCount = document.getElementById('bf')!
+		starCount.textContent = '4'
+		mount(row(first))
+		markButtons()[0].click()
+		starCount.textContent = '3'
+		finish(threadPage())
+		await flush()
+		expect(starCount).toHaveTextContent('3')
 	})
 
 	it('refreshes unread counters from the server when reopening the native menu after opening threads', async () => {
@@ -253,6 +322,8 @@ describe('native favorites menu action', () => {
 		expect(button()).toBeEnabled()
 		cleanup!()
 		expect(button()).toBeNull()
+		expect(markButtons()).toHaveLength(0)
+		expect(document.querySelector('.unseen-num')).toHaveAttribute('href', second)
 		document.querySelector('.f2')!.insertAdjacentHTML('beforeend', flyout(row(first)))
 		await flush()
 		expect(button()).toBeNull()

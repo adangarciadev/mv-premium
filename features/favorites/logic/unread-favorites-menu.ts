@@ -2,10 +2,13 @@ import { FEATURE_IDS, MV_SELECTORS } from '@/constants'
 import { sendMessage } from '@/lib/messaging'
 import { toast } from '@/lib/lazy-toast'
 import { logger } from '@/lib/logger'
-import { MAX_UNREAD_FAVORITE_TABS, uniqueUnreadFavoriteUrls, unreadFavoritesLimitMessage } from './unread-favorites'
+import { markFavoriteRead } from './mark-favorite-read'
+import { MAX_UNREAD_FAVORITE_TABS, normalizeUnreadFavoriteUrl, uniqueUnreadFavoriteUrls, unreadFavoritesLimitMessage } from './unread-favorites'
 
 const selectors = MV_SELECTORS.GLOBAL
 const id = FEATURE_IDS.FAVORITES_OPEN_UNREAD
+const unreadActionsClass = 'mvp-favorite-unread-actions'
+const markReadClass = 'mvp-favorite-mark-read'
 const cleanups = new WeakMap<HTMLElement, () => void>()
 
 /** Observe only the star's menu: its flyout and later pages are loaded by AJAX. */
@@ -17,11 +20,12 @@ export function injectUnreadFavoritesMenu(): (() => void) | undefined {
 	if (existing) return existing
 
 	let busy = false
+	let markingRead = false
 	let disposed = false
 	// Mediavida otherwise reuses the cached flyout indefinitely. Run before its
 	// click handler so it rebuilds the list (and its pagination) from the server.
 	const refreshOnOpen = (event: MouseEvent) => {
-		if (disposed || busy || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
+		if (disposed || busy || markingRead || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return
 		// The native loader serializes requests globally. Keep its current target
 		// attached until the response arrives, otherwise the replacement stays loading.
 		if (container.querySelector(`${selectors.FAVORITES_FLYOUT_LIST} .loading`)) return
@@ -38,24 +42,67 @@ export function injectUnreadFavoritesMenu(): (() => void) | undefined {
 			padding: 2px 4px; min-height: 24px; cursor: pointer; white-space: nowrap; text-decoration: underline; text-underline-offset: 2px; }
 		#${id}:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 		#${id}:disabled { color: inherit; cursor: default; opacity: .6; text-decoration: none; }
+		.${unreadActionsClass} { display: inline-flex; align-items: center; vertical-align: middle; }
+		.${markReadClass} { display: inline-grid; place-items: center; inline-size: 24px; block-size: 24px;
+			padding: 0; border: 0; border-radius: 3px; background: transparent; color: inherit; cursor: pointer; }
+		.${markReadClass}:hover { background: rgb(128 128 128 / .2); }
+		.${markReadClass}:focus-visible { outline: 2px solid currentColor; outline-offset: -2px; }
+		.${markReadClass}[aria-disabled="true"] { cursor: default; opacity: .6; }
+		@media (pointer: coarse) { .${markReadClass} { inline-size: 32px; block-size: 32px; } }
 	`
 	document.head.appendChild(style)
 
 	const getList = () => container.querySelector<HTMLElement>(selectors.FAVORITES_FLYOUT_LIST)
+	const getUnreadLinks = () => Array.from(getList()?.querySelectorAll<HTMLAnchorElement>(selectors.UNREAD_FAVORITE_LINK) ?? [])
+	const getUnreadUrl = (link: HTMLAnchorElement) => normalizeUnreadFavoriteUrl(link.getAttribute('href') ?? '')
 	const getUrls = () => uniqueUnreadFavoriteUrls(
-		Array.from(getList()?.querySelectorAll<HTMLAnchorElement>(selectors.UNREAD_FAVORITE_LINK) ?? [])
-			.map(link => link.getAttribute('href') ?? '')
+		getUnreadLinks().map(link => link.getAttribute('href') ?? '')
 	)
+	const getStarCount = () => trigger.querySelector(selectors.FAVORITES_UNREAD_COUNT)
 	const hasRemaining = () => (getList()?.querySelectorAll(':scope > li:not(.loading)').length ?? 0) >= 20
 	const getUnreadCount = () => {
 		const visibleCount = getUrls().length
 		if (!hasRemaining()) return visibleCount
 		// The star's counter includes unread threads on pages not yet in the flyout.
-		const pendingCount = Number.parseInt(trigger.querySelector(selectors.FAVORITES_UNREAD_COUNT)?.textContent ?? '0', 10)
+		const pendingCount = Number.parseInt(getStarCount()?.textContent ?? '0', 10)
 		return Math.max(visibleCount, Number.isFinite(pendingCount) ? pendingCount : 0)
+	}
+	const removeMarkReadButton = (actions: Element) => {
+		actions.querySelector(`.${markReadClass}`)?.remove()
+		actions.replaceWith(...actions.childNodes)
+	}
+	const syncMarkReadButtons = () => {
+		for (const actions of getList()?.querySelectorAll(`.${unreadActionsClass}`) ?? []) {
+			const badge = actions.querySelector<HTMLAnchorElement>(selectors.UNREAD_FAVORITE_LINK)
+			if (!badge || !getUnreadUrl(badge)) removeMarkReadButton(actions)
+		}
+		for (const link of getUnreadLinks()) {
+			if (!getUnreadUrl(link)) continue
+			const group = link.parentElement?.closest(`.${unreadActionsClass}`)
+			let button = group?.querySelector<HTMLButtonElement>(`.${markReadClass}`)
+			if (!button) {
+				const actions = document.createElement('span')
+				actions.className = unreadActionsClass
+				button = document.createElement('button')
+				button.type = 'button'
+				button.className = markReadClass
+				button.title = 'Marcar como leído'
+				const title = link.closest('li')?.querySelector('a.hb, a.h')?.textContent?.trim()
+				button.setAttribute('aria-label', title ? `Marcar como leído: ${title}` : button.title)
+				const icon = document.createElement('i')
+				icon.className = 'fa fa-times'
+				icon.setAttribute('aria-hidden', 'true')
+				button.appendChild(icon)
+				button.addEventListener('click', event => void markRead(event, link))
+				link.before(actions)
+				actions.append(link, button)
+			}
+			button.setAttribute('aria-disabled', String(busy || markingRead))
+		}
 	}
 	const update = () => {
 		if (disposed) return
+		syncMarkReadButtons()
 		const header = container.querySelector<HTMLElement>(`${selectors.FAVORITES_FLYOUT} ${selectors.FAVORITES_FLYOUT_HEADER}`)
 		if (!header) return
 		let button = header.querySelector<HTMLButtonElement>(`#${id}`)
@@ -83,7 +130,7 @@ export function injectUnreadFavoritesMenu(): (() => void) | undefined {
 		}
 		const label = busy ? 'Abriendo…' : `Abrir no leídos (${unreadCount})`
 		if (button.textContent !== label) button.textContent = label
-		button.disabled = busy || loading || !canOpen
+		button.disabled = busy || markingRead || loading || !canOpen
 		button.title = busy ? 'Abriendo hilos en segundo plano' : loading ? 'Cargando favoritos' : unreadCount > MAX_UNREAD_FAVORITE_TABS
 			? unreadFavoritesLimitMessage(unreadCount) : canOpen
 			? 'Abrir todos los favoritos con mensajes no leídos en pestañas en segundo plano'
@@ -95,7 +142,7 @@ export function injectUnreadFavoritesMenu(): (() => void) | undefined {
 	async function openUnread(event: MouseEvent) {
 		event.preventDefault()
 		event.stopPropagation()
-		if (busy || disposed) return
+		if (busy || markingRead || disposed) return
 		const unreadCount = getUnreadCount()
 		if (unreadCount > MAX_UNREAD_FAVORITE_TABS) {
 			toast.info(unreadFavoritesLimitMessage(unreadCount))
@@ -129,6 +176,51 @@ export function injectUnreadFavoritesMenu(): (() => void) | undefined {
 		}
 	}
 
+	async function markRead(event: MouseEvent, link: HTMLAnchorElement) {
+		event.preventDefault()
+		event.stopPropagation()
+		if (busy || markingRead || disposed) return
+		const url = getUnreadUrl(link)
+		if (!url) return
+
+		const starCount = getStarCount()?.textContent
+		const button = event.currentTarget as HTMLButtonElement
+		const unreadCount = link.textContent
+		markingRead = true
+		button.setAttribute('aria-busy', 'true')
+		update()
+		try {
+			await markFavoriteRead(url)
+			if (disposed) return
+			const focused = document.activeElement === button
+			for (const badge of getUnreadLinks()) {
+				if (getUnreadUrl(badge) !== url || badge.textContent !== unreadCount) continue
+				const row = badge.closest('li')
+				const title = row?.querySelector<HTMLAnchorElement>('a.hb, a.h')
+				row?.classList.remove('unread')
+			title?.classList.replace('hb', 'h')
+			if (focused && badge === link) title?.focus()
+				row?.querySelector('a.unread-num')?.remove()
+			const actions = badge.closest(`.${unreadActionsClass}`) ?? badge
+			actions.remove()
+			}
+			const count = getStarCount()
+			const previous = Number.parseInt(starCount ?? '', 10)
+			// Mediavida may already have refreshed the star through its realtime updates.
+			if (count && count.textContent === starCount && previous > 0) {
+				count.textContent = String(previous - 1)
+				if (previous === 1) count.parentElement?.classList.remove('hl')
+			}
+		} catch (error) {
+			logger.error('Failed to mark favorite as read', error)
+			if (!disposed) toast.error('No se ha podido marcar el favorito como leído. Vuelve a intentarlo.')
+		} finally {
+			markingRead = false
+			button.removeAttribute('aria-busy')
+			update()
+		}
+	}
+
 	const observer = new MutationObserver(update)
 	observer.observe(container, { childList: true, subtree: true, attributes: true, attributeFilter: ['href', 'class'], characterData: true })
 	const cleanup = () => {
@@ -137,6 +229,9 @@ export function injectUnreadFavoritesMenu(): (() => void) | undefined {
 		observer.disconnect()
 		container.querySelector(`#${id}`)?.remove()
 		container.querySelector('.mvp-unread-favorites-header')?.classList.remove('mvp-unread-favorites-header')
+		for (const actions of container.querySelectorAll(`.${unreadActionsClass}`)) {
+			removeMarkReadButton(actions)
+		}
 		style.remove()
 		cleanups.delete(container)
 	}
