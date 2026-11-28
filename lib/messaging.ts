@@ -177,6 +177,7 @@ export interface AgentPageContext {
 
 interface ProtocolMap {
 	openUnreadFavorites: (data: OpenUnreadFavoritesPayload) => OpenUnreadFavoritesResult
+	finishClipperTransfer: (data: { id: string }) => boolean
 	readDrafts: () => DraftsData
 	mutateDrafts: (data: DraftMutation) => DraftMutationResult
 	restoreBackup: (data: { input: unknown; options?: BackupImportOptions }) => BackupImportResult

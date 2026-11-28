@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import type { ThreadClipperBasket } from '@/features/thread-clipper/logic/types'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('wxt/browser', () => ({
@@ -12,6 +13,7 @@ vi.mock('wxt/browser', () => ({
 		},
 		tabs: {
 			create: vi.fn(),
+			query: vi.fn(async () => []),
 			reload: vi.fn(),
 		},
 		scripting: {
@@ -48,14 +50,6 @@ vi.mock('@/features/thread-clipper/logic/history-storage', () => ({
 	addThreadClipperHistoryEntry: vi.fn(),
 }))
 
-const { saveClippedThreadPrefillMock } = vi.hoisted(() => ({
-	saveClippedThreadPrefillMock: vi.fn(),
-}))
-
-vi.mock('@/features/thread-clipper', () => ({
-	saveClippedThreadPrefill: saveClippedThreadPrefillMock,
-}))
-
 vi.mock('@/lib/messaging', () => ({
 	onMessage: vi.fn(),
 	sendMessage: vi.fn(async () => undefined),
@@ -68,6 +62,7 @@ vi.mock('@/lib/logger', () => ({
 	},
 }))
 
+import { onMessage } from '@/lib/messaging'
 import { browser } from 'wxt/browser'
 import { storage } from '#imports'
 import {
@@ -83,6 +78,11 @@ const mockedSetItem = vi.mocked(storage.setItem)
 const mockedRemoveItem = vi.mocked(storage.removeItem)
 const mockedExecuteScript = vi.mocked(browser.scripting.executeScript)
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
+
+function testBasket(storageMap: Map<string, unknown>, tabId = 10): ThreadClipperBasket {
+	const stored = storageMap.get('local:mvp-thread-clipper-basket')
+	return (Array.isArray(stored) ? stored : [stored]).find(basket => basket?.tabId === tabId)
+}
 
 beforeEach(() => {
 	vi.clearAllMocks()
@@ -238,9 +238,7 @@ describe('buildClippedThreadPrefill', () => {
 		})
 
 		setupContextMenuListener()
-		setupThreadClipperTrayListener()
 		const menuListener = vi.mocked(browser.contextMenus.onClicked.addListener).mock.calls[0][0]
-		const trayListener = vi.mocked(browser.runtime.onMessage.addListener).mock.calls[0][0] as any
 		const tab = { id: 10, title: 'Noticia con script' }
 
 		await menuListener(
@@ -250,9 +248,8 @@ describe('buildClippedThreadPrefill', () => {
 			} as any,
 			tab as any
 		)
-		trayListener({ type: 'mvp-thread-clipper-tray', action: 'add-selection' }, { tab } as any)
 		await vi.waitFor(() => {
-			const basket = storageMap.get('local:mvp-thread-clipper-basket') as { items: Array<{ value: string }> }
+			const basket = testBasket(storageMap)
 			expect(basket.items[0].value).toContain('Primer párrafo.')
 			expect(basket.items[0].value).toContain('Segundo párrafo.')
 			expect(basket.items[0].value).not.toContain('cnx.cmd')
@@ -303,7 +300,7 @@ describe('buildClippedThreadPrefill', () => {
 			{ tab } as any
 		)
 		await vi.waitFor(() => {
-			const basket = storageMap.get('local:mvp-thread-clipper-basket') as { items: Array<{ value: string }> }
+			const basket = testBasket(storageMap)
 			expect(basket.items[0].value).toBe('Texto editado raw')
 		})
 
@@ -312,9 +309,9 @@ describe('buildClippedThreadPrefill', () => {
 			{ tab } as any
 		)
 
-		await vi.waitFor(() => expect(saveClippedThreadPrefillMock).toHaveBeenCalledTimes(1))
-		expect(saveClippedThreadPrefillMock.mock.calls[0][0].body).toContain('Texto editado raw')
-		expect(saveClippedThreadPrefillMock.mock.calls[0][0].body).not.toContain('Texto original')
+		await vi.waitFor(() => expect(testBasket(storageMap)?.pending).toBeDefined())
+		expect(testBasket(storageMap).pending!.body).toContain('Texto editado raw')
+		expect(testBasket(storageMap).pending!.body).not.toContain('Texto original')
 	})
 
 	it('never generates image BBCode for quick thread prefills', () => {
@@ -572,7 +569,7 @@ describe('thread clipper basket context actions', () => {
 			{ tab } as any
 		)
 		await vi.waitFor(() =>
-			expect((storageMap.get('local:mvp-thread-clipper-basket') as { items: unknown[] }).items).toHaveLength(1)
+			expect(testBasket(storageMap).items).toHaveLength(1)
 		)
 		trayListener(
 			{
@@ -582,20 +579,20 @@ describe('thread clipper basket context actions', () => {
 			{ tab } as any
 		)
 		await vi.waitFor(() =>
-			expect((storageMap.get('local:mvp-thread-clipper-basket') as { items: unknown[] }).items).toHaveLength(2)
+			expect(testBasket(storageMap).items).toHaveLength(2)
 		)
 		trayListener(
 			{ type: 'mvp-thread-clipper-tray', action: 'create', subforum: 'juegos' },
 			{ tab } as any
 		)
 
-		await vi.waitFor(() => expect(saveClippedThreadPrefillMock).toHaveBeenCalledTimes(1))
-		const prefill = saveClippedThreadPrefillMock.mock.calls[0][0]
+		await vi.waitFor(() => expect(testBasket(storageMap)?.pending).toBeDefined())
+		const prefill = testBasket(storageMap).pending!
 		expect(prefill.body).toContain('[quote]\nBloque uno\n\nPárrafo uno\n[/quote]')
 		expect(prefill.body).toContain('[quote]\nBloque dos\n\nPárrafo dos\n[/quote]')
 		expect(prefill.body).not.toContain('[img]')
 		expect(prefill.body).toMatch(/\[b\]\[url=https:\/\/example\.com\/news\]Fuente\[\/url\]\[\/b\]$/)
-		expect(mockedRemoveItem).toHaveBeenCalledWith('local:mvp-thread-clipper-basket')
+		expect(mockedRemoveItem).not.toHaveBeenCalledWith('local:mvp-thread-clipper-basket')
 		expect(mockedExecuteScript).toHaveBeenCalledWith(
 			expect.objectContaining({
 				func: expect.any(Function),
@@ -632,13 +629,13 @@ describe('thread clipper basket context actions', () => {
 			} as any,
 			tab as any
 		)
-		expect((storageMap.get('local:mvp-thread-clipper-basket') as { items: unknown[] }).items).toHaveLength(0)
+		expect(testBasket(storageMap).items).toHaveLength(0)
 		trayListener(
 			{ type: 'mvp-thread-clipper-tray', action: 'add-media', mediaUrl: 'https://www.youtube.com/watch?v=abc123' },
 			{ tab } as any
 		)
 		await vi.waitFor(() =>
-			expect((storageMap.get('local:mvp-thread-clipper-basket') as { items: unknown[] }).items).toHaveLength(1)
+			expect(testBasket(storageMap).items).toHaveLength(1)
 		)
 		trayListener(
 			{
@@ -650,12 +647,12 @@ describe('thread clipper basket context actions', () => {
 			{ tab } as any
 		)
 		await vi.waitFor(() =>
-			expect((storageMap.get('local:mvp-thread-clipper-basket') as { items: unknown[] }).items).toHaveLength(2)
+			expect(testBasket(storageMap).items).toHaveLength(2)
 		)
-		expect((storageMap.get('local:mvp-thread-clipper-basket') as { activePicker?: string }).activePicker).toBe('media')
+		expect(testBasket(storageMap).activePicker).toBe('media')
 		trayListener({ type: 'mvp-thread-clipper-tray', action: 'remove-item', itemIndex: 0 }, { tab } as any)
 		await vi.waitFor(() => {
-			const basket = storageMap.get('local:mvp-thread-clipper-basket') as { items: Array<{ value: string }> }
+			const basket = testBasket(storageMap)
 			expect(basket.items).toHaveLength(1)
 			expect(basket.items.some(item => item.value === 'https://www.youtube.com/watch?v=abc123')).toBe(false)
 		})
@@ -664,8 +661,8 @@ describe('thread clipper basket context actions', () => {
 			{ tab } as any
 		)
 
-		await vi.waitFor(() => expect(saveClippedThreadPrefillMock).toHaveBeenCalledTimes(1))
-		const prefill = saveClippedThreadPrefillMock.mock.calls[0][0]
+		await vi.waitFor(() => expect(testBasket(storageMap)?.pending).toBeDefined())
+		const prefill = testBasket(storageMap).pending!
 		expect(prefill.body).not.toContain('[media]https://www.youtube.com/watch?v=abc123[/media]')
 		expect(prefill.body).toContain('[media]https://www.instagram.com/p/ABC123xyz/[/media]')
 	})
@@ -744,12 +741,7 @@ describe('thread clipper basket context actions', () => {
 			tab as any
 		)
 
-		const basket = storageMap.get('local:mvp-thread-clipper-basket') as {
-			sourceUrl: string
-			title: string
-			contentMode: string
-			items: Array<{ type: string; value: string }>
-		}
+		const basket = testBasket(storageMap)
 		expect(basket.sourceUrl).toBe('https://example.com/news')
 		expect(basket.title).toBe('Página con vídeo')
 		expect(basket.contentMode).toBe('article')
@@ -790,7 +782,7 @@ describe('thread clipper basket context actions', () => {
 				{ tab } as any
 			)
 			await vi.waitFor(() =>
-				expect((storageMap.get('local:mvp-thread-clipper-basket') as { items: unknown[] }).items).toHaveLength(
+				expect(testBasket(storageMap).items).toHaveLength(
 					index + 1
 				)
 			)
@@ -800,11 +792,44 @@ describe('thread clipper basket context actions', () => {
 			{ tab } as any
 		)
 
-		await vi.waitFor(() => expect(saveClippedThreadPrefillMock).toHaveBeenCalledTimes(1))
-		const prefill = saveClippedThreadPrefillMock.mock.calls[0][0]
+		await vi.waitFor(() => expect(testBasket(storageMap)?.pending).toBeDefined())
+		const prefill = testBasket(storageMap).pending!
 		expect(prefill.body).toContain('[media]https://www.youtube.com/watch?v=abc123[/media]')
 		expect(prefill.body).toContain('[media]https://twitter.com/usuario/status/123456789[/media]')
 		expect(prefill.body).toContain('[media]https://www.instagram.com/reel/ABC123xyz/[/media]')
+	})
+
+	it('offers Añadir tuit on photo links, embedded frames and tweet widgets', async () => {
+		document.body.innerHTML = `
+			<a href="https://x.com/RFETenis/status/123/photo/1?ref_src=test">Foto</a>
+			<iframe src="https://platform.twitter.com/embed/Tweet.html?id=456"></iframe>
+			<twitter-widget data-tweet-id="789"></twitter-widget>
+		`
+		const bounds = vi.spyOn(Element.prototype, 'getBoundingClientRect')
+			.mockReturnValue({ width: 500, height: 400, top: 10, left: 10, right: 510, bottom: 410 } as DOMRect)
+		try {
+			setupContextMenuListener()
+			const menu = vi.mocked(browser.contextMenus.onClicked.addListener).mock.calls[0][0]
+			await menu({ menuItemId: 'mvp-open-thread-clipper', pageUrl: 'https://as.com/noticia' } as any, { id: 10 } as any)
+			const tray = mockedExecuteScript.mock.calls.map(([details]) => details).find(details => details.func?.name === 'renderThreadClipperTray')!
+			if (!tray.func || !('args' in tray)) throw new Error('Tray renderer missing')
+			tray.func(...(tray.args ?? []))
+			const panel = document.querySelector('#mvp-thread-clipper-tray-host')!.shadowRoot!
+			const picker = Array.from(panel.querySelectorAll('button')).find(button => button.textContent?.includes('Seleccionar media embebida'))!
+			picker.click()
+			const buttons = Array.from(document.querySelectorAll('button')).filter(button => button.textContent === 'Añadir tuit')
+			expect(buttons.map(button => button.title)).toEqual([
+				'https://twitter.com/RFETenis/status/123', 'https://twitter.com/i/status/456', 'https://twitter.com/i/status/789',
+			])
+			picker.click()
+			document.querySelectorAll('a, iframe, twitter-widget').forEach(element => element.remove())
+			picker.click()
+			expect(panel.textContent).toContain('No se han detectado publicaciones compatibles')
+		} finally {
+			;(globalThis as any).__mvpThreadClipperTrayCleanup?.()
+			bounds.mockRestore()
+			document.body.replaceChildren()
+		}
 	})
 
 	it('ignores unsupported X/Twitter media URLs selected inside an external article', async () => {
@@ -832,7 +857,7 @@ describe('thread clipper basket context actions', () => {
 			'https://x.com/usuario',
 			'https://x.com/search?q=mediavida',
 			'https://x.com/home',
-			'https://x.com/usuario/status/123456789/photo/1',
+			'https://x.com/usuario/status/123456789/analytics',
 		]) {
 			trayListener(
 				{ type: 'mvp-thread-clipper-tray', action: 'add-media', mediaUrl },
@@ -841,7 +866,7 @@ describe('thread clipper basket context actions', () => {
 		}
 
 		await vi.waitFor(() =>
-			expect((storageMap.get('local:mvp-thread-clipper-basket') as { items: unknown[] }).items).toHaveLength(0)
+			expect(testBasket(storageMap).items).toHaveLength(0)
 		)
 	})
 
@@ -873,12 +898,12 @@ describe('thread clipper basket context actions', () => {
 			{ tab } as any
 		)
 		await vi.waitFor(() =>
-			expect((storageMap.get('local:mvp-thread-clipper-basket') as { items: unknown[] }).items).toHaveLength(1)
+			expect(testBasket(storageMap).items).toHaveLength(1)
 		)
 		trayListener({ type: 'mvp-thread-clipper-tray', action: 'clear' }, { tab } as any)
 
 		await vi.waitFor(() => {
-			const basket = storageMap.get('local:mvp-thread-clipper-basket') as { items: unknown[] }
+			const basket = testBasket(storageMap)
 			expect(basket.items).toHaveLength(0)
 		})
 		expect(mockedRemoveItem).not.toHaveBeenCalledWith('local:mvp-thread-clipper-basket')
@@ -923,18 +948,47 @@ describe('thread clipper basket context actions', () => {
 			{ tab } as any
 		)
 
-		await vi.waitFor(() => expect(saveClippedThreadPrefillMock).toHaveBeenCalledTimes(1))
-		expect(saveClippedThreadPrefillMock.mock.calls[0][0]).toMatchObject({
+		await vi.waitFor(() => expect(testBasket(storageMap)?.pending).toBeDefined())
+		expect(testBasket(storageMap).pending!).toMatchObject({
 			subforum: 'juegos',
 			title: 'Titular completo de la noticia',
 			sourceUrl: 'https://example.com/news',
 		})
 		expect(browser.tabs.create).toHaveBeenCalledWith({
-			url: 'https://www.mediavida.com/foro/juegos/nuevo-hilo',
+			url: `https://www.mediavida.com/foro/juegos/nuevo-hilo#mvp-clip=${testBasket(storageMap).sessionId}`,
 		})
 	})
 
-	it('rejects actions from a stale tray session after another tab opens a new clip', async () => {
+	it('keeps the initial selection and the edited clip when the editor fails to open', async () => {
+		const storageMap = new Map<string, unknown>()
+		mockedGetItem.mockImplementation(async key => storageMap.get(key) ?? null)
+		mockedSetItem.mockImplementation(async (key, value) => { storageMap.set(key, value) })
+		setupContextMenuListener()
+		setupThreadClipperTrayListener()
+		const menu = vi.mocked(browser.contextMenus.onClicked.addListener).mock.calls[0][0]
+		const tray = vi.mocked(browser.runtime.onMessage.addListener).mock.calls[0][0] as any
+		const tab = { id: 10, title: 'Titular original' }
+		const info = { menuItemId: 'mvp-open-thread-clipper', pageUrl: 'https://example.com/story', selectionText: 'Primera cita' }
+		await menu(info as any, tab as any)
+		await menu(info as any, tab as any)
+		const first = testBasket(storageMap)
+		expect(first.title).toBe(tab.title)
+		expect(first.items).toEqual([{ type: 'text', value: 'Primera cita' }])
+		const create = {
+			type: 'mvp-thread-clipper-tray', action: 'create', sessionId: first.sessionId, subforum: 'juegos',
+			createSnapshot: { title: 'Titular editado', subforum: 'juegos', textFormat: 'quote', items: first.items },
+		}
+		vi.mocked(browser.tabs.create).mockRejectedValueOnce(new Error('tab unavailable'))
+		const failed = vi.fn()
+		tray(create, { tab }, failed)
+		await vi.waitFor(() => expect(failed).toHaveBeenCalledWith(false))
+		expect(testBasket(storageMap).pending).toBeUndefined()
+		expect(testBasket(storageMap).title).toBe('Titular editado')
+		tray(create, { tab })
+		await vi.waitFor(() => expect(testBasket(storageMap).pending?.body).toContain('[quote]\nPrimera cita\n[/quote]'))
+	})
+
+	it('keeps two article sessions independent through delivery to the same subforum', async () => {
 		const storageMap = new Map<string, unknown>()
 		mockedGetItem.mockImplementation(async (key: string) => storageMap.get(key) ?? null)
 		mockedSetItem.mockImplementation(async (key: string, value: unknown) => {
@@ -958,7 +1012,7 @@ describe('thread clipper basket context actions', () => {
 			} as any,
 			firstTab as any
 		)
-		const firstSession = (storageMap.get('local:mvp-thread-clipper-basket') as { sessionId: string }).sessionId
+		const firstSession = testBasket(storageMap).sessionId
 
 		await menuListener(
 			{
@@ -979,10 +1033,24 @@ describe('thread clipper basket context actions', () => {
 		)
 
 		await vi.waitFor(() => {
-			const basket = storageMap.get('local:mvp-thread-clipper-basket') as { sourceUrl: string; items: unknown[] }
-			expect(basket.sourceUrl).toBe('https://example.com/two')
-			expect(basket.items).toHaveLength(0)
+			expect(testBasket(storageMap, 10).items).toHaveLength(1)
+			expect(testBasket(storageMap, 20).items).toHaveLength(0)
 		})
+		for (const tab of [firstTab, secondTab]) {
+			trayListener({ type: 'mvp-thread-clipper-tray', action: 'create', subforum: 'juegos' }, { tab })
+		}
+		await vi.waitFor(() => expect(browser.tabs.create).toHaveBeenCalledTimes(2))
+		const first = testBasket(storageMap, 10)
+		const second = testBasket(storageMap, 20)
+		expect(first.pending?.body).toContain('youtube.com')
+		expect(second.pending?.body).not.toContain('youtube.com')
+		expect(first.pending?.title).toBe(firstTab.title)
+		expect(second.pending?.title).toBe(secondTab.title)
+		expect(first.sessionId).not.toBe(second.sessionId)
+		const finish = vi.mocked(onMessage).mock.calls.find(([name]) => name === 'finishClipperTransfer')![1]
+		await (finish as any)({ data: { id: second.sessionId }, sender: { tab: vi.mocked(browser.tabs.create).mock.calls[1][0] } })
+		expect(testBasket(storageMap, 20)).toBeUndefined()
+		expect(testBasket(storageMap, 10).pending).toEqual(first.pending)
 	})
 
 	it('uses the visible tray snapshot when creating without waiting for debounced storage updates', async () => {
@@ -1026,10 +1094,10 @@ describe('thread clipper basket context actions', () => {
 			{ tab: { id: 10 } } as any
 		)
 
-		await vi.waitFor(() => expect(saveClippedThreadPrefillMock).toHaveBeenCalledTimes(1))
-		expect(saveClippedThreadPrefillMock.mock.calls[0][0].title).toBe('Título visible')
-		expect(saveClippedThreadPrefillMock.mock.calls[0][0].body).toContain('Texto visible sin esperar debounce')
-		expect(saveClippedThreadPrefillMock.mock.calls[0][0].body).not.toContain('Texto anterior')
+		await vi.waitFor(() => expect(testBasket(storageMap)?.pending).toBeDefined())
+		expect(testBasket(storageMap).pending!.title).toBe('Título visible')
+		expect(testBasket(storageMap).pending!.body).toContain('Texto visible sin esperar debounce')
+		expect(testBasket(storageMap).pending!.body).not.toContain('Texto anterior')
 	})
 
 	it('ignores corrupt persisted link items instead of throwing during create', async () => {
@@ -1062,6 +1130,6 @@ describe('thread clipper basket context actions', () => {
 		)
 
 		await new Promise(resolve => setTimeout(resolve, 0))
-		expect(saveClippedThreadPrefillMock).not.toHaveBeenCalled()
+		expect(browser.tabs.create).not.toHaveBeenCalled()
 	})
 })

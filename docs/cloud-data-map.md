@@ -92,7 +92,7 @@ Las claves de pines son dinamicas y contienen el path del hilo en la propia clav
 | Username cacheado | `cachedUsername` | `string` | Cache auxiliar sin prefijo `mvp-`. |
 | Estado live por hilo | `mvp-live-threads` | `Record<string, LiveThreadState>` | Estado runtime por hilo/dispositivo. |
 | Contenido editor temporal | `mvp-editor-preserve` | `EditorPreservedContent` | Puente de navegacion de 30 segundos. |
-| Basket thread clipper | `mvp-thread-clipper-basket` | `ThreadClipperBasket` | Sesion temporal con expiracion de 1 hora. |
+| Basket thread clipper | `mvp-thread-clipper-basket` | `ThreadClipperBasket[]` | Recortes locales por sesión, conservados hasta su entrega al editor o guardado en Borradores. |
 | Prefills pendientes | `mvp-pending-*` | Varios | Datos de navegacion/submit, no persistencia real. |
 | Versiones vistas/migraciones | `mvp-last-seen-version`, `mvp-storage-version` | `string`, `number` | Estado local de producto/migracion. |
 

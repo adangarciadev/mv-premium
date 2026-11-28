@@ -30,6 +30,7 @@ export interface PageContext {
 
 // Only import truly lightweight utilities statically
 // Heavy features are loaded dynamically below
+import { CLIPPER_EDITOR_HASH } from '@/features/thread-clipper/logic/types'
 import { VALID_SUBFORUM_SLUGS } from '@/lib/subforums'
 import { MV_SELECTORS } from '@/constants'
 import { logger } from '@/lib/logger'
@@ -249,12 +250,14 @@ export async function runInjections(ctx?: unknown, pageContext?: PageContext): P
 		})
 
 		if (window.location.pathname.includes('/nuevo-hilo')) {
-			import('@/features/drafts/logic/thread-publish').then(({ applyDashboardThreadPublish }) => {
-				void applyDashboardThreadPublish()
-			})
-			import('@/features/release-calendar').then(({ applyReleaseThreadPrefill }) => {
-				applyReleaseThreadPrefill()
-			})
+			if (!location.hash.startsWith(CLIPPER_EDITOR_HASH)) {
+				import('@/features/drafts/logic/thread-publish').then(({ applyDashboardThreadPublish }) => {
+					void applyDashboardThreadPublish()
+				})
+				import('@/features/release-calendar').then(({ applyReleaseThreadPrefill }) => {
+					applyReleaseThreadPrefill()
+				})
+			}
 			import('@/features/thread-clipper').then(({ applyClippedThreadPrefill }) => {
 				void applyClippedThreadPrefill()
 			})

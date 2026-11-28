@@ -9,12 +9,12 @@ import { logger } from '@/lib/logger'
 import { MV_BASE_URL, STORAGE_KEYS } from '@/constants'
 import { saveThreadFromUrl } from '@/features/saved-threads/logic/storage'
 import { hideThreadFromUrl, isThreadHidden } from '@/features/hidden-threads/logic/storage'
-import { saveClippedThreadPrefill } from '@/features/thread-clipper'
+import { CLIPPER_EDITOR_HASH } from '@/features/thread-clipper/logic/types'
 import { addThreadClipperHistoryEntry } from '@/features/thread-clipper/logic/history-storage'
 import {
 	clearThreadClipperBasket,
 	createThreadClipperSessionId,
-	readThreadClipperBasket,
+	readThreadClipperBaskets,
 	saveThreadClipperBasket,
 } from '@/features/thread-clipper/logic/basket-storage'
 import {
@@ -306,6 +306,14 @@ function getFallbackClipperSubforums(): SubforumInfo[] {
 /**
  * Setup context menu click listener
  */
+let clipperQueue: Promise<unknown> = Promise.resolve()
+
+function enqueueClipperAction<T>(action: () => Promise<T>): Promise<T> {
+	const result = clipperQueue.then(action)
+	clipperQueue = result.catch(error => logger.warn('Thread clipper action failed:', error))
+	return result
+}
+
 export function setupContextMenuListener(): void {
 	browser.contextMenus.onClicked.addListener(async (info, tab) => {
 		const { menuItemId, linkUrl, pageUrl, selectionText } = info
@@ -316,11 +324,12 @@ export function setupContextMenuListener(): void {
 				notifyTab(tab?.id, 'ℹ️ El recortador de noticias no se usa dentro de Mediavida')
 				return
 			}
-			await handleOpenThreadClipperTray({
+			await enqueueClipperAction(() => handleOpenThreadClipperTray({
 				sourceUrl,
 				tabTitle: tab?.title || '',
 				tabId: tab?.id,
-			})
+				selectionText,
+			}))
 			return
 		}
 
@@ -346,12 +355,31 @@ export function setupContextMenuRefreshHandler(): void {
 }
 
 export function setupThreadClipperTrayListener(): void {
-	browser.runtime.onMessage.addListener((message: unknown, sender) => {
+	onMessage('finishClipperTransfer', ({ data, sender }) => enqueueClipperAction(async () => {
+		const basket = (await readThreadClipperBaskets()).find(entry => entry.sessionId === data.id)
+		if (!basket?.pending) return true
+		const address = sender.tab?.url || sender.url
+		if (!address) throw new Error('No se encontró el editor del recorte.')
+		const url = new URL(address)
+		if (!isMediavidaSourceUrl(address) || url.pathname.replace(/\/$/, '') !== getNewThreadUrl(basket.pending.subforum) ||
+			url.hash !== CLIPPER_EDITOR_HASH + encodeURIComponent(data.id)) {
+			throw new Error('El recorte pertenece a otro editor.')
+		}
+		await clearThreadClipperBasket(data.id)
+		return true
+	}))
+	browser.runtime.onMessage.addListener((message: unknown, sender, respond) => {
 		const request = message as Partial<ThreadClipperTrayMessage>
 		if (request.type !== 'mvp-thread-clipper-tray') return false
 
-		void handleThreadClipperTrayAction(request, sender.tab?.id)
-		return false
+		void enqueueClipperAction(() => handleThreadClipperTrayAction(request, sender.tab?.id)).then(
+			() => respond?.(true),
+			() => {
+				notifyTab(sender.tab?.id, 'No se pudo completar la acción. Vuelve a intentarlo.')
+				respond?.(false)
+			}
+		)
+		return true
 	})
 }
 
@@ -578,62 +606,37 @@ async function openThreadClipperBasket(input: {
 	sourceTitle: string
 	tabId: number
 	source?: ClipSourceMetadata
-	title?: string
-	items?: ThreadClipperBasketItem[]
-	contentMode?: ThreadClipperBasket['contentMode']
+	items: ThreadClipperBasketItem[]
 }): Promise<ThreadClipperBasket | null> {
 	const sourceUrl = normalizeClipSourceUrl(input.sourceUrl)
 	if (!sourceUrl) return null
-
-	const current = await readThreadClipperBasket()
-	if (current?.sourceUrl === sourceUrl && current.tabId === input.tabId) {
-		if (input.source && !current.source) {
-			const updatedBasket = {
-				...current,
-				source: input.source,
-				sourceTitle: input.source.title || current.sourceTitle,
-				title:
-					input.title !== undefined
-						? trimThreadTitle(input.title)
-						: current.title || trimThreadTitle(input.source.title || current.sourceTitle),
-				contentMode: input.contentMode ?? current.contentMode ?? 'article',
-				items: input.items?.length ? appendBasketItems(current.items, input.items) : current.items,
-				updatedAt: Date.now(),
-			}
-			await saveThreadClipperBasket(updatedBasket)
-			return updatedBasket
-		}
-		if (input.items?.length || input.title !== undefined || input.contentMode) {
-			const updatedBasket = {
-				...current,
-				title: input.title !== undefined ? trimThreadTitle(input.title) : current.title,
-				contentMode: input.contentMode ?? current.contentMode ?? 'article',
-				items: input.items?.length ? appendBasketItems(current.items, input.items) : current.items,
-				updatedAt: Date.now(),
-			}
-			await saveThreadClipperBasket(updatedBasket)
-			return updatedBasket
-		}
-		return current
+	const matches = (await readThreadClipperBaskets()).reverse().filter(entry => entry.sourceUrl === sourceUrl)
+	let current = matches.find(entry => entry.tabId === input.tabId)
+	if (!current && matches.length) {
+		// Resume work after the original tab closed, without taking another live tab's clip.
+		const openTabs = new Set((await browser.tabs.query({})).map(tab => tab.id))
+		current = matches.find(entry => !openTabs.has(entry.tabId))
 	}
+	if (current?.pending && !input.items.length) return current
 
+	const existing = current?.pending ? undefined : current
 	const now = Date.now()
+	const source = existing?.source ?? input.source
+	const sourceTitle = source?.title || input.sourceTitle
 	const basket: ThreadClipperBasket = {
+		...existing,
 		version: THREAD_CLIPPER_DRAFT_VERSION,
-		sessionId: createThreadClipperSessionId(),
+		sessionId: existing?.sessionId ?? createThreadClipperSessionId(),
 		tabId: input.tabId,
 		sourceUrl,
-		sourceTitle: input.source?.title || input.sourceTitle,
-		source: input.source,
-		title:
-			input.title !== undefined
-				? trimThreadTitle(input.title)
-				: trimThreadTitle(input.source?.title || input.sourceTitle),
-		contentMode: input.contentMode ?? 'article',
-		template: 'news',
-		items: input.items ?? [],
-		textFormat: 'quote',
-		createdAt: now,
+		sourceTitle,
+		source,
+		title: existing?.title ?? trimThreadTitle(sourceTitle),
+		contentMode: existing?.contentMode ?? 'article',
+		template: existing?.template ?? 'news',
+		items: appendBasketItems(existing?.items ?? [], input.items),
+		textFormat: existing?.textFormat ?? 'quote',
+		createdAt: existing?.createdAt ?? now,
 		updatedAt: now,
 	}
 	await saveThreadClipperBasket(basket)
@@ -682,47 +685,6 @@ function appendBasketItems(
 		items.push(item)
 	}
 	return items
-}
-
-async function addToThreadClipperBasket(input: {
-	sourceUrl: string
-	sourceTitle: string
-	sessionId: string
-	tabId: number
-	items: ThreadClipperBasketItem[]
-	source?: ClipSourceMetadata
-	title?: string
-	contentMode?: ThreadClipperBasket['contentMode']
-}): Promise<ThreadClipperBasket | null> {
-	const sourceUrl = normalizeClipSourceUrl(input.sourceUrl)
-	if (!sourceUrl || input.items.length === 0) return null
-
-	const current = await readThreadClipperBasket()
-	const now = Date.now()
-	const isSameSource = current?.sourceUrl === sourceUrl && current.sessionId === input.sessionId && current.tabId === input.tabId
-	const basket: ThreadClipperBasket = {
-		version: THREAD_CLIPPER_DRAFT_VERSION,
-		sessionId: isSameSource ? current.sessionId : input.sessionId,
-		tabId: input.tabId,
-		sourceUrl,
-		sourceTitle: isSameSource ? current.sourceTitle : input.source?.title || input.sourceTitle,
-		source: isSameSource ? current.source || input.source : input.source,
-		title:
-			input.title !== undefined
-				? trimThreadTitle(input.title)
-				: isSameSource
-				? current.title
-				: trimThreadTitle(input.source?.title || input.sourceTitle),
-		contentMode: isSameSource ? current.contentMode : input.contentMode ?? 'article',
-		items: isSameSource ? appendBasketItems(current.items, input.items) : input.items,
-		activePicker: isSameSource ? current.activePicker : undefined,
-		textFormat: isSameSource ? current.textFormat ?? 'quote' : 'quote',
-		template: isSameSource ? current.template ?? 'news' : 'news',
-		createdAt: isSameSource ? current.createdAt : now,
-		updatedAt: now,
-	}
-	await saveThreadClipperBasket(basket)
-	return basket
 }
 
 async function updateThreadClipperBasketItems(
@@ -1556,6 +1518,8 @@ function renderThreadClipperTray(snapshot: ThreadClipperTraySnapshot): void {
 				return null
 			}
 
+			const tweetId = element.getAttribute('data-tweet-id') ?? element.getAttribute('tweet-id')
+			if (tweetId && /^\d+$/.test(tweetId)) return `https://twitter.com/i/status/${tweetId}`
 			const dataSetYoutubeUrl = getYoutubeIdFromDataset(element)
 			if (dataSetYoutubeUrl) return dataSetYoutubeUrl
 			const rawUrl = getRawUrlFromElement(element)
@@ -1589,7 +1553,11 @@ function renderThreadClipperTray(snapshot: ThreadClipperTraySnapshot): void {
 					return videoId ? `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}` : null
 				}
 			if (isTwitter) {
-				const statusMatch = parsed.pathname.match(/^\/([A-Za-z0-9_]+)\/status(?:es)?\/(\d+)\/?$/i)
+				if ((host === 'platform.twitter.com' || host === 'platform.x.com') && /^\/embed\/Tweet(?:\.html)?\/?$/i.test(parsed.pathname)) {
+					const id = parsed.searchParams.get('id')
+					if (id && /^\d+$/.test(id)) return `https://twitter.com/i/status/${id}`
+				}
+				const statusMatch = parsed.pathname.match(/^\/([A-Za-z0-9_]+)\/status(?:es)?\/(\d+)(?:\/(?:photo|video)\/\d+)?\/?$/i)
 				const embedStatusId = parsed.pathname.match(/^\/i\/status\/(\d+)\/?$/i)?.[1]
 				if (statusMatch) return `https://twitter.com/${statusMatch[1]}/status/${statusMatch[2]}`
 				return embedStatusId ? `https://twitter.com/i/status/${embedStatusId}` : null
@@ -1609,7 +1577,7 @@ function renderThreadClipperTray(snapshot: ThreadClipperTraySnapshot): void {
 		stopMediaPicker = null
 		pickMedia.classList.toggle('picker-active', enabled)
 		pickMedia.innerHTML = enabled
-			? 'Pulsa media'
+			? 'Terminar selección'
 			: mediaOnlyMode
 			? 'Seleccionar media embebida'
 			: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg> Seleccionar media embebida'
@@ -1678,6 +1646,8 @@ function renderThreadClipperTray(snapshot: ThreadClipperTraySnapshot): void {
 			}
 
 			function getOverlayAnchorElement(element: HTMLElement): HTMLElement {
+				const tweet = element.closest<HTMLElement>('twitter-widget, blockquote.twitter-tweet, [data-tweet-id]')
+				if (tweet) return tweet
 				const visual = element.querySelector<HTMLElement>('iframe, video, img[src], img[data-src]')
 				if (!visual) return element
 				const rect = visual.getBoundingClientRect()
@@ -1687,7 +1657,7 @@ function renderThreadClipperTray(snapshot: ThreadClipperTraySnapshot): void {
 			function createMediaOverlay(element: HTMLElement, mediaUrl: string): HTMLButtonElement {
 				const overlay = document.createElement('button')
 			overlay.type = 'button'
-			overlay.textContent = 'Añadir media'
+			overlay.textContent = mediaUrl.startsWith('https://twitter.com/') ? 'Añadir tuit' : 'Añadir media'
 			overlay.title = mediaUrl
 			overlay.style.position = 'absolute'
 			overlay.style.border = '1px solid rgba(251, 191, 36, 0.86)'
@@ -1714,14 +1684,16 @@ function renderThreadClipperTray(snapshot: ThreadClipperTraySnapshot): void {
 			const seenOverlayUrls = new Set<string>()
 			const overlays = Array.from(
 				document.querySelectorAll<HTMLElement>(
-					'a[href], iframe[src], video, source[src], img[src], img[data-src], [data-src], [data-lazy-src], [data-id], [data-youtube-id], [data-youtubeid], [data-yt-id], [data-video-id], [data-videoid], [data-video-url], [data-embed-url], [data-youtube-url], [data-url], [data-href]'
+					'twitter-widget[tweet-id], [data-tweet-id], a[href], iframe[src], video, source[src], img[src], img[data-src], [data-src], [data-lazy-src], [data-id], [data-youtube-id], [data-youtubeid], [data-yt-id], [data-video-id], [data-videoid], [data-video-url], [data-embed-url], [data-youtube-url], [data-url], [data-href]'
 				)
 			)
 					.map(element => {
 						const mediaUrl = getMediaUrlFromElement(element)
 						if (!mediaUrl || seenOverlayUrls.has(mediaUrl)) return null
-						seenOverlayUrls.add(mediaUrl)
 						const overlayAnchor = getOverlayAnchorElement(element)
+						const rect = overlayAnchor.getBoundingClientRect()
+						if (!rect.width || !rect.height) return null
+						seenOverlayUrls.add(mediaUrl)
 						return { element: overlayAnchor, mediaUrl, overlay: createMediaOverlay(overlayAnchor, mediaUrl) }
 					})
 			.filter((entry): entry is { element: HTMLElement; mediaUrl: string; overlay: HTMLButtonElement } =>
@@ -1744,6 +1716,9 @@ function renderThreadClipperTray(snapshot: ThreadClipperTraySnapshot): void {
 			}
 		}
 
+		setTrayStatus(overlays.length
+			? 'Pulsa «Añadir» sobre la publicación que quieres incluir.'
+			: 'No se han detectado publicaciones compatibles. Si el tuit sigue cargando, vuelve a activar el selector.', true)
 		positionMediaOverlays()
 
 		document.addEventListener('mouseover', onMouseOver, true)
@@ -1874,14 +1849,9 @@ async function readActiveThreadClipperBasket(
 	message: Partial<ThreadClipperTrayMessage>,
 	tabId: number | undefined
 ): Promise<ThreadClipperBasket | null> {
-	const basket = await readThreadClipperBasket()
-	if (!basket) return null
-	const hasMatchingSession = message.sessionId ? basket.sessionId === message.sessionId : basket.tabId === tabId
-	if (!hasMatchingSession || basket.tabId !== tabId) {
-		await hideThreadClipperTray(tabId)
-		notifyTab(tabId, 'ℹ️ Este recorte ya no está activo')
-		return null
-	}
+	const baskets = await readThreadClipperBaskets()
+	const basket = baskets.reverse().find(entry => entry.tabId === tabId && (!message.sessionId || entry.sessionId === message.sessionId))
+	if (!basket || basket.pending) return null
 	return basket
 }
 
@@ -1987,18 +1957,11 @@ async function handleThreadClipperTrayAction(
 			message.action === 'add-selection'
 				? (await captureCurrentClip({ tabId })).items
 				: createBasketItems({ mediaUrls: typeof message.mediaUrl === 'string' ? [message.mediaUrl] : [] })
-		const updatedBasket = await addToThreadClipperBasket({
-			sourceUrl: basket.sourceUrl,
-			sourceTitle: basket.sourceTitle,
-			sessionId: basket.sessionId,
-			tabId: basket.tabId,
-			items,
-		})
-		if (!updatedBasket) {
+		if (!items.length) {
 			notifyTab(tabId, 'ℹ️ Selecciona texto o un vídeo/tweet/post compatible')
 			return
 		}
-
+		const updatedBasket = await updateThreadClipperBasketItems(basket, appendBasketItems(basket.items, items))
 		const basketWithPicker = await updateThreadClipperBasketPicker(
 			updatedBasket,
 			message.pickerMode === 'media' ? message.pickerMode : updatedBasket.activePicker
@@ -2044,35 +2007,39 @@ async function handleThreadClipperTrayAction(
 			return
 		}
 		const createSnapshot = isValidCreateSnapshot(message.createSnapshot) ? message.createSnapshot : undefined
-		const prefill = buildClippedThreadPrefill(
-			basketToPrefillInput({
-				subforum: createSnapshot?.subforum || message.subforum,
-				basket: {
-					...basket,
-					title: createSnapshot ? trimThreadTitle(createSnapshot.title) : basket.title,
-					textFormat: createSnapshot?.textFormat ?? basket.textFormat,
-					items: createSnapshot ? sanitizeCreateSnapshotItems(createSnapshot.items) : basket.items,
-				},
-			})
-		)
-		if (!prefill) return
+		const subforum = createSnapshot?.subforum || message.subforum
+		const editedBasket = {
+			...basket,
+			subforum,
+			title: createSnapshot ? trimThreadTitle(createSnapshot.title) : basket.title,
+			textFormat: createSnapshot?.textFormat ?? basket.textFormat,
+			items: createSnapshot ? sanitizeCreateSnapshotItems(createSnapshot.items) : basket.items,
+		}
+		const pending = buildClippedThreadPrefill(basketToPrefillInput({ subforum, basket: editedBasket }))
+		if (!pending) return
 
-		await saveClippedThreadPrefill(prefill)
-		await addThreadClipperHistoryEntry({
-			title: prefill.title,
-			sourceUrl: prefill.sourceUrl,
-			sourceTitle: basket.sourceTitle,
-			subforum: prefill.subforum,
-			template: basket.template ?? 'news',
-			body: prefill.body,
-		})
-		await clearThreadClipperBasket()
+		await saveThreadClipperBasket({ ...editedBasket, pending })
+		try {
+			await openClipperEditor(basket.sessionId, subforum)
+		} catch (error) {
+			await saveThreadClipperBasket(editedBasket)
+			throw error
+		}
 		await hideThreadClipperTray(tabId)
-		await browser.tabs.create({ url: `${MV_BASE_URL}${getNewThreadUrl(prefill.subforum)}` })
+		await addThreadClipperHistoryEntry({
+			...pending,
+			sourceTitle: basket.sourceTitle,
+			template: basket.template ?? 'news',
+		})
 	}
 }
 
+async function openClipperEditor(id: string, subforum: string): Promise<void> {
+	await browser.tabs.create({ url: `${MV_BASE_URL}${getNewThreadUrl(subforum)}${CLIPPER_EDITOR_HASH}${encodeURIComponent(id)}` })
+}
+
 async function handleOpenThreadClipperTray(input: {
+	selectionText?: string
 	sourceUrl: string
 	tabTitle: string
 	tabId?: number
@@ -2086,14 +2053,19 @@ async function handleOpenThreadClipperTray(input: {
 			notifyTab(input.tabId, 'ℹ️ Abre el recortador desde una noticia externa')
 			return
 		}
-			const captured = await capturePageClip(input.tabId)
-			if (!input.tabId) return
-			const basket = await openThreadClipperBasket({
-				sourceUrl: input.sourceUrl,
-				sourceTitle: buildSourceLinkTitle(captured?.source?.title || input.tabTitle, input.sourceUrl),
-				tabId: input.tabId,
-				source: captured?.source,
-			})
+		if (!input.tabId) return
+		const captured = await captureCurrentClip(input)
+		const basket = await openThreadClipperBasket({
+			sourceUrl: input.sourceUrl,
+			sourceTitle: buildSourceLinkTitle(captured.source?.title || input.tabTitle, input.sourceUrl),
+			tabId: input.tabId,
+			source: captured.source,
+			items: captured.items,
+		})
+		if (basket?.pending) {
+			await openClipperEditor(basket.sessionId, basket.pending.subforum)
+			return
+		}
 		if (!basket) {
 			logger.warn('Thread clipper: unsupported source URL for visual tray', input.sourceUrl)
 			return

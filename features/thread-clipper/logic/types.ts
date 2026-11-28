@@ -1,3 +1,4 @@
+export const CLIPPER_EDITOR_HASH = '#mvp-clip='
 export const THREAD_CLIPPER_DRAFT_VERSION = 1
 
 export type ThreadClipperTextFormat = 'quote' | 'plain'
@@ -34,12 +35,21 @@ export interface LinkClipItem {
 
 export type ThreadClipperBasketItem = TextClipItem | MediaClipItem | LinkClipItem
 
+export interface ClippedThreadPrefill {
+	subforum: string
+	title: string
+	body: string
+	sourceUrl: string
+	createdAt: number
+}
+
 export interface ThreadClipperBasket {
 	version: typeof THREAD_CLIPPER_DRAFT_VERSION
 	sessionId: string
 	tabId: number
 	sourceUrl: string
 	sourceTitle: string
+	pending?: Omit<ClippedThreadPrefill, 'createdAt'>
 	source?: ClipSourceMetadata
 	title?: string
 	subforum?: string

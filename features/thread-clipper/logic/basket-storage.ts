@@ -1,11 +1,9 @@
 import { storage } from '#imports'
 import { STORAGE_KEYS } from '@/constants'
-import { logger } from '@/lib/logger'
 import type { ThreadClipperBasket, ThreadClipperBasketItem } from './types'
 import { THREAD_CLIPPER_DRAFT_VERSION } from './types'
 
 export const THREAD_CLIPPER_BASKET_KEY = `local:${STORAGE_KEYS.THREAD_CLIPPER_BASKET}` as const
-const MAX_BASKET_AGE_MS = 60 * 60 * 1000
 
 function isValidBasketItem(value: unknown): value is ThreadClipperBasketItem {
 	if (!value || typeof value !== 'object') return false
@@ -24,6 +22,13 @@ export function isValidThreadClipperBasket(value: unknown): value is ThreadClipp
 		typeof basket.tabId === 'number' &&
 		typeof basket.sourceUrl === 'string' &&
 		typeof basket.sourceTitle === 'string' &&
+		(basket.pending === undefined || (
+			basket.pending !== null &&
+			typeof basket.pending.title === 'string' &&
+			typeof basket.pending.body === 'string' &&
+			typeof basket.pending.subforum === 'string' &&
+			basket.pending.sourceUrl === basket.sourceUrl
+		)) &&
 		(basket.version === undefined || basket.version === THREAD_CLIPPER_DRAFT_VERSION) &&
 		typeof basket.createdAt === 'number' &&
 		typeof basket.updatedAt === 'number' &&
@@ -41,39 +46,25 @@ export function isValidThreadClipperBasket(value: unknown): value is ThreadClipp
 	)
 }
 
-export async function readThreadClipperBasket(): Promise<ThreadClipperBasket | null> {
-	try {
-		const basket = await storage.getItem<ThreadClipperBasket>(THREAD_CLIPPER_BASKET_KEY)
-		if (!isValidThreadClipperBasket(basket)) return null
-		if (Date.now() - basket.updatedAt > MAX_BASKET_AGE_MS) {
-			await clearThreadClipperBasket()
-			return null
-		}
-		if (!basket.version || !basket.template || !basket.textFormat) {
-			const migratedBasket: ThreadClipperBasket = {
-				...basket,
-				version: THREAD_CLIPPER_DRAFT_VERSION,
-				template: basket.template ?? 'news',
-				textFormat: basket.textFormat ?? 'quote',
-			}
-			await saveThreadClipperBasket(migratedBasket)
-			return migratedBasket
-		}
-		return basket
-	} catch (error) {
-		logger.warn('Thread clipper: could not read clip basket', error)
-		return null
-	}
+/** The previous format stored a single basket under the same key. */
+export async function readThreadClipperBaskets(): Promise<ThreadClipperBasket[]> {
+	const stored = await storage.getItem<unknown>(THREAD_CLIPPER_BASKET_KEY)
+	const entries = Array.isArray(stored) ? stored : [stored]
+	return entries.filter(isValidThreadClipperBasket)
 }
 
+// Mutations run on the background clipper queue.
 export async function saveThreadClipperBasket(basket: ThreadClipperBasket): Promise<void> {
-	await storage.setItem(THREAD_CLIPPER_BASKET_KEY, basket)
+	const others = (await readThreadClipperBaskets()).filter(entry => entry.sessionId !== basket.sessionId)
+	await storage.setItem(THREAD_CLIPPER_BASKET_KEY, [...others, basket])
 }
 
-export async function clearThreadClipperBasket(): Promise<void> {
-	await storage.removeItem(THREAD_CLIPPER_BASKET_KEY)
+export async function clearThreadClipperBasket(sessionId: string): Promise<void> {
+	const remaining = (await readThreadClipperBaskets()).filter(entry => entry.sessionId !== sessionId)
+	if (remaining.length) await storage.setItem(THREAD_CLIPPER_BASKET_KEY, remaining)
+	else await storage.removeItem(THREAD_CLIPPER_BASKET_KEY)
 }
 
 export function createThreadClipperSessionId(): string {
-	return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+	return crypto.randomUUID()
 }

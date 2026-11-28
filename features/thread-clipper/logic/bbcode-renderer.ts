@@ -114,7 +114,7 @@ export function normalizeClipMediaUrl(url: string): string | null {
 			if (videoId) return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`
 		}
 		if (isTwitter) {
-			const statusMatch = parsed.pathname.match(/^\/([A-Za-z0-9_]+)\/status(?:es)?\/(\d+)\/?$/i)
+			const statusMatch = parsed.pathname.match(/^\/([A-Za-z0-9_]+)\/status(?:es)?\/(\d+)(?:\/(?:photo|video)\/\d+)?\/?$/i)
 			const embedStatusId = parsed.pathname.match(/^\/i\/status\/(\d+)\/?$/i)?.[1]
 			if (!statusMatch && !embedStatusId) return null
 			if (statusMatch) return `https://twitter.com/${statusMatch[1]}/status/${statusMatch[2]}`
