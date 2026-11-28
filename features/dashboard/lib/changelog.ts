@@ -22,6 +22,44 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
 	{
+		version: '3.9.1',
+		date: '2026-11-28',
+		title: 'Recortes de noticias y tuits, favoritos y controles de hilos centrados',
+		summary: 'Prepara varios hilos a la vez desde noticias externas y marca favoritos como leídos desde el menú de la estrella.',
+		changes: [
+			{
+				type: 'improvement',
+				description: 'Si seleccionas un párrafo antes de pulsar «Preparar hilo», el recortador lo añade como primera cita y conserva el titular de la noticia.',
+				category: 'Recortador de hilos',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description: 'Puedes preparar noticias en distintas pestañas, incluso para el mismo subforo. Cada editor recibe su propio recorte. Si ya has empezado a escribir, puedes añadirlo al final o guardarlo en Borradores para después.',
+				category: 'Recortador de hilos',
+				surface: 'desktop',
+			},
+			{
+				type: 'improvement',
+				description: 'El selector reconoce más tuits incrustados, incluidos los enlaces a fotos y vídeos de X. Pulsa «Añadir tuit» sobre la tarjeta para incorporar la publicación completa. Si no encuentra publicaciones compatibles, el panel te avisa.',
+				category: 'Recortador de hilos',
+				surface: 'desktop',
+			},
+			{
+				type: 'feature',
+				description: 'Desde el menú de la estrella puedes marcar un hilo favorito como leído sin abrirlo. El contador de favoritos pendientes se actualiza al hacerlo.',
+				category: 'Favoritos',
+				surface: 'desktop',
+			},
+			{
+				type: 'fix',
+				description: 'En la vista de mensajes centrados, el buscador del hilo queda por encima de la barra fija. Los controles laterales se mantienen en el margen derecho y pasan arriba cuando falta espacio.',
+				category: 'Navegación',
+				surface: 'desktop',
+			},
+		],
+	},
+	{
 		version: '3.9.0',
 		date: '2026-11-15',
 		title: 'La taberna virtual llega a los subforos y a los hilos LIVE',
